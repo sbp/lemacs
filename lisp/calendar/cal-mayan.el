@@ -4,7 +4,8 @@
 
 ;; Author: Stewart M. Clamen <clamen@cs.cmu.edu>
 ;;	Edward M. Reingold <reingold@cs.uiuc.edu>
-;; Keywords: Mayan calendar, Maya, calendar, diary
+;; Keywords: calendar
+;; Human-Keywords: Mayan calendar, Maya, calendar, diary
 
 ;; This file is part of GNU Emacs.
 
@@ -45,30 +46,22 @@
 ;; Technical details of the Mayan calendrical calculations can be found in
 ;; ``Calendrical Calculations, Part II: Three Historical Calendars''
 ;; by E. M. Reingold,  N. Dershowitz, and S. M. Clamen,
-;; Report Number UIUCDCS-R-92-1743, Department of Computer Science,
-;; University of Illinois, April, 1992.
+;; Software--Practice and Experience, Volume 23, Number 4 (April, 1993),
+;; pages 383-404.
 
 ;;; Code:
 
 (require 'calendar)
 
-(defun mayan-mod (m n)
-  "Returns M mod N; value is *always* non-negative when N>0."
-  (let ((v (% m n)))
-    (if (and (> 0 v) (> n 0))
-	(+ v n)
-      v)))
-
 (defun mayan-adjusted-mod (m n)
   "Non-negative remainder of M/N with N instead of 0."
-  (1+ (mayan-mod (1- m) n)))
+  (1+ (mod (1- m) n)))
 
 (defconst calendar-mayan-days-before-absolute-zero 1137140
-  "Number of days of the Mayan calendar epoch before absolute day 0 (that is,
-Dec 31, 0 (Gregorian)), according to the Goodman-Martinez-Thompson
-correlation.  This correlation is not universally accepted, as it still a
-subject of astro-archeological research.  Using 1232041 will give you the
-correlation used by Spinden.")
+  "Number of days of the Mayan calendar epoch before absolute day 0.
+According to the Goodman-Martinez-Thompson correlation.  This correlation is
+not universally accepted, as it still a subject of astro-archeological
+research.  Using 1232041 will give you the correlation used by Spinden.")
 
 (defconst calendar-mayan-haab-at-epoch '(8 . 18)
   "Mayan haab date at the epoch.")
@@ -131,19 +124,18 @@ correlation used by Spinden.")
     (cons day month)))
 
 (defun calendar-mayan-haab-difference (date1 date2)
-  "Number of days from Mayan haab date DATE1 to the next occurrence of Mayan
-haab date DATE2."
-  (mayan-mod (+ (* 20 (- (cdr date2) (cdr date1)))
-                (- (car date2) (car date1)))
-             365))
+  "Number of days from Mayan haab DATE1 to next occurrence of haab date DATE2."
+  (mod (+ (* 20 (- (cdr date2) (cdr date1)))
+	  (- (car date2) (car date1)))
+       365))
 
 (defun calendar-mayan-haab-on-or-before (haab-date date)
   "Absolute date of latest HAAB-DATE on or before absolute DATE."
-    (- date
-       (% (- date
-               (calendar-mayan-haab-difference
-                (calendar-mayan-haab-from-absolute 0) haab-date))
-            365)))
+  (- date
+     (% (- date
+	   (calendar-mayan-haab-difference
+	    (calendar-mayan-haab-from-absolute 0) haab-date))
+	365)))
 
 (defun calendar-next-haab-date (haab-date &optional noecho)
   "Move cursor to next instance of Mayan HAAB-DATE. 
@@ -191,22 +183,21 @@ Echo Mayan date if NOECHO is t."
     (cons day name)))
 
 (defun calendar-mayan-tzolkin-difference (date1 date2)
-  "Number of days from Mayan tzolkin date DATE1 to the next occurrence of
-Mayan tzolkin date DATE2."
+  "Number of days from Mayan tzolkin DATE1 to next occurrence of tzolkin DATE2."
   (let ((number-difference (- (car date2) (car date1)))
         (name-difference (- (cdr date2) (cdr date1))))
-    (mayan-mod (+ number-difference
-                  (* 13 (mayan-mod (* 3 (- number-difference name-difference))
-                                   20)))
-               260)))
+    (mod (+ number-difference
+	    (* 13 (mod (* 3 (- number-difference name-difference))
+		       20)))
+	 260)))
 
 (defun calendar-mayan-tzolkin-on-or-before (tzolkin-date date)
   "Absolute date of latest TZOLKIN-DATE on or before absolute DATE."
-    (- date
-       (% (- date (calendar-mayan-tzolkin-difference
-                     (calendar-mayan-tzolkin-from-absolute 0)
-                     tzolkin-date))
-            260)))
+  (- date
+     (% (- date (calendar-mayan-tzolkin-difference
+		 (calendar-mayan-tzolkin-from-absolute 0)
+		 tzolkin-date))
+	260)))
 
 (defun calendar-next-tzolkin-date (tzolkin-date &optional noecho)
   "Move cursor to next instance of Mayan TZOLKIN-DATE. 
@@ -238,8 +229,9 @@ Echo Mayan date if NOECHO is t."
           (aref calendar-mayan-tzolkin-names-array (1- (cdr tzolkin)))))
 
 (defun calendar-mayan-tzolkin-haab-on-or-before (tzolkin-date haab-date date)
-  "Absolute date of latest date on or before date that is Mayan TZOLKIN-DATE
-and HAAB-DATE; returns nil if such a tzolkin-haab combination is impossible." 
+  "Absolute date that is Mayan TZOLKIN-DATE and HAAB-DATE.
+Latest such date on or before DATE.
+Returns nil if such a tzolkin-haab combination is impossible." 
   (let* ((haab-difference
           (calendar-mayan-haab-difference
            (calendar-mayan-haab-from-absolute 0)
@@ -251,9 +243,9 @@ and HAAB-DATE; returns nil if such a tzolkin-haab combination is impossible."
          (difference (- tzolkin-difference haab-difference)))
     (if (= (% difference 5) 0)
         (- date
-           (mayan-mod (- date
-                         (+ haab-difference (* 365 difference)))
-                      18980))
+           (mod (- date
+		   (+ haab-difference (* 365 difference)))
+		18980))
       nil)))
 
 (defun calendar-read-mayan-haab-date ()
@@ -310,8 +302,8 @@ Echo Mayan date if NOECHO is t."
 
 (defun calendar-previous-calendar-round-date
   (tzolkin-date haab-date &optional noecho)
-  "Move cursor to previous instance of Mayan TZOKLIN-DATE HAAB-DATE
-combination.  Echo Mayan date if NOECHO is t."
+  "Move to previous instance of Mayan TZOKLIN-DATE HAAB-DATE combination.
+Echo Mayan date if NOECHO is t."
   (interactive (list (calendar-read-mayan-tzolkin-date)
                      (calendar-read-mayan-haab-date)))
   (let ((date (calendar-mayan-tzolkin-haab-on-or-before
@@ -326,8 +318,8 @@ combination.  Echo Mayan date if NOECHO is t."
       (or noecho (calendar-print-mayan-date)))))
 
 (defun calendar-absolute-from-mayan-long-count (c)
-  "Compute the absolute date corresponding to the Mayan Long
-Count $c$, which is a list (baktun katun tun uinal kin)"
+  "Compute the absolute date corresponding to the Mayan Long Count C.
+Long count is a list (baktun katun tun uinal kin)"
   (+ (* (nth 0 c) 144000)        ; baktun
      (* (nth 1 c) 7200)          ; katun
      (* (nth 2 c) 360)           ; tun
@@ -337,8 +329,7 @@ Count $c$, which is a list (baktun katun tun uinal kin)"
       calendar-mayan-days-before-absolute-zero)))
 
 (defun calendar-print-mayan-date ()
-  "Show the Mayan long count, tzolkin, and haab equivalents of the date
-under the cursor."
+  "Show the Mayan long count, tzolkin, and haab equivalents of date."
   (interactive)
   (let* ((d (calendar-absolute-from-gregorian
             (or (calendar-cursor-to-date)

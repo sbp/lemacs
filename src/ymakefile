@@ -22,21 +22,36 @@ COMPILE.c=$(CC) $(CFLAGS) $(CPPFLAGS) -c
 
 dot = .
 /* on Xenix, replace double-dot below with $(dot)$(dot) */
-lispdir = ../lisp/
+lispdir = ${I_DIR_PREFIX}../lisp/
 etcdir = ../etc/
-shortnamesdir = ../shortnames/
-cppdir = ../cpp/
+/* etcDOC = ${I_DIR_PREFIX}${etcdir}DOC */
+etcDOC = ${etcdir}DOC
+libdir = ../lib/
 
+/* #define SOURCE_BROWSER */
 #define NO_SHORTNAMES
 #define THIS_IS_YMAKEFILE
 #define NOT_C_CODE
 #include "config.h"
 
+#ifdef I18N3
+modir = ${libdir}LC_MESSAGES/C/msgs/
+#endif
+
 #ifdef USE_GCC
 CC=gcc
 #else
 #ifdef USE_LCC
-CC=lcc -XA -wuc $(EMACS_ENERGIZE_CONNECT)
+# define LIB_STANDARD
+LCC = lcc
+/*LCC = cadlcc -XBAA*/
+# define LCCFLAGS -Xa -wucp -XW'[Oo]ld style func dcl' \
+		  $(EMACS_ENERGIZE_CONNECT)
+# if 1
+CC = ${LCC} LCCFLAGS
+# else
+CC = ${LCC} LCCFLAGS -XH -iuniverse.h
+# endif
 #endif
 #endif
 
@@ -125,7 +140,11 @@ STARTFILES = START_FILES
 
 /* Unless inhibited or changed, use -g to compile for debugging.  */
 #ifndef C_DEBUG_SWITCH
-#define C_DEBUG_SWITCH -g
+# ifdef SOURCE_BROWSER
+#  define C_DEBUG_SWITCH -g -xs
+# else
+#  define C_DEBUG_SWITCH -g
+# endif
 #endif
 
 /* If user wants to optimize, this is how.  */
@@ -241,14 +260,13 @@ SHORT= shortnames
 
 #ifdef ENERGIZE
 CONN_DIR=../connection
-COMMON_DIR=../common
-#define ENERGIZE_INCLUDES -I${CONN_DIR}
-#define ENERGIZE_LDFLAGS -L${CONN_DIR} -L${COMMON_DIR}
-#define ENERGIZE_LIBS -lconn -lcommon
+# define ENERGIZE_INCLUDES -I${I_DIR_PREFIX}${CONN_DIR}
+# define ENERGIZE_LDFLAGS -L${CONN_DIR}
+# define ENERGIZE_LIBS -lenergize
 #else /* !ENERGIZE */
-#define ENERGIZE_INCLUDES
-#define ENERGIZE_LDFLAGS
-#define ENERGIZE_LIBS
+# define ENERGIZE_INCLUDES
+# define ENERGIZE_LDFLAGS
+# define ENERGIZE_LIBS
 #endif /* !ENERGIZE */
 
 
@@ -267,9 +285,10 @@ LDFLAGS= LD_SWITCH_SYSTEM LD_SWITCH_MACHINE LD_SWITCH_SITE \
 #endif
 
 #ifdef HAVE_X_WINDOWS
-XOBJ= xterm.o xfns.o xselect.o xutils.o event-Xt.o menubar.o xgccache.o xobjs.o
+XOBJ= xterm.o xfns.o xselect.o xutils.o event-Xt.o menubar.o xgccache.o \
+      xobjs.o scrollbar.o
 
-LWLIBDIR = ./lwlib
+LWLIBDIR = ../lwlib
 
 LIBX11_LDFLAGS = -L$(LWLIBDIR)
 LIBX11_INCLUDES = -I$(LWLIBDIR)
@@ -284,20 +303,15 @@ TOOLKIT_LIBS = -lXm
 #ifdef LWLIB_USES_OLIT
 TOOLKIT_LIBS = -lXol
 #else /* ! LWLIB_USES_OLIT */
-TOOLKIT_LIBS = 
+TOOLKIT_LIBS = -lXaw
 #endif /* ! LWLIB_USES_OLIT */
 #endif /* ! LWLIB_USES_MOTIF */
 
-LIBX11_LIBS = -llw $(TOOLKIT_LIBS) $(XPM_LIBS) -lXaw -lXext -lXt
+LIBX11_LIBS = -llw $(TOOLKIT_LIBS) $(XPM_LIBS) -lXext -lXt
 
 LIBX=  $(LIBX11_LIBS) -lXmu -lX11 LIBX11_MACHINE LIBX11_SYSTEM
 
 #endif /* HAVE_X_WINDOWS */
-
-#ifdef MAINTAIN_ENVIRONMENT
-#undef environ
-environobj = environ.o
-#endif /* MAINTAIN_ENVIRONMENT */
 
 /* Allow config.h to specify a replacement file for unexec.c.  */
 #ifndef UNEXEC
@@ -306,18 +320,21 @@ environobj = environ.o
 
 #ifdef ENERGIZE
 # ifdef EMACS_BTL
-#  define BTLOBJS cadillac-btl-emacs.o cadillac-btl.o cadillac-btl-process.o
+   BTLDIR=../btl
+#  define BTLOBJS cadillac-btl.o cadillac-btl-process.o cadillac-btl-asm.o \
+		  cadillac-btl-emacs.o
 # else
 #  define BTLOBJS
 # endif /* BTL */
 # if defined(FREE_CHECKING) || defined(DEBUG_INPUT_BLOCKING) || defined(DEBUG_GCPRO)
 #  define FREECHECKOBJS free-hook.o
-# else
+# else  /* !FREE */
 #  define FREECHECKOBJS
-# endif /* FREE */
-# define ENERGIZE_OBJS editorside.o BTLOBJS FREECHECKOBJS
+# endif /* !FREE */
+# define ENERGIZE_OBJS editorside.o FREECHECKOBJS
 #else /* !ENERGIZE */
 # define ENERGIZE_OBJS
+# define BTLOBJS
 #endif /* !ENERGIZE */
 
 #ifdef NEED_REALPATH
@@ -326,14 +343,49 @@ environobj = environ.o
 #define REALPATH_OBJS
 #endif
 
-#ifdef MOCKLISP_SUPPORT
-#define MOCKLISPOBJS mocklisp.o
+#ifdef TOOLTALK
+# define TOOLTALK_OBJS tooltalk.o
+  /* -lsocket -lnsl -lintl -ldl are already included from s-solaris2.h */
+# define LIB_TOOLTALK -ltt -lce
+#else /* !TOOLTALK */
+# define TOOLTALK_OBJS
+# define LIB_TOOLTALK
+#endif /* !TOOLTALK */
+
+#ifdef SPARCWORKS
+# define SPARCWORKS_OBJS sparcworks.o
+  /* Remove -ufind_run_directory, -lxview, -lolgx when tcm fixes it. */
+# define LIB_SPARCWORKS -ufind_run_directory -lswtt -lswint
 #else
-#define MOCKLISPOBJS
+# define SPARCWORKS_OBJS
+# define LIB_SPARCWORKS 
 #endif
 
-/* lastfile must follow all files
-   whose initialized data areas should be dumped as pure by dump-emacs. */
+#if (defined(LIB_INTL) && (!(defined(I18N3) || defined(I18N4))))
+  /* this should be defined by s- files, but we should not use it unless
+     I18N3 or I18N4 are defined. */
+# undef LIB_INTL
+#endif
+
+#ifndef LIB_INTL
+# define LIB_INTL
+#endif
+
+#ifdef MOCKLISP_SUPPORT
+# define MOCKLISPOBJS mocklisp.o
+#else
+# define MOCKLISPOBJS
+#endif
+
+#ifdef DRAGNDROP
+# define DRAGNDROP_OBJS xtfunc.o dragndrop.o opaque.o
+#else
+# define DRAGNDROP_OBJS
+#endif
+
+/* lastfile must follow all files whose initialized data areas should
+   be dumped as pure by dump-emacs.
+ */
 /* scroll.o removed for now because it isn't being used at all. */
 obj=    dispnew.o screen.o xdisp.o window.o \
 	events.o event-alloc.o event-stream.o \
@@ -342,11 +394,12 @@ obj=    dispnew.o screen.o xdisp.o window.o \
 	buffer.o filelock.o insdel.o marker.o \
 	minibuf.o fileio.o dired.o filemode.o \
 	cmds.o casetab.o casefiddle.o indent.o search.o regex.o undo.o \
-	pure.o alloc.o data.o doc.o editfns.o callint.o \
+	pure.o alloc.o data.o doc.o editfns.o callint.o intl.o \
 	eval.o floatfns.o fns.o print.o lread.o symbols.o getloadavg.o \
 	abbrev.o syntax.o font_lock.o UNEXEC MOCKLISPOBJS bytecode.o \
-	process.o callproc.o $(environobj) elhash.o hash.o doprnt.o \
-	extents.o faces.o REALPATH_OBJS ENERGIZE_OBJS
+	process.o callproc.o elhash.o hash.o doprnt.o \
+	extents.o REALPATH_OBJS ENERGIZE_OBJS \
+	faces.o DRAGNDROP_OBJS TOOLTALK_OBJS SPARCWORKS_OBJS
 
 #ifdef TERMINFO
 /* Used to be -ltermcap here.  If your machine needs that,
@@ -373,34 +426,39 @@ termcapobj = tparam.o
 #endif /* No ALLOCA */
 
 #ifndef SYSTEM_MALLOC
-
-#ifdef GNU_MALLOC  /* New GNU malloc */
-#ifdef REL_ALLOC
-mallocobj = gmalloc.o ralloc.o vm-limit.o ALLOCA_OBJ
-#else /* !REL_ALLOC */
-mallocobj = gmalloc.o vm-limit.o ALLOCA_OBJ
-#endif /* !REL_ALLOC */
-#else  /* Old GNU malloc */
+# ifdef OLD_GNU_MALLOC
 mallocobj = malloc.o ALLOCA_OBJ
-#endif /* Old GNU malloc */
-
-#else /* not SYSTEM_MALLOC */
-
+# else /* New GNU malloc */
+#  ifdef REL_ALLOC
+mallocobj = gmalloc.o ralloc.o vm-limit.o ALLOCA_OBJ
+#  else /* !REL_ALLOC */
+mallocobj = gmalloc.o vm-limit.o ALLOCA_OBJ
+#  endif /* !REL_ALLOC */
+# endif /* New GNU malloc */
+#else /* !SYSTEM_MALLOC */
 mallocobj = ALLOCA_OBJ
-
-#endif /* not SYSTEM_MALLOC */
+#endif /* !SYSTEM_MALLOC */
 
 #ifdef HAVE_X_WINDOWS
-#define LIBX11_OBJ EmacsShell.o EmacsScreen.o ColumnWidget.o
-#define LWLIB_DEPS $(LWLIBDIR)/liblw.a
+
+# ifdef EXTERNAL_WIDGET
+#  define EXTERNAL_WIDGET_OBJ EmacsShell.o
+#  define OTHER_FILES libemacswidget.a libemacswidget.so.1
+# else  /* !EXTERNAL_WIDGET */
+#  define EXTERNAL_WIDGET_OBJ
+# endif /* !EXTERNAL_WIDGET */
+
+# define LIBX11_OBJ EmacsScreen.o EXTERNAL_WIDGET_OBJ
+# define LWLIB_DEPS $(LWLIBDIR)/liblw.a
+
 #else /* !X */
-#define LIBX11_OBJ
-#define LWLIB_DEPS
+# define LIBX11_OBJ
+# define LWLIB_DEPS
 #endif
 
 /* define otherobj as list of object files that make-docfile
    should not be told about.  */
-otherobj= $(termcapobj) lastfile.o $(mallocobj) LIBX11_OBJ
+otherobj= $(termcapobj) BTLOBJS lastfile.o $(mallocobj) LIBX11_OBJ
   
 #ifdef LISP_FLOAT_TYPE
 #define FLOAT_LISP ${lispdir}prim/float-sup.elc
@@ -427,7 +485,7 @@ otherobj= $(termcapobj) lastfile.o $(mallocobj) LIBX11_OBJ
                 ${lispdir}utils/ring.elc ${lispdir}packages/compile.elc \
                 ${lispdir}modes/view-less.elc ${lispdir}emulators/evi.elc \
                 ${lispdir}dired/dired.elc ${lispdir}dired/dired-x.elc \
-                ${lispdir}prim/userlock.elc \
+                ${lispdir}dired/dired-lucid.elc ${lispdir}prim/userlock.elc \
                 ${lispdir}energize/energize-init.elc \
                 ${lispdir}energize/energize-mode.elc \
                 ${lispdir}energize/energize-windows.elc \
@@ -452,8 +510,11 @@ otherobj= $(termcapobj) lastfile.o $(mallocobj) LIBX11_OBJ
    Every file that is loaded from loadup.el must be enumerated
    here, or the functions won't have have docstrings.
    This is dumb, this list should be generated automatically.
+   [Note: "version.el" is included in the doc separately, but is not listed 
+    here because we don't want things to appear to be out-of-date just 
+    because the version number has been incremented. -- D.N.G. 8/28/93]
  */
-lisp=   ${lispdir}version.el ${lispdir}paths.el \
+lisp=   ${lispdir}paths.el \
         ${lispdir}prim/loadup.el ${lispdir}prim/subr.elc \
         ${lispdir}prim/cmdloop.elc CMDLOOP_LISP \
         ${lispdir}prim/keymap.elc ${lispdir}prim/syntax.elc \
@@ -470,13 +531,14 @@ lisp=   ${lispdir}version.el ${lispdir}paths.el \
         ${lispdir}prim/replace.elc ${lispdir}modes/abbrev.elc \
         ${lispdir}packages/buff-menu.elc \
         ${lispdir}bytecomp/bytecomp-runtime.elc \
-        FLOAT_LISP X11_LISP ENERGIZE_LISP
+        ${lispdir}prim/itimer.elc FLOAT_LISP X11_LISP ENERGIZE_LISP
 
 /* just to be sure the sh is used */
 SHELL=/bin/sh
 
 LIBES = SOUND_LIBS ENERGIZE_LIBS $(LIBX) \
 	LIBS_SYSTEM LIBS_MACHINE LIBS_TERMCAP \
+	LIB_TOOLTALK LIB_SPARCWORKS LIB_INTL \
 	LIBS_DEBUG LIB_GCC LIB_MATH LIB_STANDARD
 
 /* Enable recompilation of certain other files depending on system type.  */
@@ -496,16 +558,64 @@ LIBES = SOUND_LIBS ENERGIZE_LIBS $(LIBX) \
 
 all: release OTHER_FILES
 
-release: temacs ${lisp} ${etcdir}DOC OTHER_FILES
+/* "make release" to build "xemacs" with an incremented version number;
+   "make xemacs" to just build "xemacs" without incrementing the version. */
+
+#ifdef I18N3
+# define MOFILE ${modir}emacs.mo
+#else
+# define MOFILE
+#endif
+
+release: temacs ${lisp} ${etcDOC} MOFILE OTHER_FILES
 	./temacs -batch -l inc-vers
 	./temacs -batch -l loadup.el dump
+	touch release
 
-xemacs: temacs ${lisp} ${etcdir}DOC OTHER_FILES
+xemacs: temacs ${lisp} ${etcDOC} MOFILE OTHER_FILES
 	./temacs -batch -l loadup.el dump
 
-${etcdir}DOC: ${etcdir}make-docfile ${obj} ${lisp}
-	rm -f ${etcdir}DOC
-	${etcdir}make-docfile ${obj} ${lisp} > ${etcdir}DOC
+obj_src = $(obj:.o=.c)
+
+${etcDOC}: ${etcdir}make-docfile $(obj_src) ${lisp}
+	rm -f ${etcDOC}
+	${etcdir}make-docfile ${obj_src} ${lispdir}version.el ${lisp} \
+		> ${etcDOC}
+
+#ifdef I18N3
+
+# ifdef SPARCWORKS
+otherlisp = ${lispdir}sunpro/spro-menubar.el
+# else /* !SPARCWORKS */
+otherlisp = 
+# endif /* !SPARCWORKS */
+
+# if defined(sparc) && !defined(USG)
+   xgettext=		 /usr/openwin/bin/xgettext
+   xgettext_args=	 -o emacs -m_X messages
+   msgfmt=		 /usr/openwin/bin/msgfmt
+# else
+   xgettext=		 xgettext
+   xgettext_args=	 -s -d emacs -M_X messages
+   msgfmt=		 msgfmt
+#endif
+
+${modir}emacs.po: ${etcdir}make-msgfile ${etcdir}make-po ${obj} ${lisp}
+	${etcdir}make-msgfile -o ${etcdir}messages ${obj} ${lisp} ${otherlisp}
+	cd ${etcdir}; ${xgettext} ${xgettext_args}
+	-cd ${modir}; rm -f emacs.po
+	cd ${etcdir}; ./make-po -a ${modir}emacs.po DOC
+
+${modir}emacs.mo: ${modir}emacs.po
+	cd ${modir}; ${msgfmt} -o emacs.mo emacs.po
+
+${etcdir}make-msgfile:
+	cd ${etcdir}; ${MAKE} ${MFLAGS} make-msgfile
+
+${etcdir}make-po:
+	cd ${etcdir}; ${MAKE} ${MFLAGS} make-po
+
+#endif /* I18N3 */
 
 ${etcdir}make-docfile:
 	cd ${etcdir}; ${MAKE} ${MFLAGS} make-docfile
@@ -532,13 +642,39 @@ cemacs: TEMACS_DEPS
 puremacs: TEMACS_DEPS
 	$(PURIFY) $(LD) TEMACS_LINK_ARGS
 
+#ifdef EXTERNAL_WIDGET
+EmacsWidget.o:
+	$(COMPILE.c) -K pic EmacsWidget.c
+
+libemacswidget.a: EmacsWidget.o
+	ar r libemacswidget.a EmacsWidget.o
+
+# ifdef USG5
+libemacswidget.so.1: EmacsWidget.o
+#  ifdef USE_GCC
+	$(CC) -shared EmacsWidget.o -Xlinker -z -Xlinker text -o libemacswidget.so.1
+#  else /* not USE_GCC */
+	$(CC) -G EmacsWidget.o -z text -o libemacswidget.so.1
+#  endif /* not USE_GCC */
+# else /* not USG5 */
+libemacswidget.so.1: EmacsWidget.o
+	$(LD) -dc EmacsWidget.o -assert pure-text -o libemacswidget.so.1
+# endif /* not USG5 */
+
+#endif /* EXTERNAL_WIDGET */
+
+
 #ifdef HAVE_X_WINDOWS
+/* In a multi-architecture configuration, "lwlib" has already been made
+   at the level above this, using "lwlib/makefile", not "lwlib/Makefile". */
+# ifndef MULTI_OBJ_DIR
 $(LWLIBDIR)/Makefile: $(LWLIBDIR)/Imakefile
 	cd $(LWLIBDIR); if [ -f Makefile ]; then $(MAKE) Makefile;else xmkmf;fi
 
 $(LWLIBDIR)/liblw.a: $(LWLIBDIR)/Makefile
 	cd $(LWLIBDIR) ; $(MAKE) $(MFLAGS) all
-#endif
+# endif /* !MULTI_OBJ_DIR */
+#endif /* HAVE_X_WINDOWS */
 
 /* These are needed for C compilation, on the systems that need them */
 #ifdef NEED_CPP
@@ -564,6 +700,7 @@ shortnames:
 	cd ${shortnamesdir}; ${MAKE} ${MFLAGS}
 #endif /* SHORTNAMES */
 
+/* these are more trouble than they're worth when using cvs
 paths.h: paths.h-dist
 	@sh -c "if test -r $@; then echo $? is newer than $@; exit 1;\
 	  else exit 0; fi"
@@ -573,6 +710,7 @@ config.h: config.h-dist
 	@sh -c "if test -r $@; then echo $? is newer than $@; exit 1;\
 	  else exit 0; fi"
 	cp $? $@
+*/
 
 /* Some machines have alloca built-in.
    They should define HAVE_ALLOCA, or may just let alloca.s
@@ -603,35 +741,32 @@ alloca.o : alloca.s config.h
 #endif /* not C_ALLOCA */
 
 #ifdef USE_LCC  /* lcc doesn't do asm() yet */
-crt0.o:
-	cc -c -g -Demacs crt0.c
+crt0.o: crt0.c
+	gcc -c -g -Demacs $<
 
-free-hook.o:
-	gcc -c -g -Demacs free-hook.c
+free-hook.o: free-hook.c
+	gcc -c -g -Demacs $<
 #endif /* USE_LCC */
 
 #ifdef EMACS_BTL
-# ifdef USE_LCC  /* lcc doesn't do asm() yet */
-cadillac-btl.o:
-	gcc -c -O          -DEMACS_BTL -Dsun4 -I. $(@:.o=.c)
-# else /* !LCC */
-cadillac-btl.o:
-	$(CC) -c $(CFLAGS) -DEMACS_BTL -Dsun4 -I. $(@:.o=.c)
-# endif /* !LCC */
-cadillac-btl-process.o:
-	$(CC) -c $(CFLAGS) -DEMACS_BTL -Dsun4 -Demacs -Dsun -I. $(@:.o=.c)
-cadillac-btl-emacs.o:
-	$(CC) -c $(CFLAGS) -DEMACS_BTL -Dsun4 -Demacs       -I. $(@:.o=.c)
-#endif /* EMACS_BTL */
+BTL_INCLUDES=-I$(BTLDIR)
+# define BTL_COMPILE \
+	-DEMACS_BTL -D`lucid-arch` -I. $(BTL_INCLUDES) $(BTLDIR)/$(@:.o=.c)
 
-/* Nearly all the following files depend on lisp.h, emacsfns.h, and lrecord.h,
-   but they are not included as a dependency because they are so often changed
-   in ways that do not require any recompilation and so rarely changed in ways
-   that do require any.  */
+cadillac-btl.o cadillac-btl-process.o cadillac-btl-emacs.o:
+	$(CC) $(CFLAGS) -c BTL_COMPILE
+# ifndef USE_LCC
+cadillac-btl-asm.o:
+	$(CC) $(CFLAGS) -c BTL_COMPILE
+# else  /* lcc doesn't do asm() yet */
+cadillac-btl-asm.o:
+	gcc -O -g       -c BTL_COMPILE
+# endif /* lcc */
+#endif /* EMACS_BTL */
 
 #ifdef ENERGIZE
 editorside.o:
-	$(CC) -c $(CFLAGS) ENERGIZE_INCLUDES $(@:.o=.c)
+	$(CC) -c $(CFLAGS) ENERGIZE_INCLUDES $(BTL_INCLUDES) $(@:.o=.c)
 #endif /* ENERGIZE */
 
 #ifdef USE_SOUND
@@ -652,11 +787,14 @@ hpplay.o:
 ${etcdir}emacstool: ${etcdir}emacstool.c
 	cd ${etcdir}; ${MAKE} ${MFLAGS} emacstool
 
+
+/* Nearly all the following files depend on lisp.h, emacsfns.h, and lrecord.h,
+   but they are not included as a dependency because they are so often changed
+   in ways that do not require any recompilation and so rarely changed in ways
+   that do require any.  */
+
 /* Energize-generated dependencies */
 
-ColumnWidget.o: ColumnWidget.h
-ColumnWidget.o: ColumnWidgetP.h
-ColumnWidget.o: config.h
 EmacsShell.o: EmacsShell.h
 EmacsShell.o: EmacsShellP.h
 EmacsShell.o: config.h
@@ -707,6 +845,18 @@ bytecode.o: buffer.h
 bytecode.o: bufslots.h
 bytecode.o: config.h
 bytecode.o: syntax.h
+#ifdef EMACS_BTL
+cadillac-btl.o: $(BTLDIR)/cadillac-btl.c
+cadillac-btl.o: $(BTLDIR)/cadillac-btl.h
+cadillac-btl.o: $(BTLDIR)/cadillac-btl-extern.h
+cadillac-btl-asm.o: $(BTLDIR)/cadillac-btl-asm.c
+cadillac-btl-asm.o: $(BTLDIR)/cadillac-btl.h
+cadillac-btl-asm.o: $(BTLDIR)/cadillac-btl-extern.h
+cadillac-btl-emacs.o: $(BTLDIR)/cadillac-btl-extern.h
+cadillac-btl-process.o: $(BTLDIR)/cadillac-btl-process.c
+cadillac-btl-process.o: $(BTLDIR)/cadillac-btl.h
+cadillac-btl-process.o: $(BTLDIR)/cadillac-btl-extern.h
+#endif /* EMACS_BTL */
 callint.o: buffer.h
 callint.o: bufslots.h
 callint.o: bytecode.h
@@ -782,14 +932,17 @@ editfns.o: events.h
 editfns.o: insdel.h
 editfns.o: systime.h
 editfns.o: window.h
+#ifdef ENERGIZE
 editorside.o: blockio.h
 editorside.o: buffer.h
 editorside.o: bufslots.h
+#ifdef EMACS_BTL
+editorside.o: $(BTLDIR)/cadillac-btl-extern.h
+#endif
 editorside.o: config.h
 editorside.o: dispextern.h
 editorside.o: editorside.h
 editorside.o: events.h
-editorside.o: extents-data.h
 editorside.o: extents.h
 editorside.o: hash.h
 editorside.o: insdel.h
@@ -799,6 +952,7 @@ editorside.o: screen.h
 editorside.o: window.h
 editorside.o: xobjs.h
 editorside.o: xterm.h
+#endif
 elhash.o: config.h
 elhash.o: elhash.h
 elhash.o: hash.h
@@ -808,7 +962,6 @@ emacs.o: process.h
 emacs.o: sysdep.h
 emacs.o: syssignal.h
 emacs.o: systty.h
-environ.o: config.h
 eval.o: backtrace.h
 eval.o: blockio.h
 eval.o: bytecode.h
@@ -1030,7 +1183,7 @@ process.o: window.h
 pure.o: config.h
 pure.o: puresize.h
 ralloc.o: config.h
-ralloc.o: mem_limits.h
+ralloc.o: mem-limits.h
 regex.o: buffer.h
 regex.o: bufslots.h
 regex.o: config.h
@@ -1051,6 +1204,14 @@ scroll.o: dispextern.h
 scroll.o: dispmisc.h
 scroll.o: screen.h
 scroll.o: termchar.h
+scrollbar.o: $(LWLIBDIR)/lwlib.h
+scrollbar.o: buffer.h
+scrollbar.o: config.h
+scrollbar.o: lisp.h
+scrollbar.o: lrecord.h
+scrollbar.o: screen.h
+scrollbar.o: window.h
+scrollbar.o: xterm.h
 search.o: buffer.h
 search.o: bufslots.h
 search.o: commands.h

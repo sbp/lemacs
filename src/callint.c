@@ -1,5 +1,5 @@
 /* Call a Lisp function interactively.
-   Copyright (C) 1985, 1986, 1992, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1992, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -20,6 +20,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include "config.h"
 #include "lisp.h"
+#include "intl.h"
 #include "buffer.h"
 #include "bytecode.h"
 #include "commands.h"
@@ -152,11 +153,11 @@ check_mark ()
   Lisp_Object tem;
 
   if (zmacs_regions && !zmacs_region_active_p)
-    error ("The region is not active now");
+    error (GETTEXT ("The region is not active now"));
 
   tem = Fmarker_buffer (current_buffer->mark);
   if (NILP (tem) || (XBUFFER (tem) != current_buffer))
-    error ("The mark is not set now");
+    error (GETTEXT ("The mark is not set now"));
 
   return (marker_position (current_buffer->mark));
 }
@@ -164,8 +165,8 @@ check_mark ()
 Lisp_Object Vcurrent_mouse_event;
 
 static Lisp_Object
-callint_prompt (const char *prompt_start, int prompt_length,
-                const Lisp_Object *args, int nargs)
+callint_prompt (CONST char *prompt_start, int prompt_length,
+                CONST Lisp_Object *args, int nargs)
 {
   Lisp_Object s = make_string (prompt_start, prompt_length);
 
@@ -212,7 +213,7 @@ the minibuffer.")
   Lisp_Object specs = Qnil;
   /* If SPECS is a string, we reset prompt_data to XSTRING (specs)->data
    *  every time a GC might have occurred */
-  const char *prompt_data = 0;
+  CONST char *prompt_data = 0;
   int prompt_index = 0;
   int argcount;
   int set_zmacs_region_stays = 0;
@@ -237,18 +238,10 @@ the minibuffer.")
     }
   else if (COMPILEDP (fun))
     {
-#ifndef LRECORD_BYTECODE
-      if (vector_size (XVECTOR (fun)) <= COMPILED_INTERACTIVE)
-	goto lose;
-      specs = XVECTOR (fun)->contents[COMPILED_INTERACTIVE];
-#else
       struct Lisp_Bytecode *b = XBYTECODE (fun);
       if (!(b->flags.interactivep))
         goto lose;
-      specs = b->doc_and_interactive;
-      if (b->flags.documentationp)
-        specs = XCONS (specs)->cdr;
-#endif /* LRECORD_BYTECODE */
+      specs = bytecode_interactive (b);
     }
   else if (!CONSP (fun))
     goto lose;
@@ -292,13 +285,39 @@ the minibuffer.")
 	  return (specs);
 	}
       if (!NILP (record_flag) || i != num_input_chars)
-	Vcommand_history
-	  = Fcons (Fcons (function, quotify_args (Fcopy_sequence (specs))),
-		   Vcommand_history);
+	{
+	  /* >>>>> There's no way for an interactive spec to put something
+	   *  other than its literal arguments on the command-history.
+	   *  For example, it should be possible to put (region-beginning)
+	   *  on instead of some random point position like 259.
+	   */
+	  Vcommand_history
+	    = Fcons (Fcons (function, quotify_args (Fcopy_sequence (specs))),
+		     Vcommand_history);
+	}
       RETURN_UNGCPRO (apply1 (fun, specs));
     }
 
   /* Here if function specifies a string to control parsing the defaults */
+
+#ifdef I18N3
+  /* Translate interactive prompt. */
+  if (STRINGP (specs))
+    {
+      Lisp_Object domain = Qnil;
+      if (COMPILEDP (fun))
+	domain = Fcompiled_function_domain (fun);
+      if (NILP (domain))
+	specs = Fgettext (specs);
+      else
+	specs = Fdgettext (domain, specs);
+    }
+  else if (prompt_data)
+    /* We do not have to worry about domains in this case because
+       prompt_data is non-nil only for built-in functions, which
+       always use the default domain. */
+    prompt_data = gettext (prompt_data);
+#endif
 
   /* Handle special starting chars `*' and `@' and `_'.  */
   prompt_index = 0;
@@ -308,7 +327,7 @@ the minibuffer.")
 
     for (;;)
       {
-	if (STRINGP (specs)) prompt_data = (const char *) XSTRING (specs)->data;
+	if (STRINGP (specs)) prompt_data = (CONST char *) XSTRING (specs)->data;
     
 	if (prompt_data[prompt_index] == '*')
 	  {
@@ -343,7 +362,7 @@ the minibuffer.")
      us give to the function.  */
   argcount = 0;
   {
-    const char *tem;
+    CONST char *tem;
     for (tem = prompt_data + prompt_index; *tem; )
       {
 	/* 'r' specifications ("point and mark as 2 numeric args")
@@ -352,7 +371,7 @@ the minibuffer.")
 	  argcount += 2;
 	else
 	  argcount += 1;
-	tem = (const char *) strchr (tem + 1, '\n');
+	tem = (CONST char *) strchr (tem + 1, '\n');
 	if (!tem)
 	  break;
 	tem++;
@@ -384,7 +403,10 @@ the minibuffer.")
     Lisp_Object *args
       = (((Lisp_Object *) alloca (sizeof (Lisp_Object) * alloca_size))
          + 1);
-    /* visargs is >>>  */
+    /* visargs is an array of either Qnil or user-friendlier versions (often
+     *  strings) of previous arguments, to use in prompts for succesive
+     *  arguments.  ("Often strings" because emacs didn't used to have
+     *  format %S and prin1-to-string.) */
     Lisp_Object *visargs = args + argcount;
     /* If varies[i] is non-null, the i'th argument shouldn't just have
        its value in this call quoted in the command history.  It should be
@@ -412,8 +434,8 @@ the minibuffer.")
 
     for (argnum = 0; ; argnum++)
       {
-	const char *prompt_start = prompt_data + prompt_index + 1;
-	const char *prompt_limit = (const char *) strchr (prompt_start, '\n');
+	CONST char *prompt_start = prompt_data + prompt_index + 1;
+	CONST char *prompt_limit = (CONST char *) strchr (prompt_start, '\n');
 	int prompt_length;
 	prompt_length = ((prompt_limit) 
 			 ? (prompt_limit - prompt_start)
@@ -433,22 +455,23 @@ the minibuffer.")
 	  case 'a':		/* Symbol defined as a function */
 	    {
 	      Lisp_Object tem = call1 (Qread_function, PROMPT ());
-	      visargs[argnum] = Fsymbol_name (tem);
 	      args[argnum] = tem;
 	      arg_from_tty = 1;
 	      break;
 	    }
 	  case 'b':   		/* Name of existing buffer */
 	    {
-	      Lisp_Object tem = Fcurrent_buffer ();
+	      Lisp_Object def = Fcurrent_buffer ();
 	      if (EQ (selected_window, minibuf_window))
-		tem = Fother_buffer (tem, Qnil);
-	      args[argnum] = call3 (Qread_buffer, PROMPT (), tem, Qt);
+		def = Fother_buffer (def, Qnil);
+              /* read-buffer returns a buffer name, not a buffer! */
+	      args[argnum] = call3 (Qread_buffer, PROMPT (), def, Qt);
 	      arg_from_tty = 1;
 	      break;
 	    }
 	  case 'B':		/* Name of buffer, possibly nonexistent */
 	    {
+              /* read-buffer returns a buffer name, not a buffer! */
 	      args[argnum] = call2 (Qread_buffer, PROMPT (),
 				    Fother_buffer (Fcurrent_buffer (), Qnil));
 	      arg_from_tty = 1;
@@ -456,17 +479,17 @@ the minibuffer.")
 	    }
 	  case 'c':		/* Character */
 	    {
-#if 0
-	      /* screw this.  redisplay just doesn't notice changes in
-		 cursor_in_echo_area */
+              Lisp_Object tem;
 	      int speccount = specpdl_depth ();
+
 	      specbind (Qcursor_in_echo_area, Qt);
-#endif
 	      message ("%s", XSTRING (PROMPT ())->data);
-	      args[argnum] = (call0 (Qread_char));
-#if 0
+	      tem = (call0 (Qread_char));
+              args[argnum] = tem;
+              /* visargs[argnum] = Fsingle_key_description (tem); */
+
 	      unbind_to (speccount, Qnil);
-#endif
+
 	      /* #### `C-x / a' should not leave the prompt in the minibuffer.
 		 This isn't the right fix, because (message ...) (read-char)
 		 shouldn't leave the message there either... */
@@ -479,13 +502,12 @@ the minibuffer.")
 	    {
 	      Lisp_Object tem = call1 (Qread_command, PROMPT ());
 	      args[argnum] = tem;
-	      visargs[argnum] = Fsymbol_name (tem);
 	      arg_from_tty = 1;
 	      break;
 	    }
 	  case 'd':		/* Value of point.  Does not do I/O.  */
 	    {
-	      args[argnum] = make_number (point);
+	      args[argnum] = make_number (PT);
 	      varies[argnum] = Qpoint;
 	      break;
 	    }
@@ -506,11 +528,12 @@ the minibuffer.")
 	    }
 	  case 'f':		/* Existing file name. */
 	    {
-	      args[argnum] = call4 (Qread_file_name, PROMPT (),
-				    Qnil, /* dir */
-				    Qnil, /* default */
-				    make_number (0) /* must-match */
-				    );
+	      Lisp_Object tem = call4 (Qread_file_name, PROMPT (),
+				       Qnil, /* dir */
+				       Qnil, /* default */
+				       make_number (0) /* must-match */
+				       );
+              args[argnum] = tem;
 	      arg_from_tty = 1;
 	      break;
 	    }
@@ -539,39 +562,41 @@ the minibuffer.")
 	      varies[argnum] = Qmark;
 	      break;
 	    }
-	  case 'N':		/* Prefix arg, else number from minibuffer */
-	    {
-	      if (!NILP (prefix))
-		goto have_prefix_arg;
-	      else
-		goto read_number;
-	    }
 	  case 'n':		/* Read number from minibuffer.  */
 	    {
 	    read_number:
 	      args[argnum] = call2 (Qread_number, PROMPT (), Qt);
-	      visargs[argnum] = Fprin1_to_string (args[argnum], Qnil);
 	      /* numbers are too boring to go on command history */
 	      /* arg_from_tty = 1; */
-	      break;
+              break;
+            }
+	  case 'N':		/* Prefix arg, else number from minibuffer */
+	    {
+	      if (NILP (prefix))
+		goto read_number;
+              else
+                goto prefix_value;
 	    }
 	  case 'P':		/* Prefix arg in raw form.  Does no I/O.  */
 	    {
-	    have_prefix_arg:
 	      args[argnum] = prefix;
 	      break;
 	    }
 	  case 'p':		/* Prefix arg converted to number.  No I/O. */
-	    {
-	      args[argnum] = Fprefix_numeric_value (prefix);
-	      break;
-	    }
+            {
+            prefix_value:
+              {
+                Lisp_Object tem = Fprefix_numeric_value (prefix);
+                args[argnum] = tem;
+              }
+              break;
+            }
 	  case 'r':		/* Region, point and mark as 2 args. */
 	    {
 	      int tem = check_mark ();
-	      args[argnum] = make_number (((point < tem) ? point : tem));
+	      args[argnum] = make_number (((PT < tem) ? PT : tem));
 	      varies[argnum] = Qregion_beginning;
-	      args[++argnum] = make_number (((point > tem) ? point : tem));
+	      args[++argnum] = make_number (((PT > tem) ? PT : tem));
 	      varies[argnum] = Qregion_end;
 	      break;
 	    }
@@ -588,9 +613,8 @@ the minibuffer.")
 	      tem = find_symbol_value (tem);
 	      if (EQ (tem, Qunbound)) tem = Qnil;
 	      tem = call3 (Qread_from_minibuffer, PROMPT (), Qnil, tem);
-	      visargs[argnum] = tem;
 	      args[argnum] = Fintern (tem, Qnil);
-#else
+#else /* 1 */
 	      visargs[argnum] = Qnil;
 	      for (;;)
 		{
@@ -613,7 +637,7 @@ the minibuffer.")
                        directly */
 		    break;
 		}
-#endif
+#endif /* 1 */
 	      arg_from_tty = 1;
 	      break;
 	    }
@@ -621,41 +645,38 @@ the minibuffer.")
 	    {
 	      Lisp_Object tem = call1 (Qread_variable, PROMPT ());
 	      args[argnum] = tem;
-	      visargs[argnum] = Fsymbol_name (tem);
 	      arg_from_tty = 1;
 	      break;
 	    }
 	  case 'x':		/* Lisp expression read but not evaluated */
 	    {
-	      Lisp_Object tem = call1 (Qread_minibuffer, PROMPT ());
-	      args[argnum] = tem;
-	      visargs[argnum] = Fprin1_to_string (tem, Qnil);
+	      args[argnum] = call1 (Qread_minibuffer, PROMPT ());
+              /* visargs[argnum] = Fprin1_to_string (args[argnum], Qnil); */
 	      arg_from_tty = 1;
 	      break;
 	    }
 	  case 'X':		/* Lisp expression read and evaluated */
 	    {
 	      Lisp_Object tem = call1 (Qread_minibuffer, PROMPT ());
-	      visargs[argnum] = Fprin1_to_string (tem, Qnil);
+	      /* visargs[argnum] = Fprin1_to_string (tem, Qnil); */
 	      args[argnum] = Feval (tem);
 	      arg_from_tty = 1;
 	      break;
 	    }
 	  default:
 	    {
-	      error ("Invalid `interactive' control letter \"%c\" (#o%03o).",
+	      error (GETTEXT ("Invalid `interactive' control letter \"%c\" (#o%03o)."),
 		     prompt_data[prompt_index],
 		     prompt_data[prompt_index]);
 	    }
 	  }
 #undef PROMPT
-
-	if (NILP (visargs[argnum]) && STRINGP (args[argnum]))
+	if (NILP (visargs[argnum]))
 	  visargs[argnum] = args[argnum];
 
 	if (!prompt_limit)
 	  break;
-	if (STRINGP (specs)) prompt_data = (const char *) XSTRING (specs)->data;
+	if (STRINGP (specs)) prompt_data = (CONST char *) XSTRING (specs)->data;
 	prompt_index += prompt_length + 1 + 1; /* +1 to skip spec, +1 for \n */
       }
     unbind_to (speccount, Qnil);
@@ -669,6 +690,7 @@ the minibuffer.")
       
     if (arg_from_tty || !NILP (record_flag))
       {
+        /* Reuse visargs as a temporary for constructing the command history */
 	for (argnum = 0; argnum < argcount; argnum++)
 	  {
 	    if (!NILP (varies[argnum]))

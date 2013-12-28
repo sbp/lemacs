@@ -23,8 +23,10 @@
   (vm-error-if-folder-empty)
   (let ((mp vm-message-list))
     (while mp
-      (vm-set-mark-of (car mp) nil)
-      (vm-mark-for-display-update (car mp))
+      (if (vm-mark-of (car mp))
+	  (progn
+	    (vm-set-mark-of (car mp) nil)
+	    (vm-mark-for-summary-update (car mp))))
       (setq mp (cdr mp))))
   (vm-update-summary-and-mode-line))
 
@@ -37,7 +39,7 @@
   (let ((mp vm-message-list))
     (while mp
       (vm-set-mark-of (car mp) t)
-      (vm-mark-for-display-update (car mp))
+      (vm-mark-for-summary-update (car mp))
       (setq mp (cdr mp))))
   (vm-update-summary-and-mode-line))
 
@@ -62,7 +64,7 @@ previous N-1 messages."
       (if (not (vm-mark-of (car vm-message-pointer)))
 	  (progn
 	    (vm-set-mark-of (car vm-message-pointer) t)
-	    (vm-mark-for-display-update (car vm-message-pointer))))
+	    (vm-mark-for-summary-update (car vm-message-pointer))))
       (vm-decrement count)
       (if (not (zerop count))
 	  (vm-move-message-pointer direction))))
@@ -81,18 +83,13 @@ previous N-1 messages."
   (vm-error-if-folder-empty)
   (if (not (eq vm-circular-folders t))
       (vm-check-count count))
-  (let ((direction (if (< count 0) 'backward 'forward))
-	(count (vm-abs count))
-	(oldmp vm-message-pointer)
-	(vm-message-pointer vm-message-pointer))
-    (while (not (zerop count))
-      (if (vm-mark-of (car vm-message-pointer))
+  (let ((mlist (vm-select-marked-or-prefixed-messages count)))
+    (while mlist
+      (if (vm-mark-of (car mlist))
 	  (progn
-	    (vm-set-mark-of (car vm-message-pointer) nil)
-	    (vm-mark-for-display-update (car vm-message-pointer))))
-      (vm-decrement count)
-      (if (not (zerop count))
-	  (vm-move-message-pointer direction))))
+	    (vm-set-mark-of (car mlist) nil)
+	    (vm-mark-for-summary-update (car mlist))))
+      (setq mlist (cdr mlist))))
   (vm-update-summary-and-mode-line))
 
 (defun vm-next-command-uses-marks ()

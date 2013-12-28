@@ -90,6 +90,7 @@ uuencoded files and large digests.  If this is nil, all messages will
 be highlighted.")
 
 
+;;;###autoload
 (defun highlight-headers (start end hack-sig)
   "Highlight message headers between start and end.
 Faces used:
@@ -117,8 +118,9 @@ interpreted as cited text.)"
 	 e p)
     ;; delete previous highlighting
     (map-extents (function (lambda (extent ignore)
-			     (if (eq (extent-data extent) 'headers)
-				 (delete-extent extent))))
+			     (if (extent-property extent 'headers)
+				 (delete-extent extent))
+			     nil))
 		 (current-buffer) start end)
     (save-excursion
       (save-restriction
@@ -139,7 +141,7 @@ interpreted as cited text.)"
 	   ((looking-at "^[^ \t\n]+[ \t]*:")
 	    (setq e (make-extent (match-beginning 0) (match-end 0)))
 	    (set-extent-face e 'message-headers)
-	    (set-extent-data e 'headers)
+	    (set-extent-property e 'headers t)
 	    (setq p (match-end 0))
 	    (cond
 	     ((and highlight-headers-regexp
@@ -148,7 +150,7 @@ interpreted as cited text.)"
 	      (end-of-line)
 	      (setq e (make-extent p (point)))
 	      (set-extent-face e current)
-	      (set-extent-data e 'headers)
+	      (set-extent-property e 'headers t)
 	      )
 ;; I don't think this is worth the effort
 ;;	     ((looking-at "\\(From\\|Resent-From\\)[ \t]*:")
@@ -161,27 +163,27 @@ interpreted as cited text.)"
 ;;	      (end-of-line)
 ;;	      (setq e (make-extent p (match-beginning 1)))
 ;;	      (set-extent-face e current)
-;;	      (set-extent-data e 'headers)
+;;	      (set-extent-property e 'headers t)
 ;;	      (setq e (make-extent (match-beginning 1) (match-end 1)))
 ;;	      (set-extent-face e 'message-addresses)
-;;	      (set-extent-data e 'headers)
+;;	      (set-extent-property e 'headers t)
 ;;	      (setq e (make-extent (match-end 1) (point)))
 ;;	      (set-extent-face e current)
-;;	      (set-extent-data e 'headers)
+;;	      (set-extent-property e 'headers t)
 ;;	      )
 	     (t
 	      (setq current 'message-header-contents)
 	      (end-of-line)
 	      (setq e (make-extent p (point)))
 	      (set-extent-face e current)
-	      (set-extent-data e 'headers)
+	      (set-extent-property e 'headers t)
 	      )))
 	   (t
 	    (setq p (point))
 	    (end-of-line)
 	    (setq e (make-extent p (point)))
 	    (set-extent-face e current)
-	    (set-extent-data e 'headers)
+	    (set-extent-property e 'headers t)
 	    ))
 	  (forward-line 1))
 
@@ -213,7 +215,7 @@ interpreted as cited text.)"
 		   (setq e (make-extent p (point)))
 		   (forward-char -1)
 		   (set-extent-face e current)
-		   (set-extent-data e 'headers)
+		   (set-extent-property e 'headers t)
 		   ))
 	    (forward-line 1)))))
     ))

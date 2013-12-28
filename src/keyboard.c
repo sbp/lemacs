@@ -17,10 +17,10 @@ You should have received a copy of the GNU General Public License
 along with GNU Emacs; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
-/* Allow config.h to undefine symbols found here.  */
-#include <signal.h>
+/* #include <signal.h>  use "syssignal.h" instead -jwz */
 
 #include "config.h"
+#include "intl.h"
 #include <stdio.h>
 
 #include "termchar.h"
@@ -301,7 +301,7 @@ cmd_error (Lisp_Object data, Lisp_Object dummy)
   Vexecuting_macro = Qnil;
   echo_area_glyphs = 0;
   data = Fprin1_to_string (data, Qnil);
-  message ("Error: %s", XSTRING (data)->data);
+  message (GETTEXT ("Error: %s"), XSTRING (data)->data);
   /* Return non-nil value to say command loop shouldn't exit. */
   return (unbind_to (speccount, Qt));
 }
@@ -333,15 +333,15 @@ top_level_1 (Lisp_Object dummy)
 #if 1
   else
     {
-      fprintf (stderr, "\ntemacs can only be run in -batch mode.\n");
+      fprintf (stderr, GETTEXT ("\ntemacs can only be run in -batch mode.\n"));
       noninteractive = 1; /* prevent things under kill-emacs from blowing up */
       Fkill_emacs (make_number (-1));
     }
 #else
   else if (purify_flag)
-    message ("Bare impure Emacs (standard Lisp code not loaded)");
+    message (GETTEXT ("Bare impure Emacs (standard Lisp code not loaded)"));
   else
-    message ("Bare Emacs (standard Lisp code not loaded)");
+    message (GETTEXT ("Bare Emacs (standard Lisp code not loaded)"));
 #endif
 
   return Qnil;
@@ -371,7 +371,7 @@ cold_load_command_error (Lisp_Object datum, Lisp_Object ignored)
   Vexecuting_macro = Qnil;
   echo_area_glyphs = 0;
   datum = Fprin1_to_string (datum, Qnil);
-  message ("Error: %s", XSTRING (datum)->data);
+  message (GETTEXT ("Error: %s"), XSTRING (datum)->data);
   Vquit_flag = Qnil;
   return (unbind_to (speccount, Qt));
 }
@@ -427,7 +427,7 @@ initial_error_handler (Lisp_Object datum, Lisp_Object ignored)
     /* Don't bother with the message */
     return (Qt);
       
-  message ("Error in command-loop!!");
+  message (GETTEXT ("Error in command-loop!!"));
   Fset (intern ("last-error"), datum); /* >>> Better/different name? */
   Fsit_for (make_number (2), Qnil);
   cold_load_command_error (datum, Qnil);
@@ -531,7 +531,7 @@ Don't call this unless you know what you're doing.")
       Vquit_flag = Qnil;
       Fdispatch_event (event);
     }
-  UNGCPRO;
+  UNGCPRO; 
   return Qnil;
 }
 
@@ -821,11 +821,11 @@ void
 stuff_buffered_input (stuffstring)
      Lisp_Object stuffstring;
 {
-  register unsigned char *p;
-
 /* stuff_char works only in BSD, versions 4.2 and up.  */
 #ifdef BSD
 #ifndef BSD4_1
+  register unsigned char *p;
+
   if (STRINGP (stuffstring))
     {
       register int count;
@@ -916,34 +916,34 @@ interrupt_signal (dummy)
 #ifdef VMS
       if (sys_suspend () == -1)
 	{
-	  fprintf (stdout, "Not running as a subprocess;\n");
-	  fprintf (stdout, "you can continue or abort.\n");
+	  fprintf (stdout, GETTEXT ("Not running as a subprocess;\n"));
+	  fprintf (stdout, GETTEXT ("you can continue or abort.\n"));
 	}
 #else /* not VMS */
       /* Perhaps should really fork an inferior shell?
 	 But that would not provide any way to get back
 	 to the original shell, ever.  */
-      fprintf (stdout, "No support for stopping a process on this operating system;\n");
-      fprintf (stdout, "you can continue or abort.\n");
+      fprintf (stdout, GETTEXT ("No support for stopping a process on this operating system;\n"));
+      fprintf (stdout, GETTEXT ("you can continue or abort.\n"));
 #endif /* not VMS */
 #endif /* not SIGTSTP */
-      fprintf (stdout, "Auto-save? (y or n) ");
+      fprintf (stdout, GETTEXT ("Auto-save? (y or n) "));
       fflush (stdout);
       if (((c = getc (stdin)) & ~040) == 'Y')
 	Fdo_auto_save (Qnil, Qnil);
       while (c != '\n')
         c = getc (stdin);
 #ifdef VMS
-      fprintf (stdout, "Abort (and enter debugger)? (y or n) ");
+      fprintf (stdout, GETTEXT ("Abort (and enter debugger)? (y or n) "));
 #else /* not VMS */
-      fprintf (stdout, "Abort (and dump core)? (y or n) ");
+      fprintf (stdout, GETTEXT ("Abort (and dump core)? (y or n) "));
 #endif /* not VMS */
       fflush (stdout);
       if (((c = getc (stdin)) & ~040) == 'Y')
 	abort ();
       while (c != '\n')
         c = getc (stdin);
-      fprintf (stdout, "Continuing...\n");
+      fprintf (stdout, GETTEXT ("Continuing...\n"));
       fflush (stdout);
       init_sys_modes ();
     }
@@ -1012,7 +1012,7 @@ variable `interrupt-char'.")
       CHECK_FIXNUM (new_interrupt_char, 0);
       c = XINT (new_interrupt_char);
       if (c < -1 || c > 127)
-	error ("interrupt character must be an ASCII code, or nil or -1");
+	error (GETTEXT ("interrupt character must be an ASCII code, or nil or -1"));
     }
 
   interrupt_char = c;
@@ -1087,6 +1087,7 @@ syms_of_keyboard ()
   DEFVAR_LISP ("disabled-command-hook", &Vdisabled_command_hook,
     "Value is called instead of any command that is disabled,\n\
 i.e. has a non-nil `disabled' property.");
+  Vdisabled_command_hook = intern ("disabled-command-hook");
 
   DEFVAR_LISP ("last-command-event", &Vlast_command_event,
     "Last keyboard or mouse button event that was part of a command.  This\n\

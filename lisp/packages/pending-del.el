@@ -1,7 +1,7 @@
 ;;; Pending delete selection
 ;;; Copyright (C) 1992 Free Software Foundation, Inc.
 ;;; Created: 14 Jul 92, Matthieu Devin <devin@lucid.com>
-;;; Last change  18-Feb-93, devin.
+;;; Last change  30-dec-93., devin.
 
 ;;; This file is part of GNU Emacs.
 
@@ -71,23 +71,30 @@ t enables all messages")
 (put 'newline 'pending-delete t)
 (put 'open-line 'pending-delete t)
 
+;;;###autoload
 (defun pending-delete-on (verbose)
-  "Turn on pending delete."
+  "Turn on pending delete.
+When it is ON typed text replaces the selection if the selection is active.
+When it is OFF typed text is just inserted at point."
   (interactive "P")
   (add-hook 'pre-command-hook 'pending-delete-pre-hook)
   (and verbose
     (message "Pending delete is ON, use M-x pending-delete to turn it OFF")))
 
+;;;###autoload
 (defun pending-delete-off (verbose)
-  "Turn off pending delete."
+  "Turn on pending delete.
+When it is ON typed text replaces the selection if the selection is active.
+When it is OFF typed text is just inserted at point."
   (interactive "P")
   (remove-hook 'pre-command-hook 'pending-delete-pre-hook)
   (and verbose (message "pending delete is OFF")))
 
+;;;###autoload
 (defun pending-delete ()
-  "Toggle the state of the pending-delete package.  
-When ON typed text replaces the selection if the selection is active.
-When OFF typed text is just inserted at point."
+  "Toggle the state of pending-delete mode.
+When it is ON typed text replaces the selection if the selection is active.
+When it is OFF typed text is just inserted at point."
   (interactive)
   (if (memq 'pending-delete-pre-hook pre-command-hook)
       (pending-delete-off pending-delete-verbose)

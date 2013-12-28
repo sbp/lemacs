@@ -88,6 +88,7 @@
     ))
 
 
+;;;###autoload
 (defun postscript-mode ()
   "Major mode for editing PostScript files.
 

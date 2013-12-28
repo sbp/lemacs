@@ -71,6 +71,7 @@
   (define-key view-mode-map "C" 'view-cleanup-backspaces)
   (define-key view-mode-map "q" 'view-quit))
 
+;;;###autoload
 (defun view-file (file &optional p)
   "Find FILE, enter view mode.  With prefix arg use other window."
   (interactive "fView File: \nP")
@@ -83,6 +84,7 @@
     (view-brief-help)
     nil))
 
+;;;###autoload
 (defun view-buffer (buf &optional p)
   "Switch to BUF, enter view mode.  With prefix arg use other window."
   (interactive "bView Buffer: \nP")
@@ -92,6 +94,14 @@
   (view-mode)
   (view-brief-help))
 
+(defun view-file-other-window (file)
+  "Find FILE in other window, and enter view mode."
+  (view-file file t))
+
+(defun view-buffer-other-window (buffer)
+  "Switch to BUFFER in another window, and enter view mode."
+  (view-buffer buffer t))
+
 (defun view-brief-help ()
   (message
    (substitute-command-keys
@@ -100,6 +110,7 @@
 
 (defvar view-last-mode)
 
+;;;###autoload
 (defun view-mode (&optional p)
   "Mode for viewing text, with bindings like `less'.
 Commands are:

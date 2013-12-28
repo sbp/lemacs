@@ -37,6 +37,13 @@
 ;; will get nuked when the post completes) and install a new primary
 ;; connection.  Actually I guess that's not so hard after all.
 
+(require 'nntp)
+
+;; It probably wouldn't be too hard to make this work; 
+;; if you do it send me the changes.
+(if (string-match "flee" nntp-version)
+    (error "nntp-post-bg doesn't work with flee's version of nntp.el"))
+
 (defvar nntp-post-background 'query
   "If t, each post will make a new connection to the NNTP server.
 This means that you don't have to wait for the post to complete to

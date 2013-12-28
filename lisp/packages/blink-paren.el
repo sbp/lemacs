@@ -1,5 +1,5 @@
 ;; Blink the matching paren, just like Zmacs.  By devin@lucid.com.
-;; Copyright (C) 1992-1993 Free Software Foundation, Inc.
+;; Copyright (C) 1992, 1993, 1994 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -22,26 +22,41 @@
 This variable controls how long each phase of the blink lasts in seconds.
 This should be a fractional part of a second (a float.)")
 
+(defvar highlight-paren-expression nil
+  "*If true, highlight the whole expression of the paren under the cursor
+instead of blinking (or highlighting) the matching paren.  This will highlight
+the expression using the `highlight-expression' face.")
+
 
 ;;; The blinking paren alternates between the faces blink-paren-on and
 ;;; blink-paren-off.  The default is for -on to look just like default
 ;;; text, and -off to be invisible.  You can change this so that, for
 ;;; example, the blinking paren fluctuates between bold and italic...
+;;;
+;;; You can make the matching paren merely be highlighted (and not blink)
+;;; by setting the blink-paren-on and blink-paren-off faces to have the same
+;;; attributes; if you do this, then emacs will not consume as much CPU.
+;;;
+;;; If highlight-paren-expression is true, then the whole sexp between the
+;;; parens will be displayed in the `highlight-expression' face instead.
 
 (make-face 'blink-paren-on)
 (make-face 'blink-paren-off)
+(make-face 'highlight-expression)
 
 (or (face-differs-from-default-p 'blink-paren-off)
     (progn
       (set-face-background 'blink-paren-off (face-background 'default))
       (set-face-foreground 'blink-paren-off (face-background 'default))))
 
+(or (face-differs-from-default-p 'highlight-expression)
+    (set-face-underline-p 'highlight-expression t))
 
 ;; extent used to change the face of the matching paren
-(defvar blink-paren-extent ())
+(defvar blink-paren-extent nil)
 
 ;; timeout to blink the face
-(defvar blink-paren-timeout-id ())
+(defvar blink-paren-timeout-id nil)
 
 ;; find if we should look foward or backward to find the matching paren
 (defun blink-paren-sexp-dir ()
@@ -61,9 +76,17 @@ This should be a fractional part of a second (a float.)")
 	     (let* ((parse-sexp-ignore-comments t)
 		    (other-pos (save-excursion (forward-sexp dir) (point)))
 		    (extent (if (= dir 1)
-				(make-extent (- other-pos 1) other-pos)
-			      (make-extent other-pos (+ other-pos 1)))))
-	       (set-extent-face extent 'blink-paren-on)
+				(make-extent (if highlight-paren-expression
+						 (point)
+					       (- other-pos 1))
+					     other-pos)
+			      (make-extent other-pos
+					   (if highlight-paren-expression
+					       (point)
+					     (+ other-pos 1))))))
+	       (set-extent-face extent (if highlight-paren-expression
+					   'highlight-expression
+					 'blink-paren-on))
 	       extent)
 	   (error nil)))))
 
@@ -85,6 +108,7 @@ This should be a fractional part of a second (a float.)")
 (defun blink-paren-post-command ()
   (blink-paren-pre-command)
   (if (and (setq blink-paren-extent (blink-paren-make-extent))
+	   (not highlight-paren-expression)
 	   (not (and (face-equal 'blink-paren-on 'blink-paren-off)
 		     (progn
 		       (set-extent-face blink-paren-extent 'blink-paren-on)

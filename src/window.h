@@ -1,5 +1,5 @@
 /* Window definitions for GNU Emacs.
-   Copyright (C) 1985, 1986, 1992, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1992, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -171,7 +171,7 @@ struct window
 
 #ifdef emacs  /* some things other than emacs want the structs */
 
-extern const struct lrecord_implementation lrecord_window[];
+extern CONST struct lrecord_implementation lrecord_window[];
 
 #define XWINDOW(a) ((struct window *) XPNTR(a))
 #define CHECK_WINDOW(x, i) CHECK_RECORD ((x), lrecord_window, Qwindowp, (i))
@@ -219,7 +219,6 @@ extern Lisp_Object Vwindow_system_version;
 /* Prompt to display in front of the minibuffer contents, or nil */
 extern Lisp_Object Vminibuf_prompt;
 extern int minibuf_prompt_width;
-extern int minibuf_prompt_pix_width;
 
 /* Message to display instead of minibuffer contents 
    This is what the functions error and message make,
@@ -261,11 +260,19 @@ extern int buffer_shared;
 extern void redisplay_preserving_echo_area (void);
 extern void redisplay (void);
 extern Lisp_Object make_window (void);
+extern Lisp_Object Fset_window_point (Lisp_Object window, Lisp_Object pos);
+extern Lisp_Object Fset_window_start (Lisp_Object window, Lisp_Object pos,
+				      Lisp_Object noforce);
 
 extern int window_char_left (struct window *);
 extern int window_char_top (struct window *);
 extern int window_char_width (struct window *);
 extern int window_char_height (struct window *);
+extern int window_displayed_height (struct window *);
+extern int window_real_width (struct window *);
+
+extern void scroll_command (register Lisp_Object n, int direction,
+			    int no_error);
 
 #endif /* emacs */
 

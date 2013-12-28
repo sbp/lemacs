@@ -1,5 +1,5 @@
 /* X Communication module for terminals which understand the X protocol.
-   Copyright (C) 1989, 1991, 1992, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1989, 1991, 1992, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -18,25 +18,36 @@ along with GNU Emacs; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include "config.h"
-#include "lisp.h"
 
 #include <stdio.h>
 #include <sys/time.h>
+
 #include <X11/Xlib.h>
 #include <X11/Xmu/Error.h>
-#include <X11/IntrinsicP.h>	/* CoreP.h needs this */
-#include <X11/CoreP.h>		/* foul, but we need this to use our own
-				   window inside a widget instead of one 
-				   that Xt creates... */
+
+#include "xintrinsicp.h"	/* CoreP.h needs this */
+#include <X11/CoreP.h>		/* numerous places access the fields of
+				   Core directly.  Could be
+				   XtGetValues() but ... */
+#include <X11/ShellP.h>		/* for various other awful kludgery */
+
+#ifdef EXTERNAL_WIDGET
 #include "EmacsShellP.h"
+#endif
+
 #include "EmacsScreen.h"
 #include "EmacsScreenP.h"	/* to get cursor foreground, sigh */
 
+#include "lisp.h"
+#include "intl.h"
 #include "hash.h"
-
 #include "dispextern.h"
 #include "dispmisc.h"
 #include "faces.h"
+
+#ifdef USG
+#include <sys/utsname.h>
+#endif
 
 #if 1
 #include "xgccache.h"
@@ -48,7 +59,8 @@ extern Widget Xt_app_shell;
 #ifdef HAVE_X_WINDOWS
 
 /* On 4.3 this loses if it comes after xterm.h.  */
-#include <signal.h>
+/* #include <signal.h>  use "syssignal.h" instead -jwz */
+#include "syssignal.h"
 
 /* This may include sys/types.h, and that somehow loses
    if this is not done before the other system files.  */
@@ -75,7 +87,8 @@ extern Widget Xt_app_shell;
 #include <sys/ioctl.h>
 #include <strings.h>
 #else
-#ifndef HPUX
+#if	!defined(HPUX) && !defined(LINUX)
+/* Linux added here by Raymond L. Toy <toy@alydar.crd.ge.com> for Lemacs. */
 #include <sys/termio.h>
 #endif /* HPUX */
 #include <string.h>
@@ -156,10 +169,6 @@ extern int _Xdebug;
 
 Lisp_Object Vlucid_logo;
 
-#ifdef LINE_INFO_COLUMN
-void x_draw_lineinfo_border(), x_clear_lineinfo_glyph();
-#endif
-
 /* Remember if the last cursor displayed was a bar or a box */
 /* static Lisp_Object Vlast_bar_cursor; */
 
@@ -174,10 +183,17 @@ static void dump_window (Lisp_Object window,
 static void PlotTextLine (struct window *w, struct line_header *l,
                           struct char_block *start, struct char_block *end,
                           char clear, int line_type);
+#ifdef I18N4
+static void ShipOutTextBlock (wchar_t *str, int count, 
+                              int x, int y, int a, int d,
+                              int cursor, struct face *face, 
+                              struct window *w);
+#else
 static void ShipOutTextBlock (unsigned char *str, int count, 
                               int x, int y, int a, int d,
                               int cursor, struct face *face, 
                               struct window *w);
+#endif
 static void ShipOutGlyphBlock (GLYPH index, int x, int y, int a, int d,
                                int cursor, struct face *face, 
                                struct window *w);
@@ -197,8 +213,13 @@ static void InsertChar (struct window *w, struct line_header *l,
                         struct char_block *cb, struct char_block *end, 
                         char clear);
 /* Get it past C type-check */
-static int XTtext_width (Lisp_Object, const unsigned char *,
+#ifdef I18N4
+static int XTtext_width (Lisp_Object, CONST wchar_t *,
 			 int);
+#else
+static int XTtext_width (Lisp_Object, CONST unsigned char *,
+			 int);
+#endif
 
 /* These hooks are called by update_screen at the beginning and end
    of a screen update.  We record in `updating_screen' the identity
@@ -295,7 +316,7 @@ Fastmove_cursor(struct screen *s)
  * XTcursor_to moves the cursor to the correct location and checks whether an
  * update is in progress in order to toggle it on.
  */
-void
+static void
 XTcursor_to (struct line_header *l, struct char_block *cb, int row,
 	     int col, struct window *win, struct screen *s)
 {
@@ -327,7 +348,11 @@ XTcursor_to (struct line_header *l, struct char_block *cb, int row,
        s->cur_w != XWINDOW(s->minibuffer_window)) &&
       find_window(s->cur_w,s->root_window))
     {
+#ifdef I18N4
+      wchar_t a[2];
+#else
       unsigned char a[2];
+#endif
       struct face *face = s->cur_char->char_b ? &SCREEN_NORMAL_FACE(s)
 	: &SCREEN_LEFT_MARGIN_FACE(s);
       a[0] = s->cur_char->ch == 0 ? ' ' : s->cur_char->ch;
@@ -339,17 +364,42 @@ XTcursor_to (struct line_header *l, struct char_block *cb, int row,
        * erase the old cursor
        */
       if (s->cur_char->char_b)
-	ShipOutTextBlock(a,1,
-			 s->cur_char->xpos,s->cur_line->ypos,
-			 s->cur_line->ascent,s->cur_line->descent,NO_CURSOR,
-			 s->cur_char->face ? s->cur_char->face : face,
-			 s->cur_w);
-      else 
-	ShipOutGlyphBlock(s->cur_char->glyph,
+	ShipOutTextBlock (a,1,
 			  s->cur_char->xpos,s->cur_line->ypos,
 			  s->cur_line->ascent,s->cur_line->descent,NO_CURSOR,
 			  s->cur_char->face ? s->cur_char->face : face,
 			  s->cur_w);
+      else
+	{
+	  Lisp_Object p = glyph_to_pixmap (s->cur_char->glyph);
+
+	  if (PIXMAPP (p))
+	    ShipOutGlyphBlock (s->cur_char->glyph,
+			       s->cur_char->xpos,s->cur_line->ypos,
+			       s->cur_line->ascent,s->cur_line->descent,
+			       NO_CURSOR,
+			       s->cur_char->face ? s->cur_char->face : face,
+			       s->cur_w);
+	  else if (STRINGP (p))
+	    {
+#ifdef I18N4
+	      safe_mbstowcs ((char *) XSTRING (p)->data, &wc_buf);
+#endif
+	      ShipOutTextBlock (
+#ifdef I18N4
+				wc_buf.data, (wc_buf.in_use + 1),
+#else
+				XSTRING (p)->data, XSTRING (p)->size,
+#endif
+				s->cur_char->xpos,s->cur_line->ypos,
+				s->cur_line->ascent,s->cur_line->descent,
+				NO_CURSOR,
+				s->cur_char->face ? s->cur_char->face : face,
+				s->cur_w);
+	    }
+	  else
+	    abort ();
+	}
 
       s->cursor_erased = 1;
       s->cur_w = win;
@@ -417,7 +467,7 @@ Cdumprectangle (register int top, register int left, register int rows,
 
 
 
-void
+static void
 dump_windows (Lisp_Object window, register int top, register int left,
 	      register int rows, register int cols)
 {
@@ -426,7 +476,7 @@ dump_windows (Lisp_Object window, register int top, register int left,
 }
 
 
-void
+static void
 dump_window (Lisp_Object window, register int top, register int left,
 	     register int rows, register int cols)
 {
@@ -469,7 +519,7 @@ dump_window (Lisp_Object window, register int top, register int left,
   endx = min (pixright, left + cols);
   starty = max (w->pixtop, top);
   endy = min (pixbot, top + rows);
-  margin_x = w->pixleft + LEFT_MARGIN (XBUFFER (w->buffer), s);
+  margin_x = w->pixleft + LEFT_MARGIN (XBUFFER (w->buffer), s, w);
 
   /*
    * Clear the margin area to reset its background.
@@ -483,10 +533,10 @@ dump_window (Lisp_Object window, register int top, register int left,
    * Find starting line corresponding to this start ypos
    */
   l = w->lines;
-  while (l && (l->ypos + l->descent) < starty)
+  while (l && (int) (l->ypos + l->descent) < starty)
     l = l->next;
 
-  while (l && (l->ypos - l->ascent) <= endy)
+  while (l && (int) (l->ypos - l->ascent) <= endy)
     {
       if (l->in_display == -1)
 	{
@@ -561,10 +611,14 @@ dump_window (Lisp_Object window, register int top, register int left,
  * supposed to be blinked out and will only reappear after the update
  * finishes.
  */
-int
+static int
 CursorToggle (struct screen *s)
 {
+#ifdef I18N4
+  wchar_t a[2];
+#else
   unsigned char a[2];
+#endif
   int wid;
   struct window *w = XWINDOW(s->selected_window);
   Widget widget = s->display.x->edit_widget;
@@ -625,9 +679,13 @@ CursorToggle (struct screen *s)
 	face = &SCREEN_NORMAL_FACE(s);
       font = XFONT (FACE_FONT (face));
       if (s->cur_char->char_b)
+#ifdef I18N4
+	wid = XwcTextEscapement (font->font, a, 1);
+#else
 	wid = XTextWidth (font->font, (char *) a,1);
+#endif
       else
-	wid = XPIXMAP (glyph_to_pixmap (s->cur_char->glyph))->width;
+	wid = glyph_width (s->cur_char->glyph, FACE_FONT (face));
       if (!s->cursor_erased)
 	{
 	  if (s->cur_char->char_b)
@@ -635,11 +693,33 @@ CursorToggle (struct screen *s)
 			     s->cur_char->xpos,s->cur_line->ypos,
 			     s->cur_line->ascent,s->cur_line->descent,
 			     NO_CURSOR, face,s->cur_w);
-	  else 
-	    ShipOutGlyphBlock(s->cur_char->glyph,
-			      s->cur_char->xpos,s->cur_line->ypos,
-			      s->cur_line->ascent,s->cur_line->descent,
-			      NO_CURSOR, face,s->cur_w);
+	  else
+	    {
+	      Lisp_Object p = glyph_to_pixmap (s->cur_char->glyph);
+
+	      if (PIXMAPP (p))
+		ShipOutGlyphBlock (s->cur_char->glyph,
+				   s->cur_char->xpos,s->cur_line->ypos,
+				   s->cur_line->ascent,s->cur_line->descent,
+				   NO_CURSOR, face,s->cur_w);
+	      else if (STRINGP (p))
+		{
+#ifdef I18N4
+		  safe_mbstowcs ((char *) XSTRING (p)->data, &wc_buf);
+#endif
+		  ShipOutTextBlock (
+#ifdef I18N4
+				    wc_buf.data, (wc_buf.in_use + 1),
+#else
+				    XSTRING (p)->data, XSTRING (p)->size,
+#endif
+				    s->cur_char->xpos,s->cur_line->ypos,
+				    s->cur_line->ascent,s->cur_line->descent,
+				    NO_CURSOR, face,s->cur_w);
+		}
+	      else
+		abort ();
+	    }
 	}
       else
 	{
@@ -652,12 +732,36 @@ CursorToggle (struct screen *s)
 			      THIN_CURSOR : NORMAL_CURSOR),
 			     face,s->cur_w);
 	  else 
-	    ShipOutGlyphBlock(s->cur_char->glyph,
-			      s->cur_char->xpos,s->cur_line->ypos,
-			      s->cur_line->ascent,s->cur_line->descent,
-			      (s->cur_char->next == NULL ?
-			       THIN_CURSOR : NORMAL_CURSOR),
-			      face,s->cur_w);
+	    {
+	      Lisp_Object p = glyph_to_pixmap (s->cur_char->glyph);
+
+	      if (PIXMAPP (p))
+		ShipOutGlyphBlock (s->cur_char->glyph,
+				   s->cur_char->xpos,s->cur_line->ypos,
+				   s->cur_line->ascent,s->cur_line->descent,
+				   (s->cur_char->next == NULL ?
+				    THIN_CURSOR : NORMAL_CURSOR),
+				   face,s->cur_w);
+	      else if (STRINGP (p))
+		{
+#ifdef I18N4
+		  safe_mbstowcs ((char *) XSTRING (p)->data, &wc_buf);
+#endif
+		  ShipOutTextBlock (
+#ifdef I18N4
+				    wc_buf.data, (wc_buf.in_use + 1),
+#else
+				    XSTRING (p)->data, XSTRING (p)->size,
+#endif
+				    s->cur_char->xpos,s->cur_line->ypos,
+				    s->cur_line->ascent,s->cur_line->descent,
+				    (s->cur_char->next == NULL ?
+				     THIN_CURSOR : NORMAL_CURSOR),
+				    face,s->cur_w);
+		}
+	      else
+		abort ();
+	    }
 	}
     }
   else
@@ -672,9 +776,13 @@ CursorToggle (struct screen *s)
 	face = &SCREEN_NORMAL_FACE(s);
       font = XFONT (FACE_FONT (face));
       if (s->cur_char->char_b)
+#ifdef I18N4
+	wid = XwcTextEscapement (font->font, a, 1);
+#else
 	wid = XTextWidth (font->font, (char *) a, 1);
+#endif
       else
-	wid = XPIXMAP (glyph_to_pixmap (s->cur_char->glyph))->width;
+	wid = glyph_width (s->cur_char->glyph, FACE_FONT (face));
       if (!s->cursor_erased)
 	{
 	  int height = s->cur_line->ascent ?
@@ -696,6 +804,7 @@ CursorToggle (struct screen *s)
 	}
       else if (!focus_cursor_p(s))
 	{
+	  /* #### Chuck, what was this supposed to do? */
 #if 0
 	  XGCValues values;
 
@@ -722,13 +831,37 @@ CursorToggle (struct screen *s)
 			     (s->cur_char->next == NULL ?
 			      THIN_CURSOR : NORMAL_CURSOR),
 			     face, s->cur_w);
-	  else 
-	    ShipOutGlyphBlock(s->cur_char->glyph,
-			      s->cur_char->xpos,s->cur_line->ypos,
-			      s->cur_line->ascent,s->cur_line->descent,
-			      (s->cur_char->next == NULL ?
-			       THIN_CURSOR : NORMAL_CURSOR),
-			      face, s->cur_w);
+	  else
+	    {
+	      Lisp_Object p = glyph_to_pixmap (s->cur_char->glyph);
+
+	      if (PIXMAPP (p))
+		ShipOutGlyphBlock (s->cur_char->glyph,
+				   s->cur_char->xpos,s->cur_line->ypos,
+				   s->cur_line->ascent,s->cur_line->descent,
+				   (s->cur_char->next == NULL ?
+				    THIN_CURSOR : NORMAL_CURSOR),
+				   face, s->cur_w);
+	      else if (STRINGP (p))
+		{
+#ifdef I18N4
+		  safe_mbstowcs ((char *) XSTRING (p)->data, &wc_buf);
+#endif
+		  ShipOutTextBlock (
+#ifdef I18N4
+				    wc_buf.data, (wc_buf.in_use + 1),
+#else
+				    XSTRING (p)->data, XSTRING (p)->size,
+#endif
+				    s->cur_char->xpos,s->cur_line->ypos,
+				    s->cur_line->ascent,s->cur_line->descent,
+				    (s->cur_char->next == NULL ?
+				     THIN_CURSOR : NORMAL_CURSOR),
+				    face, s->cur_w);
+		}
+	      else
+		abort ();
+	    }
 	}
     }
 
@@ -749,10 +882,14 @@ CursorToggle (struct screen *s)
  * toggle it back into existance if dumprectangle is invoked when not in
  * the midst of a screen update.
  */
-void
+static void
 ClearCursor(struct screen *s)
 {
+#ifdef I18N4
+  wchar_t a[1];
+#else
   char a[1];
+#endif
   int wid,height;
   struct Lisp_Font *font = XFONT (SCREEN_DEFAULT_FONT (s));
   
@@ -776,8 +913,13 @@ ClearCursor(struct screen *s)
   a[0] = ' ';
   if (s->new_cur_char->face)
     font = XFONT (FACE_FONT (s->new_cur_char->face));
+#ifdef I18N4
+  wid = s->new_cur_char->ch == 0 ? XwcTextEscapement (font->font, a, 1) : 
+    s->new_cur_char->width;
+#else
   wid = s->new_cur_char->ch == 0 ? XTextWidth (font->font, a, 1) : 
     s->new_cur_char->width;
+#endif
   height = s->new_cur_line->ascent ?
     (s->new_cur_line->ascent + s->new_cur_line->descent) : font->height;
 
@@ -795,14 +937,19 @@ ClearCursor(struct screen *s)
  * Plot a line L (or portion of line from START to END) of text in window W.
  * START and END are considered, if non-zero
  */
-void
+static void
 PlotTextLine (struct window *w, struct line_header *l,
 	      struct char_block *start, struct char_block *end, char clear,
 	      int line_type)
 {
   struct screen *s = XSCREEN(w->screen);
+#ifdef I18N4
+  wchar_t buf[1000];	/* Buffer for constructing string. */
+  wchar_t *pos;		/* Position in buf */
+#else
   unsigned char buf[1000];	/* Buffer for constructing string. */
   unsigned char *pos;		/* Position in buf */
+#endif
   struct char_block *cb;	/* Current char in line */
   struct face *f;		/* Current style for plotting */
   int n = 0;			/* char count for current region */
@@ -855,9 +1002,29 @@ PlotTextLine (struct window *w, struct line_header *l,
 	    }
 	  else if (!cb->char_b)
 	    {
+	      Lisp_Object p = glyph_to_pixmap (cb->glyph);
+
 	      cb->changed = cb->new = 0;
-	      ShipOutGlyphBlock(cb->glyph,cb->xpos,l->ypos,l->ascent,
-				l->descent, NO_CURSOR, cb->face, w);
+	      if (PIXMAPP (p))
+		ShipOutGlyphBlock (cb->glyph,cb->xpos,l->ypos,l->ascent,
+				   l->descent, NO_CURSOR, cb->face, w);
+	      else if (STRINGP (p))
+		{
+#ifdef I18N4
+		  safe_mbstowcs ((char *) XSTRING (p)->data, &wc_buf);
+#endif
+		  ShipOutTextBlock (
+#ifdef I18N4
+				    wc_buf.data, (wc_buf.in_use + 1),
+#else
+				    XSTRING (p)->data, XSTRING (p)->size,
+#endif
+				    cb->xpos,l->ypos,l->ascent,
+				    l->descent, NO_CURSOR, cb->face, w);
+		}
+	      else
+		abort ();
+
 	      cb = cb->next;
 	    }
 	  if (cb)
@@ -873,7 +1040,7 @@ PlotTextLine (struct window *w, struct line_header *l,
   if (n)
     ShipOutTextBlock(buf,n,xpos,l->ypos,l->ascent,l->descent,
 		     NO_CURSOR, f, w);
-  if (line_type == BODY && clear && (l->ascent + l->descent > 0))
+  if (line_type == BODY && clear && ((int) (l->ascent + l->descent) > 0))
     if (l->lwidth < (w->pixleft + w->pixwidth - 1))
       {
 	XClearArea(x_current_display, XtWindow (s->display.x->edit_widget),
@@ -882,9 +1049,9 @@ PlotTextLine (struct window *w, struct line_header *l,
 		   (l->ascent + l->descent),0);
       }
   if (!l->modeline
-      && l->mwidth < (w->pixleft + LEFT_MARGIN (XBUFFER (w->buffer), s)))
+      && l->mwidth < (w->pixleft + LEFT_MARGIN (XBUFFER (w->buffer), s, w)))
     {
-      int width = (w->pixleft + LEFT_MARGIN (XBUFFER (w->buffer), s)
+      int width = (w->pixleft + LEFT_MARGIN (XBUFFER (w->buffer), s, w)
 		   - l->mwidth);
       
       if (width)
@@ -900,7 +1067,7 @@ PlotTextLine (struct window *w, struct line_header *l,
    (It doesn't need to if the font/glyph to be drawn exactly fills the
    target area.)
  */
-Bool
+static Bool
 ShipOutBlankBlock (Bool margin, int width, int x, int y, int a, int d,
 		   int cursor, struct face *face, struct window *w)
 {
@@ -973,7 +1140,8 @@ ShipOutBlankBlock (Bool margin, int width, int x, int y, int a, int d,
   if (!clear_rect_p && (margin
 			|| (cursor == THIN_CURSOR)
 			|| (!cursor
-			    && (font->ascent < a || font->descent < d))))
+			    && ((int) FONT_ASCENT(font->font) < a
+				|| (int) FONT_DESCENT(font->font) < d))))
     {
     /* If the height of the selected font is less than the line being
        redisplayed, then calling XDrawImageString won't clear the area
@@ -997,7 +1165,7 @@ ShipOutBlankBlock (Bool margin, int width, int x, int y, int a, int d,
 }
 
 
-void
+static void
 ShipOutGlyphBlock (GLYPH index, int x, int y, int a, int d,
 		   int cursor, struct face *face, struct window *w)
 {
@@ -1066,9 +1234,14 @@ ShipOutGlyphBlock (GLYPH index, int x, int y, int a, int d,
 		x, bitmap_y_offset < 0 ? y - bitmap_y_offset - a : y-a, 1L);
 }
 
-void
+static void
+#ifdef I18N4
+ShipOutTextBlock (wchar_t *str, int count, int x, int y, int a,
+		  int d, int cursor, struct face *face, struct window *w)
+#else
 ShipOutTextBlock (unsigned char *str, int count, int x, int y, int a,
 		  int d, int cursor, struct face *face, struct window *w)
+#endif
 {
   struct screen *s = XSCREEN(w->screen);
   Display *dpy = x_current_display;
@@ -1089,8 +1262,13 @@ ShipOutTextBlock (unsigned char *str, int count, int x, int y, int a,
   f = face ? face : &SCREEN_NORMAL_FACE(s);
   font = XFONT (FACE_FONT (f));
 
+#ifdef I18N4
+  wid = min (XwcTextEscapement (font->font, str, count),
+	     (w->pixleft + w->pixwidth - x));
+#else
   wid = min (XTextWidth (font->font, (char *) str, count),
 	     (w->pixleft + w->pixwidth - x));
+#endif
 
   /*
    * First we need to erase the area where the string is going to be
@@ -1102,7 +1280,9 @@ ShipOutTextBlock (unsigned char *str, int count, int x, int y, int a,
   text_mask = GCForeground | GCBackground | GCFont | GCGraphicsExposures;
   gcv.foreground = FACE_FG_PIXEL (f);
   gcv.background = FACE_BG_PIXEL (f);
+#ifndef I18N4
   gcv.font = font->font->fid;
+#endif
 
   /* The focus cursor is done by drawing the character in its background
      on top of a background of the cursor color, unless Vbar_cursor is
@@ -1130,9 +1310,17 @@ ShipOutTextBlock (unsigned char *str, int count, int x, int y, int a,
   if (cursor != THIN_CURSOR)
     {
       if (clear_rect_p)
+#ifdef I18N4
+	XwcDrawString (dpy, x_win, font->font, gc, x, y, str, count);
+#else
 	XDrawString (dpy, x_win, gc, x, y, (char *) str, count);
+#endif
       else
+#ifdef I18N4
+	XwcDrawImageString (dpy, x_win, font->font, gc, x, y, str, count);
+#else
 	XDrawImageString (dpy, x_win, gc, x, y, (char *) str, count);
+#endif
     }
   else if (cursor == THIN_CURSOR && focus_cursor_p (s) && NILP (Vbar_cursor))
     /* A thin cursor can only occur at eol where there is no character. */
@@ -1153,10 +1341,15 @@ ShipOutTextBlock (unsigned char *str, int count, int x, int y, int a,
     {
       unsigned long upos;
       unsigned long uthick;
+#ifdef I18N4 /* #### is this right? -jwz */
+      upos = 0;
+      uthick = 1;
+#else /* ! I18N4 */
       if (!XGetFontProperty (font->font, XA_UNDERLINE_POSITION, &upos))
 	upos = 0;
       if (!XGetFontProperty (font->font, XA_UNDERLINE_THICKNESS, &uthick))
 	uthick = 1;
+#endif /* ! I18N4 */
       if (uthick <= 1)
 	XDrawLine (dpy, x_win, gc, x, y + upos, x + wid, y + upos);
       else
@@ -1213,12 +1406,12 @@ XTcolor_area (struct screen *s, unsigned long color, int x, int y,
 /*
  * Clear region from ypos1 to ypos2, for entire window width
  */
-void
+static void
 XTclear_window_end (struct window *w, int ypos1, int ypos2)
 {
   struct screen *s = XSCREEN(w->screen);
   struct buffer *b = XBUFFER(w->buffer);
-  int left_margin = LEFT_MARGIN(b,s);
+  int left_margin = LEFT_MARGIN(b,s,w);
 
   BLOCK_INPUT;
 
@@ -1235,13 +1428,13 @@ XTclear_window_end (struct window *w, int ypos1, int ypos2)
 /*
  * Shift region of lines according to scrolling info
  */
-void
+static void
 XTshift_region (struct window *w, struct line_header *start,
 		struct line_header *end)
 {
   struct screen *s = XSCREEN(w->screen);
   register int old_top,new_top,length,i;
-  int margin_pixwidth = LEFT_MARGIN (XBUFFER (w->buffer), s);
+  int margin_pixwidth = LEFT_MARGIN (XBUFFER (w->buffer), s, w);
   int margin_pixleft = w->pixleft + margin_pixwidth;
   Window x_win = XtWindow (s->display.x->edit_widget);
 
@@ -1253,7 +1446,13 @@ XTshift_region (struct window *w, struct line_header *start,
 
   if (length > 0 && old_top != new_top)
     {
-      XCopyArea (x_current_display,x_win, x_win, s->display.x->normal_gc,
+      XGCValues gcv;
+      GC copy_gc;
+
+      memset (&gcv, ~0, sizeof (XGCValues)); /* initialize all slots to ~0 */
+      gcv.graphics_exposures = False;
+      copy_gc = gc_cache_lookup (the_gc_cache, &gcv, GCGraphicsExposures);
+      XCopyArea (x_current_display,x_win, x_win, copy_gc,
                  w->pixleft, old_top,
                  w->pixwidth, length,
                  w->pixleft, new_top);
@@ -1294,18 +1493,29 @@ XTshift_region (struct window *w, struct line_header *start,
  * ASSUMPTIONS:  Remaining chars on line will be blt'ed.  No region needs 
  *		 to be cleared at end of line.
  */
-void
+static void
 InsertChar (struct window *w, struct line_header *l, struct char_block *new,
 	    struct char_block *cb, struct char_block *end, char clear)
 {
   struct screen *s = XSCREEN(w->screen);
   Window x_win = XtWindow (s->display.x->edit_widget);
+#ifdef I18N4
+  wchar_t b[2];
+#else
   unsigned char b[2];
+#endif
+  XGCValues gcv;
+  GC copy_gc;
 
   b[1] = 0;
   b[0] = new->ch;
+
+  memset (&gcv, ~0, sizeof (XGCValues)); /* initialize all slots to ~0 */
+  gcv.graphics_exposures = False;
+  copy_gc = gc_cache_lookup (the_gc_cache, &gcv, GCGraphicsExposures);
+
   BLOCK_INPUT;
-  XCopyArea(x_current_display,x_win,x_win,s->display.x->normal_gc,
+  XCopyArea(x_current_display, x_win, x_win, copy_gc,
 	    new->xpos,			/* start x */
 	    l->ypos - l->ascent, 	/* start y */
 	    end->xpos - cb->xpos,	/* width */
@@ -1324,11 +1534,19 @@ InsertChar (struct window *w, struct line_header *l, struct char_block *new,
 /*
  * Real fcn to return width of text string displayed in FONT when under X.
  */
+#ifdef I18N4
 static int
-XTtext_width (Lisp_Object f, const unsigned char *s, int len)
+XTtext_width (Lisp_Object f, CONST wchar_t *s, int len)
+{
+  return (XwcTextEscapement (XFONT(f)->font, (wchar_t *) s, len));
+}
+#else
+static int
+XTtext_width (Lisp_Object f, CONST unsigned char *s, int len)
 {
   return (XTextWidth (XFONT(f)->font, (char *) s, len));
 }
+#endif
 
 
 static void
@@ -1468,7 +1686,7 @@ x_new_selected_screen (screen)
 }
 
 
-static const char *events[] =
+static CONST char *events[] =
 {
    "0: ERROR!",
    "1: REPLY",
@@ -1508,7 +1726,7 @@ static const char *events[] =
    "LASTEvent"
 };
 
-const char *
+CONST char *
 x_event_name (event_type)
      int event_type;
 {
@@ -1557,6 +1775,25 @@ static int error_occurred;
 static XErrorEvent last_error;
 #endif
 
+extern Lisp_Object Qdelete_screen;
+
+/* OVERKILL! */
+
+#ifdef EXTERNAL_WIDGET
+static Lisp_Object
+x_error_handler_do_enqueue (Lisp_Object screen)
+{
+  Fenqueue_command_event (Qdelete_screen, screen);
+  return Qt;
+}
+
+static Lisp_Object
+x_error_handler_error (Lisp_Object data, Lisp_Object dummy)
+{
+  return Qnil;
+}
+#endif /* EXTERNAL_WIDGET */
+
 static int
 x_error_handler (disp, event)
      Display *disp;
@@ -1572,6 +1809,40 @@ x_error_handler (disp, event)
   else
 #endif
     {
+#ifdef EXTERNAL_WIDGET
+      struct screen *s;
+
+      if ((event->error_code == BadWindow ||
+	   event->error_code == BadDrawable)
+	  && ((s = x_any_window_to_screen (event->resourceid)) != 0))
+	{
+	  Lisp_Object screen;
+
+	/* one of the windows comprising one of our screens has died.
+	   This occurs particularly with EmacsShell screens when the
+	   client that owns the EmacsShell's window dies.
+
+	   We cannot do any I/O on the display connection so we need
+	   to enqueue a command event so that the deletion happens
+	   later.
+
+	   Furthermore, we need to trap any errors (out-of-memory) that
+	   may occur when Fenqueue_command_event is called.
+	 */
+
+	if (s->being_deleted)
+	  return 0;
+	XSETR (screen, Lisp_Screen, s);
+	if (!NILP (condition_case_1 (Qerror, x_error_handler_do_enqueue,
+				     screen, x_error_handler_error, Qnil)))
+	  {
+	    s->being_deleted = 1;
+	    s->visible = 0;
+	  }
+	return 0;
+      }
+#endif /* EXTERNAL_WIDGET */
+
       fprintf (stderr, "\n%s: ",
 	       (STRINGP (Vinvocation_name)
 		? (char *) XSTRING (Vinvocation_name)->data
@@ -1639,21 +1910,20 @@ static int
 x_IO_error_handler (disp)
      Display *disp;
 {
-  fprintf (stderr,
-	   "\n%s: Fatal I/O Error %d (%s) on display connection \"%s\"\n",
+  fprintf (stderr, GETTEXT ("\n%s: Fatal I/O Error %d (%s) on display connection \"%s\"\n"),
 	   (STRINGP (Vinvocation_name)
 	    ? (char *) XSTRING (Vinvocation_name)->data
 	    : "lemacs"),
 	   errno, sys_errlist [errno], DisplayString (disp));
   fprintf (stderr,
-      "  after %lu requests (%lu known processed) with %d events remaining.\n",
+      GETTEXT ("  after %lu requests (%lu known processed) with %d events remaining.\n"),
 	   NextRequest (disp) - 1, LastKnownRequestProcessed (disp),
 	   QLength(disp));
   if (_Xdebug)
     abort ();
   else
     {
-      fprintf (stderr, "  Autosaving and exiting...\n");
+      fprintf (stderr, GETTEXT ("  Autosaving and exiting...\n"));
       x_current_display = 0; /* it's dead! */
       Vwindow_system = Qnil; /* let it lie! */
       Fset (Qkill_emacs_hook, Qnil); /* too dangerous */
@@ -1691,8 +1961,28 @@ glyph_to_pixmap (GLYPH g)
 /*    abort (); */
     return Qnil; /* #### KLUDGE */
   p = glyph_to_pixmaps_table [g];
-  if (! PIXMAPP (p)) abort ();
+  if (! PIXMAPP (p) && ! STRINGP (p)) abort ();
   return p;
+}
+
+unsigned short
+glyph_width (GLYPH g, Lisp_Object font)
+{
+  Lisp_Object p = glyph_to_pixmap (g);
+
+  if (PIXMAPP (p))
+    return XPIXMAP (p)->width;
+  else if (STRINGP (p))
+    {
+#ifdef I18N4
+      safe_mbstowcs ((char *) XSTRING (p)->data, &wc_buf);
+      return text_width (font, wc_buf.data, wc_buf.in_use + 1);
+#else
+      return text_width (font, XSTRING (p)->data, XSTRING (p)->size);
+#endif
+    }
+  else
+    abort ();
 }
 
 void 
@@ -1737,13 +2027,24 @@ init_bitmap_tables ()
 extern char *strdup();
 
 GLYPH
-x_get_pixmap (Lisp_Object lisp_name, char *hash_suffix)
+x_get_pixmap (Lisp_Object lisp_glyph, char *hash_suffix)
 {
   char hash_buf [255];
-  char *name = (char *) XSTRING (lisp_name)->data;
-  const void *hash_value; /* can't be GLYPH (16 bits) */
+  char *name;
+  CONST void *hash_value; /* can't be GLYPH (16 bits) */
   Lisp_Object pixmap;
   GLYPH new;
+
+  if (STRINGP (lisp_glyph))
+    {
+      name = (char *) XSTRING (lisp_glyph)->data;
+    }
+  else if (PIXMAPP (lisp_glyph))
+    {
+      name = (char *) XSTRING (XPIXMAP (lisp_glyph)->file_name)->data;
+    }
+  else
+    abort();	/* if we get here something is screwed internally */
 
   strcpy (hash_buf, name);
   if (hash_suffix)
@@ -1754,8 +2055,15 @@ x_get_pixmap (Lisp_Object lisp_name, char *hash_suffix)
     if (hash_value)
       return ((GLYPH) ((int) hash_value));
 
-  /* #### shouldn't be using selected-screen here */
-  pixmap = Fmake_pixmap (lisp_name, Fselected_screen ());
+  if (STRINGP (lisp_glyph))
+    {
+      /* #### shouldn't be using selected-screen here */
+      pixmap = Fmake_pixmap (lisp_glyph, Fselected_screen ());
+    }
+  else if (PIXMAPP (lisp_glyph))
+    {
+      pixmap = lisp_glyph;
+    }
 
   if (max_pixmap_id >= glyph_to_pixmaps_size)
     {
@@ -1773,8 +2081,40 @@ x_get_pixmap (Lisp_Object lisp_name, char *hash_suffix)
   return new;
 }
 
+GLYPH
+x_get_string (Lisp_Object lisp_string, char *hash_suffix)
+{
+  char hash_buf [255];
+  char *name = (char *) XSTRING (lisp_string)->data;
+  CONST void *hash_value; /* can't be GLYPH (16 bits) */
+  GLYPH new;
 
-static void
+  strcpy (hash_buf, name);
+  if (hash_suffix)
+    strcat (hash_buf, hash_suffix);
+
+  if (gethash (hash_buf, pixmap_table, &hash_value))
+    /* #### What does it mean for this to be 0?  Bug? */
+    if (hash_value)
+      return ((GLYPH) ((int) hash_value));
+
+  if (max_pixmap_id >= glyph_to_pixmaps_size)
+    {
+      glyph_to_pixmaps_size += 50;
+      glyph_to_pixmaps_table = (Lisp_Object *)
+	xrealloc (glyph_to_pixmaps_table,
+		  glyph_to_pixmaps_size * sizeof (Lisp_Object));
+    }
+  new = max_pixmap_id;
+  max_pixmap_id++;
+  glyph_to_pixmaps_table [new] = lisp_string;
+  puthash (xstrdup (hash_buf),
+	   (void *) ((int) hash_value),
+	   pixmap_table);
+  return new;
+}
+
+void
 make_argc_argv (argv_list, argc, argv)
      Lisp_Object argv_list;
      int* argc;
@@ -1783,17 +2123,18 @@ make_argc_argv (argv_list, argc, argv)
   Lisp_Object next;
   int n = XINT (Flength (argv_list));
   int i;
-  *argv = (char**)xmalloc (n * sizeof (char*));
+  *argv = (char**)xmalloc ((n+1) * sizeof (char*));
 
   for (i = 0, next = argv_list; i < n; i++, next = XCONS (next)->cdr)
     {
       CHECK_STRING (XCONS (next)->car, 0);
-      (*argv) [i] = (char*)(XSTRING (XCONS (next)->car)->data);
+      (*argv) [i] = (char*) (XSTRING (XCONS (next)->car)->data);
     }
+  (*argv) [n] = 0;
   *argc = i;
 }
 
-static Lisp_Object
+Lisp_Object
 make_arg_list (argc, argv)
      int argc;
      char** argv;
@@ -1814,11 +2155,11 @@ static XrmOptionDescRec emacs_options[] = {
      XrmoptionSepArg, NULL},
   {"-ib",	"*EmacsScreen.internalBorderWidth", XrmoptionSepArg, NULL},
 
-  {"-T",	"*EmacsShell.title", XrmoptionSepArg, (XtPointer) NULL},
-  {"-wn",	"*EmacsShell.title", XrmoptionSepArg, (XtPointer) NULL},
-  {"-title",	"*EmacsShell.title", XrmoptionSepArg, (XtPointer) NULL},
-  {"-iconname",	"*EmacsShell.iconName", XrmoptionSepArg, (XtPointer) NULL},
-  {"-in",	"*EmacsShell.iconName", XrmoptionSepArg, (XtPointer) NULL},
+  {"-T",	"*TopLevelShell.title", XrmoptionSepArg, (XtPointer) NULL},
+  {"-wn",	"*TopLevelShell.title", XrmoptionSepArg, (XtPointer) NULL},
+  {"-title",	"*TopLevelShell.title", XrmoptionSepArg, (XtPointer) NULL},
+  {"-iconname",	"*TopLevelShell.iconName", XrmoptionSepArg, (XtPointer) NULL},
+  {"-in",	"*TopLevelShell.iconName", XrmoptionSepArg, (XtPointer) NULL},
   {"-mc",	"*pointerColor", XrmoptionSepArg, (XtPointer) NULL},
   {"-cr",	"*cursorColor", XrmoptionSepArg, (XtPointer) NULL}
 };
@@ -1829,6 +2170,10 @@ extern void x_init_modifier_mapping (Display *);
 
 extern Lisp_Object Vx_emacs_application_class;
 extern int x_selection_timeout;
+
+#ifdef I18N4
+extern void init_input (CONST char *res_name, CONST char *res_class);
+#endif
 
 Lisp_Object
 x_term_init (argv_list)
@@ -1861,7 +2206,7 @@ x_term_init (argv_list)
   x_current_display = XtDisplay (Xt_app_shell);
 
   if (x_current_display == 0)
-    fatal ("X server not responding; check the DISPLAY environment variable or use \"-d\"\n");
+    fatal (GETTEXT ("X server \"%s\" not responding\n"), XDisplayName (0));
   
   x_file_descriptor = ConnectionNumber (x_current_display);
 
@@ -1874,10 +2219,18 @@ x_term_init (argv_list)
   x_selection_timeout = (XtAppGetSelectionTimeout (Xt_app_con) / 1000);
 
   {
+#if defined (USG) && !defined (HAVE_GETHOSTNAME)
+    static struct utsname get_system_name_name;
+#endif /* USG && !HAVE_GETHOSTNAME */
     char tem_name[MAXPATHLEN];
     int l;
 
+#if defined (USG) && !defined (HAVE_GETHOSTNAME)
+    uname (&get_system_name_name);
+    strcpy (tem_name, get_system_name_name.nodename);
+#else /* not USG && !HAVE_GETHOSTNAME */
     gethostname (tem_name, MAXPATHLEN - 1);
+#endif /* not USG */
     tem_name[99] = 0;
     if ((l = strlen (tem_name)) < MAXPATHLEN -1)
       {
@@ -1887,7 +2240,7 @@ x_term_init (argv_list)
     else
       {
 	hostname = (char *) xmalloc (10);
-	memcpy (hostname, "Somewhere", 9);
+	memcpy (hostname, GETTEXT ("Somewhere"), 9);
 	hostname[10] = 0;
       }
     id_name = (char *) xmalloc (string_length (XSTRING (Vinvocation_name))
@@ -1958,6 +2311,10 @@ x_term_init (argv_list)
 
   emacs_Xt_make_event_stream ();
 
+#ifdef I18N4
+  init_input (*argv, app_class);
+#endif
+
   /* Disable Window Change signals;  they are handled by X events. */
 #ifdef SIGWINCH
   signal (SIGWINCH, SIG_IGN);
@@ -1985,11 +2342,11 @@ sanity_check_geometry_resource (Display *dpy)
   strcat (buf2, "._no_._such_._resource_.Geometry");
   if (XrmGetResource (XtDatabase (dpy), buf1, buf2, &type, &value) == True)
     {
-      fprintf (stderr, "\n\
+      fprintf (stderr, GETTEXT ("\n\
 Apparently \"%s*geometry: %s\" or \"%s*geometry: %s\" was\n\
 specified in the resource database.  Specifying \"*geometry\" will make\n\
 emacs (and most other X programs) malfunction in obscure ways.  You\n\
-should always use \".geometry\" instead.\n\n",
+should always use \".geometry\" instead.\n\n"),
 	       app_name, (char *) value.addr,
 	       app_class, (char *) value.addr);
       exit (-1);
@@ -2223,7 +2580,7 @@ x_make_screen_invisible (s)
 			DefaultScreen (x_current_display)))
     {
       UNBLOCK_INPUT;
-      error ("Can't notify window manager of iconification.");
+      error (GETTEXT ("Can't notify window manager of iconification."));
     }
   
   UNBLOCK_INPUT;
@@ -2242,7 +2599,7 @@ x_iconify_screen (s)
   UNBLOCK_INPUT;
 
   if (!result)
-    error ("Can't notify window manager of iconification.");
+    error (GETTEXT ("Can't notify window manager of iconification."));
 
   s->iconified = 1;
 }
@@ -2270,8 +2627,13 @@ x_focus_screen (s)
     return;
 
   BLOCK_INPUT;
+#ifdef EXTERNAL_WIDGET
   /* Always set the Xt keyboard focus. */
-  lw_set_keyboard_focus (x->widget, x->edit_widget);
+  if (x->emacs_shell_p)
+    EmacsShellSetFocus (x->widget);
+  else
+#endif /* EXTERNAL_WIDGET */
+    lw_set_keyboard_focus (x->widget, x->edit_widget);
 
   /* Do the ICCCM focus change if we don't have focus already and
      the window is still visible.  The s->visible flag might not be
@@ -2354,6 +2716,17 @@ maybe_move_wm_command (struct screen *s)
     }
 }
 
+
+static int (*xdw_old_handler) (Display *, XErrorEvent *);
+
+static int
+xdw_error_handler (Display *display,
+	XErrorEvent *event)
+{
+  if (event->error_code == BadWindow)
+    return 0;
+  return xdw_old_handler (display, event);
+}
 
 /* Destroy the X window of screen S.
    DISPL is the former s->display (since s->display
@@ -2364,47 +2737,16 @@ x_destroy_window (s)
 {
   maybe_move_wm_command (s);
   BLOCK_INPUT;
-  XtDestroyWidget(s->display.x->widget);
+  /* we need to trap BadWindow errors here because the screen's windows
+     might already be destroyed (esp. if the screen occupied a client
+     widget and the client died). */
+  xdw_old_handler = XSetErrorHandler (xdw_error_handler);
+  XtDestroyWidget (s->display.x->widget);
+  XSync (x_current_display, 0);
+  XSetErrorHandler (xdw_old_handler);
   UNBLOCK_INPUT;
   
   xfree (s->display.x);
-#if 0
-  * Punt on this for a while
- *  /* If we don't own this window (we didn't create it) then we can't destroy
- *     it.
- *     We set the window to be the external_window, so that XtDestroyWidget
- *     won't call XDestroyWindow.  Had we just set the window to 0,
- *     XtDestroyWidget would only have done half the job. 
- *     We also have to check if the parent window belongs to a noteWidget
- *     and then remove us from this note. 
- *     This is among the worse code I ever wrote. --Matthieu.*/
- *  {int destroyed_p = False;
- *   if (displ.x->own_window != True) 
- *     {
- *       Window root;
- *       Window parent;
- *       Window* children;
- *       unsigned int n_children;
- *       Widget parent_widget;
- *       
- */*       displ.x->window_desc = 0; */
- *       displ.x->widget->core.window =
- *	 ((EmacsShellWidget)displ.x->widget)->emacsShell.external_window;
- *       
- *       if (XQueryTree (XtDisplay (displ.x->widget),
- *		       XtWindow (displ.x->widget), 
- *		       &root, &parent, &children, &n_children)){
- *	 parent_widget = XtWindowToWidget (x_current_display, parent);
- *	 if (parent_widget){
- *	   destroyed_p = True;
- *	   set_text_widget ((NoteWidget)parent_widget, 0);
- *	 }
- *       }
- *     }else
- *       /* this will tell the emacs shell to destroy its window */
- *       ((EmacsShellWidget)displ.x->widget)->emacsShell.external_window = 0;
- * }
-#endif
 }
 
 #endif /* HAVE_X_WINDOWS */

@@ -11,4 +11,9 @@
 #define LIBS_SYSTEM	-lbsd
 #define LD_SWITCH_SYSTEM	-non_shared
 
-#define SYSV_SYSTEM_DIR
+#ifndef SYSV_SYSTEM_DIR
+# define SYSV_SYSTEM_DIR
+#endif
+#ifndef GETPGRP_NO_ARG
+# define GETPGRP_NO_ARG
+#endif

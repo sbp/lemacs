@@ -27,7 +27,7 @@
      (error nil))
    (error "VM Info documentation appears not to be installed"))
   (if warranty
-      (progn
+      (let ((case-fold-search nil))
 	(search-forward "NO WARRANTY\n" nil t)
 	(forward-line -1)
 	(set-window-start (selected-window) (point)))))

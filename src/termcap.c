@@ -18,6 +18,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* config.h may rename various library functions such as malloc.  */
 #ifdef emacs
 #include "config.h"
+#include "intl.h"
 #include "lisp.h" /* For emacs_open, emacs_close, emacs_read */
 #else /* not emacs */
 #if defined(USG) || defined(STDC_HEADERS)
@@ -97,16 +98,16 @@ xrealloc (ptr, size)
    for tgetnum, tgetflag and tgetstr to find.  */
 static char *term_entry;
 
-static const char *tgetst1 (const char *ptr, char **area);
+static CONST char *tgetst1 (CONST char *ptr, char **area);
 
 /* Search entry BP for capability CAP.
    Return a pointer to the capability (in BP) if found,
    0 if not found.  */
 
-static const char *
+static CONST char *
 find_capability (bp, cap)
-     register const char *bp;
-     const char *cap;
+     register CONST char *bp;
+     CONST char *cap;
 {
   for (; *bp; bp++)
     if (bp[0] == ':'
@@ -118,9 +119,9 @@ find_capability (bp, cap)
 
 int
 tgetnum (cap)
-     const char *cap;
+     CONST char *cap;
 {
-  register const char *ptr = find_capability (term_entry, cap);
+  register CONST char *ptr = find_capability (term_entry, cap);
   if (!ptr || ptr[-1] != '#')
     return -1;
   return atoi (ptr);
@@ -128,9 +129,9 @@ tgetnum (cap)
 
 int
 tgetflag (cap)
-     const char *cap;
+     CONST char *cap;
 {
-  register const char *ptr = find_capability (term_entry, cap);
+  register CONST char *ptr = find_capability (term_entry, cap);
   return 0 != ptr && ptr[-1] == ':';
 }
 
@@ -139,12 +140,12 @@ tgetflag (cap)
    to store the string.  That pointer is advanced over the space used.
    If AREA is zero, space is allocated with `malloc'.  */
 
-const char *
+CONST char *
 tgetstr (cap, area)
-     const char *cap;
+     CONST char *cap;
      char **area;
 {
-  register const char *ptr = find_capability (term_entry, cap);
+  register CONST char *ptr = find_capability (term_entry, cap);
   if (!ptr || (ptr[-1] != '=' && ptr[-1] != '~'))
     return 0;
   return tgetst1 (ptr, area);
@@ -165,12 +166,12 @@ static char esctab[]
    into the block that *AREA points to,
    or to newly allocated storage if AREA is 0.  */
 
-static const char *
+static CONST char *
 tgetst1 (ptr, area)
-     const char *ptr;
+     CONST char *ptr;
      char **area;
 {
-  register const char *p;
+  register CONST char *p;
   register char *r;
   register int c;
   register int size;
@@ -254,7 +255,7 @@ static short speeds[] =
 
 void
 tputs (string, nlines, outfun)
-     register const char *string;
+     register CONST char *string;
      int nlines;
      register void (*outfun) (int);
 {
@@ -274,7 +275,7 @@ tputs (string, nlines, outfun)
   if (string == (char *) 0)
     return;
 
-  while (*string >= '0' && *string <= '9')
+  while (isdigit (*string))
     {
       padcount += *string++ - '0';
       padcount *= 10;
@@ -364,7 +365,7 @@ extern char *getenv ();
 int
 tgetent (bp, name)
      char *bp;
-     const char *name;
+     CONST char *name;
 {
   register char *tem;
   register int fd;
@@ -375,7 +376,7 @@ tgetent (bp, name)
   int malloc_size = 0;
   register int c;
   char *tcenv;			/* TERMCAP value, if it contais :tc=.  */
-  const char *indirect = 0;	/* Terminal type in :tc= in TERMCAP value.  */
+  CONST char *indirect = 0;	/* Terminal type in :tc= in TERMCAP value.  */
   int filep;
 
   tem = getenv ("TERMCAP");
@@ -679,7 +680,7 @@ main (argc, argv)
 }
 
 tprint (cap)
-     const char *cap;
+     CONST char *cap;
 {
   char *x = tgetstr (cap, 0);
   register char *y;

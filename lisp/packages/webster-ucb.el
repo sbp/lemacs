@@ -116,10 +116,10 @@
 	(set-extent-face e face)
 	(setq count (1+ count))))
     (if highlight
-	(set-extent-attribute
+	(set-extent-property
 	 ;; use the same extent if we didn't have to split it.
 	 (if (= count 1) e (make-extent os end (current-buffer)))
-	 'highlight))
+	 'highlight t))
     ))
 
 (defconst webster-umlauts
@@ -277,6 +277,7 @@
 	  (t nil))))
 
 
+;;;###don't autoload
 (defun webster (arg)
   "Look up a word in the Webster's dictionary.
 Open a network login connection to a webster host if necessary.
@@ -292,6 +293,7 @@ Communication with host is recorded in a buffer *webster*."
   (message "looking up %s..." (upcase arg))
   (webster-send-request "WORD" (prin1-to-string arg)))
 
+;;;###don't autoload
 (defun webster-endings (arg)
   "Look up endings for a word in the Webster's dictionary.
 Open a network login connection to a webster host if necessary.
@@ -304,6 +306,7 @@ Communication with host is recorded in a buffer *webster*."
   (webster-send-request "PREFIX" arg)
   (webster-send-request "LIST" ""))
 
+;;;###don't autoload
 (defun webster-spell (arg)
   "Look spelling for a word in the Webster's dictionary.
 Open a network login connection to a webster host if necessary.
@@ -403,14 +406,14 @@ mouse button and then clicking middle."
   (let ((text1 (webster-xref-data event nil))
 	(text2 (webster-xref-data event t)))
     (if (equal text1 text2) (setq text2 nil))
-    (popup-menu
-     (nconc (list (car webster-menu))
-	    (list "Webster Commands" "----")
-	    (if text1 (list (vector (format "Define %s" (upcase text1))
-				    (list 'webster text1) t)))
-	    (if text2 (list (vector (format "Define %s" (upcase text2))
-				    (list 'webster text2) t)))
-	    (cdr webster-menu)))))
+    (let ((popup-menu-titles t))
+      (popup-menu
+       (nconc (list (car webster-menu))
+	      (if text1 (list (vector (format "Define %s" (upcase text1))
+				      (list 'webster text1) t)))
+	      (if text2 (list (vector (format "Define %s" (upcase text2))
+				      (list 'webster text2) t)))
+	      (cdr webster-menu))))))
 
 
 (defvar webster-mode-map nil)
@@ -1093,8 +1096,8 @@ Use webster-mode-hook for customization."
 	      (insert pos)
 	      (if webster-fontify
 		  (webster-fontify start (point) 'webster-italic))))
-	(search-forward ";") (delete-char -1) (insert " ")
-	(search-forward ";") (delete-char -1) (insert " "))
+	(cond ((search-forward ";" nil t) (delete-char -1) (insert " ")))
+	(cond ((search-forward ";" nil t) (delete-char -1) (insert " "))))
 
        ((looking-at "L:")
 	;; Label:  L:snsnumber;snsletter;snssubno;text

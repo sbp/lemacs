@@ -55,6 +55,7 @@ the tag.  In this case, any forms before the first tag are indented
 by lisp-body-indent.")
 
 
+;;;###autoload
 (defun common-lisp-indent-function (indent-point state)
   (let ((normal-indent (current-column)))
     ;; Walk up list levels until we see something
@@ -342,7 +343,29 @@ by lisp-body-indent.")
               (+ lisp-body-indent -1 (current-column))
               (+ sexp-column lisp-body-indent)))
        (error (+ sexp-column lisp-body-indent)))))
-
+
+(defun lisp-indent-defmethod (path state indent-point
+                              sexp-column normal-indent)
+  ;; Look for a method combination specifier...
+  (let* ((combined (if (and (>= (car path) 3)
+                            (null (cdr path)))
+                       (save-excursion
+                         (goto-char (car (cdr state)))
+                         (forward-char)
+                         (forward-sexp)
+                         (forward-sexp)
+                         (forward-sexp)
+                         (backward-sexp)
+                         (if (looking-at ":")
+                             t
+                             nil))
+                       nil))
+	 (method (if combined
+		     '(4 4 (&whole 4 &rest 1) &body)
+		     '(4 (&whole 4 &rest 1) &body))))
+    (funcall (function lisp-indent-259)
+	     method
+	     path state indent-point sexp-column normal-indent)))
 
 (let ((l '((block 1)
 	   (catch 1)
@@ -361,6 +384,7 @@ by lisp-body-indent.")
            (defsetf     (4 (&whole 4 &rest 1) 4 &body))
            (defun       (4 (&whole 4 &rest 1) &body))
            (defmacro . defun) (deftype . defun)
+           (defmethod lisp-indent-defmethod)
            (defstruct   ((&whole 4 &rest (&whole 2 &rest 1))
                          &rest (&whole 2 &rest 1)))
            (destructuring-bind

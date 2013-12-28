@@ -1,5 +1,5 @@
 /* Definitions and headers for communication with X protocol.
-   Copyright (C) 1989, 1992, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1989, 1992, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -20,7 +20,8 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #ifndef _EMACS_XTERM_H_
 #define _EMACS_XTERM_H_
 
-#include <signal.h>
+/* #include <signal.h>  use "syssignal.h" instead -jwz */
+#include "syssignal.h"
 #include <X11/Xlib.h>
 #include <X11/cursorfont.h>
 #include <X11/Xutil.h>
@@ -28,7 +29,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include <X11/Xatom.h>
 #include <X11/Xresource.h>
 
-#include <X11/Intrinsic.h>
+#include "xintrinsic.h"
 
 #include "blockio.h"
 
@@ -44,25 +45,36 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 extern GLYPH truncator_glyph, continuer_glyph, lucid_glyph;
 extern Lisp_Object glyph_to_pixmap (GLYPH g);
+extern unsigned short glyph_width (GLYPH g, Lisp_Object font);
 extern Lisp_Object Vlucid_logo;
 
 #define EOL_CURSOR_WIDTH 4
 
 #define XFlushQueue() {BLOCK_INPUT; XFlush(x_current_display); UNBLOCK_INPUT;}
-#define FONT_TYPE XFontStruct
 
 extern XCharStruct *x_char_info ();
 
+#ifdef I18N4
+#define X_CHAR_WIDTH(fontset,ch) x_char_width (fontset, ch)
+#else
 #define X_CHAR_WIDTH(font,ch) ((font)->per_char 		    \
 			       ? x_char_info ((font), (ch))->width  \
 			       : ((ch), (font)->min_bounds.width))
-#define X_DEFAULT_WIDTH(font) (X_CHAR_WIDTH (font, font->default_char))
+#endif
 
+#ifdef I18N4
+#define FONT_WIDTH(f)	(int) (XExtentsOfFontSet (f)->max_logical_extent.width)
+#define FONT_HEIGHT(f)	(int) (XExtentsOfFontSet (f)->max_logical_extent.height)
+#define FONT_BASE(f)    (short) (-XExtentsOfFontSet (f)->max_logical_extent.y)
+#define FONT_ASCENT(f)	(short) (-XExtentsOfFontSet (f)->max_logical_extent.y)
+#define FONT_DESCENT(f) (short) (FONT_HEIGHT(f) - FONT_ASCENT(f))
+#else
 #define FONT_WIDTH(f)	((f)->max_bounds.width)
 #define FONT_HEIGHT(f)	((f)->ascent + (f)->descent)
 #define FONT_BASE(f)    ((f)->ascent)
 #define FONT_ASCENT(f)	((f)->ascent)
 #define FONT_DESCENT(f)	((f)->descent)
+#endif
 
 #ifndef sigmask
 #define sigmask(no) (1L << ((no) - 1))
@@ -78,6 +90,7 @@ extern struct screen *x_window_to_screen (Window);
 /* Variables associated with the X display screen this emacs is using. */
 
 extern Lisp_Object Vx_gc_pointer_shape;
+extern Lisp_Object Vx_scrollbar_pointer_shape;
 
 
 #define PIXEL_WIDTH(s) ((s)->display.x->pixel_width)
@@ -96,55 +109,36 @@ struct x_display
   /* Size of the X window in pixels, including internal border. */
   int pixel_height, pixel_width;
 
-  /* Here are the Graphics Contexts for the default font. */
-  GC normal_gc;				/* Normal video */
-  GC reverse_gc;			/* Reverse video */
-  GC cursor_gc;				/* cursor drawing */
-#ifdef LINE_INFO_COLUMN
-  GC line_info_gc;			/* lineinfo column */
-#endif
-
   /* Width of the internal border.  This is a line of background color
-     just inside the window's border.  When the screen is selected,
-     a highlighting is displayed inside the internal border.  */
-
+     just inside the window's border. */
   int internal_border_width;
 
-#ifdef LINE_INFO_COLUMN
-  /* Width of the line info column.  The line info column appears to
-     the left of the left margin, inside the internal border.  It is
-     used to display glyphs related to each line. */
-  int line_info_column_width;
-  int default_line_info_column_width;
-
-  PIX_TYPE line_info_background_pixel;
-#endif
-
-/*  FONT_TYPE *font; */
   int text_height;
 
-  /* Flag to set when the X window needs to be completely repainted. */
-  int needs_exposure;
 
-  /* The widget of this screen.  This is the window of a "shell" widget. */
+  /* The widget of this screen; this is generally a TopLevelShell. */
   Widget widget;
-  /* The XmPanedWindows... */
-  Widget column_widget;
-#ifdef LINE_INFO_WIDGET
-  Widget row_widget;
-  /* The widget of the line-info widget */
-  Widget lineinfo_widget;
-#endif
-  /* The widget of the edit portion of this screen; the window in
-     "window_desc" is inside of this. */
-  Widget edit_widget;
 
+  /* The parent of the EmacsScreen, the menubar, and the scrollbar area.
+     In Motif, this is an XmMainWindow.  In Athena, this is a Paned. */
+  Widget container;
+
+#ifndef LWLIB_USES_MOTIF
+  /* In Athena, this is a Paned holding the text area and scrollbars.
+     It's a child of `container' and a sibling of the menubar. */
+  Widget container2;
+#endif
+
+  /* The widget of the menubar, of whatever widget class it happens to be. */
   Widget menubar_widget;
 
-  /* The icon pixmaps; these are Lisp_Pixmap objects, or Qnil. */
-  Lisp_Object icon_pixmap;
-  Lisp_Object icon_pixmap_mask;
+  /* The widget of the edit portion of this screen; this is an EmacsScreen,
+     and the window of this widget is what the redisplay code draws on. */
+  Widget edit_widget;
 
+  /* The parent of the scrollbars (a child of the `container'.)
+     This is used as the "vertical scroll area" of an XmMainWindow. */
+  Widget scrollbar_manager;
 
 #ifdef ENERGIZE
   /* The Energize property-sheets.  The current_ slots are the ones which are
@@ -157,14 +151,16 @@ struct x_display
   int desired_psheet_count;
   Lisp_Object current_psheet_buffer;
   Lisp_Object desired_psheet_buffer;
+
+  /* The parent in which the psheets live; this is used as the value of
+     the "command area" of the XmMainWindow. */
+  Widget psheet_manager;
 #endif
 
-  /* This is true if we own the window, that is, it is not a window that
-     was created by another process.  If we don't own the window, we aren't
-     allowed to destroy it. "The window" referred to is always window_desc;
-     if USE_WIDGET is true, we always own the window inside of the
-     edit_widget. */
-  char own_window;
+
+  /* The icon pixmaps; these are Lisp_Pixmap objects, or Qnil. */
+  Lisp_Object icon_pixmap;
+  Lisp_Object icon_pixmap_mask;
 
   /* Whether this screen has the keyboard focus locked on it, whether the
      mouse is in this screen, and whether this is the screen currently
@@ -180,13 +176,26 @@ struct x_display
      one can have a mouse, and more than one can have keyboard focus.
    */
   char focus_p;
-/*  char mouse_p; */
-/*  char input_p; */
   
   /* 1 if the screen is completely visible on the display, 0 otherwise.
      if 0 the screen may have been iconified or may be totally
      or parrtially hidden by another X window */
   char totally_visible_p;
+
+#ifdef EXTERNAL_WIDGET
+  /* are we an EmacsShell?  This means we are using somebody else's window
+     for our shell window. */
+  char emacs_shell_p;
+
+  /* due to stupidities in Emacs and Motif, we need to do some EmacsShell
+     initializations very late in the game (inside of the main command
+     loop), so we keep track of whether this has been done.
+
+     (I have my doubts about this. -jwz)
+  */
+  char emacs_shell_inited_p;
+#endif /* EXTERNAL_WIDGET */
+
 };
 
 /* Number of pixels below each line. */

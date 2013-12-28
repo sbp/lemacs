@@ -1,4 +1,5 @@
-/* Copyright (C) 1985, 1986, 1987, 1988, 1992 Free Software Foundation, Inc.
+/* Copyright (C) 1985, 1986, 1987, 1988, 1992, 1993
+   Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -244,7 +245,13 @@ typedef long ptrdiff_t;
 #endif
 #endif
 #ifndef HPUX
+/* not sure where this for NetBSD should really go
+   and it probably applies to other systems */
+#ifndef __NetBSD__
 extern void *sbrk (ptrdiff_t);
+#else
+extern char *sbrk ();
+#endif /* __NetBSD__ */
 #endif /* HPUX */
 #else
 extern void *sbrk ();
@@ -294,6 +301,9 @@ static EXEC_HDR_TYPE hdr, ohdr;
 
 static int unexec_text_start;
 static int unexec_data_start;
+
+static int unexec_real_text_size;
+static int unexec_real_data_size;
 
 #ifdef COFF_ENCAPSULATE
 /* coffheader is defined in the GNU a.out.encap.h file.  */
@@ -350,6 +360,7 @@ static int make_hdr ();
 static int copy_text_and_data ();
 static int copy_sym ();
 static void mark_x ();
+static void padfile ();
 
 /* ****************************************************************
  * unexec
@@ -722,6 +733,11 @@ make_hdr (new, a_out, data_start, bss_start, entry_address, a_name, new_name)
   unexec_text_start = (long) start_of_text ();
   unexec_data_start = data_start;
 
+  /* these are used for writing,  as hdr.a_text and hdr.a_data may be
+     aligned */
+  unexec_real_text_size = data_start - unexec_text_start;
+  unexec_real_data_size = bss_start - data_start;
+
   /* Machine-dependent fixup for header, or maybe for unexec_text_start */
 #ifdef ADJUST_EXEC_HEADER
   ADJUST_EXEC_HEADER;
@@ -734,6 +750,12 @@ make_hdr (new, a_out, data_start, bss_start, entry_address, a_name, new_name)
 
   hdr.a_bss = bss_end - bss_start;
   hdr.a_data = bss_start - data_start;
+
+#ifdef SECTION_ALIGNMENT
+  if( ZQMAGIC(hdr) )
+    hdr.a_data = (hdr.a_data + SECTION_ALIGNMENT) & ~(SECTION_ALIGNMENT);
+#endif /* not SECTION ALIGNMENT */
+ 
 #ifdef NO_REMAP
   hdr.a_text = ohdr.a_text;
 #else /* not NO_REMAP */
@@ -742,6 +764,11 @@ make_hdr (new, a_out, data_start, bss_start, entry_address, a_name, new_name)
 #ifdef A_TEXT_OFFSET
   hdr.a_text += A_TEXT_OFFSET (ohdr);
 #endif
+
+#ifdef SECTION_ALIGNMENT
+  if( ZQMAGIC(hdr) )
+    hdr.a_text = (hdr.a_text + SECTION_ALIGNMENT) & ~(SECTION_ALIGNMENT);
+#endif /* not SECTION ALIGNMENT */
 
 #endif /* not NO_REMAP */
 
@@ -890,21 +917,49 @@ copy_text_and_data (new, a_out)
 #endif /* no A_TEXT_SEEK */
 
   ptr = (char *) unexec_text_start;
-  end = ptr + hdr.a_text;
+  end = ptr + unexec_real_text_size;
   write_segment (new, ptr, end);
 
+#ifdef SECTION_ALIGNMENT
+  if( ZQMAGIC(hdr) && hdr.a_text > unexec_real_text_size )
+    padfile(new, hdr.a_text - unexec_real_text_size);
+#endif
+
   ptr = (char *) unexec_data_start;
-  end = ptr + hdr.a_data;
+  end = ptr + unexec_real_data_size;
 /*  This lseek is certainly incorrect when A_TEXT_OFFSET
     and I believe it is a no-op otherwise.
     Let's see if its absence ever fails.  */
 /*  lseek (new, (long) N_TXTOFF (hdr) + hdr.a_text, 0); */
   write_segment (new, ptr, end);
 
+#ifdef SECTION_ALIGNMENT
+  if( ZQMAGIC(hdr) && hdr.a_data > unexec_real_data_size )
+    padfile(new, hdr.a_data - unexec_real_data_size);
+#endif
+
 #endif /* not COFF */
 
   return 0;
 }
+
+static void
+padfile (outdesc, padding)
+     int padding;
+     int outdesc;
+{
+  register char *buf;
+
+  if (padding <= 0)
+    return;
+
+  buf = (char *) alloca (padding);
+  bzero (buf, padding);
+
+  if( write (outdesc, buf, padding) != padding )
+    exit(1);
+}
+
 
 static void
 write_segment (new, ptr, end)

@@ -3,8 +3,8 @@
 ;; Author: 1993 Barry A. Warsaw, Century Computing Inc. <bwarsaw@cen.com>
 ;; Maintainer:      bwarsaw@cen.com
 ;; Created:         19-Apr-1993
-;; Version:         1.20
-;; Last Modified:   1993/06/23 22:49:07
+;; Version:         1.23
+;; Last Modified:   1993/09/02 20:28:36
 ;; Keywords: bug reports lisp
 
 ;; Copyright (C) 1993 Free Software Foundation, Inc.
@@ -65,9 +65,9 @@
 ;; Submissions:   reporter@anthem.nlm.nih.gov
 
 ;; LCD Archive Entry:
-;; reporter|Barry A. Warsaw|warsaw@cen.com|
+;; reporter|Barry A. Warsaw|bwarsaw@cen.com|
 ;; Customizable bug reporting of lisp programs.|
-;; 1993/06/23 22:49:07|1.20|~/misc/reporter.el.Z|
+;; 1993/09/02 20:28:36|1.23|~/misc/reporter.el.Z|
 
 ;;; Code:
 
@@ -75,8 +75,12 @@
 ;; vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 ;; user defined variables
 
-(defvar reporter-mailer 'mail
-  "*Mail package to use to generate bug report buffer.")
+(defvar reporter-mailer '(vm-mail mail)
+  "*Mail package to use to generate bug report buffer.
+This can either be a function symbol or a list of function symbols.
+If a list, it tries to use each specified mailer in order until an
+existing one is found.")
+
 
 ;; ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 ;; end of user defined variables
@@ -157,10 +161,25 @@ for details). Optional PRE-HOOKS and POST-HOOKS are passed to
 mail buffer, and point is left after the saluation.
 
 The mailer used is described in the variable `reporter-mailer'."
-
   (let ((reporter-eval-buffer (current-buffer))
-	(mailbuf (progn (call-interactively reporter-mailer)
-			(current-buffer))))
+	(mailbuf
+	 (progn
+	   (call-interactively
+	    (if (nlistp reporter-mailer)
+		reporter-mailer
+	      (let ((mlist reporter-mailer)
+		    (mailer nil))
+		(while mlist
+		  (if (commandp (car mlist))
+		      (setq mailer (car mlist)
+			    mlist nil)
+		    (setq mlist (cdr mlist))))
+		(if (not mailer)
+		    (error
+		     "variable `%s' does not contain a command for mailing."
+		     "reporter-mailer"))
+		mailer)))
+	   (current-buffer))))
     (require 'sendmail)
     (pop-to-buffer reporter-eval-buffer)
     (pop-to-buffer mailbuf)
@@ -207,4 +226,3 @@ The mailer used is described in the variable `reporter-mailer'."
 (provide 'reporter)
 
 ;;; reporter.el ends here
-

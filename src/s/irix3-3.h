@@ -1,11 +1,11 @@
 /* Definitions file for GNU Emacs running on Silicon Graphics Irix system 3.3.
-   Copyright (C) 1987,1990 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1990, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -161,6 +161,16 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define index strchr
 #define rindex strrchr
 
+
+/* lemacs change -- SGI apparently has a bogus version of memmove,
+   which causes ralloc.c great pain.  Howver bcopy works so use that.
+   From Paul Flinders <ptf@delcam.co.uk>
+   (Resist the temptation to put parens around the args in the expansion.
+   Existence is suffering.)
+ */
+#define memmove(to, from, len) bcopy(from, to, len)
+
+
 /* USG systems tend to put everything declared static
    into the initialized data area, which becomes pure after dumping Emacs.
    Foil this.  Emacs carefully avoids static vars inside functions.  */
@@ -183,3 +193,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* Implementation of uname is broken on Irix as of version 3.3 */
 #define HAVE_GETHOSTNAME
+
+#define HAVE_RINT
+#define NO_MATHERR

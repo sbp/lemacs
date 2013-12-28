@@ -1,0 +1,65 @@
+This is Info file ../info/pcl-cvs.info, produced by Makeinfo-1.55 from
+the input file pcl-cvs.texinfo.
+
+   Copyright (C) 1992 Per Cederqvist
+
+   Permission is granted to make and distribute verbatim copies of this
+manual provided the copyright notice and this permission notice are
+preserved on all copies.
+
+   Permission is granted to copy and distribute modified versions of
+this manual under the conditions for verbatim copying, provided also
+that the section entitled "GNU General Public License" is included
+exactly as in the original, and provided that the entire resulting
+derived work is distributed under the terms of a permission notice
+identical to this one.
+
+   Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that the section entitled "GNU General Public License"
+and this permission notice may be included in translations approved by
+the Free Software Foundation instead of in the original English.
+
+
+Indirect:
+pcl-cvs.info-1: 1019
+pcl-cvs.info-2: 50483
+
+Tag Table:
+(Indirect)
+Node: Top1019
+Node: Copying3581
+Node: Installation22748
+Node: Pcl-cvs installation23543
+Node: On-line manual installation25609
+Node: Typeset manual installation26632
+Node: About pcl-cvs27376
+Node: Contributors27750
+Node: Archives29058
+Node: Getting started29642
+Node: Buffer contents32084
+Node: File status32638
+Node: Selected files35663
+Node: Commands36336
+Node: Updating the directory37552
+Node: Movement commands39215
+Node: Marking files39806
+Node: Committing changes40667
+Node: Editing files42133
+Node: Getting info about files42983
+Node: Adding and removing files43468
+Node: Undoing changes44824
+Node: Removing handled entries45289
+Node: Ignoring files46212
+Node: Viewing differences46747
+Node: Emerge48055
+Node: Reverting your buffers49034
+Node: Miscellaneous commands49736
+Node: Customization50483
+Node: Future enhancements54159
+Node: Bugs58359
+Node: Function and Variable Index60145
+Node: Concept Index62943
+Node: Key Index69544
+
+End Tag Table

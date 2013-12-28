@@ -1,12 +1,12 @@
 /* Definitions file for GNU Emacs running on HPUX release 7.0.
    Based on AT&T System V.2.
-   Copyright (C) 1985, 1986, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -266,3 +266,12 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* This is how to get the device name of the control end of a pty.  */
 #define PTY_NAME_SPRINTF \
 	sprintf (pty_name, "/dev/ptym/pty%c%x", c, i);
+
+/* HP unbundled compiler bugs prevent this from working unless you have
+   version A.09.28 or better.
+*/
+#ifndef USE_GCC
+# define SYSTEM_MALLOC
+#endif
+
+#define I18N2

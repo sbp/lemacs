@@ -25,7 +25,9 @@ for a list of available commands."
 	buffer-read-only t
 	vm-summary-pointer nil
 	truncate-lines t)
-  (use-local-map vm-mode-map)
+  (use-local-map vm-summary-mode-map)
+  (run-hooks 'vm-summary-mode-hook)
+  ;; Lucid Emacs apparently used this name
   (run-hooks 'vm-summary-mode-hooks))
 
 (put 'vm-summary-mode 'mode-class 'special)
@@ -38,10 +40,9 @@ mandatory."
   (interactive "p")
   (vm-select-folder-buffer)
   (vm-check-for-killed-summary)
-  (vm-error-if-folder-empty)
+;  (vm-error-if-folder-empty)
   (if (null vm-summary-buffer)
-      (let ((b (current-buffer))
-	    (inhibit-quit t))
+      (let ((b (current-buffer)))
 	(setq vm-summary-buffer
 	      (get-buffer-create (format "%s Summary" (buffer-name))))
 	(save-excursion
@@ -50,17 +51,28 @@ mandatory."
 	  (auto-fill-mode 0)
 	  (setq vm-mail-buffer b)
 	  (vm-summary-mode))
-	(setq vm-summary-redo-start-point t)))
+	(vm-set-summary-redo-start-point t)))
   (if display
-      (if vm-mutable-windows
-	  (if (not (vm-set-window-configuration 'summarize))
-	      (let ((pop-up-windows (and pop-up-windows (eq vm-mutable-windows t))))
-		(display-buffer vm-summary-buffer)
-		(if (eq vm-mutable-windows t)
-		    (vm-proportion-windows))))
-	(switch-to-buffer vm-summary-buffer)))
+      (if (not (vm-set-window-configuration 'summarize))
+	  (progn
+	    (vm-display-buffer vm-summary-buffer)
+	    (if (eq vm-mutable-windows t)
+		(vm-proportion-windows)))))
   (vm-select-folder-buffer)
   (vm-update-summary-and-mode-line))
+
+(defun vm-set-summary-redo-start-point (start-point)
+  (sets-set-insert vm-buffers-needing-display-update (current-buffer))
+  (if (and (consp start-point) (consp vm-summary-redo-start-point))
+      (let ((mp vm-message-list))
+	(while (not (or (eq mp start-point)
+			(eq mp vm-summary-redo-start-point)))
+	  (setq mp (cdr mp)))
+	(if (null mp)
+	    (error "Something is wrong in vm-set-summary-redo-start-point"))
+	(if (eq mp start-point)
+	    (setq vm-summary-redo-start-point start-point)))
+    (setq vm-summary-redo-start-point start-point)))
 
 (defun vm-do-summary (&optional start-point)
   (let ((mp (or start-point vm-message-list))
@@ -68,7 +80,6 @@ mandatory."
 	;; Just for laughs, make the update interval vary.
 	(modulus (+ (% (vm-abs (random)) 11) 10))
 	summary)
-    (message "Generating summary...")
     (save-excursion
       (set-buffer vm-summary-buffer)
       (let ((buffer-read-only nil))
@@ -91,7 +102,9 @@ mandatory."
 	  (setq mp (cdr mp) n (1+ n))
 	  (if (zerop (% n modulus))
 	      (message "Generating summary... %d" n)))))
-    (message "Generating summary... done")))
+    (if (>= n modulus)
+	(message "Generating summary... done"))
+    (run-hooks vm-summary-redo-hook)))
 
 (defun vm-do-needed-summary-rebuild ()
   (if (and vm-summary-redo-start-point vm-summary-buffer)
@@ -110,29 +123,22 @@ mandatory."
 	   (setq vm-need-summary-pointer-update nil)))))
 
 (defun vm-update-message-summary (m)
-  (let ((m-list (cons m
-		      (and (eq (vm-attributes-of m)
-			       (vm-attributes-of (vm-real-message-of m)))
-			   (vm-virtual-messages-of m))))
-	summary)
-    (while m-list
-      (if (and (vm-su-start-of (car m-list))
-	       (buffer-name (marker-buffer (vm-su-start-of (car m-list)))))
+  (let (summary)
+    (if (and (vm-su-start-of m)
+	     (marker-buffer (vm-su-start-of m)))
 	(save-excursion
-	  (setq summary (vm-sprintf 'vm-summary-format (car m-list)))
-	  (set-buffer (marker-buffer (vm-su-start-of (car m-list))))
-	  (let ((inhibit-quit t) buffer-read-only)
+	  (setq summary (vm-sprintf 'vm-summary-format m))
+	  (set-buffer (marker-buffer (vm-su-start-of m)))
+	  (let ((buffer-read-only nil))
 	    (save-excursion
-	      (goto-char (vm-su-start-of (car m-list)))
+	      (goto-char (vm-su-start-of m))
 	      (insert (if (= (following-char) ?\ ) "  " "->") summary)
-	      (delete-region (point) (vm-su-end-of (car m-list)))))))
-      (setq m-list (cdr m-list)))))
+	      (delete-region (point) (vm-su-end-of m))))))))
 
 (defun vm-set-summary-pointer (m)
   (if vm-summary-buffer
       (let ((w (get-buffer-window vm-summary-buffer))
-	    (old-window nil)
-	    (inhibit-quit t))
+	    (old-window nil))
 	(vm-save-buffer-excursion
 	  (unwind-protect
 	      (progn
@@ -155,62 +161,82 @@ mandatory."
 		  (and w vm-auto-center-summary (vm-auto-center-summary))))
 	    (and old-window (select-window old-window)))))))
 
-(defun vm-mark-for-display-update (message)
-  (setq vm-messages-needing-display-update
-	(cons message vm-messages-needing-display-update)))
+(defun vm-mark-for-summary-update (m)
+  (let ((m-list (vm-virtual-messages-of m)))
+    (while m-list
+      (if (eq (vm-attributes-of m) (vm-attributes-of (car m-list)))
+	  (progn
+	    (sets-set-insert vm-buffers-needing-display-update
+			     (marker-buffer (vm-start-of (car m-list))))
+	    (sets-set-insert vm-messages-needing-summary-update (car m-list))))
+      (setq m-list (cdr m-list)))
+    (if (or (not (vm-virtual-message-p m)) (null (vm-virtual-messages-of m)))
+	(progn
+	  (sets-set-insert vm-buffers-needing-display-update
+			   (marker-buffer (vm-start-of m)))
+	  (sets-set-insert vm-messages-needing-summary-update m)))))
 
 (defun vm-force-mode-line-update ()
   (save-excursion
     (set-buffer (other-buffer))
     (set-buffer-modified-p (buffer-modified-p))))
 
-(defun vm-update-summary-and-mode-line ()
-  (vm-do-needed-renumbering)
-  (vm-do-needed-summary-rebuild)
+(defun vm-do-needed-mode-line-update ()
   (if (null vm-message-pointer)
-      ()
+      ;; erase the leftover message if the folder is really empty.
+      (if (eq major-mode 'vm-virtual-mode)
+	  (erase-buffer))
     (setq vm-ml-message-number (vm-number-of (car vm-message-pointer)))
-    (cond ((vm-new-flag (car vm-message-pointer))
-	   (setq vm-ml-attributes-string "new"))
-	  ((vm-unread-flag (car vm-message-pointer))
-	   (setq vm-ml-attributes-string "unread"))
-	  (t (setq vm-ml-attributes-string "read")))
-    (cond ((vm-edited-flag (car vm-message-pointer))
-	   (setq vm-ml-attributes-string
-		 (concat vm-ml-attributes-string " edited"))))
-    (cond ((vm-filed-flag (car vm-message-pointer))
-	   (setq vm-ml-attributes-string
-		 (concat vm-ml-attributes-string " filed"))))
-    (cond ((vm-written-flag (car vm-message-pointer))
-	   (setq vm-ml-attributes-string
-		 (concat vm-ml-attributes-string " written"))))
-    (cond ((vm-replied-flag (car vm-message-pointer))
-	   (setq vm-ml-attributes-string
-		 (concat vm-ml-attributes-string " replied"))))
-    (cond ((vm-forwarded-flag (car vm-message-pointer))
-	   (setq vm-ml-attributes-string
-		 (concat vm-ml-attributes-string " forwarded"))))
-    (cond ((vm-deleted-flag (car vm-message-pointer))
-	   (setq vm-ml-attributes-string
-		 (concat vm-ml-attributes-string " deleted"))))
-    (cond ((vm-mark-of (car vm-message-pointer))
-	   (setq vm-ml-attributes-string
-		 (concat vm-ml-attributes-string " MARKED")))))
-  (if (and vm-summary-buffer (not vm-real-buffers))
-      (vm-copy-local-variables vm-summary-buffer
-			       'vm-ml-attributes-string
-			       'vm-ml-message-number
-			       'vm-ml-highest-message-number
-			       'vm-buffer-modified-p
-			       'vm-message-list))
-  (while vm-messages-needing-display-update
-    (vm-update-message-summary (car vm-messages-needing-display-update))
-    (setq vm-messages-needing-display-update
-	  (cdr vm-messages-needing-display-update)))
-  (and vm-deferred-message
-       (progn
-	 (message vm-deferred-message)
-	 (setq vm-deferred-message nil)))
+    (setq vm-ml-message-new (vm-new-flag (car vm-message-pointer)))
+    (setq vm-ml-message-unread (vm-unread-flag (car vm-message-pointer)))
+    (setq vm-ml-message-read
+	  (and (not (vm-new-flag (car vm-message-pointer)))
+	       (not (vm-unread-flag (car vm-message-pointer)))))
+    (setq vm-ml-message-edited (vm-edited-flag (car vm-message-pointer)))
+    (setq vm-ml-message-filed (vm-filed-flag (car vm-message-pointer)))
+    (setq vm-ml-message-written (vm-written-flag (car vm-message-pointer)))
+    (setq vm-ml-message-replied (vm-replied-flag (car vm-message-pointer)))
+    (setq vm-ml-message-forwarded (vm-forwarded-flag (car vm-message-pointer)))
+    (setq vm-ml-message-deleted (vm-deleted-flag (car vm-message-pointer)))
+    (setq vm-ml-message-marked (vm-mark-of (car vm-message-pointer))))
+  (if vm-summary-buffer
+      (let ((modified (buffer-modified-p)))
+	(save-excursion
+	  (vm-copy-local-variables vm-summary-buffer
+				   'vm-ml-message-new
+				   'vm-ml-message-unread
+				   'vm-ml-message-read
+				   'vm-ml-message-edited
+				   'vm-ml-message-replied
+				   'vm-ml-message-forwarded
+				   'vm-ml-message-filed
+				   'vm-ml-message-written
+				   'vm-ml-message-deleted
+				   'vm-ml-message-marked
+				   'vm-ml-message-number
+				   'vm-ml-highest-message-number
+				   'vm-message-list)
+	  (set-buffer vm-summary-buffer)
+	  (set-buffer-modified-p modified))))
+  (vm-force-mode-line-update))
+
+(defun vm-update-summary-and-mode-line ()
+  (and vm-buffers-needing-display-update
+       (save-excursion
+	 (sets-mapset (function
+		       (lambda (b)
+			 (if (and (bufferp b) (buffer-name b))
+			     (progn
+			       (set-buffer b)
+			       (vm-do-needed-renumbering)
+			       (vm-do-needed-summary-rebuild)
+			       (vm-do-needed-mode-line-update)))))
+		      vm-buffers-needing-display-update)))
+  (setq vm-buffers-needing-display-update (sets-make-set))
+  (and vm-messages-needing-summary-update
+       (sets-mapset 'vm-update-message-summary
+		    vm-messages-needing-summary-update))
+  (setq vm-messages-needing-summary-update (vm-make-message-set))
   (vm-force-mode-line-update))
 
 (defun vm-auto-center-summary ()
@@ -248,6 +274,8 @@ mandatory."
 		 t ))))))
 
 (defun vm-sprintf (format-variable message)
+  ;; compile the format into an eval'able s-expression
+  ;; if it hasn't been compiled already.
   (if (not (eq (get format-variable 'vm-compiled-format)
 	       (symbol-value format-variable)))
       (vm-compile-format format-variable))
@@ -257,17 +285,16 @@ mandatory."
     (eval (get format-variable 'vm-format-sexp))))
 
 (defun vm-compile-format (format-variable)
-  (if (null vm-uninteresting-senders) ; jwz: added this.
-      (setq vm-uninteresting-senders (concat "\\b" (user-login-name) "\\b")))
   (let ((format (symbol-value format-variable))
-	sexp sexp-fmt conv-spec last-match-end case-fold-search)
+	(case-fold-search nil)
+	sexp sexp-fmt conv-spec last-match-end)
     (store-match-data nil)
-    (while (string-match   ; jwz: added "uUH".
-"%\\(-\\)?\\([0-9]+\\)?\\(\\.\\([0-9]+\\)\\)?\\([aAcdfFhHilmMnstTuUwyz*%]\\)"
+    (while (string-match
+"%\\(-\\)?\\([0-9]+\\)?\\(\\.\\(-?[0-9]+\\)\\)?\\([aAcdfFhHilmMnstTwyz*%]\\|U[A-Za-z]\\)"
 	    format (match-end 0))
       (setq conv-spec (aref format (match-beginning 5)))
       (if (memq conv-spec '(?a ?A ?c ?d ?f ?F ?h ?H ?i ?l ?M
-			    ?m ?n ?s ?t ?T ?u ?U ?w ?y ?z ?*)) ; jwz: ?[uUH]
+			    ?m ?n ?s ?t ?T ?U ?w ?y ?z ?*))
 	  (progn
 	    (cond ((= conv-spec ?a)
 		   (setq sexp (cons (list 'vm-su-attribute-indicators
@@ -282,15 +309,14 @@ mandatory."
 		   (setq sexp (cons (list 'vm-su-monthday
 					  'vm-su-message) sexp)))
 		  ((= conv-spec ?f)
-		   (setq sexp (cons (list 'vm-su-from
+		   (setq sexp (cons (list 'vm-su-interesting-from
 					  'vm-su-message) sexp)))
 		  ((= conv-spec ?F)
-		   (setq sexp (cons (list 'vm-su-full-name
+		   (setq sexp (cons (list 'vm-su-interesting-full-name
 					  'vm-su-message) sexp)))
 		  ((= conv-spec ?h)
 		   (setq sexp (cons (list 'vm-su-hour
 					  'vm-su-message) sexp)))
-		  ;; jwz: added this.
 		  ((= conv-spec ?H)
 		   (setq sexp (cons (list 'vm-su-hour-short
 					  'vm-su-message) sexp)))
@@ -320,14 +346,18 @@ mandatory."
 		  ((= conv-spec ?t)
 		   (setq sexp (cons (list 'vm-su-to
 					  'vm-su-message) sexp)))
-		  ;; jwz: added this.
 		  ((= conv-spec ?U)
-		   (setq sexp (cons (list 'vm-su-dwim-user-name
-					  'vm-su-message) sexp)))
-		  ;; jwz: added this.
-		  ((= conv-spec ?u)
-		   (setq sexp (cons (list 'vm-su-dwim-user
-					  'vm-su-message) sexp)))
+		   (setq sexp
+			 (cons (list 'vm-run-user-summary-function
+				     (list 'quote
+					   (intern
+					    (concat
+					     "vm-summary-function-"
+					     (substring
+					      format
+					      (1+ (match-beginning 5))
+					      (+ 2 (match-beginning 5))))))
+				     'vm-su-message) sexp)))
 		  ((= conv-spec ?w)
 		   (setq sexp (cons (list 'vm-su-weekday
 					  'vm-su-message) sexp)))
@@ -381,23 +411,25 @@ mandatory."
     (put format-variable 'vm-format-sexp sexp)
     (put format-variable 'vm-compiled-format format)))
 
-(defun vm-get-header-contents (message header-name)
-  (let (contents regexp)
-    (setq regexp (format vm-header-regexp-format header-name))
+(defun vm-get-header-contents (message header-name-regexp)
+  (let ((contents nil)
+	regexp)
+    (setq regexp (concat "^" header-name-regexp)
+	  message (vm-real-message-of message))
     (save-excursion
-      (set-buffer (marker-buffer (vm-start-of message)))
+      (set-buffer (marker-buffer (vm-start-of (vm-real-message-of message))))
       (save-restriction
 	(widen)
-	(goto-char (vm-start-of message))
-	(while (re-search-forward regexp (vm-text-of message) t)
-	  (if contents
-	      (setq contents
-		    (concat
-		     contents ", "
-		     (buffer-substring (match-beginning 1) (match-end 1))))
-	    (setq contents
-		  (buffer-substring (match-beginning 1) (match-end 1)))))
-	contents))))
+	(goto-char (vm-headers-of message))
+	(let ((case-fold-search t))
+	  (while (and (re-search-forward regexp (vm-text-of message) t)
+		      (save-excursion (goto-char (match-beginning 0))
+				      (vm-match-header)))
+	    (if contents
+		(setq contents
+		      (concat contents ", " (vm-matched-header-contents)))
+	      (setq contents (vm-matched-header-contents))))))
+      contents )))
 
 (defun vm-left-justify-string (string width)
   (if (>= (length string) width)
@@ -410,9 +442,12 @@ mandatory."
     (concat (make-string (- width (length string)) ?\ ) string)))
 
 (defun vm-truncate-string (string width)
-  (if (<= (length string) width)
-      string
-    (substring string 0 width)))
+  (cond ((<= (length string) width)
+	 string)
+	((< width 0)
+	 (substring string width))
+	(t
+	 (substring string 0 width))))
 
 (defun vm-su-attribute-indicators (m)
   (concat
@@ -443,8 +478,11 @@ mandatory."
 
 (defun vm-su-byte-count (m)
   (or (vm-byte-count-of m)
-      (vm-set-byte-count-of m (int-to-string
-			       (- (vm-text-end-of m) (vm-text-of m))))))
+      (vm-set-byte-count-of
+       m
+       (int-to-string
+	(- (vm-text-end-of (vm-real-message-of m))
+	   (vm-text-of (vm-real-message-of m)))))))
 
 (defun vm-su-weekday (m)
   (or (vm-weekday-of m)
@@ -463,24 +501,18 @@ mandatory."
       (progn (vm-su-do-date m) (vm-month-number-of m))))
 
 (defun vm-su-year (m)
-  ;; always return a 2-digit year
-  (let ((year (or (vm-year-of m)
-		  (progn (vm-su-do-date m) (vm-year-of m)))))
-    (if (string-match "\\`[0-9][0-9][0-9][0-9]\\'" year)
-	(substring year 2 4)
-      year)))
+  (or (vm-year-of m)
+      (progn (vm-su-do-date m) (vm-year-of m))))
+
+(defun vm-su-hour-short (m)
+  (let ((string (vm-su-hour m)))
+    (if (> (length string) 5)
+	(substring string 0 -3)
+      string)))
 
 (defun vm-su-hour (m)
   (or (vm-hour-of m)
       (progn (vm-su-do-date m) (vm-hour-of m))))
-
-(defun vm-su-hour-short (m)
-  (let ((string (vm-su-hour m)))
-    (cond ((eq 8 (length string))
-	   (substring string 0 5))
-	  ((eq 7 (length string))
-	   (concat "0" (substring string 0 4)))
-	  (t string))))
 
 (defun vm-su-zone (m)
   (or (vm-zone-of m)
@@ -491,20 +523,63 @@ mandatory."
 ;; Some yogurt-headed delivery agents don't provide a Date: header.
 (defun vm-grok-From_-date (message)
   ;; If this is MMDF, forget it.
-  (if (eq vm-folder-type 'mmdf)
+  (if (eq (vm-message-type-of message) 'mmdf)
       nil
     (save-excursion
-      (set-buffer (marker-buffer (vm-start-of message)))
+      (set-buffer (marker-buffer (vm-start-of (vm-real-message-of message))))
       (save-restriction
 	(widen)
 	(goto-char (vm-start-of message))
-	(if (looking-at "From [^ \t\n]+[ \t]+\\([^ \t\n].*\\)")
-	    (buffer-substring (match-beginning 1) (match-end 1)))))))
+	(let ((case-fold-search nil))
+	  (if (looking-at "From [^ \t\n]*[ \t]+\\([^ \t\n].*\\)")
+	      (buffer-substring (match-beginning 1) (match-end 1))))))))
+
+(defvar vm-parse-date-workspace (make-vector 6 nil)) ; a little GC avoidance
+(defun vm-parse-date (date)
+  (let ((weekday "")
+	(monthday "")
+	(month "")
+	(year "")
+	(hour "")
+	(timezone "")
+	(start nil)
+	string
+	(case-fold-search t))
+    (if (string-match "sun\\|mon\\|tue\\|wed\\|thu\\|fri\\|sat" date)
+	(setq weekday (substring date (match-beginning 0) (match-end 0))))
+    (if (string-match "jan\\|feb\\|mar\\|apr\\|may\\|jun\\|jul\\|aug\\|sep\\|oct\\|nov\\|dec" date)
+	(setq month (substring date (match-beginning 0) (match-end 0))))
+    (if (string-match "[0-9]?[0-9]:[0-9][0-9]\\(:[0-9][0-9]\\)?" date)
+	(setq hour (substring date (match-beginning 0) (match-end 0))))
+    (if (or (string-match "[^a-z][+---][0-9][0-9][0-9][0-9]" date)
+	    (string-match "e[ds]t\\|c[ds]t\\|p[ds]t\\|m[ds]t" date)
+	    (string-match "ast\\|nst\\|met\\|eet\\|jst\\|bst\\|ut" date)
+	    (string-match "gmt\\([+---][0-9]+\\)?" date))
+	(setq timezone (substring date (match-beginning 0) (match-end 0))))
+    (while (string-match "\\(\\`\\|[^:+---0-9]\\|[a-z]-\\)[0-9]+\\(\\'\\|[^:]\\)"
+			 date start)
+      (setq string (substring date (match-end 1) (match-beginning 2))
+	    start (match-end 0))
+      (cond ((string-match "\\`[4-9]." string)
+	     ;; Assume that any two digits less than 40 are a date and not
+	     ;; a year.  The world will surely end soon.
+	     (setq year (concat "19" string)))
+	    ((< (length string) 3)
+	     (setq monthday string))
+	    (t (setq year string))))
+    
+    (aset vm-parse-date-workspace 0 weekday)
+    (aset vm-parse-date-workspace 1 monthday)
+    (aset vm-parse-date-workspace 2 month)
+    (aset vm-parse-date-workspace 3 year)
+    (aset vm-parse-date-workspace 4 hour)
+    (aset vm-parse-date-workspace 5 timezone)
+    vm-parse-date-workspace))
 
 (defun vm-su-do-date (m)
-  (let (date
-	(case-fold-search t))
-    (setq date (or (vm-get-header-contents m "Date") (vm-grok-From_-date m)))
+  (let ((case-fold-search t)
+	vector date)
+    (setq date (or (vm-get-header-contents m "Date:") (vm-grok-From_-date m)))
     (cond
      ((null date)
       (vm-set-weekday-of m "")
@@ -513,140 +588,66 @@ mandatory."
       (vm-set-month-number-of m "")
       (vm-set-year-of m "")
       (vm-set-hour-of m "")
-      (vm-set-zone-of m "")
-      nil)
+      (vm-set-zone-of m ""))
      ((string-match
 ;; The date format recognized here is the one specified in RFC 822.
 ;; Some slop is allowed e.g. dashes between the monthday, month and year
 ;; because such malformed headers have been observed.
-;; jwz: added some more slop - dashes between time and zone.
-;; Also allow DOTW to be at end, optionally in parens.
-;;
-;; Handles:
-;;     Mon, 3 dec 90 15:25:36 PST
-;;     Mon 3 dec 90 15:25:36 PST
-;;     03-dec-90 15:25:36 PST
-;;     Mon, 3 dec 90 15:25:36-PST
-;;     3 Dec 90 15:25 PST (Mon)
-"\\(\\([a-z][a-z][a-z]\\),?\\)?[ \t\n]*0?\\([0-9][0-9]?\\)[ \t\n---]*\\([a-z][a-z][a-z]\\)[ \t\n---]*\\([0-9]*[0-9][0-9]\\)[ \t\n]*\\([0-9:]+\\)[- \t\n]*\\([a-z][a-z]?[a-z]?\\|[---+][0-9][0-9][0-9][0-9]\\)[ \t\n]*(?\\([a-z][a-z][a-z]\\)?)?"
+"\\(\\([a-z][a-z][a-z]\\),\\)?[ \t\n]*\\([0-9][0-9]?\\)[ \t\n---]*\\([a-z][a-z][a-z]\\)[ \t\n---]*\\([0-9]*[0-9][0-9]\\)[ \t\n]*\\([0-9:]+\\)[ \t\n]*\\([a-z][a-z]?[a-z]?\\|[---+][0-9][0-9][0-9][0-9]\\)"
        date)
       (if (match-beginning 2)
 	  (vm-set-weekday-of m (substring date (match-beginning 2)
 					  (match-end 2)))
-	  (if (match-beginning 8)
-	      (vm-set-weekday-of m (substring date (match-beginning 8)
-					      (match-end 8)))
-	      (vm-set-weekday-of m "")))
+	(vm-set-weekday-of m ""))
       (vm-set-monthday-of m (substring date (match-beginning 3) (match-end 3)))
       (vm-su-do-month m (substring date (match-beginning 4) (match-end 4)))
       (vm-set-year-of m (substring date (match-beginning 5) (match-end 5)))
+      (if (= 2 (length (vm-year-of m)))
+	  (vm-set-year-of m
+	   (concat
+	    ;; In an unprescedented burst of optomism that the world won't be
+	    ;; plunged into chaos and darkness on 1-Jan-2000, let's assume that
+	    ;; two digit years <70 are in the 21st century and not the 20th.
+	    (if (memq (aref (vm-year-of m) 0) '(?7 ?8 ?9)) "19" "20")
+	    (vm-year-of m))))
       (vm-set-hour-of m (substring date (match-beginning 6) (match-end 6)))
-      (vm-set-zone-of m (substring date (match-beginning 7) (match-end 7)))
-      t)
+      (vm-set-zone-of m (substring date (match-beginning 7) (match-end 7))))
      ((string-match
 ;; UNIX ctime(3) format, with slop allowed in the whitespace, and we allow for
 ;; the possibility of a timezone at the end.
-;; jwz: more slop - allow a comma after the weekday.
-;; Handles:
-;;     Tue Dec 11 00:13:13 1990
-;;     Mon Sep  2 10:42:17 1991
-;;     Tue, Dec 11 00:13:13 90 PST
- "\\([a-z][a-z][a-z]\\)[ \t\n,]+\\([a-z][a-z][a-z]\\)[ \t\n]+\\([0-9][0-9]?\\)[ \t\n]*\\([0-9:]+\\)[ \t\n]*[0-9][0-9]\\([0-9][0-9]\\)[ \t\n]*\\([a-z][a-z]?[a-z]?\\|[---+][0-9][0-9][0-9][0-9]\\)?"
+"\\([a-z][a-z][a-z]\\)[ \t\n]*\\([a-z][a-z][a-z]\\)[ \t\n]*\\([0-9][0-9]?\\)[ \t\n]*\\([0-9:]+\\)[ \t\n]*\\([0-9][0-9][0-9][0-9]\\)[ \t\n]*\\([a-z][a-z]?[a-z]?\\|[---+][0-9][0-9][0-9][0-9]\\)?"
        date)
       (vm-set-weekday-of m (substring date (match-beginning 1) (match-end 1)))
       (vm-su-do-month m (substring date (match-beginning 2) (match-end 2)))
       (vm-set-monthday-of m (substring date (match-beginning 3) (match-end 3)))
       (vm-set-hour-of m (substring date (match-beginning 4) (match-end 4)))
       (vm-set-year-of m (substring date (match-beginning 5) (match-end 5)))
-      ;; jwz: don't allow nil in the zone slot.
-      (vm-set-zone-of m (if (match-beginning 6)
-			    (substring date (match-beginning 6)
-				       (match-end 6))
-			    ""))
-      t)
-     ((string-match
-;; This piece of crap handles:
-;;    Aug 29, 1991 08:51 EDT
-;;    Aug 29 1991, 08:51-EDT
- "\\`[ \t]*\\([a-z][a-z][a-z]\\)[ \t\n]+\\([0-9][0-9]?\\)[ \t\n,]*\\([0-9]?[0-9]?[0-9][0-9]\\)[- \t,]*\\([0-9:]+\\)[- \t]*\\([a-z][a-z][a-z]\\)?"
-	date)
-      (vm-su-do-month m (substring date (match-beginning 1) (match-end 1)))
-      (vm-set-monthday-of m (substring date (match-beginning 2) (match-end 2)))
-      (vm-set-year-of m (substring date (match-beginning 3) (match-end 3)))
-      (vm-set-hour-of m (substring date (match-beginning 4) (match-end 4)))
-      (vm-set-zone-of m (if (match-beginning 5)
-			    (substring date (match-beginning 5)
-				       (match-end 5))
-			    ""))
-      t)
-     ((string-match
-;; YASTF: Yet Another Sucky Time Format.  Dan Jacobson found this one.
-;; Handles:
-;;    Tue, Dec 11 12:11:45 CST 1990
-;;    Tue Dec 11 12:11 CST 1990
-"\\`[ \t]*\\([a-z][a-z][a-z]\\)[ \t\n,]*\\([a-z][a-z][a-z]\\)[ \t\n]*\\([0-9][0-9]?\\)[ \t\n]*\\([0-9:]+\\)[ \t\n]*\\([a-z][a-z][a-z]\\|[-+]?[0-9][0-9][0-9][0-9]\\)[ \t\n]*\\([0-9]?[0-9]?[0-9][0-9]\\)?"
-       date)
-      (vm-set-weekday-of m (substring date (match-beginning 1) (match-end 1)))
-      (vm-su-do-month m (substring date (match-beginning 2) (match-end 2)))
-      (vm-set-monthday-of m (substring date (match-beginning 3) (match-end 3)))
-      (vm-set-hour-of m (substring date (match-beginning 4) (match-end 4)))
-      (vm-set-zone-of m (if (match-beginning 5)
-			    (substring date (match-beginning 5)
-				       (match-end 5))
-			    ""))
-      (vm-set-year-of m (if (match-beginning 6)
-			    (substring date (match-beginning 6) (match-end 6))
-			    ""))
-      t)
-     ((string-match
-;; jwz: this one is for
-;;    Tue, 7 Jan  08:46:34 1992
- "\\`[ \t]*\\([a-z][a-z][a-z]\\)[ \t\n,]+\\([0-9][0-9]?\\)[ \t\n]+\\([a-z][a-z][a-z]\\)[ \t\n]+\\([0-9:]+\\)[ \t\n]*\\([0-9]?[0-9]?[0-9][0-9]\\)?"
-	date)
-      (vm-set-weekday-of m (substring date (match-beginning 1) (match-end 1)))
-      (vm-set-monthday-of m (substring date (match-beginning 2) (match-end 2)))
-      (vm-su-do-month m (substring date (match-beginning 3) (match-end 3)))
-      (vm-set-hour-of m (substring date (match-beginning 4) (match-end 4)))
-      (vm-set-year-of m (if (match-beginning 5)
-			    (substring date (match-beginning 5)
-				       (match-end 5))
-			  ""))
-      (vm-set-zone-of m "")
-      t)
-     ((string-match
-;; jwz: I've seen dates of the form "13-AUG-1990 16:11:21.26" from VMS.
-	"\\`[ \t]*\\([0-9]+\\)[- \t]*\\([A-Z][A-Z][A-Z]+\\)[- \t]*\\([0-9][0-9][0-9]?[0-9]?\\)[ \t]+\\([0-9:]+\\)\\(\\.[0-9]+\\)?"
-	date)
-      (vm-set-weekday-of m "")
-      (vm-set-monthday-of m (substring date (match-beginning 1) (match-end 1)))
-      (vm-su-do-month m (substring date (match-beginning 2) (match-end 2)))
-      (vm-set-year-of m (substring date (match-beginning 3) (match-end 3)))
-      (vm-set-hour-of m (substring date (match-beginning 4) (match-end 4)))
-      (vm-set-zone-of m "")
-      t)
+      (if (match-beginning 6)
+	  (vm-set-zone-of m (substring date (match-beginning 6)
+				       (match-end 6)))))
      (t
-      ;; otherwise, punt.
-      (vm-set-weekday-of m "")
-      (vm-set-monthday-of m "")
-      (vm-set-month-of m "")
-      (vm-set-month-number-of m "")
-      (vm-set-year-of m "")
-      (vm-set-hour-of m "")
-      (vm-set-zone-of m "")
-      nil))))
+      (setq vector (vm-parse-date date))
+      (vm-set-weekday-of m (elt vector 0))
+      (vm-set-monthday-of m (elt vector 1))
+      (vm-su-do-month m (elt vector 2))
+      (vm-set-year-of m (elt vector 3))
+      (vm-set-hour-of m (elt vector 4))
+      (vm-set-zone-of m (elt vector 5)))))
 
-(defconst vm-su-month-sym-jan '("January" "1"))
-(defconst vm-su-month-sym-feb '("February" "2"))
-(defconst vm-su-month-sym-mar '("March" "3"))
-(defconst vm-su-month-sym-apr '("April" "4"))
-(defconst vm-su-month-sym-may '("May" "5"))
-(defconst vm-su-month-sym-jun '("June" "6"))
-(defconst vm-su-month-sym-jul '("July" "7"))
-(defconst vm-su-month-sym-aug '("August" "8"))
-(defconst vm-su-month-sym-sep '("September" "9"))
-(defconst vm-su-month-sym-oct '("October" "10"))
-(defconst vm-su-month-sym-nov '("November" "11"))
-(defconst vm-su-month-sym-dec '("December" "12"))
+  ;; Normalize all hour and date specifications to avoid jagged margins.
+  ;; If the hour is " 3:..." or "3:...", turn it into "03:...".
+  ;; If the date is "03" or "3", turn it into " 3".
+  (cond ((null (vm-hour-of m)) nil)
+	((string-match "\\`0[0-9]:" (vm-hour-of m))
+	 (aset (vm-hour-of m) 0 ?0))
+	((string-match "\\`[0-9]:" (vm-hour-of m))
+	 (vm-set-hour-of m (concat "0" (vm-hour-of m)))))
+  (cond ((null (vm-monthday-of m)) nil)
+	((string-match "\\`0[0-9]\\'" (vm-monthday-of m))
+	 (aset (vm-monthday-of m) 0 ? ))
+	((string-match "\\`[0-9]\\'" (vm-monthday-of m))
+	 (vm-set-monthday-of m (concat " " (vm-monthday-of m)))))
+  )
 
 (defun vm-su-do-month (m month-abbrev)
   (condition-case ()
@@ -654,17 +655,41 @@ mandatory."
 					       (downcase month-abbrev))))))
 	(vm-set-month-of m (car val))
 	(vm-set-month-number-of m (car (cdr val))))
-    (error (vm-set-month-of m "???")
-	   (vm-set-month-number-of m "?"))))
+    (error (vm-set-month-of m "")
+	   (vm-set-month-number-of m ""))))
 
+(defun vm-run-user-summary-function (function message)
+  (save-excursion
+    (set-buffer (marker-buffer (vm-start-of (vm-real-message-of message))))
+    (save-restriction
+      (widen)
+      (save-excursion
+	(narrow-to-region (vm-headers-of message) (vm-text-end-of message))
+	(funcall function message)))))
 
 (defun vm-su-full-name (m)
   (or (vm-full-name-of m)
       (progn (vm-su-do-author m) (vm-full-name-of m))))
 
+(defun vm-su-interesting-full-name (m)
+  (if vm-summary-uninteresting-senders
+      (let ((case-fold-search nil))
+	(if (string-match vm-summary-uninteresting-senders (vm-su-from m))
+	    (concat vm-summary-uninteresting-senders-arrow (vm-su-to-names m))
+	  (vm-su-full-name m)))
+    (vm-su-full-name m)))
+
 (defun vm-su-from (m)
   (or (vm-from-of m)
       (progn (vm-su-do-author m) (vm-from-of m))))
+
+(defun vm-su-interesting-from (m)
+  (if vm-summary-uninteresting-senders
+      (let ((case-fold-search nil))
+	(if (string-match vm-summary-uninteresting-senders (vm-su-from m))
+	    (concat vm-summary-uninteresting-senders-arrow (vm-su-to m))
+	  (vm-su-from m)))
+    (vm-su-from m)))
 
 ;; Some yogurt-headed delivery agents don't even provide a From: header.
 (defun vm-grok-From_-author (message)
@@ -676,114 +701,80 @@ mandatory."
       (save-restriction
 	(widen)
 	(goto-char (vm-start-of message))
-	(if (looking-at "From \\([^ \t\n]+\\)")
-	    (buffer-substring (match-beginning 1) (match-end 1)))))))
-
-;;; There are many systems where the user's real name is encoded in the
-;;; user id.  This version of vm-su-do-author parses the user-id to extract
-;;; the real name, so that the %F directive does what you want more of the
-;;; time.  It handles the following forms of addresses:
-;;;
-;;;	Jamie.Zawinski@somehost		--> "Jamie Zawinski"
-;;;	Jamie_Zawinski@somehost		--> "Jamie Zawinski"
-;;;	Jamie_W._Zawinski@somehost	--> "Jamie W. Zawinski"
-;;;	Jamie.W.Zawinski@somehost	--> "Jamie W Zawinski"
-;;;	"Jamie Zawinski"@somehost	--> "Jamie Zawinski"
-;;; also
-;;;	jwz ("Jamie Zawinski")		--> "Jamie Zawinski"
-;;;	jwz (Jamie Zawinski (comment))	--> "Jamie Zawinski"
-;;;	jwz (Jamie Zawinski -- comment)	--> "Jamie Zawinski"
-;;; and likewise in the "name <uid>" form.
+	(let ((case-fold-search nil))
+	  (if (looking-at "From \\([^ \t\n]+\\)")
+	      (buffer-substring (match-beginning 1) (match-end 1))))))))
 
 (defun vm-su-do-author (m)
-  (let (full-name from)
-    (setq full-name (vm-get-header-contents m "Full-Name"))
-    (setq from (or (vm-get-header-contents m "From") (vm-grok-From_-author m)))
-    (cond ((null from)
-	   (setq from "???")
-	   (if (null full-name)
-	       (setq full-name "???")))
-	  ((string-match "^\\([^< \t\n]+\\([ \t\n]+[^< \t\n]+\\)*\\)?[ \t\n]*\\(<\\([^>]+\\)>\\)"
-			 from)
-	   ;; Matches "Real Name <uid>"
-	   (if (and (match-beginning 1) (null full-name))
-	       (setq full-name
-		     (substring from (match-beginning 1) (match-end 1))))
-	   (setq from (substring from (match-beginning 4) (match-end 4))))
-	  ((string-match "^[^(]*(\\(.*\\))[^)]*$" from)
-	   ;; Matches "uid (Real Name)" as well as "uid (real (really) name)"
-	   ;; and "uid (real name (comment))"
-	   (if (null full-name)
-	       (setq full-name (substring from (match-beginning 1)
-					  (match-end 1))))
-	   (setq from
-		 (concat
-		  (substring from (match-beginning 0) (1- (match-beginning 1)))
-		  (substring from (1+ (match-end 1)) (match-end 0))))))
-    ;; ewe ewe see pee...
-    (if (and vm-gargle-uucp (string-match
-"\\([^!@:.]+\\)\\(\\.[^!@:]+\\)?!\\([^!@: \t\n]+\\)\\(@\\([^!@:. \t\n]+\\)\\(.[^ \t\n]+\\)?\\)?[ \t\n]*$"
-			     from))
-	(setq from
-	      (concat
-	       (substring from (match-beginning 3) (match-end 3)) "@"
-	       (if (and (match-beginning 5) (match-beginning 2)
-			(not (match-beginning 6)))
-		   (concat (substring from (match-beginning 5) (match-end 5))
-			   ".")
-		 "")
-	       (substring from (match-beginning 1)
-			  (or (match-end 2) (match-end 1)))
-	       (if (match-end 2) "" ".UUCP"))))
-    (if (or (null full-name) (string-match "^[ \t]*$" full-name))
-	(setq full-name from))
-    ;; derive username from address if address is of the form "User.Name@Host"
-    ;; or "User_Name@Host" or "\"User Name\"@Host".
-    (if (or (string-match "^[^!@%]+[._][^._%@]*[^@%][@%]" full-name)
-	    (string-match "^[^!@%]*\"[^!@%]+ [^ %@]*[^@%][@%]" full-name))
-	(setq full-name (substring full-name 0 (1- (match-end 0)))))
-    (setq full-name (vm-clean-username full-name))
+  (let ((full-name (vm-get-header-contents m "Full-Name:"))
+	(from (or (vm-get-header-contents m "From:")
+		  (vm-grok-From_-author m)))
+	pair)
+    (if (null from)
+	(progn
+	  (setq from "???")
+	  (if (null full-name)
+	      (setq full-name "???")))
+      (setq pair (funcall vm-chop-full-name-hook from)
+	    from (or (nth 1 pair) from)
+	    full-name (or full-name (nth 0 pair) from)))
     (vm-set-full-name-of m full-name)
     (vm-set-from-of m from)))
 
-(defun vm-clean-username (string)
-  "Strips garbage from the user full name string."
-  (if (string-match "[%@!]" string)  ; this ain't no user name!  It's an address!
-      string
-    (let ((case-fold-search t))
-      ;; take off leading and trailing non-alpha chars (quotes, parens, digits, etc)
-      (if (string-match "\\`[^a-z]+" string)
-	  (setq string (substring string (match-end 0))))
-      (if (string-match "[^a-z]+\\'" string)
-	  (setq string (substring string 0 (match-beginning 0))))
-      ;; replace tabs, multiple spaces, dots, and underscores with a single space.
-      ;; but don't replace ". " with " " because that could be an initial.
-      (while (string-match "\\(\t\\|  +\\|\\(\\.\\)[^ \t_]\\|_+\\)" string)
-	(setq string (concat (substring string 0
-					(or (match-beginning 2)
-					    (match-beginning 1)))
-			     " "
-			     (substring string (or (match-end 2)
-						   (match-end 1))))))
-      ;; If the string contains trailing parenthesized comments, nuke 'em.
-      ;; (As in "John Doe -- Pinhead" or "John Doe (Pinhead)".)
-      (if (string-match "[^ \t]\\([ \t]*\\((\\| --\\)\\)" string)
-	  (progn
-	    (setq string (substring string 0 (match-beginning 1)))
-	    ;; lose any non-alpha rubbish this may have exposed.
-	    (if (string-match "[^a-z]+\\'" string)
-		(setq string (substring string 0 (match-beginning 0))))))
-      string)))
+(defun vm-default-chop-full-name (address)
+  (let ((from nil)
+	(full-name nil))
+    (cond ((string-match
+"\\`[ \t\n]*\\([^< \t\n]+\\([ \t\n]+[^< \t\n]+\\)*\\)?[ \t\n]*<\\([^>]+\\)>[ \t\n]*\\'"
+			 address)
+	   (if (match-beginning 1)
+	       (setq full-name
+		     (substring address (match-beginning 1) (match-end 1))))
+	   (setq from
+		 (substring address (match-beginning 3) (match-end 3))))
+	  ((string-match
+"\\`[ \t\n]*\\(\\(\"[^\"]+\"\\|[^\"( \t\n]\\)+\\)[ \t\n]*(\\([^ \t\n]+\\([ \t\n]+[^ \t\n]+\\)*\\)?)[ \t\n]*\\'"
+			 address)
+	   (if (match-beginning 3)
+	       (setq full-name
+		     (substring address (match-beginning 3) (match-end 3))))
+	   (setq from
+		 (substring address (match-beginning 1) (match-end 1)))))
+    (list full-name from)))
 
 (autoload 'rfc822-addresses "rfc822")
+(autoload 'mail-extract-address-components "mail-extr")
+
+;; test for existence and functionality of mail-extract-address-components
+;; there are versions out there that don't work right, so we run
+;; some test data through it to see if we can trust it.
+(defun vm-choose-chop-full-name-hook (address)
+  (let ((test-data '(("kyle@uunet.uu.net" . (nil "kyle@uunet.uu.net"))))
+	(failed nil)
+	result)
+    (while test-data
+      (setq result (condition-case nil
+		       (mail-extract-address-components (car (car test-data)))
+		     (error nil)))
+      (if (not (equal result (cdr (car test-data))))
+	  ;; failed test, use default
+	  (setq failed t
+		test-data nil)
+	(setq test-data (cdr test-data))))
+    (if failed
+	;; it failed, use default
+	(setq vm-chop-full-name-hook 'vm-default-chop-full-name)
+      ;; it passed the tests
+      (setq vm-chop-full-name-hook 'mail-extract-address-components))
+    (funcall vm-chop-full-name-hook address)))
 
 (defun vm-su-do-recipients (m)
   (let ((mail-use-rfc822 t) names addresses to cc all list)
-    (setq to (or (vm-get-header-contents m "To")
-		 (vm-get-header-contents m "Apparently-To")
+    (setq to (or (vm-get-header-contents m "To:")
+		 (vm-get-header-contents m "Apparently-To:")
 		 ;; desperation....
 		 (user-login-name))
-	  cc (vm-get-header-contents m "Cc")
+	  cc (vm-get-header-contents m "Cc:")
 	  all to
 	  all (if all (concat all ", " cc) cc)
 	  addresses (rfc822-addresses all))
@@ -841,42 +832,22 @@ mandatory."
 (defun vm-su-to-names (m)
   (or (vm-to-names-of m) (progn (vm-su-do-recipients m) (vm-to-names-of m))))
 				  
-(defun vm-su-dwim-user (m)
-  (let ((from (vm-su-from m)))
-    (if (string-match vm-uninteresting-senders from)
-	(concat vm-uninteresting-arrow 
-	  (let ((to (vm-su-to m)))
-	    (if (string= to (user-login-name)) ; vm-do-recipients returns this
-		(or (vm-get-header-contents m "Newsgroups") ; if there's no To:
-		    to)
-		to)))
-	from)))
-
-(defun vm-su-dwim-user-name (m)
-  (if (string-match vm-uninteresting-senders (vm-su-from m))
-      (concat vm-uninteresting-arrow 
-	(let ((to (vm-su-to-names m)))
-	  (if (string= to (user-login-name)) ;; vm-do-recipients returns this
-	      (or (vm-get-header-contents m "Newsgroups")  ;; if there's no To:
-		  to)
-	      to)))
-      (vm-su-full-name m)))
-
 (defun vm-su-message-id (m)
   (or (vm-message-id-of m)
       (vm-set-message-id-of m
-			    (or (vm-get-header-contents m "Message-Id")
+			    (or (vm-get-header-contents m "Message-Id:")
 				""))))
 
 (defun vm-su-line-count (m)
   (or (vm-line-count-of m)
       (vm-set-line-count-of
        m
-       (vm-within-current-message-buffer
-       (save-restriction
-	 (widen)
-	 (int-to-string
-	  (count-lines (vm-text-of m) (vm-text-end-of m))))))))
+       (save-excursion
+	 (set-buffer (marker-buffer (vm-start-of (vm-real-message-of m))))
+	 (save-restriction
+	   (widen)
+	   (int-to-string
+	    (count-lines (vm-text-of m) (vm-text-end-of m))))))))
 
 (defun vm-su-message-number (m)
   (vm-number-of m))
@@ -884,7 +855,7 @@ mandatory."
 (defun vm-su-subject (m)
   (or (vm-subject-of m)
       (vm-set-subject-of m
-			 (or (vm-get-header-contents m "Subject") ""))))
+			 (or (vm-get-header-contents m "Subject:") ""))))
 
 (defun vm-su-subject-no-newlines (m)
   (let ((s (vm-su-subject m)))

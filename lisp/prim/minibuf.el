@@ -1,5 +1,5 @@
 ;;; minibuf.el
-;; Copyright (C) 1992, 1993 Free Software Foundation, Inc.
+;; Copyright (C) 1992, 1993, 1994 Free Software Foundation, Inc.
  
 ;; This file is part of GNU Emacs.
  
@@ -56,6 +56,12 @@ response.  This is helpful for catching typos, etc.")
 More precisely, this variable makes a difference when the minibuffer window
 is the selected window.  If you are in some other window, minibuffer commands
 are allowed even if a minibuffer is active.")
+
+(defvar minibuffer-max-depth 1
+  ;; See comment in #'minibuffer-max-depth-exceeded
+  "*Global maximum number of minibuffers allowed;
+compare to enable-recursive-minibuffers, which is only consulted when the
+minibuffer is reinvoked while it is the selected window.")
 
 (defvar minibuffer-setup-hook nil
   "Normal hook run just after entry to minibuffer.")
@@ -187,6 +193,17 @@ are allowed even if a minibuffer is active.")
     (set-buffer-dedicated-screen buffer nil)
     buffer))
 
+(defvar minibuffer-history-variable 'minibuffer-history
+  "History list symbol to add minibuffer values to.
+Each minibuffer output is added with
+  (set minibuffer-history-variable
+       (cons STRING (symbol-value minibuffer-history-variable)))")
+(defvar minibuffer-history-position)
+
+(defvar minibuffer-history-minimum-string-length 3
+  "If this variable is non-nil, a string will not be added to the
+minibuffer history if its length is less than that value.")
+
 (defun read-from-minibuffer (prompt &optional initial-contents
                                     keymap
                                     readp
@@ -213,15 +230,20 @@ Fifth arg HISTORY, if non-nil, specifies a history list
   (if (and (not enable-recursive-minibuffers)
            (> (minibuffer-depth) 0)
            (eq (selected-window) (minibuffer-window)))
-      (error "Command attempted to use minibuffer while in minibuffer"))
+      (error (gettext "Command attempted to use minibuffer while in minibuffer")))
+
+  (if (and minibuffer-max-depth
+	   (> minibuffer-max-depth 0)
+           (>= (minibuffer-depth) minibuffer-max-depth))
+      (minibuffer-max-depth-exceeded))
 
   ;; catch this error before the poor user has typed something...
   (if history
       (if (symbolp history)
 	  (or (boundp history)
-	      (error "History list %S is unbound" history))
+	      (error (gettext "History list %S is unbound") history))
 	(or (boundp (car history))
-	    (error "History list %S is unbound" (car history)))))
+	    (error (gettext "History list %S is unbound") (car history)))))
 
   (if (noninteractive)
       (progn
@@ -237,14 +259,14 @@ Fifth arg HISTORY, if non-nil, specifies a history list
          (window (minibuffer-window))
          (buffer (if (eq (minibuffer-depth) 0)
                      (window-buffer window)
-                     (get-buffer-create (format " *Minibuf-%d"
+                     (get-buffer-create (format (gettext " *Minibuf-%d")
                                                 (minibuffer-depth)))))
          (screen (window-screen window))
          (mconfig (if (eq screen (selected-screen)) 
                       nil (current-window-configuration screen)))
          (oconfig (current-window-configuration)))
     (unwind-protect
-         (progn
+         (let ((got-error nil))
            (set-buffer buffer)
            (reset-buffer buffer)
            (setq default-directory dir)
@@ -293,19 +315,32 @@ Fifth arg HISTORY, if non-nil, specifies a history list
                  ;;  into a real quit
                  (signal 'quit '())
                ;; return value
-               (let ((val (progn (set-buffer buffer) (buffer-string)))
-                     (list (symbol-value minibuffer-history-variable)))
+               (let* ((val (progn (set-buffer buffer) (buffer-string)))
+		      (valid (and (symbolp minibuffer-history-variable)
+				  (boundp minibuffer-history-variable))))
+		 (if readp
+		     (condition-case c
+			 (progn
+			   (setq val (car (read-from-string val)))
+			   ;; total total kludge
+			   (if (stringp val) (setq val (list 'quote val))))
+		       (error (setq got-error c))))
                  ;; Add the value to the appropriate history list unless
                  ;; it's already the most recent element, or it's only
                  ;; two characters long.
-                 (or (eq list t)
-                     (null val)
-                     (equal val (car list))
-                     (and (stringp val) (< (length val) 3))
-                     (set minibuffer-history-variable (cons val list)))
-                 (if readp
-                     (car (read-from-string val))
-                     val)))))
+                 (if valid
+		     (let ((list (symbol-value minibuffer-history-variable)))
+		       (or (eq list t)
+			   (null val)
+			   (and list (equal val (car list)))
+			   (and (stringp val)
+				minibuffer-history-minimum-string-length
+				(< (length val)
+				   minibuffer-history-minimum-string-length))
+			   (set minibuffer-history-variable (cons val list)))))
+		 ;; kludge kludge kludge
+		 (if got-error (signal (car got-error) (cdr got-error)))
+		 val))))
       ;; stupid display code requires this for some reason
       (set-buffer buffer)
       (buffer-disable-undo buffer)
@@ -316,6 +351,55 @@ Fifth arg HISTORY, if non-nil, specifies a history list
       (if mconfig (set-window-configuration mconfig))
       (set-window-configuration oconfig))))
 
+
+(defun minibuffer-max-depth-exceeded ()
+  ;;
+  ;; This signals an error if an Nth minibuffer is invoked while N-1 are
+  ;; already active, whether the minibuffer window is selected or not.
+  ;; Since, under X, it's easy to jump out of the minibuffer (by doing M-x,
+  ;; getting distracted, and clicking elsewhere) many many novice users have
+  ;; had the problem of having multiple minibuffers build up, even to the
+  ;; point of exceeding max-lisp-eval-depth.  Since the variable
+  ;; enable-recursive-minibuffers historically/crockishly is only consulted
+  ;; when the minibuffer is currently active (like typing M-x M-x) it doesn't
+  ;; help in this situation.
+  ;;
+  ;; This routine also offers to edit .emacs for you to get rid of this
+  ;; complaint, like `disabled' commands do, since it's likely that non-novice
+  ;; users will be annoyed by this change, so we give them an easy way to get
+  ;; rid of it forever.
+  ;; 
+  (beep t 'minibuffer-limit-exceeded)
+  (message
+   "Minibuffer already active: abort it with `^]', enable new one with `n': ")
+  (let ((char (let ((cursor-in-echo-area t)) ; #### doesn't always work??
+		(read-char))))
+    (cond
+     ((eq char ?n)
+      (cond
+       ((y-or-n-p "Enable recursive minibuffers for other sessions too? ")
+	;; This is completely disgusting, but it's basically what novice.el
+	;; does.  This kind of thing should be generalized.
+	(setq minibuffer-max-depth nil)
+	(save-excursion
+	  (set-buffer
+	   (find-file-noselect
+	    (substitute-in-file-name "~/.emacs")))
+	  (goto-char (point-min))
+	  (if (re-search-forward 
+	       "^(setq minibuffer-max-depth \\([0-9]+\\|'?nil\\|'?()\\))\n"
+	       nil t)
+	      (delete-region (match-beginning 0 ) (match-end 0))
+	    ;; Must have been disabled by default.
+	    (goto-char (point-max)))
+	  (insert"\n(setq minibuffer-max-depth nil)\n")
+	  (save-buffer))
+	(message "Multiple minibuffers enabled")
+	(sit-for 1))))
+     ((eq char ?)
+      (abort-recursive-edit))
+     (t
+      (error "Minibuffer already active")))))
 
 
 ;;;; Guts of minibuffer completion
@@ -441,7 +525,7 @@ Fifth arg HISTORY, if non-nil, specifies a history list
     (cond ((eq status 'none)
            ;; No completions
            (ding nil 'no-completion)
-           (temp-minibuffer-message " [No match]"))
+           (temp-minibuffer-message (gettext " [No match]")))
           ((eq status 'unique)
            )
           (t
@@ -463,7 +547,7 @@ Fifth arg HISTORY, if non-nil, specifies a history list
                  ((eq status 'uncompleted)
                   (if completion-auto-help
                       (minibuffer-completion-help)
-                      (temp-minibuffer-message " [Next char not unique]")))
+                      (temp-minibuffer-message (gettext " [Next char not unique]"))))
                  (t
                   nil))))
     status))
@@ -521,9 +605,9 @@ Completion ignores case if the ambient value of
         nil
       (progn
         (cond ((eq status 'unique)
-               (temp-minibuffer-message " [Sole completion]"))
+               (temp-minibuffer-message (gettext " [Sole completion]")))
               ((eq status 'exact)
-               (temp-minibuffer-message " [Complete, but not unique]")))
+               (temp-minibuffer-message (gettext " [Complete, but not unique]"))))
         t))))
 
 
@@ -547,7 +631,7 @@ a repetition of this command will exit."
               (if (or (eq status 'completed-exact)
                       (eq status 'completed-exact-unique))
                   (if minibuffer-completion-confirm
-                      (progn (temp-minibuffer-message " [Confirm]")
+                      (progn (temp-minibuffer-message (gettext " [Confirm]"))
                              nil)
                       t)))
           (throw 'exit nil)))))
@@ -582,8 +666,8 @@ the character in question must be typed again)."
               (string-equal buffer-string ""))
           (throw 'exit nil))
       (temp-minibuffer-message (if completion
-                                   " [incomplete; confirm]"
-                                   " [no completions; confirm]"))
+                                   (gettext " [incomplete; confirm]")
+                                   (gettext " [no completions; confirm]")))
       (let ((event (let ((inhibit-quit t))
 		     (prog1
 			 (next-command-event)
@@ -612,11 +696,11 @@ is added, provided that matches some possible completion."
          (status (minibuffer-do-completion-1 buffer-string completion)))
     (cond ((eq status 'none)
            (ding nil 'no-completion)
-           (temp-minibuffer-message " [No match]")
+           (temp-minibuffer-message (gettext " [No match]"))
            nil)
           ((eq status 'unique)
            ;; New message, only in this new Lisp code
-           (temp-minibuffer-message " [Sole completion]")
+           (temp-minibuffer-message (gettext " [Sole completion]"))
            t)
           (t
            (cond ((or (eq status 'uncompleted)
@@ -647,8 +731,8 @@ is added, provided that matches some possible completion."
                               ;; New message, only in this new Lisp code
                               (temp-minibuffer-message
                                (if (eq status 'exact)
-                                   " [Complete, but not unique]"
-                                   " [Ambiguous]")))
+                                   (gettext " [Complete, but not unique]")
+                                   (gettext " [Ambiguous]"))))
                           nil))))
                  (t
                   (erase-buffer)
@@ -686,7 +770,7 @@ or may be a list of two strings to be printed as if concatenated."
     (if bufferp
         (set-buffer standard-output))
     (if (null completions)
-        (princ "There are no possible completions of what you have typed.")
+        (princ (gettext "There are no possible completions of what you have typed."))
       (let ((win-width (if bufferp
                            ;; This needs fixing for the case of windows 
                            ;; that aren't the same width s the screen.
@@ -725,7 +809,7 @@ or may be a list of two strings to be printed as if concatenated."
                             (if (/= (% count cols) 0) ; want ceiling...
                                 (1+ (/ count cols))
                                 (/ count cols)))))))
-            (princ "Possible completions are:")
+            (princ (gettext "Possible completions are:"))
             (let ((tail completions)
                   (r 0))
               (while (< r rows)
@@ -765,7 +849,7 @@ or may be a list of two strings to be printed as if concatenated."
 (defun minibuffer-completion-help ()
   "Display a list of possible completions of the current minibuffer contents."
   (interactive)
-  (message "Making completion list...")
+  (message (gettext "Making completion list..."))
   (let ((completions (all-completions (buffer-string)
                                       minibuffer-completion-table
                                       minibuffer-completion-predicate)))
@@ -773,8 +857,8 @@ or may be a list of two strings to be printed as if concatenated."
     (if (null completions)
         (progn
           (ding nil 'no-completion)
-          (temp-minibuffer-message " [No completions]"))
-        (with-output-to-temp-buffer "*Completions*"
+          (temp-minibuffer-message (gettext " [No completions]")))
+        (with-output-to-temp-buffer (gettext "*Completions*")
           (display-completion-list (sort completions #'string-lessp))))))
 
 ;;;; Minibuffer History
@@ -800,13 +884,6 @@ list is specified.")
 More generally, indicates that the history list being acted on
 contains expressions rather than strings.")
 
-(defvar minibuffer-history-variable 'minibuffer-history
-  "History list symbol to add minibuffer values to.
-Each minibuffer output is added with
-  (set minibuffer-history-variable
-       (cons STRING (symbol-value minibuffer-history-variable)))")
-(defvar minibuffer-history-position)
-
 (defun previous-matching-history-element (regexp n)
   "Find the previous history element that matches REGEXP.
 \(Previous history elements refer to earlier actions.)
@@ -816,9 +893,9 @@ If N is negative, find the next or Nth next match."
    (let ((enable-recursive-minibuffers t)
 	 (minibuffer-history-sexp-flag nil))
      (if (eq 't (symbol-value minibuffer-history-variable))
-	 (error "history is not being recorded in this context"))
-     (list (read-from-minibuffer "Previous element matching (regexp): "
-				 nil
+	 (error (gettext "history is not being recorded in this context")))
+     (list (read-from-minibuffer (gettext "Previous element matching (regexp): ")
+				 (car minibuffer-history-search-history)
 				 minibuffer-local-map
 				 nil
 				 'minibuffer-history-search-history)
@@ -827,14 +904,14 @@ If N is negative, find the next or Nth next match."
 	prevpos
 	(pos minibuffer-history-position))
     (if (eq history t)
-	(error "history is not being recorded in this context"))
+	(error (gettext "history is not being recorded in this context")))
     (while (/= n 0)
       (setq prevpos pos)
       (setq pos (min (max 1 (+ pos (if (< n 0) -1 1))) (length history)))
       (if (= pos prevpos)
 	  (error (if (= pos 1)
-		     "No later matching history item"
-		   "No earlier matching history item")))
+		     (gettext "No later matching history item")
+		   (gettext "No earlier matching history item"))))
       (if (string-match regexp
 			(if minibuffer-history-sexp-flag
 			    (prin1-to-string (nth (1- pos) history))
@@ -860,9 +937,9 @@ If N is negative, find the previous or Nth previous match."
    (let ((enable-recursive-minibuffers t)
 	 (minibuffer-history-sexp-flag nil))
      (if (eq t (symbol-value minibuffer-history-variable))
-	 (error "history is not being recorded in this context"))
-     (list (read-from-minibuffer "Next element matching (regexp): "
-				 nil
+	 (error (gettext "history is not being recorded in this context")))
+     (list (read-from-minibuffer (gettext "Next element matching (regexp): ")
+				 (car minibuffer-history-search-history)
 				 minibuffer-local-map
 				 nil
 				 'minibuffer-history-search-history)
@@ -873,19 +950,22 @@ If N is negative, find the previous or Nth previous match."
   "Insert the next element of the minibuffer history into the minibuffer."
   (interactive "p")
   (if (eq 't (symbol-value minibuffer-history-variable))
-      (error "history is not being recorded in this context"))
+      (error (gettext "history is not being recorded in this context")))
   (let ((narg (min (max 1 (- minibuffer-history-position n))
 		   (length (symbol-value minibuffer-history-variable)))))
     (if (= minibuffer-history-position narg)
-	(error (format "No %s item in %s"
-		       (if (>= n 0) "following" "preceding")
+	(error (format (if (>= n 0)
+			   (gettext "No following item in %s")
+			 (gettext "No preceding item in %s"))
 		       minibuffer-history-variable))
       (erase-buffer)
       (setq minibuffer-history-position narg)
       (let ((elt (nth (1- minibuffer-history-position)
 		      (symbol-value minibuffer-history-variable))))
 	(insert
-	 (if minibuffer-history-sexp-flag
+	 (if (and minibuffer-history-sexp-flag
+		  ;; total kludge
+		  (not (stringp elt)))
 	     (condition-case ()
 		 (let ((print-readably t)) (prin1-to-string elt))
 	       (error (prin1-to-string elt)))
@@ -921,21 +1001,25 @@ Get previous element of history which is a completion of minibuffer contents."
 Prompt with PROMPT.  If non-nil, optional second arg INITIAL-CONTENTS
 is a string to insert in the minibuffer before reading.
 Third arg HISTORY, if non-nil, specifies a history list."
-  (read-from-minibuffer prompt
-                        initial-contents
-                        minibuffer-local-map
-                        t
-			(or history 'read-expression-history)))
+  (let ((minibuffer-history-sexp-flag t)
+	;; Semi-kludge to get around M-x C-x o M-ESC trying to do completion.
+	(minibuffer-completion-table nil))
+    (read-from-minibuffer prompt
+			  initial-contents
+			  read-expression-map
+			  t
+			  (or history 'read-expression-history))))
 
 (defun read-string (prompt &optional initial-contents history)
   "Return a string from the minibuffer, prompting with string PROMPT.
 If non-nil, optional second arg INITIAL-CONTENTS is a string to insert
 in the minibuffer before reading.
 Third arg HISTORY, if non-nil, specifies a history list."
-  (read-from-minibuffer prompt
-                        initial-contents
-                        minibuffer-local-map
-                        nil history))
+  (let ((minibuffer-completion-table nil))
+    (read-from-minibuffer prompt
+			  initial-contents
+			  minibuffer-local-map
+			  nil history)))
 
 (defun eval-minibuffer (prompt &optional initial-contents history)
   "Return value of Lisp expression read using the minibuffer.
@@ -949,10 +1033,11 @@ Third arg HISTORY, if non-nil, specifies a history list."
 ; "Read a string from the terminal, not allowing blanks.
 ;Prompt with PROMPT.  If non-nil, optional second arg INITIAL-CONTENTS
 ;is a string to insert in the minibuffer before reading."
+;  (let ((minibuffer-completion-table nil))
 ; (read-from-minibuffer prompt
 ;                       initial-contents
 ;                       minibuffer-local-ns-map
-;                       nil))
+;                       nil)))
 
 (defun read-command (prompt)
   "Read the name of a command and return as a symbol.
@@ -982,7 +1067,7 @@ Prompts with PROMPT.  Optional second arg DEFAULT is value to return if user
 enters an empty line.  If optional third arg REQUIRE-MATCH is non-nil,
 only existing buffer names are allowed."
   (let ((prompt (if default 
-                    (format "%s(default %s) "
+                    (format (gettext "%s(default %s) ")
                             prompt (if (bufferp default)
                                        (buffer-name default)
                                        default))
@@ -1015,19 +1100,21 @@ only existing buffer names are allowed."
 	num)
     (while (not (funcall pred num))
       (setq num (condition-case ()
-		    (read-from-minibuffer
-		     prompt (if num (prin1-to-string num)) nil t
-		     t) ;no history
+		    (let ((minibuffer-completion-table nil))
+		      (read-from-minibuffer
+		       prompt (if num (prin1-to-string num)) nil t
+		       t)) ;no history
 		  (invalid-read-syntax nil)
 		  (end-of-file nil)))
       (or (funcall pred num) (beep)))
     num))
 
-(defun read-shell-command (prompt &optional initial-input)
+(defun read-shell-command (prompt &optional initial-input history)
   "Just like read-string, but uses read-shell-command-map:
 \\{read-shell-command-map}"
-  (read-from-minibuffer prompt initial-input read-shell-command-map
-			nil 'shell-command-history))
+  (let ((minibuffer-completion-table nil))
+    (read-from-minibuffer prompt initial-input read-shell-command-map
+			  nil (or history 'shell-command-history))))
 
 
 ;;; This read-file-name stuff probably belongs in files.el
@@ -1095,7 +1182,7 @@ only existing buffer names are allowed."
                 (set hist (cons e (cdr (symbol-value hist))))))))
 
     (cond ((not val)
-           (error "No file name specified"))
+           (error (gettext "No file name specified")))
           ((and default
                 (equal val (if (consp insert) (car insert) insert)))
            default)

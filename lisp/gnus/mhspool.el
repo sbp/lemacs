@@ -52,6 +52,28 @@ provided now.  I suppose the later is faster.")
   "*Switches for mhspool-list-folders-using-ls to pass to `ls' for getting file lists.
 One entry should appear on one line. You may need to add `-1' option.")
 
+;;; lemacs addition: from Rick Sladkey <jrs@world.std.com>
+(defvar mhspool-retrieve-headers-method
+  (function mhspool-retrieve-headers-using-emacs-lisp)
+  "*Function to retrieve headers from articles in an mhspool
+directory.  The function accepts a list of articles to retrieve the
+headers from where the articles are located in the directory
+mhspool-current-directory.  Two functions
+mhspool-retrieve-headers-using-emacs-lisp and
+mhspool-retrieve-headers-using-gnushdrs are provided now.  For the
+latter mhspool-retrieve-headers-gnushdrs-program specifies the name
+of the program to execute (which see).")
+
+;;; lemacs addition: from Rick Sladkey <jrs@world.std.com>
+(defvar mhspool-retrieve-headers-gnushdrs-program "gnushdrs"
+  "*The name of a program used to retrieve headers from articles when
+mhspool-retrieve-headers-method is set to
+mhspool-retrieve-headers-using-gnushdrs.  The program takes a directory
+as it first argument and the files to retrieve articles from as the
+rest of its arguments.  It must produce on its standard output an
+emacs lisp expression in the same format as the value of
+mhspool-retrieve-headers (which see).")
+
 
 
 (defconst mhspool-version "MHSPOOL 1.8"
@@ -67,6 +89,10 @@ One entry should appear on one line. You may need to add `-1' option.")
 ;;; Replacement of Extended Command for retrieving many headers.
 ;;;
 
+(defvar mhspool-article-header-read-size 1024
+  "Number of bytes to read when processing headers from MHSPOOL.")
+
+;;; lemacs change: from Rick Sladkey <jrs@world.std.com>
 (defun mhspool-retrieve-headers (sequence)
   "Return list of article headers specified by SEQUENCE of article id.
 The format of list is
@@ -75,6 +101,28 @@ If there is no References: field, In-Reply-To: field is used instead.
 Reader macros for the vector are defined as `nntp-header-FIELD'.
 Writer macros for the vector are defined as `nntp-set-header-FIELD'.
 Newsgroup must be selected before calling this."
+  (funcall mhspool-retrieve-headers-method sequence))
+
+(defun mhspool-retrieve-headers-using-gnushdrs (sequence)
+  "A method for mhspool-retrieve-headers that uses the program gnushdrs."
+  (save-excursion
+    (let ((msg (and (numberp nntp-large-newsgroup)
+		    (> (length sequence) nntp-large-newsgroup))))
+      (set-buffer nntp-server-buffer)
+      (erase-buffer)
+      (let ((process-connection-type nil))
+	(apply 'call-process mhspool-retrieve-headers-gnushdrs-program
+	       nil t nil mhspool-current-directory
+	       (mapcar 'int-to-string sequence))
+	(and msg (message "MHSPOOL: parsing headers..."))
+	(goto-char (point-min))
+	(prog1
+	    (read nntp-server-buffer)
+	  (erase-buffer)
+	  (and msg (message "MHSPOOL: parsing headers...done.")))))))
+
+(defun mhspool-retrieve-headers-using-emacs-lisp (sequence)
+  "A method for mhspool-retrieve-headers that only uses Emacs Lisp."
   (save-excursion
     (set-buffer nntp-server-buffer)
     ;;(erase-buffer)
@@ -99,7 +147,8 @@ Newsgroup must be selected before calling this."
 		 (not (file-directory-p file)))
 	    (progn
 	      (erase-buffer)
-	      (insert-file-contents file)
+	      (insert-file-contents file
+				    nil 0 mhspool-article-header-read-size)
 	      ;; Make message body invisible.
 	      (goto-char (point-min))
 	      (search-forward "\n\n" nil 'move)
@@ -393,11 +442,12 @@ in the current news group."
     ;; Initialize communication buffer.
     (setq nntp-server-buffer (get-buffer-create " *nntpd*"))
     (set-buffer nntp-server-buffer)
-    (buffer-flush-undo (current-buffer))
+    (buffer-disable-undo (current-buffer))
     (erase-buffer)
     (kill-all-local-variables)
     (setq case-fold-search t)		;Should ignore case.
-    (setq nntp-server-process nil)
+    (if (boundp 'nntp-server-process)
+	(setq nntp-server-process nil))
     (setq nntp-server-name host)
     ;; It is possible to change kanji-fileio-code in this hook.
     (run-hooks 'nntp-server-hook)
@@ -409,7 +459,8 @@ in the current news group."
   (if nntp-server-buffer
       (kill-buffer nntp-server-buffer))
   (setq nntp-server-buffer nil)
-  (setq nntp-server-process nil))
+  (if (boundp 'nntp-server-process)
+      (setq nntp-server-process nil)))
 
 (defun mhspool-find-file (file)
   "Insert FILE in server buffer safely."

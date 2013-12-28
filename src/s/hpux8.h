@@ -38,6 +38,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #undef  HAVE_TERMIO
 #define HAVE_TERMIOS
 #define POSIX_SIGNALS
+#define I18N2
 
 #define HAVE_WAIT_HEADER
 #define WAITTYPE int
@@ -47,21 +48,27 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    X11R5 you must comment this out */
 /* #define HAVE_RANDOM */
 
-/* include file locations for HPUX 8 (X11R4) */
-#ifdef __GNUC__
-#define C_SWITCH_SYSTEM -I/usr/include/X11R4 -I/usr/include/Motif1.1
-#else
-#define C_SWITCH_SYSTEM -D_HPUX_SOURCE  -I/usr/include/X11R4 -I/usr/include/Motif1.1
-#endif
+/* ymakefile definitions for HPUX 8 (X11R4) */
+#ifdef THIS_IS_YMAKEFILE
+# define START_FILES
+#define LD_CMD $(CC)
 
-#ifndef LD_SWITCH_SYSTEM
-# ifdef __GNUC__ 
-#  if defined(__HPUX_ASM__) || !defined(__hp9000s300)
-#   define LD_SWITCH_SYSTEM -Xlinker -a -Xlinker archive -L/usr/lib/X11R4 -L/usr/lib/Motif1.1
-#  else
-#   define LD_SWITCH_SYSTEM -L/usr/lib/X11R4 -L/usr/lib/Motif1.1
-#  endif /* HPUX_ASM */
+# ifdef __GNUC__
+#  define C_SWITCH_SYSTEM -I/usr/include/X11R4 -I/usr/include/Motif1.1
 # else
-#  define LD_SWITCH_SYSTEM -a archive -L/usr/lib/X11R4 -L/usr/lib/Motif1.1
-# endif /* GNUC */
-#endif /* LD_SWITCH_SYSTEM */
+#  define C_SWITCH_SYSTEM -Aa -D_HPUX_SOURCE  -I/usr/include/X11R4 -I/usr/include/Motif1.1
+# endif
+
+/* point the linker at the X libs, and tell it to link statically */
+# ifndef LD_SWITCH_SYSTEM
+#  ifdef __GNUC__ 
+#   if defined(__HPUX_ASM__) || !defined(__hp9000s300)
+#    define LD_SWITCH_SYSTEM -Xlinker -a -Xlinker archive -L/usr/lib/X11R4 -L/usr/lib/Motif1.1
+#   else
+#    define LD_SWITCH_SYSTEM -L/usr/lib/X11R4 -L/usr/lib/Motif1.1
+#   endif /* HPUX_ASM */
+#  else
+#   define LD_SWITCH_SYSTEM -a archive -L/usr/lib/X11R4 -L/usr/lib/Motif1.1
+#  endif /* GNUC */
+# endif /* LD_SWITCH_SYSTEM */
+#endif /* THIS IS YMAKEFILE */

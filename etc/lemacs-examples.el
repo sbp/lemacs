@@ -68,9 +68,9 @@
        (setq x-mode-pointer-shape "leftbutton")
 
        ;; Change the cursor used during GC.
-       ;; Note that this cursor image is rather large as cursor go, and some
-       ;; X servers may have rather small upper limits on cursor size, and so
-       ;; may truncate it unattractively.
+       ;; Note that this cursor image is rather large as cursor go, and so it
+       ;; won't work on some X servers (such as the MIT R5 Sun server) because
+       ;; servers may have lamentably small upper limits on cursor size.
        (if (featurep 'xpm)
 	   (setq x-gc-pointer-shape
 		 (expand-file-name "trash.xpm" data-directory)))

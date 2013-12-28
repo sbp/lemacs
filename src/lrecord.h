@@ -43,7 +43,7 @@ struct lrecord_header
      *  I think I remember that Elk Lisp does something like this.
      *  Gee, I wonder if some cretin has patented it?
      */
-    const struct lrecord_implementation *implementation;
+    CONST struct lrecord_implementation *implementation;
   };
 
 struct lcrecord_header
@@ -78,7 +78,7 @@ struct lrecord_implementation
     int (*equal) (Lisp_Object obj1, Lisp_Object obj2, int depth);
   };
 #define DEFINE_LRECORD_IMPLEMENTATION(name,marker,printer,nuker,sizer,equal) \
- const struct lrecord_implementation name[2] = \
+ CONST struct lrecord_implementation name[2] = \
    { { (marker), (printer), (nuker), (sizer), (equal) }, \
      { 0, 0, this_marks_a_marked_record, 0, 0 } }
 
@@ -95,10 +95,10 @@ struct lrecord_implementation
  *  from a record implementation back to a directly tagged frob */
 #define XSETR(var, type, ptr) XSET(var, Lisp_Record, ptr)
 
-extern void *alloc_lcrecord (int size, const struct lrecord_implementation *);
+extern void *alloc_lcrecord (int size, CONST struct lrecord_implementation *);
 extern void free_lcrecord (struct lcrecord_header *);
 
 extern int gc_record_type_p (Lisp_Object frob,
-			     const struct lrecord_implementation *type);
+			     CONST struct lrecord_implementation *type);
 
 #endif /* _EMACS_LRECORD_H_ */

@@ -69,7 +69,7 @@ same as ENDRECFUN."
   ;; Heuristically try to avoid messages if sorting a small amt of text.
   (let ((messages (> (- (point-max) (point-min)) 50000)))
     (save-excursion
-      (if messages (message "Finding sort keys..."))
+      (if messages (message (gettext "Finding sort keys...")))
       (let* ((sort-lists (sort-build-lists nextrecfun endrecfun
                                            startkeyfun endkeyfun))
              (old (reverse sort-lists))
@@ -77,7 +77,7 @@ same as ENDRECFUN."
         (if (null sort-lists)
             ()
           (or reverse (setq sort-lists (nreverse sort-lists)))
-          (if messages (message "Sorting records..."))
+          (if messages (message (gettext "Sorting records...")))
           (setq sort-lists
                 (if (fboundp 'sortcar)
                     (sortcar sort-lists
@@ -107,9 +107,9 @@ same as ENDRECFUN."
                                   (lambda (a b)
                                    (string< (car a) (car b)))))))))
             (if reverse (setq sort-lists (nreverse sort-lists)))
-            (if messages (message "Reordering buffer..."))
+            (if messages (message (gettext "Reordering buffer...")))
             (sort-reorder-buffer sort-lists old)))
-      (if messages (message "Reordering buffer... Done"))))
+      (if messages (message (gettext "Reordering buffer... Done")))))
   nil)
 
 ;; Parse buffer into records using the arguments as Lisp expressions;
@@ -324,7 +324,7 @@ FIELD, BEG and END.  BEG and END specify region to sort."
 	  (setq i (1- i)))
 	(skip-chars-forward " \t")
 	(if (eolp)
-	    (error "Line has too few fields: %s"
+	    (error (gettext "Line has too few fields: %s")
 		   (buffer-substring
 		    (save-excursion (beginning-of-line) (point))
 		    (save-excursion (end-of-line) (point))))))
@@ -337,7 +337,7 @@ FIELD, BEG and END.  BEG and END specify region to sort."
 	(setq i (1- i)))
       (skip-chars-backward " \t"))
     (if (bolp)
-	(error "Line has too few fields: %s"
+	(error (gettext "Line has too few fields: %s")
 	       (buffer-substring
 		(save-excursion (beginning-of-line) (point))
 		(save-excursion (end-of-line) (point)))))
@@ -435,7 +435,8 @@ Use \\[untabify] to convert tabs to spaces before sorting."
       (setq col-start (min col-beg1 col-end1))
       (setq col-end (max col-beg1 col-end1))
       (if (search-backward "\t" beg1 t)
-	  (error "sort-columns does not work with tabs.  Use M-x untabify."))
+	  (error
+	   (gettext "sort-columns does not work with tabs.  Use M-x untabify.")))
       (if (not (eq system-type 'vax-vms))
 	  ;; Use the sort utility if we can; it is 4 times as fast.
 	  (call-process-region beg1 end1 "sort" t t nil

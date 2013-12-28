@@ -1,5 +1,5 @@
 /* Functions for the X window system.
-   Copyright (C) 1989, 1992, 1993 Free Software Foundation.
+   Copyright (C) 1989, 1992, 1993, 1994 Free Software Foundation.
 
 This file is part of GNU Emacs.
 
@@ -22,18 +22,24 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "config.h"
 
 #include <stdio.h>
-#include <signal.h>
+/* #include <signal.h>  use "syssignal.h" instead -jwz */
+#include "syssignal.h"
 
-#include <X11/IntrinsicP.h>	/* CoreP.h needs this */
+#include "xintrinsicp.h"	/* CoreP.h needs this */
 #include <X11/CoreP.h>		/* foul, but we need this to use our own
 				   window inside a widget instead of one 
 				   that Xt creates... */
 #include <X11/StringDefs.h>
 #include <X11/Xresource.h>
-#include <X11/Shell.h>
+#include <X11/ShellP.h>
 
-#include <X11/Xaw/Paned.h>
-#include <X11/Xaw/Label.h>
+#ifdef LWLIB_USES_MOTIF
+# include <Xm/MainW.h>
+# include <Xm/PanedW.h>
+#else /* Athena */
+# include <X11/Xmu/Converters.h>	/* For XtorientVertical */
+# include <X11/Xaw/Paned.h>
+#endif
 
 #ifdef USG
 #undef USG	/* ####KLUDGE for Solaris 2.2 and up */
@@ -43,21 +49,32 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include <X11/Xos.h>
 #endif
 
+#undef CONST
+#ifdef CONST_IS_LOSING          /* Restore Emacs' idea of CONST */
+# define CONST
+#else
+# define CONST const
+#endif
+
 #include "EmacsScreenP.h"
 
+#ifdef EXTERNAL_WIDGET
 #include "EmacsShell.h"
 #include "EmacsShellP.h"
+#endif
 
-#if (XtSpecificationRelease >= 5)	/* Do the EDITRES protocol */
+/* Do the EDITRES protocol if running the X11R5 version of Athena */
+#if ((XtSpecificationRelease >= 5) && !defined (LWLIB_USES_MOTIF))
 #define HACK_EDITRES
 extern void _XEditResCheckMessages();
-#endif /* R5 */
+#endif /* R5 + Athena */
 
 #ifdef USE_SOUND
 # include <netdb.h>
 #endif
 
 #include "lisp.h"
+#include "intl.h"
 #include "xterm.h"
 #include "window.h"
 #include "buffer.h"
@@ -83,6 +100,7 @@ Lisp_Object Qx_error;
 #endif
 
 Lisp_Object Vx_gc_pointer_shape;
+Lisp_Object Vx_scrollbar_pointer_shape;
 
 /* If non-nil, use vertical bar cursor. */
 Lisp_Object Vbar_cursor;
@@ -105,6 +123,7 @@ Lisp_Object Qname;
 Lisp_Object Qboolean;
 Lisp_Object Qinteger;
 Lisp_Object Qpointer;
+Lisp_Object Qscrollbar_pointer;
 
 /* Default parameters to use when creating screens.  */
 Lisp_Object Vx_screen_defaults;
@@ -154,12 +173,19 @@ x_any_window_to_screen (wdesc)
       x = s->display.x;
       /* This screen matches if the window is any of its widgets. */
       if (wdesc == XtWindow (x->widget) ||
-	  wdesc == XtWindow (x->column_widget) ||
+	  wdesc == XtWindow (x->container) ||
+#ifndef LWLIB_USES_MOTIF
+	  wdesc == XtWindow (x->container2) ||
+#endif
 	  wdesc == XtWindow (x->edit_widget))
 	return s;
       /* Match if the window is this screen's menubar. */
       if (x->menubar_widget &&
 	  wdesc == XtWindow (x->menubar_widget))
+	return s;
+      /* Match if the window is this screen's scrollbar manager. */
+      if (x->scrollbar_manager &&
+	  wdesc == XtWindow (x->scrollbar_manager))
 	return s;
       /* Do *not* match if the window is this screen's psheet. */
     }
@@ -199,6 +225,7 @@ init_x_parm_symbols ()
   def ("minibuffer", XtNminibuffer);
   def ("unsplittable", XtNunsplittable);
   defi("inter-line-space", XtNinterline);
+  def ("menubar", XtNmenubar);
   
 #undef def
 }
@@ -301,9 +328,7 @@ x_set_icon_name_from_char (struct screen* s, char* name)
  */
 
 void
-x_set_screen_values (s, alist)
-     struct screen *s;
-     Lisp_Object alist;
+x_set_screen_values (struct screen *s, Lisp_Object alist)
 {
   int x = 0, y = 0;
   Dimension width = 0, height = 0;
@@ -335,11 +360,25 @@ x_set_screen_values (s, alist)
 			   0);
 	  UNBLOCK_INPUT;
 	}
+#if 0
+      /* mly wants this, but it's not reasonable to change the name of a
+	 screen after it has been created, because the old name was used
+	 for resource lookup. */
+      else if (EQ (elt, Qname))
+        {
+          CHECK_STRING (val, 0);
+          s->name = val;
+        }
+#endif /* 0 */
       else
 	{
 	  Lisp_Object str = Fget (prop, Qx_resource_name, Qnil);
 	  int int_p = !NILP (Fget (prop, Qintegerp, Qnil));
+
 	  if (NILP (prop) || NILP (str))
+            /* >>> No error-checking on property names!  FMH!!! */
+	    /* RMS apparently thinks this is a feature.
+	       This whole screen-parameters things has got to go. */
 	    continue;
 	  CHECK_STRING (str, 0);
 
@@ -442,218 +481,6 @@ x_set_screen_values (s, alist)
 #endif
 }
 
-void
-fix_pane_constraints (w)
-  Widget w;
-{
-  BLOCK_INPUT;
-  XtVaSetValues (w, XtNshowGrip, 0, XtNresizeToPreferred, 1,
-		 XtNallowResize, 1, 0);
-  UNBLOCK_INPUT;
-}
-
-#ifdef ENERGIZE
-
-extern int *get_psheets_for_buffer ();
-
-void
-make_psheets_desired (s, buffer)
-     struct screen* s;
-     Lisp_Object buffer;
-{
-  struct x_display *x = s->display.x;
-  int count;
-  int *psheets;
-
-  if (NILP (buffer) || !(psheets = get_psheets_for_buffer (buffer, &count)))
-    {
-      x->desired_psheets = 0;
-      x->desired_psheet_count = 0;
-      x->desired_psheet_buffer = Qnil;
-    }
-  else
-    {
-      /* Do not show the debugger panel in this function.  The
-       * debugger panel should never be listed in the visible psheets. */
-      extern int debuggerpanel_sheet;
-      
-      if (count == 1 && psheets [0] == debuggerpanel_sheet)
-	return;
-
-      x->desired_psheets = psheets;
-      x->desired_psheet_count = count;
-      x->desired_psheet_buffer = buffer;
-    }
-}
-
-Lisp_Object
-desired_psheet_buffer (struct screen* s)
-{
-  return s->display.x->desired_psheet_buffer;
-}
-
-/* This function is invoked when the user clicks on the "sheet" button.
- */
-DEFUN ("energize-toggle-psheet", Fenergize_toggle_psheet,
-       Senergize_toggle_psheet, 0, 0, "",
-       "")
-     ()
-{
-  struct screen *screen = selected_screen;
-  Lisp_Object buffer = Fwindow_buffer (Fselected_window ());
-  if (EQ (buffer, desired_psheet_buffer (screen)))
-    make_psheets_desired (screen, Qnil);
-  else
-    make_psheets_desired (screen, buffer);
-  return Qnil;
-}
-
-
-void energize_show_menubar_of_buffer ();
-
-/* This is called when a buffer becomes visible in some window.
-
-   Show the menubar associated with this buffer, and show the psheets as
-   well if this buffer is the last buffer whose psheets were visible in
-   this screen.
- */
-void energize_buffer_shown_hook (window)
-     struct window *window;
-{
-  struct screen* screen = XSCREEN (window->screen);
-  Lisp_Object buffer = window->buffer;
-  Lisp_Object pbuf;
-
-  if (! SCREEN_IS_X (screen)) return;
-  pbuf = desired_psheet_buffer (screen);
-
-  if (!MINI_WINDOW_P (window))
-    energize_show_menubar_of_buffer (window->screen, buffer,
-				     (EQ (buffer, pbuf) ? Qt : Qnil));
-}
-
-
-static int
-find_buffer_in_different_window (window, buffer, not_in)
-     struct window* window;
-     Lisp_Object buffer;
-     struct window* not_in;
-{
-  Lisp_Object child;
-  if (!NILP (window->buffer))
-    {
-      /* a leaf window */
-      return (EQ (window->buffer, buffer) && (window != not_in));
-    }
-  else
-    {
-      /* a non leaf window, visit either the hchild or the vchild */
-      for (child = !NILP (window->vchild) ? window->vchild : window->hchild;
-	   !NILP (child);
-	   child = XWINDOW (child)->next)
-	{
-	  if (find_buffer_in_different_window (XWINDOW (child), buffer,
-					       not_in))
-	    return 1;
-	}
-      return 0;
-    }
-}
-
-/* returns 1 if the buffer is only visible in window on screen s */
-static int
-buffer_only_visible_in_this_window_p (buffer, s, window)
-     Lisp_Object buffer;
-     struct screen* s;
-     struct window* window;
-{
-  return !find_buffer_in_different_window (XWINDOW (s->root_window), buffer,
-					   window);
-}
-
-/* This is called just before a buffer which is visible becomes invisible,
-   either because some other buffer is about to be made visible in its window,
-   or because that window is being deleted.
-
-   If this buffer's psheets are visible, hide them.
- */
-void energize_buffer_hidden_hook (window)
-     struct window *window;
-{
-  struct screen *s;
-  s = XSCREEN (window->screen);
-
-  if (! SCREEN_IS_X (s)) return;
-
-  /* hides the p_sheet if we are changing the buffer of the
-   * selected window of the screen and the p_sheet where displayed */
-  if (EQ (window->buffer, desired_psheet_buffer (s))
-      && buffer_only_visible_in_this_window_p (window->buffer, s, window))
-    make_psheets_desired (s, Qnil);
-}
-
-
-/* This is called just before the selected window is no longer the selected
-   window because some other window is being selected.  The given window is
-   not being deleted, it is merely no longer the selected one.
-
-   This doesn't do anything right now.
- */
-void energize_window_deselected_hook (window)
-     struct window *window;
-{
-}
-
-
-/* This is called just after a window has been selected.
-
-   Show the menubar associated with this buffer; leave the psheets as
-   they are.
- */
-void energize_window_selected_hook (window)
-     struct window *window;
-{
-  struct screen* screen = XSCREEN (window->screen);
-  Lisp_Object buffer = window->buffer;
-
-  if (SCREEN_IS_X (screen) && !MINI_WINDOW_P (window))
-    energize_show_menubar_of_buffer (window->screen, buffer, Qnil);
-}
-
-
-
-int current_debuggerpanel_exposed_p;
-int desired_debuggerpanel_exposed_p;
-int debuggerpanel_sheet;
-
-void
-energize_show_menubar_of_buffer (screen, buffer, psheets_too)
-     Lisp_Object screen, buffer, psheets_too;
-{
-  struct screen* s;
-  struct x_display *x;
-  
-  if (NILP (screen))
-    s = selected_screen;
-  else {
-    CHECK_SCREEN (screen, 0);
-    s = XSCREEN (screen);
-  }
-
-  if (! SCREEN_IS_X (s)) error ("not an X screen");
-  x = s->display.x;
-
-  if (! NILP (psheets_too))
-    {
-      Lisp_Object buffer;
-      XSETR (buffer, Lisp_Buffer, current_buffer);
-      make_psheets_desired (s, buffer);
-    }
-}
-
-
-#endif /* ENERGIZE */
-
 /* The one and only application context associated with the connection
 ** to the one and only X display that Emacs uses. */
 XtAppContext Xt_app_con;
@@ -716,22 +543,35 @@ static void store_class_hints (Widget, char *);
 
 /* Creates the widgets for a screen.  Parms is an alist of
    resources/values to use for the screen.  (ignored right now).
-   reslisp_window_id is a Lisp description of an X window or Xt
-   widget id (ignored right now).
+   lisp_window_id is a Lisp description of an X window or Xt
+   widget to parse.
 
    This function does not map the window.
  */
 static void
-x_create_widgets (s, parms, lisp_window_id)
-     struct screen *s;
-     Lisp_Object parms;
-     Lisp_Object lisp_window_id;
+x_create_widgets (struct screen *s,
+		  Lisp_Object parms
+#ifdef EXTERNAL_WIDGET
+		  , Lisp_Object lisp_window_id
+#endif
+		  )
 {
   Widget shell_widget;
   Widget pane_widget;
   Widget screen_widget;
-  char* name;
-  Arg al [25];
+  Widget scrollbar_manager;
+#ifndef LWLIB_USES_MOTIF
+  Widget lower_pane;
+#endif
+#ifdef ENERGIZE
+  Widget psheet_manager;
+#endif
+  Widget menubar_widget;
+#ifdef EXTERNAL_WIDGET
+  Window window_id;
+#endif
+  char *name;
+  Arg av [25];
   int ac = 0;
 
   BLOCK_INPUT;
@@ -743,8 +583,8 @@ x_create_widgets (s, parms, lisp_window_id)
        
   /* The widget hierarchy is
 
-	argv[0]			shell		pane	SCREEN-NAME
-	ApplicationShell	EmacsShell	Paned	EmacsScreen
+	argv[0]			shell		pane		SCREEN-NAME
+	ApplicationShell	TopLevelShell	XmMainWindow	EmacsScreen
 
      However the shell/EmacsShell widget has WM_CLASS of SCREEN-NAME/Emacs.
      Normally such shells have name/class shellname/appclass, which in this
@@ -754,40 +594,186 @@ x_create_widgets (s, parms, lisp_window_id)
      the shell) is also called that.  So we just set the WM_CLASS property.
    */
 
+#ifdef EXTERNAL_WIDGET
+  if (NILP (lisp_window_id))
+    window_id = 0;
+  else
+    {
+      char *string;
+
+      CHECK_STRING (lisp_window_id, 0);
+      string = (char *) (XSTRING (lisp_window_id)->data);
+      if (string[0] == '0' && (string[1] == 'x' || string[1] == 'X'))
+	sscanf (string+2, "%xu", &window_id);
+#if 0
+      else if (string[0] == 'w')
+	{
+	  sscanf (string+1, "%x", &parent_widget);
+	  if (parent_widget)
+	    window_id = XtWindow (parent_widget);
+	}
+#endif
+      else
+	sscanf (string, "%lu", &window_id);
+    }
+#endif /* EXTERNAL_WIDGET */
+
   ac = 0;
-  XtSetArg (al[ac], XtNallowShellResize, 1); ac++;
-  XtSetArg (al[ac], XtNinput, 1); ac++;
+  XtSetArg (av[ac], XtNallowShellResize, True); ac++;
+
+#ifdef EXTERNAL_WIDGET
+  if (window_id)
+    {
+      XtSetArg (av[ac], XtNwindow, window_id); ac++;
+    }
+  else
+#endif
+    {
+      XtSetArg (av[ac], XtNinput, True); ac++;
+    }
+
   shell_widget = XtCreatePopupShell ("shell",
-				     emacsShellWidgetClass,
-				     Xt_app_shell, al, ac);
+				     (
+#ifdef EXTERNAL_WIDGET
+				      window_id ? emacsShellWidgetClass :
+#endif
+				      topLevelShellWidgetClass
+				      ),
+				     Xt_app_shell,
+				     av, ac);
   maybe_set_screen_title_format (shell_widget);
 
+#ifdef LWLIB_USES_MOTIF
   ac = 0;
-  XtSetArg (al[ac], XtNborderWidth, 0); ac++;
-  pane_widget = XtCreateWidget ("pane",
-				panedWidgetClass,
-				shell_widget, al, ac);
+  XtSetArg (av[ac], XtNborderWidth, 0); ac++;
+  XtSetArg (av[ac], XmNspacing, 0); ac++;
+  pane_widget = XmCreateMainWindow (shell_widget, "pane", av, ac);
 
-  /* mappedWhenManaged to false tells to the paned window to not map/unmap 
-   * the emacs screen when changing menubar.  This reduces flickering a lot.
-   */
+  /* Now create the initial menubar widget. */
+  s->display.x->container = pane_widget;
+  initialize_screen_menubar (s);
+  menubar_widget = s->display.x->menubar_widget;
+
   ac = 0;
-  XtSetArg (al[ac], XtNmappedWhenManaged, 0); ac++;
-  XtSetArg (al[ac], XtNshowGrip, 0); ac++;
-  XtSetArg (al[ac], XtNallowResize, 1); ac++;
-  XtSetArg (al[ac], XtNresizeToPreferred, 1); ac++;
-  XtSetArg (al[ac], XtNemacsScreen, s); ac++;
+  XtSetArg (av[ac], XtNmappedWhenManaged, False); ac++;
+  XtSetArg (av[ac], XtNemacsScreen, s); ac++;
   screen_widget = XtCreateWidget (name,
 				  emacsScreenClass,
-				  pane_widget, al, ac);
+				  pane_widget, av, ac);
+
+  initialize_screen_scrollbars (s);
+  scrollbar_manager = s->display.x->scrollbar_manager;
+
+  if (scrollbar_manager)
+    {
+      Dimension sb_manager_width;
+      XtVaGetValues (scrollbar_manager, XmNwidth, &sb_manager_width, 0);
+      if (sb_manager_width != 0 && sb_manager_width != scrollbar_width)
+	scrollbar_width = sb_manager_width;
+    }
+  else
+    scrollbar_width = 0;
+
+# ifdef ENERGIZE
+  ac = 0;
+  XtSetArg (av[ac], XtNmappedWhenManaged, True); ac++;
+  XtSetArg (av[ac], XmNseparatorOn, False); ac++;
+  XtSetArg (av[ac], XmNmarginHeight, 0); ac++;
+  XtSetArg (av[ac], XmNmarginWidth, 0); ac++;
+  XtSetArg (av[ac], XmNsashHeight, 0); ac++;
+  XtSetArg (av[ac], XmNsashIndent, 0); ac++;
+  XtSetArg (av[ac], XmNsashWidth, 0); ac++;
+  XtSetArg (av[ac], XmNsashShadowThickness, 0); ac++;
+  XtSetArg (av[ac], XmNspacing, 0); ac++;
+  XtSetArg (av[ac], XmNshadowThickness, 0); ac++;
+  psheet_manager = XmCreatePanedWindow (pane_widget, "psheet_manager", av, ac);
+# endif /* ENERGIZE */
+
+  XmMainWindowSetAreas (pane_widget,
+			menubar_widget,		/* menubar (maybe 0) */
+			0,			/* command area (psheets) */
+			0,			/* horizontal scroll */
+			scrollbar_manager,	/* vertical scroll (maybe 0) */
+			screen_widget);		/* work area */
+
+#else /* !LWLIB_USES_MOTIF (meaning Athena) */
+
+  /* Create a vertical Paned to hold menubar / psheets / and-the-rest */
+  ac = 0;
+  XtSetArg (av[ac], XtNborderWidth, 0); ac++;
+  XtSetArg (av[ac], XtNorientation, XtorientVertical); ac++;
+  pane_widget = XtCreateWidget ("pane",
+				panedWidgetClass,
+				shell_widget, av, ac);
+
+  /* Create the initial menubar widget. */
+  s->display.x->container = pane_widget;
+  initialize_screen_menubar (s);
+  menubar_widget = s->display.x->menubar_widget;
+
+  /* Create a horizontal Paned to hold scrollbars and the text area */
+  ac = 0;
+  XtSetArg (av[ac], XtNmappedWhenManaged, True); ac++;
+  XtSetArg (av[ac], XtNshowGrip, False); ac++;
+  XtSetArg (av[ac], XtNallowResize, True); ac++;
+  XtSetArg (av[ac], XtNresizeToPreferred, True); ac++;
+  XtSetArg (av[ac], XtNorientation, XtorientHorizontal); ac++;
+  XtSetArg (av[ac], XtNinternalBorderWidth, 1); ac++; /* sb_margin... */
+  lower_pane = XtCreateWidget ("lower_pane",
+				panedWidgetClass,
+				pane_widget, av, ac);
+
+  /* Create the initial scrollbars */
+  s->display.x->container2 = lower_pane;
+  initialize_screen_scrollbars (s);
+  scrollbar_manager = s->display.x->scrollbar_manager;
+
+  /* Create the text area */
+  ac = 0;
+  XtSetArg (av[ac], XtNmappedWhenManaged, True); ac++;
+  XtSetArg (av[ac], XtNshowGrip, False); ac++;
+  XtSetArg (av[ac], XtNallowResize, True); ac++;
+  XtSetArg (av[ac], XtNresizeToPreferred, True); ac++;
+  XtSetArg (av[ac], XtNborderWidth, 0); ac++;	/* should this be settable? */
+  XtSetArg (av[ac], XtNemacsScreen, s); ac++;
+  screen_widget = XtCreateWidget (name,
+				  emacsScreenClass,
+				  lower_pane, av, ac);
+
+#endif /* !LWLIB_USES_MOTIF (meaning Athena) */
 
   s->display.x->widget = shell_widget;
-  s->display.x->column_widget = pane_widget;
   s->display.x->edit_widget = screen_widget;
 
+#ifdef ENERGIZE
+  /* Initially unmanaged; no psheets yet. */
+  s->display.x->psheet_manager = psheet_manager;
+#endif
+
+  if (menubar_widget)
+    XtManageChild (menubar_widget);
+  if (scrollbar_manager)
+    XtManageChild (scrollbar_manager);
   XtManageChild (screen_widget);
+#ifndef LWLIB_USES_MOTIF /* Athena */
+  XtManageChild (lower_pane);
+#endif
   XtManageChild (pane_widget);
+
+#ifdef LWLIB_USES_MOTIF
+  {
+    /* The MainWindow likes to borrow the space for the menubar and scrollbar
+       from the text area; this is not good, so after realizing it (but before
+       mapping it) reset the size of the text area to what it wanted to be
+       created with. */
+    Dimension width, height;
+    XtVaGetValues (screen_widget, XtNwidth, &width, XtNheight, &height, 0);
+    XtRealizeWidget (shell_widget);
+    XtVaSetValues (screen_widget, XtNwidth, width, XtNheight, height, 0);
+  }
+#else
   XtRealizeWidget (shell_widget);
+#endif
 
   if (!NILP (Vx_screen_defaults) || !NILP (parms))
     x_set_screen_values (s, (NILP (parms)
@@ -798,6 +784,17 @@ x_create_widgets (s, parms, lisp_window_id)
   store_class_hints (shell_widget, name);
   maybe_store_wm_command (s);
   hack_wm_protocols (shell_widget);
+
+#ifdef I18N4
+  if (input_context)
+    {
+      main_window = XtWindow (screen_widget);
+      XSetICValues (input_context,
+		    XNClientWindow, main_window,
+		    XNFocusWindow, main_window,
+		    NULL);
+    }
+#endif
 
 #ifdef HACK_EDITRES
   XtAddEventHandler (shell_widget, 0, True, _XEditResCheckMessages, 0);
@@ -813,27 +810,6 @@ x_create_widgets (s, parms, lisp_window_id)
 
   XtMapWidget (screen_widget);
   UNBLOCK_INPUT;
-
-#if 0
- * Forget this for now
- *  if (NILP(lisp_window_id))
- *     window_id = 0;
- *  else
- *    { CHECK_STRING(lisp_window_id, 0);
- *      string = (char *) (XSTRING(lisp_window_id)->data);
- *      if (string[0] == '0' && (string[1] == 'x' || string[1] == 'X'))
- *         sscanf(string+2, "%xu", &window_id);
- *#ifdef ENERGIZE
- *      else if (string[0] == 'w'){
- *	sscanf (string+1, "%x", &parent_widget);
- *	if (parent_widget)
- *	  window_id = XtWindow (parent_widget);
- *      }
- *#endif
- *      else
- *         sscanf (string, "%lu", &window_id);
- *    }
-#endif
 }
 
 
@@ -969,8 +945,13 @@ with \"0x\".")
   GCPRO2 (screen, name);
   
   if (x_current_display == 0)
-    error ("X windows are not in use or not initialized");
+    error (GETTEXT ("X windows are not in use or not initialized"));
   
+#ifndef EXTERNAL_WIDGET
+  if (!NILP (lisp_window_id))
+    error ("support for external widgets was not enabled at compile-time");
+#endif
+
   s = make_screen (1);
   
   allocate_x_display_struct (s);
@@ -989,7 +970,11 @@ with \"0x\".")
 
   XSETR (screen, Lisp_Screen, s);
 
-  x_create_widgets (s, parms, lisp_window_id);
+  x_create_widgets (s, parms
+#ifdef EXTERNAL_WIDGET
+		    , lisp_window_id
+#endif
+		    );
   
   /* do this after anything that might call Fsignal() before the screen
    * is in a usable state. */
@@ -1031,6 +1016,42 @@ with \"0x\".")
   return screen;
 }
 
+
+struct screen *
+get_screen_on_screen (Screen *sc)
+{
+  Lisp_Object tail, screen;
+  struct screen *s;
+
+  for (tail = Vscreen_list; CONSP (tail); tail = XCONS (tail)->cdr)
+    {
+      screen = XCONS (tail)->car;
+      if (!SCREENP (screen))
+        continue;
+      s = XSCREEN (screen);
+      if (SCREEN_IS_X (s) && XtScreen (s->display.x->edit_widget) == sc)
+        return s;
+    }
+  return 0;
+}
+
+struct screen *
+get_screen_on_display (Display *d)
+{
+  Lisp_Object tail, screen;
+  struct screen *s;
+
+  for (tail = Vscreen_list; CONSP (tail); tail = XCONS (tail)->cdr)
+    {
+      screen = XCONS (tail)->car;
+      if (!SCREENP (screen))
+        continue;
+      s = XSCREEN (screen);
+      if (SCREEN_IS_X (s) && XtDisplay (s->display.x->edit_widget) == d)
+        return s;
+    }
+  return 0;
+}
 
 struct screen *
 get_x_screen (Lisp_Object screen)
@@ -1075,7 +1096,7 @@ StaticColor, PseudoColor, TrueColor, or DirectColor.")
     case TrueColor:   return (intern ("TrueColor"));
     case DirectColor: return (intern ("DirectColor"));
     default:
-      error ("display has an unknown visual class");
+      error (GETTEXT ("display has an unknown visual class"));
     }
 }
 
@@ -1218,7 +1239,8 @@ If the second argument is a pixmap without a mask, then the optional\n\
   if (!NILP (mask))
     {
       if (XPIXMAP (mask)->depth > 1)
-	signal_error (Qerror, list2 (build_string ("mask must be one plane"),
+	signal_error (Qerror, list2 (build_string
+				     (GETTEXT ("mask must be one plane")),
 				     mask));
       x_mask = XPIXMAP (mask)->pixmap;
     }
@@ -1494,7 +1516,7 @@ DEFUN ("x-UnmapNotify-internal", Fx_UnmapNotify_internal,
 #if 0 /* #### This stuff is obsolete; with the new event model, 
 	      regular keyboard macros work just as well as this.
        */
-DEFUN ("x-rebind-key", Fx_rebind_key, Sx_rebind_key, 3, 3, 0,
+xxxxDEFUN ("x-rebind-key", Fx_rebind_key, Sx_rebind_key, 3, 3, 0,
 "Rebind X keysym KEYSYM, with MODIFIERS, to generate NEWSTRING.\n\
 KEYSYM is a string which conforms to the X keysym definitions found\n\
 in X11/keysymdef.h, sans the initial XK_. MODIFIERS is nil or a\n\
@@ -1516,7 +1538,7 @@ also be depressed for NEWSTRING to appear.")
   UNBLOCK_INPUT;
 
   if (keysym == NoSymbol)
-    error ("Keysym does not exist");
+    error (GETTEXT ("Keysym does not exist"));
 
   if (NILP (modifiers))
     {
@@ -1533,7 +1555,7 @@ also be depressed for NEWSTRING to appear.")
       for (rest = modifiers; !NILP (rest); rest = Fcdr (rest))
 	{
 	  if (i == 16)
-	    error ("Can't have more than 16 modifiers");
+	    error (GETTEXT ("Can't have more than 16 modifiers"));
 
 	  mod = Fcar (rest);
 	  CHECK_STRING (mod, 3);
@@ -1542,7 +1564,7 @@ also be depressed for NEWSTRING to appear.")
 	  UNBLOCK_INPUT;
 	  if (modifier_list[i] == NoSymbol
 	      || !IsModifierKey (modifier_list[i]))
-	    error ("Element is not a modifier keysym");
+	    error (GETTEXT ("Element is not a modifier keysym"));
 	  i++;
 	}
       
@@ -1555,7 +1577,7 @@ also be depressed for NEWSTRING to appear.")
   return Qnil;
 }
   
-DEFUN ("x-rebind-keys", Fx_rebind_keys, Sx_rebind_keys, 2, 2, 0,
+xxxxDEFUN ("x-rebind-keys", Fx_rebind_keys, Sx_rebind_keys, 2, 2, 0,
   "Rebind KEYCODE to list of strings STRINGS.\n\
 STRINGS should be a list of 16 elements, one for each shift combination.\n\
 nil as element means don't change.\n\
@@ -1741,7 +1763,7 @@ DEFUN ("x-get-resource", Fx_get_resource, Sx_get_resource, 3, 4, 0, 0)
     if (namerest [0] || classrest [0])
       signal_error (Qerror,
                     list3 (build_string
-                          ("class list and name list must be the same length"),
+                          (GETTEXT ("class list and name list must be the same length")),
                            build_string (name_string),
                            build_string (class_string)));
     BLOCK_INPUT;
@@ -1790,7 +1812,7 @@ DEFUN ("x-get-resource", Fx_get_resource, Sx_get_resource, 3, 4, 0, 0)
   else
     return
       Fsignal (Qwrong_type_argument,
-	       list2 (build_string ("should be string, integer, or boolean"),
+	       list2 (build_string (GETTEXT ("should be string, integer, or boolean")),
                       type));
 }
 
@@ -1860,6 +1882,32 @@ which should be an object returned by `make-cursor'.")
   return Qnil;
 }
 
+DEFUN ("x-set-scrollbar-pointer", Fx_set_scrollbar_pointer,
+       Sx_set_scrollbar_pointer, 2, 2, 0,
+       "Set the mouse cursor of the scrollbars on SCREEN to the given\n\
+cursor, which should be an object returned by `make-cursor'.")
+     (screen, cursor)
+     Lisp_Object screen, cursor;
+{
+  Widget sbm;
+  CHECK_SCREEN (screen, 0);
+  if (! SCREEN_IS_X (XSCREEN (screen)))
+    return Qnil;
+  if (! CURSORP (cursor))
+    return Qnil;
+  sbm = XSCREEN (screen)->display.x->scrollbar_manager;
+  if (! sbm)
+    return Qnil;
+  BLOCK_INPUT;
+  XDefineCursor (XtDisplay (sbm), XtWindow (sbm), XCURSOR (cursor)->cursor);
+  XSync (XtDisplay (sbm), 0);
+  UNBLOCK_INPUT;
+  /* #### If the user cuts this pointer, we'll get X errors.
+     This needs to be rethunk. */
+  store_screen_param (XSCREEN (screen), Qscrollbar_pointer, cursor);
+  return Qnil;
+}
+
 
 /* GC calls x_show_gc_cursor() with a cursor object to turn on the GC cursor,
    and with nil to turn it off.
@@ -1905,6 +1953,13 @@ x_show_gc_cursor (struct screen* s, Lisp_Object cursor)
 
 static void Xatoms_of_xfns (void);
 
+#ifdef TOOLTALK
+extern void init_tooltalk (int *argc, char **argv);
+#ifdef SPARCWORKS
+extern void init_sparcworks (int *argc, char **argv);
+#endif
+#endif
+
 DEFUN ("x-open-connection", Fx_open_connection, Sx_open_connection,
        1, 1, 0, "Open a connection to an X server.\n\
 Argument ARGV is a list of strings describing the command line options.\n\
@@ -1915,8 +1970,15 @@ to open the connect have been removed.")
 {
   Lisp_Object argv_rest;
 
+#ifdef TOOLTALK
+  extern void make_argc_argv(Lisp_Object argv_list, int *argc, char ***argv);
+  extern Lisp_Object make_arg_list(int argc, char **argv);
+  int argc;
+  char **argv;
+#endif
+
   if (x_current_display != 0)
-    error ("X server connection is already initialized");
+    error (GETTEXT ("X server connection is already initialized"));
 
   /* This is what sets x_current_display.  This also initializes many symbols,
      such as those used for input. */
@@ -1956,6 +2018,15 @@ to open the connect have been removed.")
     }
   }
 #endif /* USE_SOUND */
+
+#ifdef TOOLTALK
+  make_argc_argv (argv_rest, &argc, &argv);
+#ifdef SPARCWORKS
+  init_sparcworks (&argc, argv);
+#endif
+  init_tooltalk (&argc, argv);
+  argv_rest = make_arg_list (argc, argv);
+#endif
 
   return argv_rest;
 }
@@ -2009,7 +2080,7 @@ DEFUN ("x-close-current-connection", Fx_close_current_connection,
       UNBLOCK_INPUT;
     }
   else
-    fatal ("No current X display connection to close");
+    fatal (GETTEXT ("No current X display connection to close"));
   return Qnil;
 }
 
@@ -2035,14 +2106,14 @@ Do not simply call XSynchronize() from gdb; that won't work.")
       BLOCK_INPUT;
       XSetAfterFunction (x_current_display, emacs_safe_XSyncFunction);
       UNBLOCK_INPUT;
-      message ("X connection is synchronous");
+      message (GETTEXT ("X connection is synchronous"));
     }
   else
     {
       BLOCK_INPUT;
       XSetAfterFunction (x_current_display, 0);
       UNBLOCK_INPUT;
-      message ("X connection is asynchronous");
+      message (GETTEXT ("X connection is asynchronous"));
     }
   return arg;
 }
@@ -2051,9 +2122,6 @@ Do not simply call XSynchronize() from gdb; that won't work.")
 void
 syms_of_xfns ()
 {
-  init_bitmap_tables_1 ();
-  init_x_parm_symbols ();
-
   /* This is zero if not using X windows.  */
   x_current_display = 0;
 
@@ -2065,6 +2133,10 @@ syms_of_xfns ()
 If this is nil, then the cursor will not be changed, and echo-area messages\n\
 will be used instead.");
   Vx_gc_pointer_shape = Qnil;
+
+  DEFVAR_LISP ("x-scrollbar-pointer-shape", &Vx_scrollbar_pointer_shape,
+  "The shape of the mouse pointer when over a scrollbar.");
+  Vx_scrollbar_pointer_shape = Qnil;
 
   DEFVAR_LISP ("bar-cursor", &Vbar_cursor,
 	       "Use vertical bar cursor if non-nil.");
@@ -2118,13 +2190,11 @@ Beware: allowing emacs to process SendEvents opens a big security hole.");
   defsubr (&Sx_create_screen);
   defsubr (&Sx_open_connection);
   defsubr (&Sx_close_current_connection);
-#ifdef ENERGIZE
-  defsubr (&Senergize_toggle_psheet);
-#endif
   defsubr (&Sx_debug_mode);
   defsubr (&Sx_get_resource);
   defsubr (&Sx_set_screen_icon_pixmap);
   defsubr (&Sx_set_screen_pointer);
+  defsubr (&Sx_set_scrollbar_pointer);
   defsubr (&Sx_valid_color_name_p);
   defsubr (&Sx_valid_keysym_name_p);
 
@@ -2154,6 +2224,10 @@ Beware: allowing emacs to process SendEvents opens a big security hole.");
   defsymbol (&Qboolean, "boolean");
   defsymbol (&Qinteger, "integer");
   defsymbol (&Qpointer, "pointer");
+  defsymbol (&Qscrollbar_pointer, "scrollbar-pointer");
+
+  init_bitmap_tables_1 ();
+  init_x_parm_symbols ();
 }
 
 static void

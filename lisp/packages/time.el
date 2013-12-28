@@ -1,8 +1,8 @@
 ;; Display time and load in mode line of Emacs.
 ;; See also reportmail.el.
 ;; This uses the Lucid Emacs timeout-event mechanism, via a version
-;; of Kyle Jones' timer package.
-;; Copyright (C) 1985, 1986, 1987, 1992 Free Software Foundation, Inc.
+;; of Kyle Jones' itimer package.
+;; Copyright (C) 1985, 1986, 1987, 1992, 1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -20,15 +20,15 @@
 ;; along with GNU Emacs; see the file COPYING.  If not, write to
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
-(require 'timer)
+(require 'itimer)
 
 (defvar display-time-mail-file nil
   "*File name of mail inbox file, for indicating existence of new mail.
 Default is system-dependent, and is the same as used by Rmail.")
 
 ;;;###autoload
-;(defvar display-time-day-and-date nil "\
-;*Non-nil means \\[display-time] should display day and date as well as time.")
+(defvar display-time-day-and-date nil "\
+*Non-nil means \\[display-time] should display day and date as well as time.")
 
 (defvar display-time-interval 60
   "*Seconds between updates of time in the mode line.")
@@ -55,9 +55,9 @@ After each update, `display-time-hook' is run with `run-hooks'.
 If `display-time-echo-area' is non-nil, the time is displayed in the
 echo area instead of in the mode-line."
   (interactive)
-  ;; if the "display-time" timer already exists, nuke it first.
-  (let ((old (get-timer "display-time")))
-    (if old (delete-timer old)))
+  ;; if the "display-time" itimer already exists, nuke it first.
+  (let ((old (get-itimer "display-time")))
+    (if old (delete-itimer old)))
   ;; If we're not displaying the time in the echo area
   ;; and the global mode string does not have a non-nil value
   ;; then initialize the global mode string's value.
@@ -74,22 +74,24 @@ echo area instead of in the mode-line."
 	    (append global-mode-string '(display-time-string))))
   ;; Display the time initially...
   (display-time-function)
-  ;; ... and start a timer to do it automatically thereafter.
+  ;; ... and start an itimer to do it automatically thereafter.
   ;;
-  ;; If we wanted to be really clever about this, we could have the timer
+  ;; If we wanted to be really clever about this, we could have the itimer
   ;; not be automatically restarted, but have it re-add itself each time.
-  ;; Then we could look at (current-time) and arrange for the timer to
+  ;; Then we could look at (current-time) and arrange for the itimer to
   ;; wake up exactly at the minute boundary.  But that's just a little
   ;; more work than it's worth...
-  (start-timer "display-time" 'display-time-function
-	       display-time-interval display-time-interval))
+  (start-itimer "display-time" 'display-time-function
+		display-time-interval display-time-interval))
 
 
 (defun display-time-function ()
   (let ((time (current-time-string))
-	(load (format " %03d" (condition-case ()
-				 (car (load-average))
-			       (error 0))))
+	(load (format " %03d" (let ((debug-on-error nil) ;fmh
+				    (stack-trace-on-error nil))
+				(condition-case ()
+				    (car (load-average))
+				  (error 0)))))
 	(mail-spool-file (or display-time-mail-file
 			     (getenv "MAIL")
                              (concat rmail-spool-directory

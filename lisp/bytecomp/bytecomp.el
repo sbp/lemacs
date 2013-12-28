@@ -4,7 +4,7 @@
 
 ;; By Jamie Zawinski <jwz@lucid.com> and Hallvard Furuseth <hbf@ulrik.uio.no>.
 
-(defconst byte-compile-version "2.18; 28-aug-93.")
+(defconst byte-compile-version (purecopy  "2.22; 22-dec-93."))
 
 ;; This file is part of GNU Emacs.
 
@@ -28,7 +28,7 @@
 ;;;	byte-compile-buffer, byte-recompile-directory,
 ;;;	batch-byte-compile, batch-byte-recompile-directory,
 ;;;	byte-compile, byte-compile-sexp, compile-defun,
-;;;	byte-compile-report-call-tree
+;;;	display-call-tree
 
 ;;; This version of the byte compiler has the following improvements:
 ;;;  + optimization of compiled code:
@@ -76,14 +76,14 @@
 ;;; byte-compile-warnings	List of warnings to issue, or t.  May contain
 ;;;				'free-vars (references to variables not in the
 ;;;					    current lexical scope)
+;;;				'unused-vars (non-global variables bound but
+;;;					      not referenced)
 ;;;				'unresolved (calls to unknown functions)
 ;;;				'callargs  (lambda calls with args that don't
 ;;;					    match the lambda's definition)
 ;;;				'redefine  (function cell redefined from
 ;;;					    a macro to a lambda or vice versa,
 ;;;					    or redefined to take other args)
-;;;				This defaults to nil in -batch mode, which is
-;;;				slightly faster.
 ;;; byte-compile-emacs18-compatibility		Whether the compiler should
 ;;;				generate .elc files which can be loaded into
 ;;;				generic emacs 18's which don't have the file
@@ -170,6 +170,29 @@
 ;;;	  0	string		;ELC		GNU Emacs Lisp compiled file,
 ;;;	  >4	byte		x		version %d
 ;;;
+;;; TO DO:
+;;;
+;;;  o	Should implement declarations and proclamations, notably special,
+;;;	unspecial, and ignore.	Do this in such a way as to not break cl.el.
+;;;  o	The bound-but-not-used warnings are not issued for variables whose
+;;;	bindings were established in the arglist, due to the lack of an
+;;;	ignore declaration.  Once ignore exists, this should be turned on.
+;;;  o	Warn about functions and variables defined but not used?
+;;;	Maybe add some kind of `export' declaration for this?
+;;;	(With interactive functions being automatically exported?)
+;;;  o	Any reference to a variable, even one which is a no-op, will cause
+;;;	the warning not to be given.  Possibly we could use the for-effect
+;;;	flag to determine when this reference is useless; possibly more
+;;;	complex flow analysis would be necessary.
+;;;  o  If the optimizer deletes a variable reference, we might be left with
+;;;	a bound-but-not-referenced warning.  Generally this is ok, but not if
+;;;	it's a synergistic result of macroexpansion.  Need some way to note
+;;;	that a varref is being optimized away?  Of course it would be nice to
+;;;	optimize away the binding too, someday, but it's unsafe today.
+;;;  o	Is it time to finally delete all of that egregious v18 compatibility
+;;;	code yet?
+;;;  o	(See byte-optimize.el for the optimization TODO list.)
+
 
 (or (fboundp 'defsubst)
     ;; This really ought to be loaded already!
@@ -206,6 +229,16 @@ is compiled with optimization, this causes a speedup.")
 	  (defmacro compiled-function-p (x) "Emacs 18 doesn't have these." nil)
 	(defun compiled-function-p (x) "Emacs 18 doesn't have these." nil))
 
+      ;; lemacs 19.8+ has accessors for this junk instead of losing in the
+      ;; standard emacs-total-lack-of-abstraction manner.
+      (defun compiled-function-arglist (x) (aref x 0))
+      (defun compiled-function-instructions (x) (aref x 1))
+      (defun compiled-function-constants (x) (aref x 2))
+      (defun compiled-function-stack-depth (x) (aref x 3))
+      (defun compiled-function-interactive (x)
+	(condition-case () (list 'interactive (aref x 5))
+	  (error nil)))
+
       (or (and (fboundp 'member)
 	       ;; avoid using someone else's possibly bogus definition of this.
 	       (subrp (symbol-function 'member)))
@@ -218,8 +251,8 @@ is compiled with optimization, this causes a speedup.")
 
 
 (defvar emacs-lisp-file-regexp (if (eq system-type 'vax-vms)
-				   "\\.EL\\(;[0-9]+\\)?$"
-				 "\\.el$")
+				   (purecopy "\\.EL\\(;[0-9]+\\)?$")
+				 (purecopy "\\.el$"))
   "*Regexp which matches Emacs Lisp source files.
 You may want to redefine `byte-compile-dest-file' if you change this.")
 
@@ -283,12 +316,18 @@ If it is 'byte, then only byte-level optimizations will be logged.")
 (defvar byte-compile-error-on-warn nil
   "*If true, the byte-compiler reports warnings with `error'.")
 
-(defconst byte-compile-warning-types '(redefine callargs free-vars unresolved))
+(defvar byte-compile-default-warnings
+  '(redefine callargs free-vars unresolved
+	     unused-vars ; Default?  Or is this too likely to offend?
+	     )
+  "*The warnings used when byte-compile-warnings is t.")
+
 (defvar byte-compile-warnings t
-  "*List of warnings that the byte-compiler should issue (t for all).
+  "*List of warnings that the compiler should issue (t for the default set).
 Elements of the list may be be:
 
   free-vars	references to variables not in the current lexical scope.
+  unused-vars	references to non-global variables bound but not referenced.
   unresolved	calls to unknown functions.
   callargs	lambda calls with args that don't match the definition.
   redefine	function cell redefined from a macro to a lambda or vice
@@ -333,25 +372,38 @@ will not be changed.  If this variable is nil, then an .elc file which
 is a symbolic link will be turned into a normal file, instead of the file
 which the link points to being overwritten.")
 
+(defvar byte-recompile-directory-ignore-errors-p nil
+  "If true, then `byte-recompile-directory' will continue compiling even
+when an error occurs in a file.  This is bound to t by
+`batch-byte-recompile-directory'.")
+
 (defvar byte-compile-constants nil
   "list of all constants encountered during compilation of this form")
 (defvar byte-compile-variables nil
   "list of all variables encountered during compilation of this form")
 (defvar byte-compile-bound-variables nil
-  "list of variables bound in the context of the current form; this list
-lives partly on the stack.")
+  "Alist of variables bound in the context of the current form,
+that is, the current lexical environment.  This list lives partly 
+on the specbind stack.  The cdr of each cell is an integer bitmask.")
+
+(defconst byte-compile-referenced-bit 1)
+(defconst byte-compile-assigned-bit 2)
+(defconst byte-compile-arglist-bit 4)
+(defconst byte-compile-global-bit 8)
+
 (defvar byte-compile-free-references)
 (defvar byte-compile-free-assignments)
 
 (defconst byte-compile-initial-macro-environment
-  '((byte-compiler-options . (lambda (&rest forms)
-			       (apply 'byte-compiler-options-handler forms)))
-    (eval-when-compile . (lambda (&rest body)
-			   (list 'quote (eval (byte-compile-top-level
-					       (cons 'progn body))))))
-    (eval-and-compile . (lambda (&rest body)
-			  (eval (cons 'progn body))
-			  (cons 'progn body))))
+  (purecopy
+   '((byte-compiler-options . (lambda (&rest forms)
+				(apply 'byte-compiler-options-handler forms)))
+     (eval-when-compile . (lambda (&rest body)
+			    (list 'quote (eval (byte-compile-top-level
+						(cons 'progn body))))))
+     (eval-and-compile . (lambda (&rest body)
+			   (eval (cons 'progn body))
+			   (cons 'progn body)))))
   "The default macro-environment passed to macroexpand by the compiler.
 Placing a macro here will cause a macro to have different semantics when
 expanded by the compiler as when expanded by the interpreter.")
@@ -368,7 +420,7 @@ Each element looks like (FUNCTIONNAME . DEFINITION).  It is
 \(FUNCTIONNAME . nil) when a function is redefined as a macro.")
 
 (defvar byte-compile-autoload-environment nil
-  "Alist of functions and macros defined by autoload in the file being compiled.
+ "Alist of functions and macros defined by autoload in the file being compiled.
 This is so we can suppress warnings about calls to these functions, even though
 they do not have `real' definitions.
 Each element looks like (FUNCTIONNAME . CALL-TO-AUTOLOAD).")
@@ -376,6 +428,8 @@ Each element looks like (FUNCTIONNAME . CALL-TO-AUTOLOAD).")
 (defvar byte-compile-unresolved-functions nil
   "Alist of undefined functions to which calls have been compiled (used for
 warnings when the function is later defined with incorrect args).")
+
+(defvar byte-compile-file-domain) ; domain of file being compiled
 
 (defvar byte-compile-tag-number 0)
 (defvar byte-compile-output nil
@@ -519,7 +573,8 @@ Each element is (INDEX . VALUE)")
    "for reference to a constant with vector index >= byte-constant-limit")
 (byte-defop 130  0 byte-goto "for unconditional jump")
 (byte-defop 131 -1 byte-goto-if-nil "to pop value and jump if it's nil")
-(byte-defop 132 -1 byte-goto-if-not-nil "to pop value and jump if it's not nil")
+(byte-defop 132 -1 byte-goto-if-not-nil
+	    "to pop value and jump if it's not nil")
 (byte-defop 133 -1 byte-goto-if-nil-else-pop
   "to examine top-of-stack, jump and don't pop it if it's nil, 
 otherwise pop it")
@@ -607,17 +662,18 @@ otherwise pop it")
 (defconst byte-constant-limit 64
   "Exclusive maximum index usable in the `byte-constant' opcode.")
 
-(defconst byte-goto-ops '(byte-goto byte-goto-if-nil byte-goto-if-not-nil
-			  byte-goto-if-nil-else-pop
-			  byte-goto-if-not-nil-else-pop)
+(defconst byte-goto-ops (purecopy
+			 '(byte-goto byte-goto-if-nil byte-goto-if-not-nil
+			   byte-goto-if-nil-else-pop
+			   byte-goto-if-not-nil-else-pop))
   "List of byte-codes whose offset is a pc.")
 
-(defconst byte-goto-always-pop-ops '(byte-goto-if-nil byte-goto-if-not-nil))
+(defconst byte-goto-always-pop-ops
+  (purecopy '(byte-goto-if-nil byte-goto-if-not-nil)))
 
-(defconst byte-rel-goto-ops '(byte-rel-goto
-			      byte-rel-goto-if-nil byte-rel-goto-if-not-nil
-			      byte-rel-goto-if-nil-else-pop
-			      byte-rel-goto-if-not-nil-else-pop)
+(defconst byte-rel-goto-ops
+  (purecopy '(byte-rel-goto byte-rel-goto-if-nil byte-rel-goto-if-not-nil
+	      byte-rel-goto-if-nil-else-pop byte-rel-goto-if-not-nil-else-pop))
   "byte-codes for relative jumps.")
 
 (byte-extrude-byte-code-vectors)
@@ -772,48 +828,48 @@ otherwise pop it")
 (defconst byte-compile-last-warned-form nil)
 
 (defun byte-compile-log-1 (string &optional fill)
-  (cond (noninteractive
-	 (if (or byte-compile-current-file
-		 (and byte-compile-last-warned-form
-		      (not (eq byte-compile-current-form
-			       byte-compile-last-warned-form))))
-	     (message (format "While compiling %s%s:"
-			(or byte-compile-current-form "toplevel forms")
-			(if byte-compile-current-file
-			    (if (stringp byte-compile-current-file)
-				(concat " in file " byte-compile-current-file)
-			      (concat " in buffer "
-				      (buffer-name byte-compile-current-file)))
-			    ""))))
-	 (message "  %s" string))
-	(t
-	 (save-excursion
-	   (set-buffer (get-buffer-create "*Compile-Log*"))
-	   (goto-char (point-max))
-	   (cond ((or byte-compile-current-file
-		      (and byte-compile-last-warned-form
-			   (not (eq byte-compile-current-form
-				    byte-compile-last-warned-form))))
-		  (if byte-compile-current-file
-		      (insert "\n\^L\n" (current-time-string) "\n"))
-		  (insert "While compiling "
-			  (if byte-compile-current-form
-			      (format "%s" byte-compile-current-form)
-			    "toplevel forms"))
-		  (if byte-compile-current-file
-		      (if (stringp byte-compile-current-file)
-			  (insert " in file " byte-compile-current-file)
-			(insert " in buffer "
-				(buffer-name byte-compile-current-file))))
-		  (insert ":\n")))
-	   (insert "  " string "\n")
-	   (if (and fill (not (string-match "\n" string)))
-	       (let ((fill-prefix "     ")
-		     (fill-column 78))
-		 (fill-paragraph nil)))
-	   )))
-  (setq byte-compile-current-file nil
-	byte-compile-last-warned-form byte-compile-current-form))
+  (let ((this-form (or byte-compile-current-form "toplevel forms")))
+    (cond
+     (noninteractive
+      (if (or byte-compile-current-file
+	      (and byte-compile-last-warned-form
+		   (not (eq this-form byte-compile-last-warned-form))))
+	  (message
+	   (format "While compiling %s%s:"
+		   this-form
+		   (if byte-compile-current-file
+		       (if (stringp byte-compile-current-file)
+			   (concat " in file " byte-compile-current-file)
+			 (concat " in buffer "
+				 (buffer-name byte-compile-current-file)))
+		     ""))))
+      (message "  %s" string))
+     (t
+      (save-excursion
+	(set-buffer (get-buffer-create "*Compile-Log*"))
+	(goto-char (point-max))
+	(cond ((or byte-compile-current-file
+		   (and byte-compile-last-warned-form
+			(not (eq this-form byte-compile-last-warned-form))))
+	       (if byte-compile-current-file
+		   (insert "\n\^L\n" (current-time-string) "\n"))
+	       (insert "While compiling "
+		       (if (stringp this-form) this-form
+			 (format "%s" this-form)))
+	       (if byte-compile-current-file
+		   (if (stringp byte-compile-current-file)
+		       (insert " in file " byte-compile-current-file)
+		     (insert " in buffer "
+			     (buffer-name byte-compile-current-file))))
+	       (insert ":\n")))
+	(insert "  " string "\n")
+	(if (and fill (not (string-match "\n" string)))
+	    (let ((fill-prefix "     ")
+		  (fill-column 78))
+	      (fill-paragraph nil)))
+	)))
+    (setq byte-compile-current-file nil
+	  byte-compile-last-warned-form this-form)))
 
 (defun byte-compile-warn (format &rest args)
   (setq format (apply 'format format args))
@@ -834,14 +890,15 @@ otherwise pop it")
 
 ;; Compiler options
 
-(defvar byte-compiler-legal-options
+(defconst byte-compiler-legal-options
   '((optimize byte-optimize (t nil source byte) val)
     (file-format byte-compile-emacs18-compatibility (emacs18 emacs19)
 		 (eq val 'emacs18))
     (new-bytecodes byte-compile-generate-emacs19-bytecodes (t nil) val)
     (delete-errors byte-compile-delete-errors (t nil) val)
     (verbose byte-compile-verbose (t nil) val)
-    (warnings byte-compile-warnings ((callargs redefine free-vars unresolved))
+    (warnings byte-compile-warnings
+	      ((callargs redefine free-vars unused-vars unresolved))
 	      val)))
 
 ;; Inhibit v18/v19 selectors if the version is hardcoded.
@@ -856,6 +913,9 @@ otherwise pop it")
 	  (if (byte-compile-version-cond byte-compile-emacs18-compatibility)
 	      '(emacs18) '(emacs19)))))
 
+;; now we can copy it.
+(setq byte-compiler-legal-options (purecopy byte-compiler-legal-options))
+
 (defun byte-compiler-options-handler (&rest args)
   (let (key val desc choices)
     (while args
@@ -868,12 +928,13 @@ otherwise pop it")
 	  (error "unknown byte-compiler option %s" key))
       (setq choices (nth 2 desc))
       (if (consp (car choices))
-	  (let (this
-		(handler 'cons)
-		(ret (and (memq (car val) '(+ -))
-			  (copy-sequence (if (eq t (symbol-value (nth 1 desc)))
-					     (car choices)
-					   (symbol-value (nth 1 desc)))))))
+	  (let* (this
+		 (handler 'cons)
+		 (var (nth 1 desc))
+		 (ret (and (memq (car val) '(+ -))
+			   (copy-sequence (if (eq t (symbol-value var))
+					      (car choices)
+					    (symbol-value var))))))
 	    (setq choices (car  choices))
 	    (while val
 	      (setq this (car val))
@@ -957,7 +1018,7 @@ otherwise pop it")
 	 (sig (and def (byte-compile-arglist-signature
 			 (if (eq 'lambda (car-safe def))
 			     (nth 1 def)
-			     (aref def 0)))))
+			   (compiled-function-arglist def)))))
 	 (ncall (length (cdr form))))
     (if (and (null def)
 	     (fboundp 'subr-min-args)
@@ -975,8 +1036,10 @@ otherwise pop it")
 		  "accepts only")
 	      (byte-compile-arglist-signature-string sig)))
       (or (fboundp (car form)) ; might be a subr or autoload.
-	  (eq (car form) byte-compile-current-form) ; ## this doesn't work with recursion.
-	  ;; It's a currently-undefined function.  Remember number of args in call.
+	  ;; ## this doesn't work with recursion.
+	  (eq (car form) byte-compile-current-form)
+	  ;; It's a currently-undefined function.
+	  ;; Remember number of args in call.
 	  (let ((cons (assq (car form) byte-compile-unresolved-functions))
 		(n (length (cdr form))))
 	    (if cons
@@ -994,7 +1057,7 @@ otherwise pop it")
 	(let ((sig1 (byte-compile-arglist-signature
 		      (if (eq 'lambda (car-safe old))
 			  (nth 1 old)
-			  (aref old 0))))
+			(compiled-function-arglist old))))
 	      (sig2 (byte-compile-arglist-signature (nth 2 form))))
 	  (or (byte-compile-arglist-signatures-congruent-p sig1 sig2)
 	      (byte-compile-warn "%s %s used to take %s %s, now takes %s"
@@ -1056,8 +1119,56 @@ otherwise pop it")
 	   (byte-compile-warn "%s" str))
        (if byte-compile-unresolved-functions
 	   (byte-compile-warn "the function %s is not known to be defined."
-			      (car (car byte-compile-unresolved-functions)))))))
+	    (car (car byte-compile-unresolved-functions)))))))
   nil)
+
+(defun byte-compile-defvar-p (var)
+  ;; Whether the byte compiler thinks that nonexical references to this
+  ;; variable are ok.
+  (or (globally-boundp var)
+      (let ((rest byte-compile-bound-variables))
+	(while (and rest var)
+	  (if (and (eq var (car-safe (car rest)))
+		   (not (= 0 (logand (cdr (car rest))
+				     byte-compile-global-bit))))
+	      (setq var nil))
+	  (setq rest (cdr rest)))
+	;; if var is nil at this point, it's a defvar in this file.
+	(not var))))
+
+
+;;; If we have compiled bindings of variables which have no referents, warn.
+(defun byte-compile-warn-about-unused-variables ()
+  (let ((rest byte-compile-bound-variables)
+	(unreferenced '())
+	cell)
+    (while (and rest
+		;; only warn about variables whose lifetime is now ending,
+		;; that is, variables from the lexical scope that is now
+		;; terminating.  (Think nested lets.)
+		(not (eq (car rest) 'new-scope)))
+      (setq cell (car rest))
+      (if (and (= 0 (logand byte-compile-referenced-bit (cdr cell)))
+	       ;; Don't warn about declared-but-unused arguments, for two
+	       ;; reasons: first, the arglist structure might be imposed by
+	       ;; external forces, and we don't have (declare (ignore x)) yet;
+	       ;; and second, inline expansion produces forms like
+	       ;;   ((lambda (arg) (byte-code "..." [arg])) x)
+	       ;; which we can't (ok, well, don't) recognise as containing a
+	       ;; reference to arg, so every inline expansion would generate
+	       ;; a warning.  (If we had `ignore' then inline expansion could
+	       ;; emit an ignore declaration.)
+	       (= 0 (logand byte-compile-arglist-bit (cdr cell)))
+	       ;; Don't warn about defvars because this is a legitimate special
+	       ;; binding.
+	       (not (byte-compile-defvar-p (car cell))))
+	  (setq unreferenced (cons (car cell) unreferenced)))
+      (setq rest (cdr rest)))
+    (setq unreferenced (nreverse unreferenced))
+    (while unreferenced
+      (byte-compile-warn
+       (format "variable %s bound but not referenced" (car unreferenced)))
+      (setq unreferenced (cdr unreferenced)))))
 
 
 (defmacro byte-compile-constp (form)
@@ -1091,10 +1202,16 @@ otherwise pop it")
 		(byte-compile-generate-emacs19-bytecodes
 		 byte-compile-generate-emacs19-bytecodes)
 		(byte-compile-warnings (if (eq byte-compile-warnings t)
-					   byte-compile-warning-types
+					   byte-compile-default-warnings
 					 byte-compile-warnings))
+		(byte-compile-file-domain nil)
 		)
-	      body)))
+	      (list
+	       (list 'prog1 (cons 'progn body)
+		     '(if (memq 'unused-vars byte-compile-warnings)
+			  ;; done compiling in this scope, warn now.
+			  (byte-compile-warn-about-unused-variables)))))))
+
 
 (defvar byte-compile-warnings-point-max)
 (defmacro displaying-byte-compile-warnings (&rest body)
@@ -1144,7 +1261,9 @@ don't ask and compile the file anyway."
 	     source dest)
 	 (while files
 	   (setq source (expand-file-name (car files) directory))
-	   (if (and (not (member (car files) '("." ".." "RCS" "CVS")))
+	   (if (and (not (member (car files) '("." ".." "RCS" "CVS" "SCCS")))
+		    ;; Stay away from directory back-links, etc:
+		    (not (file-symlink-p source))
 		    (file-directory-p source))
 ;	       (if (or (null arg)
 ;		       (eq arg 0)
@@ -1159,7 +1278,9 @@ don't ask and compile the file anyway."
 			(and arg
 			     (or (eq 0 arg)
 				 (y-or-n-p (concat "Compile " source "? "))))))
-		 (progn (byte-compile-file source)
+		 (progn (if byte-recompile-directory-ignore-errors-p
+			     (batch-byte-compile-1 source)
+			  (byte-compile-file source))
 			(setq file-count (1+ file-count))
 			(if (not (eq last-dir directory))
 			    (setq last-dir directory
@@ -1170,6 +1291,9 @@ don't ask and compile the file anyway."
     (message "Done (Total of %d file%s compiled%s)"
 	     file-count (if (= file-count 1) "" "s")
 	     (if (> dir-count 1) (format " in %d directories" dir-count) ""))))
+
+
+(defvar kanji-flag) ; to suppress warning when not running in NEmacs
 
 ;;;###autoload
 (defun byte-compile-file (filename &optional load)
@@ -1425,6 +1549,9 @@ With argument, insert value in current buffer after the form."
 
 (defun byte-compile-output-docform (info form)
   ;; Print a form with a doc string.  INFO is (prefix doc-index postfix).
+  ;; FORM is a list of the things to write out; it can be a lambda, or
+  ;; a defun, or a *list* of the elements of a byte-code object.  But it
+  ;; must be CDRable.
   (set-buffer
    (prog1 (current-buffer)
      (set-buffer byte-compile-output-buffer)
@@ -1518,18 +1645,20 @@ With argument, insert value in current buffer after the form."
   ;; much point to it (so why bother cluttering up the compile-time namespace.)
   ;;
   ;; If this is an autoload of a function, then record its definition in the
-  ;; byte-compile-autoload-environment to suppress any `not known to be defined'
-  ;; warnings at the end of this file (this only matters for functions which are
-  ;; autoloaded and compiled in the same file, if the autoload already exists in
-  ;; the compilation environment, we wouldn't have warned anyway.)
+  ;; byte-compile-autoload-environment to suppress any `not known to be
+  ;; defined' warnings at the end of this file (this only matters for
+  ;; functions which are autoloaded and compiled in the same file, if the
+  ;; autoload already exists in the compilation environment, we wouldn't have
+  ;; warned anyway.)
   ;;
   (let* ((name (if (byte-compile-constp (nth 1 form))
 		   (eval (nth 1 form))))
 	 ;; In v19, the 5th arg to autoload can be t, nil, or 'keymap.
 	 (macrop (and (byte-compile-constp (nth 5 form))
 		      (eq 't (eval (nth 5 form)))))
-	 (functionp (and (byte-compile-constp (nth 5 form))
-			 (eq 'nil (eval (nth 5 form))))))
+;;	 (functionp (and (byte-compile-constp (nth 5 form))
+;;			 (eq 'nil (eval (nth 5 form)))))
+	 )
     (if (and macrop
 	     (let ((form form))
 	       ;; all forms are constant
@@ -1561,17 +1690,37 @@ With argument, insert value in current buffer after the form."
 (put 'defvar   'byte-hunk-handler 'byte-compile-file-form-defvar)
 (put 'defconst 'byte-hunk-handler 'byte-compile-file-form-defvar)
 (defun byte-compile-file-form-defvar (form)
+  (if (> (length form) 4)
+      (byte-compile-warn "%s used with too many args (%s)"
+			 (car form) (nth 1 form)))
+  (if (and (> (length form) 3) (not (stringp (nth 3 form))))
+      (byte-compile-warn "Third arg to %s %s is not a string: %s"
+			 (car form) (nth 1 form) (nth 3 form)))
   (if (null (nth 3 form))
       ;; Since there is no doc string, we can compile this as a normal form,
       ;; and not do a file-boundary.
       (byte-compile-keep-pending form)
     (if (memq 'free-vars byte-compile-warnings)
 	(setq byte-compile-bound-variables
-	      (cons (nth 1 form) byte-compile-bound-variables)))
+	      (cons (cons (nth 1 form) byte-compile-global-bit)
+		    byte-compile-bound-variables)))
     (cond ((consp (nth 2 form))
 	   (setq form (copy-sequence form))
 	   (setcar (cdr (cdr form))
 		   (byte-compile-top-level (nth 2 form) nil 'file))))
+
+    ;; The following turns out not to be necessary, since we emit a call to
+    ;; defvar, which can hack Vfile_domain by itself!
+    ;;
+    ;; If a file domain has been set, emit (put 'VAR 'variable-domain ...)
+    ;; after this defvar.
+;    (if byte-compile-file-domain
+;	(progn
+;	  ;; Actually, this will emit the (put ...) before the (defvar ...)
+;	  ;; but I don't think that can matter in this case.
+;	  (byte-compile-keep-pending
+;	   (list 'put (list 'quote (nth 1 form)) ''variable-domain
+;		(list 'quote byte-compile-file-domain)))))
     form))
 
 (put 'require 'byte-hunk-handler 'byte-compile-file-form-eval-boundary)
@@ -1628,7 +1777,8 @@ With argument, insert value in current buffer after the form."
 	(message "Compiling %s (%s)..." (or filename "") (nth 1 form)))
     (cond (that-one
 	   (if (and (memq 'redefine byte-compile-warnings)
-		    ;; don't warn when compiling the stubs in bytecomp-runtime...
+		    ;; hack hack: don't warn when compiling the stubs in
+		    ;; bytecomp-runtime...
 		    (not (assq (nth 1 form)
 			       byte-compile-initial-macro-environment)))
 	       (byte-compile-warn
@@ -1695,16 +1845,61 @@ With argument, insert value in current buffer after the form."
 	  (princ "\n(fset '" byte-compile-output-buffer)
 	  (prin1 name byte-compile-output-buffer)
 	  (byte-compile-output-docform
-	   (cond ((atom code)
+	   (cond ((atom code) ; compiled-function-p
 		  (if macrop '(" '(macro . #[" 4 "])") '(" #[" 4 "]")))
 		 ((eq (car code) 'quote)
 		  (setq code new-one)
 		  (if macrop '(" '(macro " 2 ")") '(" '(" 2 ")")))
 		 ((if macrop '(" (cons 'macro (" 5 "))") '(" (" 5 ")"))))
-           ;; Gross!  Coerce bytecode object to a list...
-	   (append code nil))
+	   ;; The result of byte-compile-byte-code-maker is either a 
+	   ;; compiled-function object, or a list of some kind.  If it's
+	   ;; not a cons, we must coerce it into a list of the elements
+	   ;; to be printed to the file.
+	   (if (consp code)
+	       code
+	     (nconc (list
+		     (compiled-function-arglist code)
+		     (compiled-function-instructions code)
+		     (compiled-function-constants code)
+		     (compiled-function-stack-depth code))
+		    (let ((doc (documentation code t)))
+		      (if doc (list doc)))
+		    (if (commandp code)
+			(list (nth 1 (compiled-function-interactive code))))))
+	   )
 	  (princ ")" byte-compile-output-buffer)
 	  nil)))))
+
+
+;; The `domain' declaration.  This is legal only at top-level in a file, and
+;; should generally be the first form in the file.  It is not legal inside
+;; function bodies.
+
+(put 'domain 'byte-hunk-handler 'byte-compile-file-form-domain)
+(defun byte-compile-file-form-domain (form)
+  (if (not (null (cdr (cdr form))))
+      (byte-compile-warn "domain used with too many arguments: %s" form))
+  (let ((domain (nth 1 form)))
+    (or (null domain)
+	(stringp domain)
+	(progn
+	  (byte-compile-warn
+	   "argument to `domain' declaration must be a literal string: %s"
+	   form)
+	  (setq domain nil)))
+    (setq byte-compile-file-domain domain))
+  (byte-compile-keep-pending form 'byte-compile-normal-call))
+
+(byte-defop-compiler-1 domain byte-compile-domain)
+(defun byte-compile-domain (form)
+  (byte-compile-warn "The `domain' declaration is legal only at top-level: %s"
+		     (let ((print-escape-newlines t)
+			   (print-level 4)
+			   (print-length 4))
+		       (prin1-to-string form)))
+  (byte-compile-normal-call
+   (list 'signal ''error
+	 (list 'quote (list "`domain' used inside a function" form)))))
 
 
 ;;;###autoload
@@ -1727,6 +1922,7 @@ If FORM is a lambda or a macro, byte-compile it as a function."
 		 (fset form fun)
 	       fun)))))))
 
+;;;###autoload
 (defun byte-compile-sexp (sexp &optional msg)
   "Compile and return SEXP."
   (displaying-byte-compile-warnings
@@ -1742,7 +1938,7 @@ If FORM is a lambda or a macro, byte-compile it as a function."
     ;; Return (quote (lambda ...)).
     (list 'quote (byte-compile-byte-code-unmake fun)))
    ;; ## atom is faster than compiled-func-p.
-   ((atom fun)				; compiled function.
+   ((atom fun)				; compiled-function-p
     ;; generate-emacs19-bytecodes must be on, otherwise byte-compile-lambda
     ;; would have produced a lambda.
     fun)
@@ -1775,16 +1971,17 @@ If FORM is a lambda or a macro, byte-compile it as a function."
 ;; Turn a function into an ordinary lambda.  Needed for v18 files.
 (defun byte-compile-byte-code-unmake (function)
   (if (consp function)
-      function;;It already is a lambda.
-    (setq function (append function nil)) ; turn it into a list
-    (nconc (list 'lambda (nth 0 function))
-	   (and (nth 4 function) (list (nth 4 function)))
-	   (if (nthcdr 5 function)
-	       (list (cons 'interactive (if (nth 5 function)
-					    (nthcdr 5 function)))))
+      function	; It already is a lambda.
+
+    (nconc (list 'lambda (compiled-function-arglist function))
+	   (let ((doc (documentation function t)))
+	     (if doc (list doc)))
+	   (if (commandp function)
+	       (list (compiled-function-interactive function)))
 	   (list (list 'byte-code
-		       (nth 1 function) (nth 2 function)
-		       (nth 3 function))))))
+		       (compiled-function-instructions function)
+		       (compiled-function-constants function)
+		       (compiled-function-stack-depth function))))))
 
 
 ;; Byte-compile a lambda-expression and return a valid function.
@@ -1795,9 +1992,14 @@ If FORM is a lambda or a macro, byte-compile it as a function."
       (error "not a lambda -- %s" (prin1-to-string fun)))
   (let* ((arglist (nth 1 fun))
 	 (byte-compile-bound-variables
-	  (nconc (and (memq 'free-vars byte-compile-warnings)
-		      (delq '&rest (delq '&optional (copy-sequence arglist))))
-		 byte-compile-bound-variables))
+	  (let ((new-bindings
+		 (mapcar (function (lambda (x)
+				     (cons x byte-compile-arglist-bit)))
+			 (and (memq 'free-vars byte-compile-warnings)
+			      (delq '&rest (delq '&optional
+						 (copy-sequence arglist)))))))
+	    (nconc new-bindings
+		   (cons 'new-scope byte-compile-bound-variables))))
 	 (body (cdr (cdr fun)))
 	 (doc (if (stringp (car body))
 		  (prog1 (car body)
@@ -1826,6 +2028,9 @@ If FORM is a lambda or a macro, byte-compile it as a function."
 		  (setq int (list 'interactive (byte-compile-top-level
 						(nth 1 int))))))))
     (let ((compiled (byte-compile-top-level (cons 'progn body) nil 'lambda)))
+      (if (memq 'unused-vars byte-compile-warnings)
+	  ;; done compiling in this scope, warn now.
+	  (byte-compile-warn-about-unused-variables))
       (if (and (eq 'byte-code (car-safe compiled))
 	       (byte-compile-version-cond
 		byte-compile-generate-emacs19-bytecodes))
@@ -1899,7 +2104,8 @@ If FORM is a lambda or a macro, byte-compile it as a function."
       (setq form (nth 1 form)))
     (if (and (eq 'byte-code (car-safe form))
 	     (not (memq byte-optimize '(t byte)))
-	     (stringp (nth 1 form)) (vectorp (nth 2 form))
+	     (stringp (nth 1 form))
+	     (vectorp (nth 2 form))
 	     (natnump (nth 3 form)))
 	form
       (byte-compile-form form for-effect)
@@ -2048,7 +2254,7 @@ If FORM is a lambda or a macro, byte-compile it as a function."
 ;; kludge added to lemacs to work around the bogosities of a nonlexical lisp.
 (or (fboundp 'globally-boundp) (fset 'globally-boundp 'boundp))
 
-(defun byte-compile-variable-ref (base-op var)
+(defun byte-compile-variable-ref (base-op var &optional varbind-flags)
   (if (or (not (symbolp var)) (memq var '(nil t)))
       (byte-compile-warn (if (eq base-op 'byte-varbind)
 			     "Attempt to let-bind %s %s"
@@ -2064,13 +2270,20 @@ If FORM is a lambda or a macro, byte-compile it as a function."
     (if (memq 'free-vars byte-compile-warnings)
 	(if (eq base-op 'byte-varbind)
 	    (setq byte-compile-bound-variables
-		  (cons var byte-compile-bound-variables))
+		  (cons (cons var (or varbind-flags 0))
+			byte-compile-bound-variables))
 	  (or (globally-boundp var)
-	      (memq var byte-compile-bound-variables)
+	      (let ((cell (assq var byte-compile-bound-variables)))
+		(if cell (setcdr cell
+				 (logior (cdr cell)
+					 (if (eq base-op 'byte-varset)
+					     byte-compile-assigned-bit
+					   byte-compile-referenced-bit)))))
 	      (if (eq base-op 'byte-varset)
 		  (or (memq var byte-compile-free-assignments)
 		      (progn
-			(byte-compile-warn "assignment to free variable %s" var)
+			(byte-compile-warn "assignment to free variable %s"
+					   var)
 			(setq byte-compile-free-assignments
 			      (cons var byte-compile-free-assignments))))
 		(or (memq var byte-compile-free-references)
@@ -2574,16 +2787,20 @@ If FORM is a lambda or a macro, byte-compile it as a function."
 	  (setq rest (cdr (cdr rest))))
       ;; else, this is the one-armed version
       (let ((var (nth 1 form))
-	    (val (nth 2 form)))
+	    ;;(val (nth 2 form))
+	    )
 	;; notice calls to set-default/setq-default for variables which
 	;; have not been declared with defvar/defconst.
 	(if (and (memq 'free-vars byte-compile-warnings)
 		 (or (null var)
 		     (and (eq (car-safe var) 'quote)
 			  (= 2 (length var)))))
-	    (let ((sym (nth 1 var)))
+	    (let ((sym (nth 1 var))
+		  cell)
 	      (or (and sym (symbolp sym) (globally-boundp sym))
-		  (memq sym byte-compile-bound-variables)
+		  (and (setq cell (assq sym byte-compile-bound-variables))
+		       (setcdr cell (logior (cdr cell)
+					    byte-compile-assigned-bit)))
 		  (memq sym byte-compile-free-assignments)
 		  (if (or (not (symbolp sym)) (memq sym '(t nil)))
 		      (progn
@@ -2754,18 +2971,34 @@ If FORM is a lambda or a macro, byte-compile it as a function."
 	  (byte-compile-form (car (cdr (car varlist))))
 	(byte-compile-push-constant nil))
       (setq varlist (cdr varlist))))
-  (let ((byte-compile-bound-variables byte-compile-bound-variables) ;new scope
-	(varlist (reverse (car (cdr form)))))
+  (let ((byte-compile-bound-variables
+	 (cons 'new-scope byte-compile-bound-variables))
+	(varlist (reverse (car (cdr form))))
+	(extra-flags
+	 ;; If this let is of the form (let (...) (byte-code ...))
+	 ;; then assume that it is the result of a transformation of
+	 ;; ((lambda (...) (byte-code ... )) ...) and thus compile
+	 ;; the variable bindings as if they were arglist bindings
+	 ;; (which matters for what warnings.)
+	 (if (eq 'byte-code (car-safe (nth 2 form)))
+	     byte-compile-arglist-bit
+	   nil)))
     (while varlist
-      (byte-compile-variable-ref 'byte-varbind (if (consp (car varlist))
-						   (car (car varlist))
-						 (car varlist)))
+      (byte-compile-variable-ref 'byte-varbind
+				 (if (consp (car varlist))
+				     (car (car varlist))
+				   (car varlist))
+				 extra-flags)
       (setq varlist (cdr varlist)))
     (byte-compile-body-do-effect (cdr (cdr form)))
+    (if (memq 'unused-vars byte-compile-warnings)
+	;; done compiling in this scope, warn now.
+	(byte-compile-warn-about-unused-variables))
     (byte-compile-out 'byte-unbind (length (car (cdr form))))))
 
 (defun byte-compile-let* (form)
-  (let ((byte-compile-bound-variables byte-compile-bound-variables) ;new scope
+  (let ((byte-compile-bound-variables
+	 (cons 'new-scope byte-compile-bound-variables))
 	(varlist (copy-sequence (car (cdr form)))))
     (while varlist
       (if (atom (car varlist))
@@ -2775,6 +3008,9 @@ If FORM is a lambda or a macro, byte-compile it as a function."
       (byte-compile-variable-ref 'byte-varbind (car varlist))
       (setq varlist (cdr varlist)))
     (byte-compile-body-do-effect (cdr (cdr form)))
+    (if (memq 'unused-vars byte-compile-warnings)
+	;; done compiling in this scope, warn now.
+	(byte-compile-warn-about-unused-variables))
     (byte-compile-out 'byte-unbind (length (car (cdr form))))))
 
 
@@ -2825,8 +3061,10 @@ If FORM is a lambda or a macro, byte-compile it as a function."
 (defun byte-compile-condition-case (form)
   (let* ((var (nth 1 form))
 	 (byte-compile-bound-variables
-	  (if var (cons var byte-compile-bound-variables)
-	    byte-compile-bound-variables)))
+	  (if var
+	      (cons (cons var 0)
+		    (cons 'new-scope byte-compile-bound-variables))
+	    (cons 'new-scope byte-compile-bound-variables))))
     (or (symbolp var)
 	(byte-compile-warn
 	 "%s is not a variable-name or nil (in condition-case)"
@@ -2856,6 +3094,9 @@ If FORM is a lambda or a macro, byte-compile it as a function."
 		      compiled-clauses)))
 	(setq clauses (cdr clauses)))
       (byte-compile-push-constant (nreverse compiled-clauses)))
+    (if (memq 'unused-vars byte-compile-warnings)
+	;; done compiling in this scope, warn now.
+	(byte-compile-warn-about-unused-variables))
     (byte-compile-out 'byte-condition-case 0)))
 
 
@@ -2912,13 +3153,17 @@ If FORM is a lambda or a macro, byte-compile it as a function."
 	 (list 'quote (nth 1 form)))))
 
 (defun byte-compile-defvar (form)
-  ;; This is not used for file-level defvar/consts with doc strings.
+  ;; This is not used for file-level defvar/consts with doc strings:
+  ;; byte-compile-file-form-defvar will be used in that case.
   (let ((var (nth 1 form))
 	(value (nth 2 form))
 	(string (nth 3 form)))
+    (if (> (length form) 4)
+	(byte-compile-warn "%s used with too many args" (car form)))
     (if (memq 'free-vars byte-compile-warnings)
 	(setq byte-compile-bound-variables
-	      (cons var byte-compile-bound-variables)))
+	      (cons (cons var byte-compile-global-bit)
+		    byte-compile-bound-variables)))
     (byte-compile-body-do-effect
      (list (if (cdr (cdr form))
 	       (if (eq (car form) 'defconst)
@@ -2943,7 +3188,15 @@ If FORM is a lambda or a macro, byte-compile it as a function."
 ;; Lambda's in valid places are handled as special cases by various code.
 ;; The ones that remain are errors.
 (defun byte-compile-lambda-form (form)
-  (error "`lambda' used as function name is invalid"))
+  (byte-compile-warn
+   "`lambda' used in function position is invalid: probably you mean #'%s"
+   (let ((print-escape-newlines t)
+	 (print-level 4)
+	 (print-length 4))
+     (prin1-to-string form)))
+  (byte-compile-normal-call
+   (list 'signal ''error
+	 (list 'quote (list "`lambda' used in function position" form)))))
 
 
 ;;; tags
@@ -3017,7 +3270,6 @@ If FORM is a lambda or a macro, byte-compile it as a function."
 
 ;; Renamed from byte-compile-report-call-tree
 ;; to avoid interfering with completion of byte-compile-file.
-;;;###autoload
 (defun display-call-tree (&optional filename)
   "Display a call graph of a specified file.
 This lists which functions have been called, what functions called
@@ -3050,22 +3302,24 @@ invoked interactively."
     (if byte-compile-call-tree-sort
 	(setq byte-compile-call-tree
 	      (sort byte-compile-call-tree
-		    (cond ((eq byte-compile-call-tree-sort 'callers)
-			   (function (lambda (x y) (< (length (nth 1 x))
-						      (length (nth 1 y))))))
-			  ((eq byte-compile-call-tree-sort 'calls)
-			   (function (lambda (x y) (< (length (nth 2 x))
-						      (length (nth 2 y))))))
-			  ((eq byte-compile-call-tree-sort 'calls+callers)
-			   (function (lambda (x y) (< (+ (length (nth 1 x))
-							 (length (nth 2 x)))
-						      (+ (length (nth 1 y))
-							 (length (nth 2 y)))))))
-			  ((eq byte-compile-call-tree-sort 'name)
-			   (function (lambda (x y) (string< (car x)
-							    (car y)))))
-			  (t (error "`byte-compile-call-tree-sort': `%s' - unknown sort mode"
-				    byte-compile-call-tree-sort))))))
+		    (cond
+		     ((eq byte-compile-call-tree-sort 'callers)
+		      (function (lambda (x y) (< (length (nth 1 x))
+						 (length (nth 1 y))))))
+		     ((eq byte-compile-call-tree-sort 'calls)
+		      (function (lambda (x y) (< (length (nth 2 x))
+						 (length (nth 2 y))))))
+		     ((eq byte-compile-call-tree-sort 'calls+callers)
+		      (function (lambda (x y) (< (+ (length (nth 1 x))
+						    (length (nth 2 x)))
+						 (+ (length (nth 1 y))
+						    (length (nth 2 y)))))))
+		     ((eq byte-compile-call-tree-sort 'name)
+		      (function (lambda (x y) (string< (car x)
+						       (car y)))))
+		     (t (error
+		      "`byte-compile-call-tree-sort': `%s' - unknown sort mode"
+			       byte-compile-call-tree-sort))))))
     (message "Generating call tree...")
     (let ((rest byte-compile-call-tree)
 	  (b (current-buffer))
@@ -3153,7 +3407,8 @@ Use this from the command line, with `-batch';
 it won't work in an interactive Emacs.
 Each file is processed even if an error occurred previously.
 For example, invoke \"emacs -batch -f batch-byte-compile $emacs/ ~/*.el\""
-  ;; command-line-args-left is what is left of the command line (from startup.el)
+  ;; command-line-args-left is what is left of the command line (from
+  ;; startup.el)
   (defvar command-line-args-left)	;Avoid 'free variable' warning
   (if (not noninteractive)
       (error "`batch-byte-compile' is to be used only with -batch"))
@@ -3165,8 +3420,9 @@ For example, invoke \"emacs -batch -f batch-byte-compile $emacs/ ~/*.el\""
 	    (while files
 	      (if (and (string-match emacs-lisp-file-regexp (car files))
 		       (not (auto-save-file-name-p (car files)))
-		       (setq source (expand-file-name (car files)
-						      (car command-line-args-left)))
+		       (setq source (expand-file-name
+				     (car files)
+				     (car command-line-args-left)))
 		       (setq dest (byte-compile-dest-file source))
 		       (file-exists-p dest)
 		       (file-newer-than-file-p source dest))
@@ -3192,6 +3448,7 @@ For example, invoke \"emacs -batch -f batch-byte-compile $emacs/ ~/*.el\""
      (princ "\n")
      nil)))
 
+;;;###autoload
 (defun batch-byte-recompile-directory ()
   "Runs `byte-recompile-directory' on the dirs remaining on the command line.
 Must be used only with -batch, and kills emacs on completion.
@@ -3202,9 +3459,10 @@ For example, invoke \"emacs -batch -f batch-byte-recompile-directory .\""
       (error "batch-byte-recompile-directory is to be used only with -batch"))
   (or command-line-args-left
       (setq command-line-args-left '(".")))
-  (while command-line-args-left
-    (byte-recompile-directory (car command-line-args-left))
-    (setq command-line-args-left (cdr command-line-args-left)))
+  (let ((byte-recompile-directory-ignore-errors-p t))
+    (while command-line-args-left
+      (byte-recompile-directory (car command-line-args-left))
+      (setq command-line-args-left (cdr command-line-args-left))))
   (kill-emacs 0))
 
 
@@ -3228,6 +3486,7 @@ For example, invoke \"emacs -batch -f batch-byte-recompile-directory .\""
        (make-obsolete 'buffer-flush-undo 'buffer-disable-undo)
        (make-obsolete 'baud-rate "use the baud-rate variable instead")
        (make-obsolete 'ring-mod 'mod)
+       (make-obsolete 'full-copy-sparse-keymap 'copy-keymap)
        (make-obsolete-variable 'auto-fill-hook 'auto-fill-function)
        (make-obsolete-variable 'blink-paren-hook 'blink-paren-function)
        (make-obsolete-variable 'lisp-indent-hook 'lisp-indent-function)

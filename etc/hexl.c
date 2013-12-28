@@ -1,6 +1,12 @@
 #include <stdio.h>
 #include <ctype.h>
 
+#if __STDC__
+#include <stdlib.h>
+#else
+extern void exit ();
+#endif
+
 #define DEFAULT_GROUPING	0x01
 #define DEFAULT_BASE		16
 
@@ -9,7 +15,7 @@
 #define TRUE  (1)
 #define FALSE (0)
 
-extern void exit(), perror();
+extern void perror();
 
 int base = DEFAULT_BASE, un_flag = FALSE, iso_flag = FALSE, endian = 1;
 int group_by = DEFAULT_GROUPING;

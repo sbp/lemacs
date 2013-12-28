@@ -78,7 +78,6 @@
    in the file alloca.s should be used.  */
 
 #define HAVE_ALLOCA
-#undef GNU_MALLOC
 #define SYSTEM_MALLOC
 /* Define NO_REMAP if memory segmentation makes it not work well
    to change the boundary between the text section and data section
@@ -104,4 +103,4 @@
  */
 #define PNTR_COMPARISON_TYPE unsigned long
 
-#define PURESIZE 	460000
+#define PURESIZE 	530000

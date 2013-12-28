@@ -1,5 +1,8 @@
-;; Electric Font Lock Mode, by jwz for the LISPM Preservation Society.
-;; Copyright (C) 1992-1993 Free Software Foundation, Inc.
+;;; font-lock.el --- decorating source files with fonts/colors based on syntax
+;; Copyright (C) 1992, 1993, 1994 Free Software Foundation, Inc.
+
+;; Author: Jamie Zawinski <jwz@lucid.com>, for the LISPM Preservation Society.
+;; Keywords: languages, faces
 
 ;; This file is part of GNU Emacs.
 
@@ -17,7 +20,10 @@
 ;; along with GNU Emacs; see the file COPYING.  If not, write to
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
-;; Font-lock-mode is a minor mode that causes your comments to be 
+
+;;; Commentary:
+
+;; Font-lock-mode is a minor mode that causes your comments to be
 ;; displayed in one face, strings in another, reserved words in another,
 ;; documentation strings in another, and so on.
 ;;
@@ -33,9 +39,9 @@
 ;; default.  See the documentation on faces and how to change their
 ;; attributes.
 ;;
-;; To make the text you type be fontified, use M-x font-lock-mode.
-;; When this minor mode is on, the fonts of the current line will be
-;; updated with every insertion or deletion.
+;; To make the text you type be fontified, use M-x font-lock-mode.  When
+;; this minor mode is on, the fonts of the current line will be updated
+;; with every insertion or deletion.
 ;;
 ;; The `font-lock-keywords' variable defines other patterns to highlight.
 ;; The default font-lock-mode-hook sets it to the value of the variables
@@ -46,18 +52,12 @@
 ;;
 ;; To turn this on automatically, add this to your .emacs file:
 ;;
-;;	(setq emacs-lisp-mode-hook '(lambda () (font-lock-mode 1)))
-;;	(setq c-mode-hook 	   '(lambda () (font-lock-mode 1)))
-;;	(setq c++-mode-hook	   '(lambda () (font-lock-mode 1)))
-;;	(setq dired-mode-hook	   '(lambda () (font-lock-mode 1)))
+;;	(add-hook 'emacs-lisp-mode-hook	'turn-on-font-lock)
+;;	(add-hook 'c-mode-hook		'turn-on-font-lock)
+;;	(add-hook 'c++-mode-hook	'turn-on-font-lock)
+;;	(add-hook 'dired-mode-hook	'turn-on-font-lock)
 ;;
 ;; and so on.
-;;
-;; On a Sparc2, the initial fontification takes about 12 seconds for a 120k
-;; file of C code, using the default configuration.  You can speed this up
-;; substantially by removing some of the patterns that are highlighted by
-;; default.  Fontifying lisp code is significantly faster, because lisp has a
-;; more regular syntax than C, so the expressions don't have to be as hairy.
 ;;
 ;; The default value for `lisp-font-lock-keywords' is the value of the variable
 ;; `lisp-font-lock-keywords-1'.  You may like `lisp-font-lock-keywords-2' 
@@ -66,7 +66,26 @@
 ;;
 ;; The same is true of `c-font-lock-keywords-1' and `c-font-lock-keywords-2';
 ;; the former is subdued, the latter is loud.
+;;
+;; On a Sparc10, the initial fontification takes about 6 seconds for a typical
+;; 140k file of C code, using the default configuration.  The actual speed
+;; depends heavily on the type of code in the file, and how many non-syntactic
+;; patterns match; for example, Xlib.h takes 23 seconds for 101k, because many
+;; patterns match in it.  You can speed this up substantially by removing some
+;; of the patterns that are highlighted by default.  Fontifying lisp code is
+;; significantly faster, because lisp has a more regular syntax than C, so the
+;; regular expressions don't have to be as complicated.
+;;
+;; It's called font-lock-mode here because on the Lispms it was called
+;; "Electric Font Lock Mode."  It was called that because there was an older
+;; mode called "Electric Caps Lock Mode" which had the function of causing all
+;; of your source code to be in upper case except for strings and comments,
+;; without you having to blip the caps lock key by hand all the time (thus the
+;; "electric", as in `electric-c-brace'.)
 
+;;; Code:
+
+(require 'text-props)
 
 (make-face 'font-lock-comment-face)
 (make-face 'font-lock-doc-string-face)
@@ -96,15 +115,9 @@
     (copy-face 'italic 'font-lock-type-face))
 
 
-(defvar font-lock-mode nil) ; for modeline
-(or (assq 'font-lock-mode minor-mode-alist)
-    (setq minor-mode-alist
-	  (purecopy
-	   (append minor-mode-alist
-		   '((font-lock-mode " Font-Lock"))))))
-
-
+;;;###autoload
 (make-variable-buffer-local 'font-lock-keywords)
+;;;###autoload
 (defvar font-lock-keywords nil
   "*The keywords to highlight.
 If this is a list, then elements may be of the forms:
@@ -132,7 +145,7 @@ slow things down!")
   "*Whether font-lock-fontify-buffer should print status messages.")
 
 (defvar font-lock-mode-hook nil
-  "*Function or functions to run on entry to font-lock-mode.")
+  "Function or functions to run on entry to font-lock-mode.")
 
 (defvar font-lock-use-syntax-tables t
   "Whether font-lock should bother doing syntactic fontification.
@@ -142,23 +155,37 @@ or string delimiters, etc) and so there is no need to use them.
 You should not set this variable; its value is automatically computed
 by examining the syntax table.")
 
-;;; To fontify the whole buffer, we just go through it a character at a time,
-;;; and create new extents when necessary (the extents we create span lines.)
+;;; To fontify the whole buffer by language syntax, we go through it a
+;;; character at a time, creating extents on the boundary of each syntactic
+;;; unit (that is, one extent for each block comment, one for each line
+;;; comment, one for each string, etc.)  This is done with the C function
+;;; syntactically-sectionize.  It's in C for speed (the speed of lisp function
+;;; calls was a real bottleneck for this task since it involves examining each
+;;; character in turn.)
 ;;;
-;;; Each time a modification happens to a line, we remove all of the extents
-;;; on that line (splitting line-spanning extents as necessary) and recompute
-;;; the contexts for every character on the line.  This means that, as the
-;;; user types, we repeatedly go back to the beginning of the line, doing more
-;;; work the longer the line gets.  This happens in the buffer-syntactic-
-;;; context subr, so it's plenty fast.
+;;; Then we make a second pass, to fontify the buffer based on other patterns
+;;; specified by regexp.  When we find a match for a region of text, we need
+;;; to change the fonts on those characters.  This is done with the
+;;; put-text-property function, which knows how to efficiently share extents.
+;;; Conceptually, we are attaching some particular face to each of the
+;;; characters in a range, but the implementation of this involves creating
+;;; extents, or resizing existing ones.
 ;;;
-;;; We redo the whole line because that's a lot easier than dealing with the
-;;; hair of modifying possibly-overlapping extents, and extents whose 
-;;; endpoints were moved by the insertion we are reacting to.
+;;; Each time a modification happens to a line, we re-fontify the entire line.
+;;; We do this by first removing the extents (text properties) on the line,
+;;; and then doing the syntactic and keyword passes again on that line.  (More
+;;; generally, each modified region is extended to include the preceeding and
+;;; following BOL or EOL.)
 ;;;
-;;; Extents as they now exist are not a good fit for this project, because
-;;; extents talk about properties of *regions*, when what we want to talk
-;;; about here are properties of *characters*.  
+;;; This means that, as the user types, we repeatedly go back to the beginning
+;;; of the line, doing more work the longer the line gets.  This doesn't cost
+;;; much in practice, and if we don't, then we incorrectly fontify things when,
+;;; for example, inserting spaces into `intfoo () {}'.
+;;;
+;;; The syntactically-sectionize function (and our call to it) happens to mesh
+;;; with the current implementation details of put-text-property; for example,
+;;; we have knowledge about the kinds of properties that put-text-property
+;;; uses.  
 
 (defun font-lock-fontify-region (start end)
   (if (not font-lock-use-syntax-tables)
@@ -167,105 +194,111 @@ by examining the syntax table.")
     (if (> end (point-max)) (setq end (point-max)))
     (syntactically-sectionize start end
       #'(lambda (extent context depth)
-          (set-extent-face extent
-                           (cond ((eq context 'comment)
-                                  'font-lock-comment-face)
-                                 ((eq context 'block-comment)
-                                  'font-lock-comment-face)
-                                 ((eq context 'string)
+          (cond ((eq context 'string)
+                 ;;>>> Should only do this is Lisp-like modes!
+                 (set-extent-face extent
                                   (if (= depth 1)
                                       ;; really we should only use this if
                                       ;;  in position 3 depth 1, but that's
                                       ;;  too expensive to compute.
                                       'font-lock-doc-string-face
-                                      'font-lock-string-face))
-                                 (t nil))))
-      'font-lock)))
+				    'font-lock-string-face)))
+		((or (eq context 'comment)
+		     (eq context 'block-comment))
+		 (set-extent-face extent 'font-lock-comment-face)
+;		 ;; Don't fontify whitespace at the beginning of lines;
+;		 ;;  otherwise comment blocks may not line up with code.
+;		 ;; (This is sometimes a good idea, sometimes not; in any
+;		 ;; event it should be in C for speed --jwz)
+;		 (save-excursion
+;		   (let ((s (extent-start-position extent))
+;			 (e (extent-end-position extent)))
+;		     (goto-char s)
+;		     (while (prog1 (search-forward "\n" (1- e) 'move)
+;			      (set-extent-face extent 'font-lock-comment-face)
+;			      (set-extent-endpoints extent s (point)))
+;		       (skip-chars-forward " \t\n")
+;		       (setq s (point))
+;		       (setq extent (make-extent s e))
+;		       (set-extent-data extent 'font-lock))))
+		 )))
+      ;; Warning!  This knows that `put-nonduplicable-text-property', when
+      ;; called with the arguments we use, will add two properties to each
+      ;; extent it creates: 'text-prop 'face, and 'face <face>.
+      ;; If we were to use `put-text-property' instead, then we would need
+      ;; to add two more properties: 'duplicable 't, and 'paste-function
+      ;; 'text-prop-extent-paste-function.
+      '(text-prop face))))
 
-(defun font-lock-unfontify-region (beg end)
-  ;; First delete all extents on this line (really, in this region).
-  ;; If extents span the line (region), divide them first so that
-  ;; previous and following lines are unaffected.
-  (let (s e extent2)
-    (map-extents
-     (function
-      (lambda (extent ignore)
-	(if (not (eq 'font-lock (extent-data extent)))
-	    nil				; if it's not ours, leave it alone...
-	  (setq s (extent-start-position extent)
-		e (extent-end-position extent))
-	  (cond ((< s beg)		; starts before line
-		 (set-extent-endpoints extent s (1- beg))
-		 (if (> e (1+ end))	; ...and ends after line
-		     (progn
-		       (setq extent2 (make-extent (1+ end) e))
-		       (set-extent-face extent2 (extent-face extent))
-		       (set-extent-data extent2 (extent-data extent)))))
-		((> e (1+ end))		; starts on line and ends after
-		 (set-extent-endpoints extent (1+ end) e))
-		(t			; contained on line
-		 (delete-extent extent))))))
-     (current-buffer) beg end nil)))
+(defsubst font-lock-set-face (start end face)
+  ;; Set the face on the characters in the range.
+  (put-nonduplicable-text-property start end 'face face))
 
+(defsubst font-lock-unfontify-region (start end)
+  ;; Clear all font-lock data on the characters in the range.
+  (put-nonduplicable-text-property start end 'face nil))
+
+(defsubst font-lock-any-extents-p (start end)
+  ;; Whether there is any existing font-lock data in the range.
+  ;; Warning!  This knows that `put-text-property' uses the `text-prop' prop.
+  ;; (map-extents returns the first non-nil value returned by the mapper.)
+  (map-extents 'extent-property (current-buffer) start end 'text-prop))
 
 (defun font-lock-after-change-function (beg end old-len)
   ;; called when any modification is made to buffer text.
   (if (null font-lock-mode)
       nil
-  (save-excursion
-    (let ((data (match-data))
-	  (zmacs-region-stays zmacs-region-stays)) ; protect from change!
-      (goto-char beg)
-      (if (or (> old-len 0)		; Deletions mean the cache is invalid.
-	      (= (preceding-char) ?\n)	; Insertions at bol/bob mean that the
-	      (bobp))			; bol cache might be invalid.
-	  (buffer-syntactic-context-flush-cache))
-      (goto-char end)
-      (end-of-line)
-      (setq end (point))
-      (goto-char beg)
-      (beginning-of-line)
-      (setq beg (point))
-      (font-lock-unfontify-region beg end)
-      (font-lock-fontify-region beg (1+ end))
-      (font-lock-hack-keywords beg end)
-      ;; it would be bad if `insert' were to stomp the match data...
-      (store-match-data data)))))
+    (save-excursion
+      (save-match-data
+	(let ((zmacs-region-stays zmacs-region-stays)) ; protect from change!
+	  (goto-char beg)
+	  ;; Maybe flush the internal cache used by syntactically-sectionize.
+	  ;; (It'd be nice if this was more automatic.)  Any deletions mean the
+	  ;; cache is invalid, and insertions at beginning or end of line mean
+	  ;; that the bol cache might be invalid.
+	  (if (or (> old-len 0) (bobp) (= (preceding-char) ?\n))
+	      (buffer-syntactic-context-flush-cache))
+
+	  ;; Always recompute the whole line.
+	  (goto-char end)
+	  (forward-line 1)
+	  (setq end (point))
+	  (goto-char beg)
+	  (beginning-of-line)
+	  (setq beg (point))
+	  (font-lock-unfontify-region beg end)
+	  (font-lock-fontify-region beg end)
+	  (font-lock-hack-keywords beg end))))))
 
 
 ;;; Fontifying arbitrary patterns
-
-(defsubst font-lock-any-extents-p (start end)
-  (catch 'done
-    (map-extents #'(lambda (extent ignore)
-                     (if (eq 'font-lock (extent-data extent))
-                         (throw 'done extent)))
-                 (current-buffer) start end)
-    nil))
 
 (defun font-lock-hack-keywords (start end &optional loudly)
   (goto-char start)
   (let ((case-fold-search font-lock-keywords-case-fold-search)
 	(rest font-lock-keywords)
 	(count 0)
-	str match face s e extent allow-overlap-p)
+	first str match face s e allow-overlap-p)
     (while rest
+      (setq first (car rest))
       (goto-char start)
-      (cond ((consp (car rest))
-	     (setq str (car (car rest)))
-	     (cond ((consp (cdr (car rest)))
-		    (setq match (car (cdr (car rest)))
-			  face (car (cdr (cdr (car rest))))
-			  allow-overlap-p (car (cdr (cdr (cdr (car rest)))))))
-		   ((symbolp (cdr (car rest)))
+      (cond ((consp first)
+	     (setq str (car first))
+	     (cond ((consp (cdr first))
+		    (setq match (nth 1 first)
+			  face (nth 2 first)
+			  allow-overlap-p (nth 3 first)))
+		   ((symbolp (cdr first))
 		    (setq match 0 allow-overlap-p nil
-			  face (cdr (car rest))))
+			  face (cdr first)))
 		   (t
-		    (setq match (cdr (car rest))
+		    (setq match (cdr first)
 			  allow-overlap-p nil
 			  face 'font-lock-keyword-face))))
 	    (t
-	     (setq str (car rest) match 0 allow-overlap-p nil
+	     (setq str first
+		   match 0
+		   allow-overlap-p nil
 		   face 'font-lock-keyword-face)))
       (while (re-search-forward str end t)
 	(setq s (match-beginning match)
@@ -274,21 +307,26 @@ by examining the syntax table.")
 	;; don't fontify this keyword if we're already in some other context.
 	(or (= s e)
 	    (if allow-overlap-p nil (font-lock-any-extents-p s (1- e)))
-	    (progn
-	      (setq extent (make-extent s e))
-	      (set-extent-face extent face)
-	      (set-extent-data extent 'font-lock))))
-      (if loudly (message (format "Fontifying %s... (regexps...%s)"
-				  (buffer-name)
-				  (make-string (setq count (1+ count)) ?.))))
+	    (font-lock-set-face s e face)))
+      (if loudly (message "Fontifying %s... (regexps...%s)"
+			  (buffer-name)
+			  (make-string (setq count (1+ count)) ?.)))
       (setq rest (cdr rest)))))
 
 
 ;; The user level functions
 
+(defvar font-lock-mode nil) ; for modeline
+(or (assq 'font-lock-mode minor-mode-alist)
+    (setq minor-mode-alist
+	  (purecopy
+	   (append minor-mode-alist
+		   '((font-lock-mode " Font-Lock"))))))
+
 (defvar font-lock-fontified nil) ; whether we have hacked this buffer
 (put 'font-lock-fontified 'permanent-local t)
 
+;;;###autoload
 (defun font-lock-mode (&optional arg)
   "Toggle Font Lock Mode.
 With arg, turn font-lock mode on if and only if arg is positive.
@@ -311,25 +349,39 @@ See the variable `font-lock-keywords' for customization."
   (let ((on-p (if (null arg)
 		  (not font-lock-mode)
 		(> (prefix-numeric-value arg) 0))))
-    (if (or noninteractive	; hack for visiting files in batch mode...
-	    (equal (buffer-name) " *Compiler Input*")) ; hack for bytecomp...
+    ;; Font-lock mode will refuse to turn itself on if in batch mode, or if
+    ;; the current buffer is "invisible".  The latter is because packages
+    ;; sometimes put their temporary buffers into some particular major mode
+    ;; to get syntax tables and variables and whatnot, but we don't want the
+    ;; fact that the user has font-lock-mode on a mode hook to slow these
+    ;; things down.
+    (if (or noninteractive (eq (aref (buffer-name) 0) ?\ ))
 	(setq on-p nil))
-    (or (memq after-change-function
-	      '(nil font-lock-after-change-function))
+    ;; It's somewhat bogus that there can be only one after-change-function
+    ;; per buffer, but that's the way it is right now.
+    (or (memq after-change-function '(nil font-lock-after-change-function))
 	(error "after-change-function is %S" after-change-function))
     (if on-p (font-lock-examine-syntax-table))
     (set (make-local-variable 'after-change-function)
 	 (if on-p 'font-lock-after-change-function nil))
     (set (make-local-variable 'font-lock-mode) on-p)
     (cond (on-p
+	   (font-lock-set-defaults)
 	   (run-hooks 'font-lock-mode-hook)
 	   (or font-lock-fontified (font-lock-fontify-buffer)))
 	  (font-lock-fontified
 	   (setq font-lock-fontified nil)
 	   (font-lock-unfontify-region (point-min) (point-max))))
-    (redraw-mode-line)))
+    (force-mode-line-update)))
 
 
+;; For init-file hooks
+;;;###autoload
+(defun turn-on-font-lock ()
+  "Unconditionally turn on Font Lock mode."
+  (font-lock-mode 1))
+
+;;;###autoload
 (defun font-lock-fontify-buffer ()
   "Fontify the current buffer the way `font-lock-mode' would:
 
@@ -382,7 +434,45 @@ This can take a while for large buffers."
     (set (make-local-variable 'font-lock-use-syntax-tables) got-one)))
 
 
-;;; various mode interfaces
+;;; Determining which set of font-lock keywords to use.
+
+(defun font-lock-set-defaults ()
+  ;; Tries to set font-lock-keywords to something appropriate for this mode.
+  (let ((major (symbol-name major-mode))
+        (try #'(lambda (n)
+                 (if (stringp n) (setq n (intern-soft n)))
+                 (if (and n
+                          (boundp n))
+                     n
+                     nil))))
+    (setq font-lock-keywords 
+          (symbol-value
+           (or (funcall try (get major-mode 'font-lock-keywords))
+               (funcall try (concat major "-font-lock-keywords"))
+               (funcall try (and (string-match "-mode\\'" major)
+                                 (concat (substring 
+                                          major 0 (match-beginning 0))
+                                         "-font-lock-keywords")))
+               'font-lock-keywords)))))
+
+;; These are the modes where the font-lock keywords are not trivially
+;; deducible from the mode name (that is, modes where `FOO-mode' does
+;; not use `FOO-font-lock-keywords'.)
+;;
+(put 'emacs-lisp-mode	'font-lock-keywords 'lisp-font-lock-keywords)
+(put 'c++-c-mode	'font-lock-keywords 'c-font-lock-keywords)
+;; the nine billion names of TeX mode...
+(put 'plain-tex-mode	'font-lock-keywords 'tex-font-lock-keywords)
+(put 'slitex-tex-mode	'font-lock-keywords 'tex-font-lock-keywords)
+(put 'latex-tex-mode	'font-lock-keywords 'tex-font-lock-keywords)
+(put 'LaTex-tex-mode	'font-lock-keywords 'tex-font-lock-keywords)
+(put 'latex-mode        'font-lock-keywords 'tex-font-lock-keywords)
+(put 'LaTeX-mode	'font-lock-keywords 'tex-font-lock-keywords)
+(put 'LaTeX-mode        'font-lock-keywords 'tex-font-lock-keywords)
+
+
+;;; Various major-mode interfaces.
+;;; Probably these should go in with the source of the respective major modes.
 
 (defconst lisp-font-lock-keywords-1 (purecopy
  '(;;
@@ -432,11 +522,11 @@ This does a lot more highlighting.")
   "Additional expressions to highlight in lisp modes.")
 
 
-(defvar c-font-lock-keywords-1 nil
+(defconst c-font-lock-keywords-1 nil
  "For consideration as a value of `c-font-lock-keywords'.
 This does fairly subdued highlighting.")
 
-(defvar c-font-lock-keywords-2 nil
+(defconst c-font-lock-keywords-2 nil
  "For consideration as a value of `c-font-lock-keywords'.
 This does a lot more highlighting.")
 
@@ -462,7 +552,7 @@ This does a lot more highlighting.")
     ;; fontify the filename in #include <...>
     ;; don't need to do this for #include "..." because those were
     ;; already fontified as strings by the syntactic pass.
-    '("^#[ \t]*include[ \t]+<\\([^>\"\n]+\\)>" 1 font-lock-string-face)
+    '("^#[ \t]*include[ \t]+\\(<[^>\"\n]+>\\)" 1 font-lock-string-face)
     ;;
     ;; fontify the names of functions being defined.
     ;; I think this should be fast because it's anchored at bol, but it's not.
@@ -470,8 +560,8 @@ This does a lot more highlighting.")
 	   "^\\(" ctoken "[ \t]+\\)?"	; type specs; there can be no
 	   "\\(" ctoken "[ \t]+\\)?"	; more than 3 tokens, right?
 	   "\\(" ctoken "[ \t]+\\)?"
-	   "\\(\\*+[ \t]*\\)?"		; pointer
-	   "\\(" ctoken "\\)" "[ \t]*(")		; name
+	   "\\([*&]+[ \t]*\\)?"		; pointer
+	   "\\(" ctoken "\\)[ \t]*(")	; name
 	  8 'font-lock-function-name-face)
     ;;
     ;; This is faster but not by much.  I don't see why not.
@@ -511,11 +601,11 @@ This does a lot more highlighting.")
      ;;
      ;; fontify case targets and goto-tags.  This is slow because the
      ;; expression is anchored on the right.
-     "\\(\\sw\\|\\s_\\)+:"
+     "\\(\\(\\sw\\|\\s_\\)+\\):"
      ;;
      ;; Fontify variables declared with structures, or typedef names.
-     '("}[ \t*]*\\(\\(\\sw\\|\\s_\\)+\\)[ \t]*[,;]" 1
-       font-lock-function-name-face)
+     '("}[ \t*]*\\(\\(\\sw\\|\\s_\\)+\\)[ \t]*[,;]"
+       1 font-lock-function-name-face)
      ;;
      ;; Fontify global variables without a type.
 ;     '("^\\([_a-zA-Z0-9:~*]+\\)[ \t]*[[;={]" 1 font-lock-function-name-face)
@@ -535,15 +625,15 @@ This does a lot more highlighting.")
 
 
 (defconst perl-font-lock-keywords (purecopy
-  (list (cons (concat "[ \n\t{]*\\("
-                      (mapconcat 'identity
-                                 '("if" "until" "while" "elsif" "else"
-                                   "unless" "for" "foreach" "continue" "exit"
-                                   "die" "last" "goto" "next" "redo" "return"
-                                   "local" "exec")
-                                 "\\|")
-                      "\\)[ \n\t;(]")
-              1)
+  (list
+   (cons (concat "[ \n\t{]*\\("
+		 (mapconcat 'identity
+			    '("if" "until" "while" "elsif" "else" "unless"
+			      "for" "foreach" "continue" "exit" "die" "last"
+			      "goto" "next" "redo" "return" "local" "exec")
+			    "\\|")
+		 "\\)[ \n\t;(]")
+	 1)
         (mapconcat 'identity
                    '("#endif" "#else" "#ifdef" "#ifndef" "#if" "#include"
                      "#define" "#undef")
@@ -554,22 +644,35 @@ This does a lot more highlighting.")
           1 font-lock-function-name-face)
         ;; '("\\(--- .* ---\\|=== .* ===\\)" 1 font-lock-doc-string-face)
         ))
-  "Additional expressions to highlight in Perl-mode.")
+  "Additional expressions to highlight in Perl mode.")
 
 (defconst tex-font-lock-keywords (purecopy
   (list
-   '("\\(\\\\\\w+\\)" 1 font-lock-keyword-face t)
+   ;; Lionel Mallet: Thu Oct 14 09:41:38 1993
+   ;; I've added an exit condition to the regexp below, and the other
+   ;; regexps for the second part.
+   ;; What would be useful here is something like:
+   ;; ("\\(\\\\\\w+\\)\\({\\(\\w+\\)}\\)+" 1 font-lock-keyword-face t 3
+   ;;  font-lock-function-name-face t)
+   '("\\(\\\\\\w+\\)\\W" 1 font-lock-keyword-face t)
+   '("\\(\\\\\\w+\\){\\(\\w+\\)}" 2 font-lock-function-name-face t)
+   '("\\(\\\\\\w+\\){\\(\\w+\\)}{\\(\\w+\\)}" 3
+     font-lock-function-name-face t)
+   '("\\(\\\\\\w+\\){\\(\\w+\\)}{\\(\\w+\\)}{\\(\\w+\\)}" 4
+     font-lock-function-name-face t)
    '("{\\\\em\\([^}]+\\)}" 1 font-lock-comment-face t)
    '("{\\\\bf\\([^}]+\\)}" 1 font-lock-keyword-face t)
-   '("^[ \t\n]*\\\\def[\\\\@]\\(\\w+\\)" 1 font-lock-function-name-face t)
-   '("\\\\\\(begin\\|end\\){\\([a-zA-Z0-9\\*]+\\)}"
-     2 font-lock-function-name-face t)
+   '("^[ \t\n]*\\\\def[\\\\@]\\(\\w+\\)\\W" 1 font-lock-function-name-face t)
+   ;; Lionel Mallet: Thu Oct 14 09:40:10 1993
+   ;; the regexp below is useless as it is now covered by the first 2 regexps
+   ;;   '("\\\\\\(begin\\|end\\){\\([a-zA-Z0-9\\*]+\\)}"
+   ;;     2 font-lock-function-name-face t)
    '("[^\\\\]\\$\\([^$]*\\)\\$" 1 font-lock-string-face t)
 ;   '("\\$\\([^$]*\\)\\$" 1 font-lock-string-face t)
    ))
-  "Additional expressions to highlight in TeX-mode.")
+  "Additional expressions to highlight in TeX mode.")
 
-(defconst texi-font-lock-keywords (purecopy
+(defconst texinfo-font-lock-keywords (purecopy
   (list
    "@\\(@\\|[^}\t \n{]+\\)"					;commands
    '("^\\(@c\\|@comment\\)[ \t].*$" . font-lock-comment-face)	;comments
@@ -582,7 +685,7 @@ This does a lot more highlighting.")
    '("@item \\(.*\\)$" 1 font-lock-function-name-face t)
    '("\\$\\([^$]*\\)\\$" 1 font-lock-string-face t)
    ))
-  "Additional expressions to highlight in TeXinfo-mode.")
+  "Additional expressions to highlight in TeXinfo mode.")
 
 (defconst postscript-font-lock-keywords (purecopy
   (let ((break "][ \t\f\n\r()<>{}/%")
@@ -602,7 +705,7 @@ This does a lot more highlighting.")
                                          "save" "restore" "gsave" "grestore")
                                    "\\|")
                         "\\)"
-                        "[" break "]")
+                        "\\([" break "]\\|$\\)")
                 1 'font-lock-keyword-face))))
   "Expressions to highlight in Postscript buffers.")
 
@@ -618,46 +721,12 @@ This does a lot more highlighting.")
 		   "^. +-.....[xsS]...\\|"	; or setuid/setgid bits set
 		   "^. +-........[xsS]")
 	   'bold)
+     ;; Possibly we should highlight more types of files differently:
+     ;; backups; autosaves; core files?  Those with ignored-extensions?
      )))
   "Expressions to highlight in Dired buffers.")
 
 
-;; Kludge
-(defun dummy-font-lock-mode-hook ()
-  "Tries to set font-lock-keywords to something appropriate for this mode."
-  (let ((major (symbol-name major-mode))
-        (try #'(lambda (n)
-                 (if (stringp n) (setq n (intern-soft n)))
-                 (if (and n
-                          (boundp n))
-                     n
-                     nil))))
-    (setq font-lock-keywords 
-          (symbol-value
-           (or (funcall try (get major-mode 'font-lock-keywords))
-               (funcall try (concat major "-font-lock-keywords"))
-               (funcall try (and (string-match "-mode\\'" major)
-                                 (concat (substring 
-                                          major 0 (match-beginning 0))
-                                         "-font-lock-keywords")))
-               'font-lock-keywords)))))
-
-            
-;; These are the modes where the font-lock keywords are not trivially
-;; deducible from the mode name (that is, modes where `FOO-mode' does
-;; not use `FOO-font-lock-keywords'.)
-;;
-(put 'emacs-lisp-mode	'font-lock-keywords 'lisp-font-lock-keywords)
-(put 'c++-c-mode	'font-lock-keywords 'c-font-lock-keywords)
-;; the nine billion names of TeX mode...
-(put 'plain-tex-mode	'font-lock-keywords 'tex-font-lock-keywords)
-(put 'slitex-tex-mode	'font-lock-keywords 'tex-font-lock-keywords)
-(put 'latex-tex-mode	'font-lock-keywords 'tex-font-lock-keywords)
-(put 'LaTex-tex-mode	'font-lock-keywords 'tex-font-lock-keywords)
-(put 'LaTeX-mode	'font-lock-keywords 'tex-font-lock-keywords)
-(put 'LaTeX-mode        'font-lock-keywords 'tex-font-lock-keywords)
-
-(add-hook 'font-lock-mode-hook 'dummy-font-lock-mode-hook)
-
-
 (provide 'font-lock)
+
+;;; font-lock.el ends here

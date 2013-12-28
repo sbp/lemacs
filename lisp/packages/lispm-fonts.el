@@ -138,9 +138,11 @@
   ;; local variables will have been read incorrectly by the emacs-lisp reader.
   ;; In particular, the `fonts' variable might be corrupted.  So if there
   ;; are font-shifts in the prop line, re-parse it.
-  (if (let ((case-fold-search t))
-	(and (looking-at "[ \t]*;.*-\\*-.*fonts[ \t]*:.*-\\*-")
-	     (looking-at ".*\^F")))
+  (if (or (not (boundp 'fonts))
+	  (null 'fonts)
+	  (let ((case-fold-search t))
+	    (and (looking-at "[ \t]*;.*-\\*-.*fonts[ \t]*:.*-\\*-")
+		 (looking-at ".*\^F"))))
       (save-excursion
 	(save-restriction
 	  (end-of-line)
@@ -148,11 +150,13 @@
 	  (goto-char (point-min))
 	  (while (re-search-forward "\^F[0-9a-zA-Z*]" nil t)
 	    (delete-region (match-beginning 0) (match-end 0)))
-	  (hack-local-variables)))))
+	  (let ((enable-local-variables 'query))
+	    (hack-local-variables))))))
 
 (defun lispm-fontify-buffer ()
   (save-excursion
     (goto-char (point-min))
+    (if (fboundp 'font-lock-mode) (font-lock-mode 0))
     (lispm-fontify-hack-local-variables)
     (let ((font-stack nil)
 	  (p (point))

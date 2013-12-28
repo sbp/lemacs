@@ -35,7 +35,13 @@ extern void modify_region (struct buffer *buf, int start, int end);
 /* Signal a change immediatly after it happens. */
 extern void signal_after_change (int pos, int lendel, int lenins);
 
-extern void insert_relocatable_raw_string (const char *string,
+#ifdef I18N4
+extern void insert_wide_string (CONST wchar_t *string,
+				int length,
+				Lisp_Object obj);
+#endif
+
+extern void insert_relocatable_raw_string (CONST char *string,
                                            int length, 
                                            Lisp_Object obj);
 
@@ -50,15 +56,20 @@ extern void insert_relocatable_raw_string (const char *string,
   insert_relocatable_raw_string ((string), (length), Qzero)
 
 /* Insert the null-terminated string S before point */
-extern void insert_string (const char *s);
+extern void insert_string (CONST char *s);
 
 /* Insert the character C before point */
 /*   insert_relocatable_raw_string (&ch, 1, Qzero) */
 extern void insert_char (int ch);
 
+#ifdef I18N4
+/* Insert the wide character WC before point */
+extern void insert_wide_char (wchar_t wc);
+#endif
+
 /* Like `insert_raw_string' except that all markers pointing
    at the place where the insertion happens are adjusted to point after it. */
-extern void insert_before_markers (const char *string, int length,
+extern void insert_before_markers (CONST char *string, int length,
                                    Lisp_Object obj);
 
 #define insert_from_string_before_markers(string, length) \

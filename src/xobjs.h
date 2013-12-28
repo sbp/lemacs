@@ -18,11 +18,13 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #ifndef _EMACS_XOBJS_H_
 #define _EMACS_XOBJS_H_
 
+#ifdef HAVE_X_WINDOWS
+
 #define XPIXEL(a) ((struct Lisp_Pixel *) XPNTR(a))
 #define PIXELP(x) RECORD_TYPEP ((x), lrecord_pixel)
 #define CHECK_PIXEL(x, i) \
   do { if (!PIXELP ((x))) x = wrong_type_argument (Qpixelp, (x)); } while (0)
-extern const struct lrecord_implementation lrecord_pixel[];
+extern CONST struct lrecord_implementation lrecord_pixel[];
 extern Lisp_Object Fmake_pixel (Lisp_Object name, Lisp_Object screen);
 extern Lisp_Object Fpixelp (Lisp_Object obj);
 extern Lisp_Object Fpixel_name (Lisp_Object obj);
@@ -39,7 +41,7 @@ struct Lisp_Pixel {
 #define CURSORP(x) RECORD_TYPEP ((x), lrecord_cursor)
 #define CHECK_CURSOR(x, i) \
  do { if (!CURSORP ((x))) x = wrong_type_argument (Qcursorp, (x)); } while (0)
-extern const struct lrecord_implementation lrecord_cursor[];
+extern CONST struct lrecord_implementation lrecord_cursor[];
 extern Lisp_Object Fmake_cursor (Lisp_Object name, Lisp_Object fg,
 				 Lisp_Object bg, Lisp_Object screen);
 extern Lisp_Object Fcursorp (Lisp_Object obj);
@@ -60,7 +62,7 @@ struct Lisp_Cursor {
 #define FONTP(x) RECORD_TYPEP ((x), lrecord_font)
 #define CHECK_FONT(x, i) \
   do { if (!FONTP ((x))) x = wrong_type_argument (Qfontp, (x)); } while (0)
-extern const struct lrecord_implementation lrecord_font[];
+extern CONST struct lrecord_implementation lrecord_font[];
 extern Lisp_Object Fmake_font (Lisp_Object name, Lisp_Object screen);
 extern Lisp_Object Ffontp (Lisp_Object obj);
 extern Lisp_Object Ffont_name (Lisp_Object obj);
@@ -72,7 +74,11 @@ struct Lisp_Font {
   Lisp_Object name;
   Lisp_Object truename;
   Screen *screen;		/* An X screen, not an emacs screen */
+#ifdef I18N4
+  XFontSet font;
+#else
   XFontStruct *font;		/* 0 if actually a tty */
+#endif
 
   unsigned short ascent;	/* extracted from `font', or made up */
   unsigned short descent;
@@ -85,7 +91,7 @@ struct Lisp_Font {
 #define PIXMAPP(x) RECORD_TYPEP ((x), lrecord_pixmap)
 #define CHECK_PIXMAP(x, i) \
  do { if (!PIXMAPP ((x))) x = wrong_type_argument (Qpixmapp, (x)); } while (0)
-extern const struct lrecord_implementation lrecord_pixmap[];
+extern CONST struct lrecord_implementation lrecord_pixmap[];
 extern Lisp_Object Fmake_pixmap (Lisp_Object name, Lisp_Object screen);
 Lisp_Object make_pixmap (Lisp_Object name, Lisp_Object screen, int force_mono);
 extern Lisp_Object Fpixmapp (Lisp_Object obj);
@@ -115,4 +121,5 @@ struct Lisp_Pixmap {
      the textual color table and the comments?   Is that useful? */
 };
 
+#endif /* HAVE_X_WINDOWS */
 #endif /* _EMACS_XOBJS_H_ */

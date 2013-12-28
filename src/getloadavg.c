@@ -66,6 +66,8 @@
    configuration files' definitions for the LOAD_AVE_CVT macro (like
    sparc.h's) use macros like FSCALE, defined here.  */
 #ifdef unix
+#include <stdlib.h>
+#include <unistd.h>
 #include <sys/param.h>
 #endif
 
@@ -130,8 +132,13 @@
 #define OSF_ALPHA
 #endif
 
+#ifndef OSF_MIPS
 #if defined (__osf__) && (defined (mips) || defined (__mips__))
 #define OSF_MIPS
+#endif
+#endif
+
+#ifdef OSF_MIPS
 #include <sys/table.h>
 #endif
 
@@ -648,10 +655,12 @@ getloadavg (loadavg, nelem)
 
   struct tbl_loadavg load_ave;
   table (TBL_LOADAVG, 0, &load_ave, 1, sizeof (load_ave));
-  loadavg[elem++]
-    = (load_ave.tl_lscale == 0
-       ? load_ave.tl_avenrun.d[0]
-       : (load_ave.tl_avenrun.l[0] / (double) load_ave.tl_lscale));
+  while (elem < nelem && elem < 3)
+    {
+      loadavg[elem++] = (load_ave.tl_lscale == 0
+	   ? load_ave.tl_avenrun.d[0]
+	   : (load_ave.tl_avenrun.l[0] / (double) load_ave.tl_lscale));
+    }
 #endif	/* OSF_MIPS */
 
 #if !defined (LDAV_DONE) && defined (VMS)

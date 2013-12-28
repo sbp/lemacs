@@ -15,34 +15,32 @@
 ;;; along with this program; if not, write to the Free Software
 ;;; Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-(defun vm-display-current-message-buffer (&optional no-highlighting)
+(defun vm-display-buffer (buffer)
+  (let ((pop-up-windows (eq vm-mutable-windows t)))
+    (if vm-mutable-windows
+	(display-buffer buffer)
+      (switch-to-buffer buffer))))
+
+(defun vm-display-current-message-buffer ()
   (vm-select-folder-buffer)
   (vm-check-for-killed-summary)
   (let (point msg-buf sized)
-    (vm-within-current-message-buffer
-     (setq msg-buf (current-buffer)
-	   point (point))
-     (if (null (get-buffer-window (current-buffer)))
-	 (if (not (setq sized (vm-set-window-configuration 'showing-message)))
-	     (if vm-mutable-windows
-		 (let ((pop-up-windows (and pop-up-windows
-					    (eq vm-mutable-windows t))))
-		   (display-buffer (current-buffer)))
-	       (switch-to-buffer (current-buffer)))))
-     (set-buffer msg-buf)
-     (let ((w (get-buffer-window msg-buf)))
-       (and w
-	    (progn (set-window-point w point)
-		   (and (>= (window-start w) (point-max))
-			(set-window-start w (point-min)))))))
+    (save-excursion
+      (setq msg-buf (current-buffer)
+	    point (point))
+      (if (null (get-buffer-window (current-buffer)))
+	  (if (not (setq sized (vm-set-window-configuration 'showing-message)))
+	      (vm-display-buffer (current-buffer))))
+      (set-buffer msg-buf)
+      (let ((w (get-buffer-window msg-buf)))
+	(and w
+	     (progn (set-window-point w point)
+		    (and (>= (window-start w) (point-max))
+			 (set-window-start w (point-min)))))))
     (if (and (not sized) vm-summary-buffer
 	     (get-buffer-window vm-summary-buffer)
 	     (eq vm-mutable-windows t))
-	(vm-proportion-windows))
-    (if (not no-highlighting)
-	(vm-within-current-message-buffer
-	 (vm-highlight-headers (car vm-message-pointer)
-			       (get-buffer-window (current-buffer)))))))
+	(vm-proportion-windows))))
 
 (defun vm-proportion-windows ()
   (vm-select-folder-buffer)
@@ -81,7 +79,7 @@
 
 (defun vm-load-window-configurations (file)
   (save-excursion
-    (let (work-buffer)
+    (let ((work-buffer nil))
       (unwind-protect
 	  (progn
 	    (set-buffer (setq work-buffer (get-buffer-create "*vm-wconfig*")))
@@ -96,7 +94,7 @@
 
 (defun vm-store-window-configurations (file)
   (save-excursion
-    (let (work-buffer)
+    (let ((work-buffer nil))
       (unwind-protect
 	  (progn
 	    (set-buffer (setq work-buffer (get-buffer-create "*vm-wconfig*")))
@@ -107,6 +105,8 @@
 
 (defun vm-set-window-configuration (&rest tags)
   (catch 'done
+    (if (not (eq vm-mutable-windows t))
+	(throw 'done nil))
     (let ((scratch "*scratch*") summary message composition config p)
       (while (and tags (null config))
 	(setq config (assq (car tags) vm-window-configurations)
@@ -116,21 +116,22 @@
       (setq composition (vm-find-composition-buffer t))
       (cond ((memq major-mode '(vm-summary-mode mail-mode))
 	     (and vm-mail-buffer (buffer-name vm-mail-buffer)
-		  (set-buffer vm-mail-buffer)))
-	    ((eq major-mode 'vm-virtual-mode)
-	     (setq summary (current-buffer)
-		   message (and vm-message-pointer
-			       (vm-current-message-buffer)))))
+		  (set-buffer vm-mail-buffer))))
       (vm-check-for-killed-summary)
       (or message (setq message (current-buffer)))
       (or summary (setq summary (or vm-summary-buffer scratch)))
       (or composition (setq composition scratch))	
-      (tapestry-replace-map-element (nth 1 config) 'buffer-name 'symbol-value)
+      (tapestry-replace-map-element (nth 1 config)
+				    'buffer-name
+				    (function (lambda (x)
+						(if (symbolp x)
+						    (symbol-value x)
+						  x))))
       (set-tapestry-map (nth 1 config))
       (save-excursion
 	(set-buffer message)
 	(setq vm-window-configuration (car tags)))
-      t )))
+      (car config) )))
 
 (defun vm-save-window-configuration (tag)
   (interactive
@@ -175,7 +176,7 @@
      (list
       (intern
        (completing-read "Delete window configuration: "
-			vm-window-configurations
+			vm-supported-window-configurations
 			'identity t)))))
   (if (null vm-window-configuration-file)
       (error "Configurable windows not enabled."))
@@ -184,7 +185,8 @@
     (if p
 	(if (eq p (car vm-window-configurations))
 	    (setq vm-window-configurations (cdr vm-window-configurations))
-	  (setq vm-window-configurations (delq p vm-window-configurations)))))
+	  (setq vm-window-configurations (delq p vm-window-configurations)))
+      (error "No window configuration set for %s" tag)))
   (vm-store-window-configurations vm-window-configuration-file)
   (message "%s configuration deleted" tag))
 

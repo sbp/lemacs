@@ -20,12 +20,21 @@
 
 ;; Created by: Joe Wells, jbw@bucsf.bu.edu
 ;; Created on: Thu Mar 22 20:17:40 1990
-;; Last modified by: Jamie Zawinski <jwz@lucid.com>
-;; Last modified on: Wed Jan  1 15:09:18 1992
-;; Filename: tags-fix.el
+;; Last modified by: Norbert Kiesel <norbert@i3.informatik.rwth-aachen.de>
+;; Last modified on: Thu Jan  6 17:10:40 1994
+;; Filename: etags.el
 ;; Purpose: enhanced tags functionality
 ;; Change log: 
 ;; 
+;; Thu Jan  6 17:10:40 1994  Norbert Kiesel <norbert@informatik.rwth-aachen.de>
+;;
+;;      * Changed all tags-fix to etags.
+;;      Recognize 'c++-c-mode and 'c++-mode.
+;;      Ensure prefix of TAGS ends with a slash.
+;;      Provide 'etags (besides 'tags).
+;;      Don't skip entries starting with whitespace (some etags-creating
+;;      programs (e.g. m2tags) produce such entries).
+;;
 ;; Wed Jan  1 15:09:18 1992  Jamie Zawinski <jwz@lucid.com>
 ;;
 ;;      * Added Harlan's definition of visit-tags-table.  
@@ -116,43 +125,42 @@
 
 ;; Installation instructions:
 ;;
-;; Name this file tags-fix.el.
-;; Put tags-fix.el, symlink-fix.el, symbol-syntax.el in your load path.
+;; Put etags.el, symlink-fix.el, symbol-syntax.el in your load path.
 ;;
 ;; Put the following code in your .emacs (or lisp/default.el)
 ;;
 ;;(fmakunbound 'visit-tags-table) ; obsolete
 ;;(fmakunbound 'find-tag)
-;;(autoload 'find-tag "tags-fix" nil t)
+;;(autoload 'find-tag "etags" nil t)
 ;;(fmakunbound 'find-tag-other-window)
-;;(autoload 'find-tag-other-window "tags-fix" nil t)
+;;(autoload 'find-tag-other-window "etags" nil t)
 ;;(fmakunbound 'lisp-complete-symbol)
-;;(autoload 'lisp-complete-symbol "tags-fix" nil t)
+;;(autoload 'lisp-complete-symbol "etags" nil t)
 ;;(fmakunbound 'tag-complete-symbol)
-;;(autoload 'tag-complete-symbol "tags-fix" nil t)
+;;(autoload 'tag-complete-symbol "etags" nil t)
 ;;(fmakunbound 'next-file)
-;;(autoload 'next-file "tags-fix" nil t)
+;;(autoload 'next-file "etags" nil t)
 ;;(fmakunbound 'tags-loop-continue)
-;;(autoload 'tags-loop-continue "tags-fix" nil t)
+;;(autoload 'tags-loop-continue "etags" nil t)
 ;;(fmakunbound 'tags-search)
-;;(autoload 'tags-search "tags-fix" nil t)
+;;(autoload 'tags-search "etags" nil t)
 ;;(fmakunbound 'tags-query-replace)
-;;(autoload 'tags-query-replace "tags-fix" nil t)
+;;(autoload 'tags-query-replace "etags" nil t)
 ;;(fmakunbound 'display-tag-info)
-;;(autoload 'display-tag-info "tags-fix" nil t)
+;;(autoload 'display-tag-info "etags" nil t)
 ;;(fmakunbound 'pop-tag-mark)
-;;(autoload 'pop-tag-mark "tags-fix" nil t)
+;;(autoload 'pop-tag-mark "etags" nil t)
 ;;
 ;;(define-key esc-map "?" 'display-tag-info)
 ;;(define-key esc-map "*" 'pop-tag-mark)
 ;;
 ;;;; The following are not really implemented:
 ;;;;(fmakunbound 'set-buffer-tag-table)
-;;;;(autoload 'set-buffer-tag-table "tags-fix" nil t)
+;;;;(autoload 'set-buffer-tag-table "etags" nil t)
 ;;(fmakunbound 'list-tags)
-;;;;(autoload 'list-tags "tags-fix" nil t)
+;;;;(autoload 'list-tags "etags" nil t)
 ;;(fmakunbound 'tags-apropos)
-;;;;(autoload 'tags-apropos "tags-fix" nil t)
+;;;;(autoload 'tags-apropos "etags" nil t)
 
 
 ;; Auxiliary functions
@@ -193,6 +201,7 @@
 
 ;; Tag tables for a buffer
 
+;;;###autoload
 (defvar tags-build-completion-table 'ask
   "*If this variable is nil, then tags completion is disabled.
 If this variable is t, then things which prompt for tags will do so with 
@@ -203,6 +212,7 @@ If this variable is the symbol `ask', then you will be asked whether each
  since they can be parsed quickly.)")
 
 
+;;;###autoload
 (defvar tag-table-alist nil
   "*A list which determines which tags files should be active for a 
 given buffer.  This is not really an association list, in that all 
@@ -285,7 +295,7 @@ the current buffer."
 	;; regexp matches, or the expression evaluates non-nil, then this
 	;; item in tag-table-alist applies to this buffer.
 	(if (if (stringp expression)
-		(string-match (car (car alist)) key)
+		(string-match expression key)
 	      (condition-case nil
 		  (eval expression)
 		(error nil)))
@@ -311,7 +321,7 @@ the current buffer."
 	   (function
 	    (lambda (name)
 	      (if (file-directory-p name)
-		  (setq name (concat name "TAGS")))
+		  (setq name (concat (file-name-as-directory name) "TAGS")))
 	      (if (file-readable-p name)
 		  (save-excursion
 		    ;; get-tag-table-buffer has side-effects
@@ -322,6 +332,7 @@ the current buffer."
     (or result (error "Buffer has no associated tag tables"))
     (tags-remove-duplicates (nreverse result))))
 
+;;;###autoload
 (defun visit-tags-table (file)
   "Tell tags commands to use tags table file FILE first.
 FILE should be the name of a file created with the `etags' program.
@@ -565,7 +576,7 @@ this buffer uses."
           "DEFUN[ \t]*(\"\\([^\"]+\\)\",[ \t]*\\(\\(\\sw\\|\\s_\\)+\\),\C-?")
 (defconst tags-array-pattern ".*[ \t]+\\([^ \[]+\\)\\[")
 (defconst tags-def-pattern
-          "\\(.*[ \t]+\\)?\\(\\(\\sw\\|\\s_\\)+\\)[ ();,\t]*\C-?"
+          "\\(.*[ \t]+\\)?\\**\\(\\(\\sw\\|\\s_\\)+\\)[ ();,\t]*\C-?"
 ;; "\\(.*[ \t]+\\)?\\(\\(\\sw\\|\\s_\\)+\\)[ ()]*\C-?"
 ;; "\\(\\sw\\|\\s_\\)+[ ()]*\C-?"
       )
@@ -611,7 +622,9 @@ this buffer uses."
 	    (set-syntax-table (standard-syntax-table)))
 	  ;; loop over the individual tag lines
 	  (while (not (or (eobp) (eq (following-char) ?\f)))
-	    (cond ((and (eq file-type 'c-mode)
+	    (cond ((and (or (eq file-type 'c-mode)
+			    (eq file-type 'c++-mode)
+			    (eq file-type 'c++-c-mode))
 			(let ((case-fold-search nil))
 			  (looking-at "DEFUN[ \t]")))
 		   (or (looking-at tags-DEFUN-pattern)
@@ -620,11 +633,13 @@ this buffer uses."
 						(match-end 1)))
 		   (setq name2 (buffer-substring (match-beginning 2)
 						 (match-end 2))))
-		  ((looking-at "\\s ")
-		   ;; skip probably bogus entry:
-		   )
-		  ((and (eq file-type 'c-mode)
-			(looking-at "[^{}\n]*\\["))
+;;;		  ((looking-at "\\s ")
+;;;		   ;; skip probably bogus entry:
+;;;		   )
+		  ((and (or (eq file-type 'c-mode)
+			    (eq file-type 'c++-mode)
+			    (eq file-type 'c++-c-mode))
+			(looking-at ".*\\["))
 		   (or (looking-at tags-array-pattern)
 		       (error "array definition doesn't fit pattern"))
 		   (setq name (buffer-substring (match-beginning 1)
@@ -850,6 +865,7 @@ If it returns nil, it is through with one file; move on to next.")
 	  (setq startpos (point)))))
     (cons buf startpos)))
 
+;;;###autoload
 (defun find-tag (tagname &optional other-window)
   "*Find tag whose name contains TAGNAME.
  Selects the buffer that the tag is contained in
@@ -900,6 +916,7 @@ Variables of note:
   t)
 
 ;; This function is unchanged from lisp/tags.el:
+;;;###autoload
 (defun find-tag-other-window (tagname &optional next)
   "*Find tag whose name contains TAGNAME.
  Selects the buffer that the tag is contained in in another window
@@ -1014,6 +1031,7 @@ or properties are considered."
 (defvar next-file-list nil
   "List of files for next-file to process.")
 
+;;;###autoload
 (defun next-file (&optional initialize)
   "Select next file among files in current tag table(s).
 Non-nil argument (prefix arg, if interactive) initializes to the beginning 
@@ -1041,6 +1059,7 @@ of the list of files in the (first) tag table."
   "*If t (the default), tags-search and tags-query-replace will only
 keep newly-visited buffers if they contain the search target.")
 
+;;;###autoload
 (defun tags-loop-continue (&optional first-time)
   "Continue last \\[tags-search] or \\[tags-query-replace] command.
 Used noninteractively with non-nil argument
@@ -1064,6 +1083,7 @@ to begin such a command.  See variable tags-loop-form."
 	(message "Scanning file %s...done" buffer-file-name))))
 
 ;; This function is unchanged from lisp/tags.el:
+;;;###autoload
 (defun tags-search (regexp)
   "Search through all files listed in tag table for match for REGEXP.
 Stops when a match is found.
@@ -1079,6 +1099,7 @@ See documentation of variable tag-table-alist."
     (tags-loop-continue t)))
 
 ;; This function is unchanged from lisp/tags.el:
+;;;###autoload
 (defun tags-query-replace (from to &optional delimited)
   "Query-replace-regexp FROM with TO through all files listed in tag table.
 Third arg DELIMITED (prefix arg) means replace only word-delimited matches.
@@ -1099,6 +1120,7 @@ See documentation of variable tag-table-alist."
 
 ;; **** need to alter
 ;; This function is unchanged from lisp/tags.el:
+;;;###autoload
 (defun list-tags (string)
   "Display list of tags in file FILE.
 FILE should not contain a directory spec
@@ -1122,6 +1144,7 @@ unless it has one in the tag table."
 
 ;; **** need to alter
 ;; This function is unchanged from lisp/tags.el:
+;;;###autoload
 (defun tags-apropos (string)
   "Display list of all tags in tag table REGEXP matches."
   (interactive "sTag apropos (regexp): ")
@@ -1339,5 +1362,5 @@ This function pops (and moves to) the tag at the top of this stack."
 ;;           (recursive-edit)
 ;;         (sit-for show-tag-time)))))
 
-;(provide 'tags-fix)
+(provide 'etags)
 (provide 'tags)

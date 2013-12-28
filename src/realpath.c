@@ -1,154 +1,167 @@
 /*
- * Portable implementation of realpath() written by Chris Myers
- * <chris@wugate.wustl.edu>.
+ * realpath.c -- canonicalize pathname by removing symlinks
+ * Copyright (C) 1993 Rick Sladkey <jrs@world.std.com>
  *
- * Copyright (c) 1990, 1991 Washington University in Saint Louis, MO
- * All rights reserved.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU Library Public License as published by
+ * the Free Software Foundation; either version 2, or (at your option)
+ * any later version.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Washington University,
- *	Saint Louis, Missouri and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Library Public License for more details.
  */
 
-#ifndef lint
-char copyright[] =
-"@(#) Copyright (c) 1990, 1991 Washington University in St. Louis, MO.\n\
- All rights reserved.\n";
-#endif /* not lint */
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
 
-#include <stdio.h>
-#if __STDC__
-#include <stdlib.h>
+#include <sys/types.h>
+#if defined(HAVE_UNISTD_H) || defined(STDC_HEADERS)
 #include <unistd.h>
 #endif
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/param.h>
+#include <stdio.h>
+#ifdef HAVE_STRING_H
+#include <string.h>
+#else
 #include <strings.h>
+#endif
+#ifdef _POSIX_VERSION
+#include <limits.h>			/* for PATH_MAX */
+#else
+#include <sys/param.h>			/* for MAXPATHLEN */
+#endif
+#include <errno.h>
+#ifndef STDC_HEADERS
+extern int errno;
+#endif
 
-char *
-realpath(pathname, result)
-char	*pathname, *result;
+#include <sys/stat.h>			/* for S_IFLNK */
 
+#ifndef PATH_MAX
+#ifdef _POSIX_VERSION
+#define PATH_MAX _POSIX_PATH_MAX
+#else
+#ifdef MAXPATHLEN
+#define PATH_MAX MAXPATHLEN
+#else
+#define PATH_MAX 1024
+#endif
+#endif
+#endif
+
+#define MAX_READLINKS 32
+
+#ifdef __STDC__
+char *realpath(const char *path, char resolved_path [])
+#else
+char *realpath(path, resolved_path)
+const char *path;
+char resolved_path [];
+#endif
 {
-struct	stat	sbuf;
-char	curpath[MAXPATHLEN],
-	workpath[MAXPATHLEN],
-	linkpath[MAXPATHLEN],
-        namebuf[MAXPATHLEN],
-	*where,
-	*ptr,
-	*last;
-int	len;
+	char copy_path[PATH_MAX];
+	char link_path[PATH_MAX];
+	char *new_path = resolved_path;
+	char *max_path;
+	int readlinks = 0;
+	int n;
 
-   strcpy(curpath, pathname);
-
-   if (*pathname != '/') {
-      if (!getwd(workpath)) {
-         strcpy(result, ".");
-         return(NULL);
-      }
-   } else *workpath = NULL;
-
-   /* curpath is the path we're still resolving      */
-   /* linkpath is the path a symbolic link points to */
-   /* workpath is the path we've resolved            */
-
-loop:
-   where = curpath;
-   while (*where != NULL) {
-      if (!strcmp(where, ".")) {
-         where++;
-         continue;
-      }
-
-      /* deal with "./" */
-      if (!strncmp(where, "./", 2)) {
-         where += 2;
-         continue;
-      }
-
-      /* deal with "../" */
-      if (!strncmp(where, "../", 3)) {
-         where += 3;
-         ptr = last = workpath;
-         while (*ptr) {
-            if (*ptr == '/') last = ptr;
-            ptr++;
-         }
-         *last = NULL;
-         continue;
-      }
-
-      ptr = strchr(where, '/');
-      if (!ptr)
-         ptr = where + strlen(where) - 1;
-      else
-         *ptr = NULL;
-
-      strcpy(namebuf, workpath);
-      for (last = namebuf; *last; last++) continue;
-      if (*--last != '/') strcat(namebuf, "/");
-      strcat(namebuf, where);
-
-      where = ++ptr;
-      if (lstat(namebuf, &sbuf) == -1) {
-         strcpy(result, namebuf);
-         return(NULL);
-      }
-
-      if ((sbuf.st_mode & S_IFLNK) == S_IFLNK) {
-         len = readlink(namebuf, linkpath, MAXPATHLEN);
-         if (len == 0) {
-            strcpy(result, namebuf);
-            return(NULL);
-         }
-         *(linkpath + len) = NULL; /* readlink doesn't null-terminate result */
-         if (*linkpath == '/') *workpath = NULL;
-         if (*where) {
-            strcat(linkpath, "/");
-            strcat(linkpath, where);
-         }
-         strcpy(curpath, linkpath);
-         goto loop;
-      }
-
-      if ((sbuf.st_mode & S_IFDIR) == S_IFDIR) {
-         strcpy(workpath, namebuf);
-         continue;
-      }
-
-      if (*where) {
-         strcpy(result, namebuf);
-         return(NULL);  /* path/notadir/morepath */
-      } else
-         strcpy(workpath, namebuf);
-   }
-   strcpy(result, workpath);
-   return(result);
-
+	/* Make a copy of the source path since we may need to modify it. */
+	strcpy(copy_path, path);
+	path = copy_path;
+	max_path = copy_path + PATH_MAX - 2;
+	/* If it's a relative pathname use getwd for starters. */
+	if (*path != '/') {
+#ifdef HAVE_GETCWD
+		getcwd(new_path, PATH_MAX - 1);
+#else
+		getwd(new_path);
+#endif
+		new_path += strlen(new_path);
+		if (new_path[-1] != '/')
+			*new_path++ = '/';
+	}
+	else {
+		*new_path++ = '/';
+		path++;
+	}
+	/* Expand each slash-separated pathname component. */
+	while (*path != '\0') {
+		/* Ignore stray "/". */
+		if (*path == '/') {
+			path++;
+			continue;
+		}
+		if (*path == '.') {
+			/* Ignore ".". */
+			if (path[1] == '\0' || path[1] == '/') {
+				path++;
+				continue;
+			}
+			if (path[1] == '.') {
+				if (path[2] == '\0' || path[2] == '/') {
+					path += 2;
+					/* Ignore ".." at root. */
+					if (new_path == resolved_path + 1)
+						continue;
+					/* Handle ".." by backing up. */
+					while ((--new_path)[-1] != '/')
+						;
+					continue;
+				}
+			}
+		}
+		/* Safely copy the next pathname component. */
+		while (*path != '\0' && *path != '/') {
+			if (path > max_path) {
+				errno = ENAMETOOLONG;
+				return NULL;
+			}
+			*new_path++ = *path++;
+		}
+#ifdef S_IFLNK
+		/* Protect against infinite loops. */
+		if (readlinks++ > MAX_READLINKS) {
+			errno = ELOOP;
+			return NULL;
+		}
+		/* See if latest pathname component is a symlink. */
+		*new_path = '\0';
+		n = readlink(resolved_path, link_path, PATH_MAX - 1);
+		if (n < 0) {
+			/* EINVAL means the file exists but isn't a symlink. */
+			if (errno != EINVAL)
+				return NULL;
+		}
+		else {
+			/* Note: readlink doesn't add the null byte. */
+			link_path[n] = '\0';
+			if (*link_path == '/')
+				/* Start over for an absolute symlink. */
+				new_path = resolved_path;
+			else
+				/* Otherwise back up over this component. */
+				while (*(--new_path) != '/')
+					;
+			/* Safe sex check. */
+			if (strlen(path) + n >= PATH_MAX) {
+				errno = ENAMETOOLONG;
+				return NULL;
+			}
+			/* Insert symlink contents into path. */
+			strcat(link_path, path);
+			strcpy(copy_path, link_path);
+			path = copy_path;
+		}
+#endif /* S_IFLNK */
+		*new_path++ = '/';
+	}
+	/* Delete trailing slash but don't whomp a lone slash. */
+	if (new_path != resolved_path + 1 && new_path[-1] == '/')
+		new_path--;
+	/* Make sure it's null terminated. */
+	*new_path = '\0';
+	return resolved_path;
 }

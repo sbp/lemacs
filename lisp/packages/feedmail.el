@@ -270,6 +270,7 @@ experts for any other interesting command line possibilities.")
 
 ;; feedmail-send-it is the only "public" function is this file.
 ;; All of the others are just little helpers.
+;;;###autoload
 (defun feedmail-send-it ()
   (let* ((default-case-fold-search t)
 		 (feedmail-error-buffer (get-buffer-create " *Outgoing Email Errors*"))

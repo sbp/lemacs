@@ -17,19 +17,23 @@
 
 ;; data that is always shared with virtual folders
 (defmacro vm-location-data-of (message) (list 'aref message 0))
-;; where message begins (From_ line)
+;; where message begins starting at the message separator in the folder
 (defmacro vm-start-of (message) (list 'aref (list 'aref message 0) 0))
+;; where headers start (From_ line)
+(defmacro vm-headers-of (message) (list 'aref (list 'aref message 0) 1))
 ;; where visible headers start
 (defun vm-vheaders-of (message)
-  (or (aref (aref message 0) 1)
-      (progn (vm-reorder-message-headers message)
-	     (aref (aref message 0) 1))))
+  (or (aref (aref message 0) 2)
+      (progn (vm-reorder-message-headers message nil nil)
+	     (aref (aref message 0) 2))))
 ;; where text section starts
 (defun vm-text-of (message)
-  (or (aref (aref message 0) 2) (progn (vm-find-and-set-text-of message)
-				       (aref (aref message 0) 2))))
+  (or (aref (aref message 0) 3) (progn (vm-find-and-set-text-of message)
+				       (aref (aref message 0) 3))))
+;; where text portion of message ends
+(defmacro vm-text-end-of (message) (list 'aref (list 'aref message 0) 4))
 ;; where message ends
-(defmacro vm-end-of (message) (list 'aref (list 'aref message 0) 3))
+(defmacro vm-end-of (message) (list 'aref (list 'aref message 0) 5))
 ;; soft data vector
 (defmacro vm-softdata-of (message) (list 'aref message 1))
 (defmacro vm-number-of (message) (list 'aref (list 'aref message 1) 0))
@@ -84,26 +88,36 @@
 (defmacro vm-to-names-of (message) (list 'aref (list 'aref message 3) 14))
 ;; numeric month sent
 (defmacro vm-month-number-of (message) (list 'aref (list 'aref message 3) 15))
+;; sortable date string (used for easy sorting, naturally)
+(defmacro vm-sortable-datestring-of (message) (list 'aref (list 'aref message 3) 16))
+;; sortable subject, re: garbage removed
+(defmacro vm-sortable-subject-of (message) (list 'aref (list 'aref message 3) 17))
 ;; extra data shared by virtual messages if vm-virtual-mirror is non-nil
 (defmacro vm-mirror-data-of (message) (list 'aref message 4))
 ;; if message is being edited, this is the buffer being used.
 (defmacro vm-edit-buffer-of (message) (list 'aref (list 'aref message 4) 0))
 ;; list of virtual messages referencing the above real message
 (defmacro vm-virtual-messages-of (message) (list 'aref (list 'aref message 4) 1))
-;; modificaiton flag for this message
-(defmacro vm-modflag-of (message) (list 'aref message 5))
+;; modification flag for this message
+;; nil if all attribute changes have been stuffed into the folder buffer
+(defmacro vm-modflag-of (message) (list 'aref (list 'aref message 4) 2))
 ;; link to real message
-(defmacro vm-real-message-of (message) (list 'symbol-value (list 'aref message 6)))
+(defmacro vm-real-message-of (message) (list 'symbol-value (list 'aref message 5)))
 ;; list to previous message in the message list
-(defmacro vm-reverse-link-of (message) (list 'symbol-value (list 'aref message 7)))
-;; message type; if nil, then default to folder type
-(defmacro vm-message-type-of (message) (list 'aref message 8))
+(defmacro vm-reverse-link-of (message) (list 'symbol-value (list 'aref message 6)))
+;; message type
+(defmacro vm-message-type-of (message) (list 'aref message 7))
+;; number that uniquely identifies each message
+;; this is for the set handling stuff
+(defmacro vm-message-id-number-of (message) (list 'aref message 8))
 
 (defmacro vm-set-location-data-of (message vdata) (list 'aset message 0 vdata))
 (defmacro vm-set-start-of (message start) (list 'aset (list 'aref message 0) 0 start))
-(defmacro vm-set-vheaders-of (message vh) (list 'aset (list 'aref message 0) 1 vh))
-(defmacro vm-set-text-of (message text) (list 'aset (list 'aref message 0) 2 text))
-(defmacro vm-set-end-of (message end) (list 'aset (list 'aref message 0) 3 end))
+(defmacro vm-set-headers-of (message h) (list 'aset (list 'aref message 0) 1 h))
+(defmacro vm-set-vheaders-of (message vh) (list 'aset (list 'aref message 0) 2 vh))
+(defmacro vm-set-text-of (message text) (list 'aset (list 'aref message 0) 3 text))
+(defmacro vm-set-text-end-of (message text) (list 'aset (list 'aref message 0) 4 text))
+(defmacro vm-set-end-of (message end) (list 'aset (list 'aref message 0) 5 end))
 (defmacro vm-set-softdata-of (message data) (list 'aset message 1 data))
 (defmacro vm-set-number-of (message n) (list 'aset (list 'aref message 1) 0 n))
 (defmacro vm-set-mark-of (message val) (list 'aset (list 'aref message 1) 1 val))
@@ -146,25 +160,28 @@
   (list 'aset (list 'aref message 3) 14 recips))
 (defmacro vm-set-month-number-of (message val)
   (list 'aset (list 'aref message 3) 15 val))
+(defmacro vm-set-sortable-datestring-of (message val)
+  (list 'aset (list 'aref message 3) 16 val))
+(defmacro vm-set-sortable-subject-of (message val)
+  (list 'aset (list 'aref message 3) 17 val))
 (defmacro vm-set-mirror-data-of (message data)
   (list 'aset message 4 data))
 (defmacro vm-set-edit-buffer-of (message buf)
   (list 'aset (list 'aref message 4) 0 buf))
 (defmacro vm-set-virtual-messages-of (message list)
   (list 'aset (list 'aref message 4) 1 list))
-(defmacro vm-set-modflag-of (message val) (list 'aset message 5 val))
-(defmacro vm-set-real-message-sym-of (message sym) (list 'aset message 6 sym))
-(defmacro vm-set-reverse-link-of (message link) (list 'set (list 'aref message 7) link))
-(defmacro vm-set-reverse-link-sym-of (message sym) (list 'aset message 7 sym))
-(defmacro vm-set-message-type-of (message type) (list 'aset message 8 type))
-
-(defun vm-text-end-of (message)
-  (- (vm-end-of message)
-     (cond ((eq vm-folder-type 'mmdf) 5)
-	   (t 1))))
+(defmacro vm-set-modflag-of (message val)
+  (list 'aset (list 'aref message 4) 2 val))
+(defmacro vm-set-real-message-sym-of (message sym) (list 'aset message 5 sym))
+(defmacro vm-set-reverse-link-of (message link) (list 'set (list 'aref message 6) link))
+(defmacro vm-set-reverse-link-sym-of (message sym) (list 'aset message 6 sym))
+(defmacro vm-set-message-type-of (message type) (list 'aset message 7 type))
+(defmacro vm-set-message-id-number-of (message number) (list 'aset message 8 number))
 
 (defun vm-make-message ()
   (let ((v (make-vector 9 nil)) sym)
+    (vm-set-message-id-number-of v vm-message-id-number)
+    (vm-increment vm-message-id-number)
     (vm-set-softdata-of v (make-vector vm-softdata-vector-length nil))
     (vm-set-location-data-of
      v (make-vector vm-location-data-vector-length nil))
@@ -184,10 +201,21 @@
 
 (defun vm-find-and-set-text-of (m)
   (save-excursion
+    (set-buffer (marker-buffer (vm-start-of m)))
     (save-restriction
       (widen)
-      (goto-char (vm-start-of m))
-      (forward-line 1)
+      (goto-char (vm-headers-of m))
       (search-forward "\n\n" (vm-text-end-of m) t)
       (vm-set-text-of m (point-marker)))))
 
+(defun vm-message-= (m1 m2)
+  (= (vm-message-id-number-of m1) (vm-message-id-number-of m2)))
+
+(defun vm-message-< (m1 m2)
+  (< (vm-message-id-number-of m1) (vm-message-id-number-of m2)))
+
+(defun vm-make-message-set ()
+  (sets-make-set 'vm-message-= 'vm-message-<))
+
+(defun vm-virtual-message-p (m)
+  (not (eq m (vm-real-message-of m))))

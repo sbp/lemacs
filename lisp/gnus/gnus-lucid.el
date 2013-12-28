@@ -159,6 +159,47 @@ Also removes the extra blank lines from the article."
 (add-hook 'gnus-article-prepare-hook 'gnus-hack-clarinews)
 
 
+;;; Fontify the Newsgroups and Summary buffers
+;;; Enable this either of these by turning on font-lock-mode:
+;;;
+;;;	(add-hook 'gnus-group-mode-hook   'turn-on-font-lock)
+;;;	(add-hook 'gnus-summary-mode-hook 'turn-on-font-lock)
+;;;
+;;; Fontifying the *Newsgroups* buffer makes `gnus-group-list-all-groups'
+;;; be awfully slow (about 50 seconds to display 2782 groups on a Sparc10.)
+;;; But it's fairly fast for day-to-day use if you only subscribe to a few
+;;; hundred newsgroups.
+;;;
+;;; Fontifying the *Summary* buffer is about the same speed (per line) as
+;;; the *Newsgroups* buffer, but since it's rare to ever select more than
+;;; a few hundred articles, it's not so bad. (For ~100 articles it only 
+;;; takes ~2 seconds.)
+;;;
+;;; Possibly this could be optimized by doing the same sort of trick that
+;;; we did with dired-indent-rigidly (that is, inhibit the after-change-
+;;; function until the whole buffer has been generated) but preliminary
+;;; tests suggest that what this would actually save is negligible.
+
+(defconst gnus-summary-font-lock-keywords
+  '(
+    ;; This is how you put the article number in another face
+    ;;("^..[^0-9*]*\\([0-9]+\\):"
+    ;; 1 message-highlighted-header-contents)
+    ;; This matches the part between [] after optional something-digits-colon
+    ("^[^[]+\\[\\([^A-Za-z\n]*[0-9]+:\\)?\\([^[\n]*\\)\\]"
+     2 message-headers)
+    ;; This matches the part after the first ]
+    ("^[^]\n]+\\]\\(.*\\)" 1 message-header-contents)
+    ))
+
+(defconst gnus-group-font-lock-keywords
+  '(
+    ;; This is how you put the number of  articles in another face
+    ;;("^..[^0-9*]*\\([0-9]+\\):" 1 message-headers)
+    ;; This matches the part after the first :
+    (": \\(.*\\)" 1 message-header-contents)
+    ))
+
 ;;; Highlight the line under the mouse in the Newsgroup and Summary buffers.
 
 (defun gnus-install-mouse-tracker ()

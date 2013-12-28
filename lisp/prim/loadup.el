@@ -4,7 +4,7 @@
 ;; instead.
 ;;
 ;; This is loaded into a bare Emacs to make a dumpable one.
-;; Copyright (C) 1985, 1986, 1992, 1993 Free Software Foundation, Inc.
+;; Copyright (C) 1985, 1986, 1992, 1993, 1994 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -23,21 +23,22 @@
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
 (if (fboundp 'error)
-    (error "loadup.el already loaded!"))
+    (error (gettext "loadup.el already loaded!")))
 
 (setq debug-on-error t)
 (setq debugger (function (lambda (&rest x)
                  (setq debugger nil debug-on-error nil)
-                 (princ "*** Error in Emacs initialisation" 
+                 (princ (gettext "*** Error in Emacs initialisation") 
                         'external-debugging-output)
                  (print x 'external-debugging-output)
-                 (princ "*** Backtrace\n" 'external-debugging-output)
+                 (princ (gettext "*** Backtrace\n") 'external-debugging-output)
                  (backtrace 'external-debugging-output t)
-                 (princ "*** Killing Emacs\n" 'external-debugging-output)
+                 (princ (gettext "*** Killing Emacs\n")
+			'external-debugging-output)
                  (kill-emacs -1))))
 
 ;; We don't want to have any undo records in the dumped Emacs.
-(buffer-disable-undo (get-buffer "*scratch*"))
+(buffer-disable-undo (get-buffer (gettext "*scratch*")))
 
 ;; lread.c has prepended "../lisp/prim" to load-path, which is how this file
 ;; has been found.  At this point, enough of emacs has been initialized that 
@@ -50,6 +51,8 @@
 (setq load-warn-when-source-newer t ; set to nil at the end
       load-warn-when-source-only t)
 
+(load "bytecomp-runtime")		; define defsubst
+(garbage-collect)
 (load "subr")
 (garbage-collect)
 (load "cmdloop")
@@ -61,8 +64,8 @@
 (load "minibuf")
 (load "faces")		; must be loaded before any file that makes faces
 (garbage-collect)
-(load "loaddefs.el")  ;Don't get confused if someone compiled loaddefs by mistake.
-(load "keydefs.el")
+(load "keydefs.el")	; Before loaddefs, so that the keymap vars exist.
+(load "loaddefs.el")	; don't get confused if loaddefs mistakenly compiled.
 (garbage-collect)
 (load "simple")
 (garbage-collect)
@@ -109,6 +112,9 @@
     (progn		; floating pt. functions if 
       (garbage-collect)	; we have float support.
       (load "float-sup")))
+
+(load "itimer")	; so that vars auto-save-timeout and auto-gc-threshold work
+(garbage-collect)
 
 (if (fboundp 'x-create-screen)	; preload the X code, for faster startup.
     (progn
@@ -157,7 +163,7 @@
 (if (or (equal (nth 3 command-line-args) "dump")
 	(equal (nth 4 command-line-args) "dump"))
     (progn
-      (message "Finding pointers to doc strings...")
+      (message (gettext "Finding pointers to doc strings..."))
       (if (fboundp 'dump-emacs)
 	  (let ((name emacs-version))
 	    (while (string-match "[^-+_.a-zA-Z0-9]+" name)
@@ -165,12 +171,14 @@
 			  (downcase (substring name 0 (match-beginning 0)))
 			  "-"
 			  (substring name (match-end 0)))))
+	    (if (string-match "-+\\'" name)
+		(setq name (substring name 0 (match-beginning 0))))
 	    (copy-file (expand-file-name "../etc/DOC")
 		       (concat (expand-file-name "../etc/DOC-") name)
 		       t)
 	    (Snarf-documentation (concat "DOC-" name)))
 	(Snarf-documentation "DOC"))
-      (message "Finding pointers to doc strings...done")
+      (message (gettext "Finding pointers to doc strings...done"))
       (Verify-documentation)
       ))
 
@@ -179,17 +187,22 @@
 ;See also "site-load" above.
 (load "site-init" t)
 
+(if (fboundp (intern-soft "create-tooltalk-message"))
+    (progn
+      (load "tooltalk/load-tooltalk")
+      (load "utils/annotations")
+      ))
 (garbage-collect)
 
 ;; At this point, we're ready to resume undo recording for scratch.
-(buffer-enable-undo "*scratch*")
+(buffer-enable-undo (gettext "*scratch*"))
 
 (if (and (eq system-type 'vax-vms)
          (or (equal (nth 3 command-line-args) "dump")
              (equal (nth 4 command-line-args) "dump")))
     (progn
       (setq command-line-args nil)
-      (message "Dumping data as file temacs.dump")
+      (message (gettext "Dumping data as file temacs.dump"))
       (dump-emacs "temacs.dump" "temacs")
       (kill-emacs)))
 
@@ -201,7 +214,9 @@
 	  (setq name (concat (downcase (substring name 0 (match-beginning 0)))
 			     "-"
 			     (substring name (match-end 0)))))
-	(message "Dumping under names xemacs and %s" name))
+	(if (string-match "-+\\'" name)
+	    (setq name (substring name 0 (match-beginning 0))))
+	(message (gettext "Dumping under names xemacs and %s") name))
       (condition-case ()
 	  (delete-file "xemacs")
 	(file-error nil))
@@ -214,16 +229,19 @@
 	  (setq name (concat (downcase (substring name 0 (match-beginning 0)))
 			     "-"
 			     (substring name (match-end 0)))))
+	(if (string-match "-+\\'" name)
+	    (setq name (substring name 0 (match-beginning 0))))
 	(add-name-to-file "xemacs" name t))
       (kill-emacs)))
 
 (if (or (equal (nth 3 command-line-args) "run-temacs")
 	(equal (nth 4 command-line-args) "run-temacs"))
     (progn
-      (princ "\nSnarfing doc...\n" #'external-debugging-output)
+      (princ (gettext "\nSnarfing doc...\n") #'external-debugging-output)
       (Snarf-documentation "DOC")
       (Verify-documentation)
-      (princ "\nBootstrapping from temacs...\n" #'external-debugging-output)
+      (princ (gettext "\nBootstrapping from temacs...\n")
+	     #'external-debugging-output)
       (setq purify-flag nil)
       (apply #'run-emacs-from-temacs
              (nthcdr (if (equal (nth 3 command-line-args) "run-temacs")

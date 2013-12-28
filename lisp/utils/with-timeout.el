@@ -22,7 +22,7 @@
   ;; but it doesn't hurt.
   (condition-case () (throw tag nil) (no-catch nil)))
 
-;##autoload
+;;;###autoload
 (defmacro with-timeout (seconds-and-timeout-forms &rest body)
   "Usage: (with-timeout (seconds &rest timeout-forms) &rest body)
 This is just like progn, but if the given number of seconds expires before
@@ -46,7 +46,7 @@ user for input, or calls accept-process-output."
 
 (put 'with-timeout 'lisp-indent-function 1)
 
-;##autoload
+;;;###autoload
 (defun yes-or-no-p-with-timeout (timeout prompt &optional default-value)
   "Just like yes-or-no-p, but will time out after TIMEOUT seconds
 if the user has not yes answered, returning DEFAULT-VALUE."
@@ -56,7 +56,7 @@ if the user has not yes answered, returning DEFAULT-VALUE."
 		 default-value)
     (yes-or-no-p prompt)))
 
-;##autoload
+;;;###autoload
 (defun y-or-n-p-with-timeout (timeout prompt &optional default-value)
   "Just like y-or-n-p, but will time out after TIMEOUT seconds
 if the user has not yes answered, returning DEFAULT-VALUE."

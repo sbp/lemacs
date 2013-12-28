@@ -92,7 +92,7 @@
 	(error "Bad data file.")))
   file)
 
-(defun bl-init (file &optional pc-logging)
+(defun btl-init (file &optional pc-logging)
   (setq file (file-to-btl-data-file file))
   (let ((log-type (if pc-logging "PC logging" "btl")))
     (message (format "Initializing %s..." log-type))
@@ -111,7 +111,7 @@
   (interactive "FFile in which to write data: ")
   (terminate-logging)
   (setq elisp-only-btl elisp-flag-val)
-  (bl-init file)
+  (btl-init file)
   (start-logging))
 
 (defun start-btl-elisp (file)
@@ -123,7 +123,7 @@
   (terminate-logging)
   (setq elisp-only-btl elisp-flag-val)
   (set-log-signal 0)
-  (bl-init file)
+  (btl-init file)
   (start-logging))
 
 (defun consing-btl-elisp (file)
@@ -137,7 +137,7 @@
 (defun start-pcl (file &optional elisp-flag-val)
   (interactive "FFile in which to write data: ")
   (setq elisp-only-btl elisp-flag-val)
-  (bl-init file t)
+  (btl-init file t)
   (start-logging))
 
 (defun start-pcl-elisp (file)
@@ -172,6 +172,7 @@
   (interactive)
   (terminate-logging)
   (switch-to-buffer (get-buffer-create "*BTL Log Info*"))
+  (goto-char (point-max))
   (buffer-disable-undo (current-buffer))
   (if *btl-data-file*
       (summarize-logging *btl-data-file*)))

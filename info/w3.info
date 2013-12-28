@@ -1,0 +1,1641 @@
+This is Info file ../info/w3.info, produced by Makeinfo-1.55 from the
+input file w3.texinfo.
+
+   This file documents the W3 World Wide Web browser.
+
+   Copyright (C) 1993, 1994 William M. Perry
+
+   Permission is granted to make and distribute verbatim copies of this
+manual provided the copyright notice and this permission notice are
+preserved on all copies.
+
+
+File: w3.info,  Node: Top,  Next: Introduction,  Up: (DIR)
+
+   This manual documents the W3 World Wide Web browser, a Lisp program
+which runs as a subsystem under Emacs.  The manual is divided into the
+following chapters.
+
+* Menu:
+
+* License::                     License
+* Introduction::                Overview of the W3 interface
+* Mosaic Compatibility::        Support for NCSA Mosaic features
+* Hyperbole Compatibility::     How to use W3 with Hyperbole
+* Internals of W3::             How to use W3 from your own programs
+* Customizing Formatting::      How to change document display
+* Printing::                    How to print WWW documents
+* Saving Files::                How to save WWW documents
+* Using W3 behind a firewall::  How to use W3 behind a firewall.
+* Hook Variables::              Different hooks to use in W3
+* Miscellaneous::               Other configuration variables
+* More Help::                   How to get more help - mailing lists,
+                                newsgroups, etc
+* HTML::                        Hypertext Markup Language Introduction
+* WWW::                         Introduction to the World Wide Web
+
+Indices:
+
+* Concept Index::               Concept Index
+* Key Index::                   Menus of command keys and their references
+* Command Index::               Menus of commands and their references
+* Variable Index::              Menus of variables and their references
+
+
+File: w3.info,  Node: License,  Next: Introduction,  Prev: Variable Index,  Up: Top
+
+License
+*******
+
+GNU GENERAL PUBLIC LICENSE
+**************************
+
+                       Version 1, February 1989
+
+     Copyright (C) 1989 Free Software Foundation, Inc.
+     675 Mass Ave, Cambridge, MA 02139, USA
+     
+     Everyone is permitted to copy and distribute verbatim copies
+     of this license document, but changing it is not allowed.
+
+Preamble
+========
+
+   The license agreements of most software companies try to keep users
+at the mercy of those companies.  By contrast, our General Public
+License is intended to guarantee your freedom to share and change free
+software--to make sure the software is free for all its users.  The
+General Public License applies to the Free Software Foundation's
+software and to any other program whose authors commit to using it.
+You can use it for your programs, too.
+
+   When we speak of free software, we are referring to freedom, not
+price.  Specifically, the General Public License is designed to make
+sure that you have the freedom to give away or sell copies of free
+software, that you receive source code or can get it if you want it,
+that you can change the software or use pieces of it in new free
+programs; and that you know you can do these things.
+
+   To protect your rights, we need to make restrictions that forbid
+anyone to deny you these rights or to ask you to surrender the rights.
+These restrictions translate to certain responsibilities for you if you
+distribute copies of the software, or if you modify it.
+
+   For example, if you distribute copies of a such a program, whether
+gratis or for a fee, you must give the recipients all the rights that
+you have.  You must make sure that they, too, receive or can get the
+source code.  And you must tell them their rights.
+
+   We protect your rights with two steps: (1) copyright the software,
+and (2) offer you this license which gives you legal permission to copy,
+distribute and/or modify the software.
+
+   Also, for each author's protection and ours, we want to make certain
+that everyone understands that there is no warranty for this free
+software.  If the software is modified by someone else and passed on, we
+want its recipients to know that what they have is not the original, so
+that any problems introduced by others will not reflect on the original
+authors' reputations.
+
+   The precise terms and conditions for copying, distribution and
+modification follow.
+
+                         TERMS AND CONDITIONS
+
+  1. This License Agreement applies to any program or other work which
+     contains a notice placed by the copyright holder saying it may be
+     distributed under the terms of this General Public License.  The
+     "Program", below, refers to any such program or work, and a "work
+     based on the Program" means either the Program or any work
+     containing the Program or a portion of it, either verbatim or with
+     modifications.  Each licensee is addressed as "you".
+
+  2. You may copy and distribute verbatim copies of the Program's source
+     code as you receive it, in any medium, provided that you
+     conspicuously and appropriately publish on each copy an
+     appropriate copyright notice and disclaimer of warranty; keep
+     intact all the notices that refer to this General Public License
+     and to the absence of any warranty; and give any other recipients
+     of the Program a copy of this General Public License along with
+     the Program.  You may charge a fee for the physical act of
+     transferring a copy.
+
+  3. You may modify your copy or copies of the Program or any portion of
+     it, and copy and distribute such modifications under the terms of
+     Paragraph 1 above, provided that you also do the following:
+
+        * cause the modified files to carry prominent notices stating
+          that you changed the files and the date of any change; and
+
+        * cause the whole of any work that you distribute or publish,
+          that in whole or in part contains the Program or any part
+          thereof, either with or without modifications, to be licensed
+          at no charge to all third parties under the terms of this
+          General Public License (except that you may choose to grant
+          warranty protection to some or all third parties, at your
+          option).
+
+        * If the modified program normally reads commands interactively
+          when run, you must cause it, when started running for such
+          interactive use in the simplest and most usual way, to print
+          or display an announcement including an appropriate copyright
+          notice and a notice that there is no warranty (or else,
+          saying that you provide a warranty) and that users may
+          redistribute the program under these conditions, and telling
+          the user how to view a copy of this General Public License.
+
+        * You may charge a fee for the physical act of transferring a
+          copy, and you may at your option offer warranty protection in
+          exchange for a fee.
+
+     Mere aggregation of another independent work with the Program (or
+     its derivative) on a volume of a storage or distribution medium
+     does not bring the other work under the scope of these terms.
+
+  4. You may copy and distribute the Program (or a portion or
+     derivative of it, under Paragraph 2) in object code or executable
+     form under the terms of Paragraphs 1 and 2 above provided that you
+     also do one of the following:
+
+        * accompany it with the complete corresponding machine-readable
+          source code, which must be distributed under the terms of
+          Paragraphs 1 and 2 above; or,
+
+        * accompany it with a written offer, valid for at least three
+          years, to give any third party free (except for a nominal
+          charge for the cost of distribution) a complete
+          machine-readable copy of the corresponding source code, to be
+          distributed under the terms of Paragraphs 1 and 2 above; or,
+
+        * accompany it with the information you received as to where the
+          corresponding source code may be obtained.  (This alternative
+          is allowed only for noncommercial distribution and only if you
+          received the program in object code or executable form alone.)
+
+     Source code for a work means the preferred form of the work for
+     making modifications to it.  For an executable file, complete
+     source code means all the source code for all modules it contains;
+     but, as a special exception, it need not include source code for
+     modules which are standard libraries that accompany the operating
+     system on which the executable file runs, or for standard header
+     files or definitions files that accompany that operating system.
+
+  5. You may not copy, modify, sublicense, distribute or transfer the
+     Program except as expressly provided under this General Public
+     License.  Any attempt otherwise to copy, modify, sublicense,
+     distribute or transfer the Program is void, and will automatically
+     terminate your rights to use the Program under this License.
+     However, parties who have received copies, or rights to use
+     copies, from you under this General Public License will not have
+     their licenses terminated so long as such parties remain in full
+     compliance.
+
+  6. By copying, distributing or modifying the Program (or any work
+     based on the Program) you indicate your acceptance of this license
+     to do so, and all its terms and conditions.
+
+  7. Each time you redistribute the Program (or any work based on the
+     Program), the recipient automatically receives a license from the
+     original licensor to copy, distribute or modify the Program
+     subject to these terms and conditions.  You may not impose any
+     further restrictions on the recipients' exercise of the rights
+     granted herein.
+
+  8. The Free Software Foundation may publish revised and/or new
+     versions of the General Public License from time to time.  Such
+     new versions will be similar in spirit to the present version, but
+     may differ in detail to address new problems or concerns.
+
+     Each version is given a distinguishing version number.  If the
+     Program specifies a version number of the license which applies to
+     it and "any later version", you have the option of following the
+     terms and conditions either of that version or of any later
+     version published by the Free Software Foundation.  If the Program
+     does not specify a version number of the license, you may choose
+     any version ever published by the Free Software Foundation.
+
+  9. If you wish to incorporate parts of the Program into other free
+     programs whose distribution conditions are different, write to the
+     author to ask for permission.  For software which is copyrighted
+     by the Free Software Foundation, write to the Free Software
+     Foundation; we sometimes make exceptions for this.  Our decision
+     will be guided by the two goals of preserving the free status of
+     all derivatives of our free software and of promoting the sharing
+     and reuse of software generally.
+
+                                NO WARRANTY
+
+ 10. BECAUSE THE PROGRAM IS LICENSED FREE OF CHARGE, THERE IS NO
+     WARRANTY FOR THE PROGRAM, TO THE EXTENT PERMITTED BY APPLICABLE
+     LAW.  EXCEPT WHEN OTHERWISE STATED IN WRITING THE COPYRIGHT
+     HOLDERS AND/OR OTHER PARTIES PROVIDE THE PROGRAM "AS IS" WITHOUT
+     WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING, BUT
+     NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+     FITNESS FOR A PARTICULAR PURPOSE.  THE ENTIRE RISK AS TO THE
+     QUALITY AND PERFORMANCE OF THE PROGRAM IS WITH YOU.  SHOULD THE
+     PROGRAM PROVE DEFECTIVE, YOU ASSUME THE COST OF ALL NECESSARY
+     SERVICING, REPAIR OR CORRECTION.
+
+ 11. IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN
+     WRITING WILL ANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MAY
+     MODIFY AND/OR REDISTRIBUTE THE PROGRAM AS PERMITTED ABOVE, BE
+     LIABLE TO YOU FOR DAMAGES, INCLUDING ANY GENERAL, SPECIAL,
+     INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE USE OR
+     INABILITY TO USE THE PROGRAM (INCLUDING BUT NOT LIMITED TO LOSS OF
+     DATA OR DATA BEING RENDERED INACCURATE OR LOSSES SUSTAINED BY YOU
+     OR THIRD PARTIES OR A FAILURE OF THE PROGRAM TO OPERATE WITH ANY
+     OTHER PROGRAMS), EVEN IF SUCH HOLDER OR OTHER PARTY HAS BEEN
+     ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+
+                      END OF TERMS AND CONDITIONS
+
+Appendix: How to Apply These Terms to Your New Programs
+=======================================================
+
+   If you develop a new program, and you want it to be of the greatest
+possible use to humanity, the best way to achieve this is to make it
+free software which everyone can redistribute and change under these
+terms.
+
+   To do so, attach the following notices to the program.  It is safest
+to attach them to the start of each source file to most effectively
+convey the exclusion of warranty; and each file should have at least the
+"copyright" line and a pointer to where the full notice is found.
+
+     ONE LINE TO GIVE THE PROGRAM'S NAME AND A BRIEF IDEA OF WHAT IT DOES.
+     Copyright (C) 19YY  NAME OF AUTHOR
+     
+     This program is free software; you can redistribute it and/or modify
+     it under the terms of the GNU General Public License as published by
+     the Free Software Foundation; either version 1, or (at your option)
+     any later version.
+     
+     This program is distributed in the hope that it will be useful,
+     but WITHOUT ANY WARRANTY; without even the implied warranty of
+     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+     GNU General Public License for more details.
+     
+     You should have received a copy of the GNU General Public License
+     along with this program; if not, write to the Free Software
+     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+   Also add information on how to contact you by electronic and paper
+mail.
+
+   If the program is interactive, make it output a short notice like
+this when it starts in an interactive mode:
+
+     Gnomovision version 69, Copyright (C) 19YY NAME OF AUTHOR
+     Gnomovision comes with ABSOLUTELY NO WARRANTY; for details type `show w'.
+     This is free software, and you are welcome to redistribute it
+     under certain conditions; type `show c' for details.
+
+   The hypothetical commands `show w' and `show c' should show the
+appropriate parts of the General Public License.  Of course, the
+commands you use may be called something other than `show w' and `show
+c'; they could even be mouse-clicks or menu items--whatever suits your
+program.
+
+   You should also get your employer (if you work as a programmer) or
+your school, if any, to sign a "copyright disclaimer" for the program,
+if necessary.  Here a sample; alter the names:
+
+     Yoyodyne, Inc., hereby disclaims all copyright interest in the
+     program `Gnomovision' (a program to direct compilers to make passes
+     at assemblers) written by James Hacker.
+     
+     SIGNATURE OF TY COON, 1 April 1989
+     Ty Coon, President of Vice
+
+   That's all there is to it!
+
+
+File: w3.info,  Node: Introduction,  Next: Setting Up,  Prev: License,  Up: Top
+
+   W3 is an Emacs subsystem that allows the user to browse the wonderful
+World Wide Web.  The World Wide Web was started at the CERN physics
+institute in Switzerland in 1991.  The project was initially started by
+Tim Berners-Lee (timbl@info.cern.ch) for distributing data between
+different research groups effectively.
+
+   The Web has since grown into the most advanced information system
+currently on the internet.  It is now a global hypertext system with
+servers and browsers (programs written to interpret the hypertext
+language and display it correctly, and allow the user to follow links)
+exist for all major platforms (VMS, Windows, DOS, Unix, VM, NeXTstep,
+and Macintosh).
+
+   The basic concepts used in the Web are hypertext, which is text
+which is not constrained to be linear, and hypermedia, which is
+information that is not constrained to be text.  With hypertext,
+documents can contain links to other documents, or another reference
+within the same document.  With hypermedia, documents can contain links
+to objects that are not necessarily text - sounds, movies, and
+interactive sessions are all possible.
+
+   WWW also allows searches of indices that are located anywhere on the
+network; in this respect, it mirrors certain capabilities found in both
+WAIS and Gopher.
+
+   Here are a few references to other documents.
+
+   * <A HREF="http://info.cern.ch/">CERN's Web site, birthplace of
+     WWW.</A>
+
+   * <A
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+     HREF="http://www.ncsa.uiuc.edu/SDG/Software/Mosaic/StartingPoints/NetworkStartingPoints.html">NCSA's
+     Network Starting Points Page.</A>
+
+   * <A
+
+
+
+
+
+
+
+
+
+
+
+
+     HREF="http://www.ncsa.uiuc.edu/SDG/Software/Mosaic/Docs/whats-new.html">NCSA's
+     What's New Page</A>
+
+   * <A HREF="/usr/local/www/home-page.html">Indiana University Home
+     Page</A>
+
+   * <A HREF="forms.html">Demo of the forms support.</A>
+
+   * <A HREF="file://cs.indiana.edu/pub/elisp/w3">Latest version of
+     W3</A>
+
+* Menu:
+
+* Setting Up::                  Getting and installing W3
+* Starting Up::                 How to get into the Web
+* Basic Movement::              Basics of navigating the Web with W3
+
+
+File: w3.info,  Node: Setting Up,  Next: Starting Up,  Prev: Introduction,  Up: Introduction
+
+   If you are using Lucid Emacs 19.9, you should be able to safely skip
+to the section on starting W3.  W3 comes standard with all versions of
+Lucid Emacs from 19.9 onwards.
+
+   First off, you will need the file w3.tar.gz, which is available from
+cs.indiana.edu:/pub/elisp/w3 via anonymous ftp.  If you do not have
+ange-ftp, html-mode, or the nntp package by Masanobu Umeda, then you
+will also need the extras.tar.gz.
+
+   After you have retrieved the files unpack them with the following
+commands: `zcat w3.tar.gz | tar xvvf -' and `zcat extras.tar.gz | tar
+xvvf -'.  This will unpack distribution into two subdirectories `w3'
+and `extras'.  To compile and install all the packages in the extras
+directory, please see the comments at the top of each lisp file.
+
+   To install W3, go into the `w3' subdirectory and edit the
+`Makefile'.  You need to change three variables:
+
+EMACS
+     This variable controls what version of emacs is used to compile the
+     programs.  It should be the full path to the emacs executable on
+     your system.  Te default is to use Lucid Emacs (`lemacs').
+
+LISPDIR
+     This variable controls where the lisp code will be copied to when
+     it is installed (with `make install').  This will usually be your
+     personal lisp code directory (I prefer `~/lisp').  The value will
+     be run through "expand-file-name" and then added to your load-path.
+
+DOTEMACS
+     This variable points to your emacs customization file, usually
+     `~/.emacs'.  If you keep yours in a different place, you must
+     change this variable.  Otherwise `make emacs' will not work.
+
+   Once you have modified the `Makefile', you should be able to build
+several different targets.
+
+`make w3'
+     This will compile all the .el files into the much faster .elc
+     files.  If you are using Jamie Zawinski's optimizing byte compiler
+     (standard in Emacs 19 and Lucid Emacs), then you may see a few
+     compilation warnings (not many hopefully).  These can be safely
+     ignored as long as everything finishes compiling.  This is the
+     default target for `make' with no arguments.
+
+`make install'
+     This will compile all the .el files and then copy .el and .elc
+     files into the directory specified by LISPDIR.
+
+`make emacs'
+     This will modify the file specified by DOTEMACS.  A statement
+     modifying the load-path variable and size autoload statements will
+     be added to the end of the file.
+
+`make all'
+     This will compile and install the .el files, and also
+     modify/create the DOTEMACS file.
+
+   Once you have done a `make intall' and a `make emacs' you should be
+ready to start up W3.  *Note Starting Up::.
+
+
+File: w3.info,  Node: Starting Up,  Next: Basic Movement,  Prev: Setting Up,  Up: Introduction
+
+   There are several ways to start W3: `M-x w3', `M-x w3-open-local',
+`M-x w3-fetch', `M-x w3-use-hotlist', `M-x w3-follow-url-at-point' and
+`M-x w3-preview-this-buffer'.
+
+`M-x w3'
+     Causes W3 to try and retrieve the file specified by
+     W3-DEFAULT-HOMEPAGE.  W3-DEFAULT-HOMEPAGE defaults to the
+     beginning of a hypertext documentation tree for W3 here at IU.
+     This variable can be any valid "URL".
+
+`M-x w3-open-local'
+     Will prompt for a filename on the local system.  W3 will open this
+     file and attempt to parse it as an HTML document.  Filename
+     completion is used.
+
+`M-x w3-fetch'
+     Will prompt for a valid URL.  W3 will attempt to parse this url and
+     retrieve the document specified.
+
+`M-x w3-use-hotlist'
+     Will do a completing-read on w3-hotlist.  If a valid hotlist entry
+     is chosen, that URL is retrieved and parsed.
+
+`M-x w3-follow-url-at-point'
+     Will attempt to find a url under the cursor and follow it.
+     Essentially a w3-fetch on a buffer-substring.
+
+`M-x w3-preview-this-buffer'
+     Will try to parse out the current buffers contents as an HTML
+     document and display them.
+
+
+File: w3.info,  Node: Basic Movement,  Next: Mosaic Compatibility,  Prev: Starting Up,  Up: Introduction
+
+   Once you have started W3, there are a few basic keystrokes that
+should get you started.  First, some terminology used within this
+documentation.
+
+                          -------------------
+
+                         Basic W3 Terminology
+
+                          -------------------
+
+"link"
+     Is a hypertext link, either within this document, to another
+     document, or a forms-based entry area.
+
+"hotlist"
+     A hotlist is a list of items that you have marked for future quick
+     reference. *Note Hotlist Handling::.
+
+                          -------------------
+
+            Movement, within the buffer, to other documents
+
+                          -------------------
+
+`SPC'
+     Scroll downward in the buffer.  With prefix arg, scroll down that
+     many screenfuls.
+
+`DEL'
+     Scroll upward in the buffer.  With prefix arg, scroll up that many
+     screenfuls.
+
+`<, M-x w3-start-of-document'
+     Go to start of document
+
+`>, M-x w3-end-of-document'
+     Go to end of document
+
+`b, M-x w3-back-link'
+     Will attempt to move backward one link area in the current
+     document.  Signals an error if no previous links are found.
+
+`m, M-x w3-complete-link'
+     Choose a link from the current buffer and follow it.  A
+     completing-read is done on all the links, so `space' and `TAB' can
+     be used for completion.
+
+`f, M-x w3-forward-link'
+     Will attempt to move forward one link area in the current document.
+     Signals an error if no more links are found.
+
+`l, M-x w3-goto-last-buffer'
+     Go to last WWW buffer visited
+
+`RET'
+     Pressing return will attempt to follow the link under the cursor.
+
+`H, M-x w3-use-hotlist'
+     Possibly go to a link in the hotlist.  A new buffer will be
+     created for the new document.  If the variable W3-KEEP-OLD-BUFFERS
+     is non-`nil', the current buffer will be kept.  If `nil', then the
+     current buffer will be killed.
+
+`U, M-x w3-use-links'
+     Select one of the <LINK> tags from this document and fetch it.
+     Links are attributes of a specific document, and can tell such
+     things as who made the document, where a table of contents is
+     located, etc.
+
+`r, M-x w3-reload-document'
+     This will reload the current document - the current buffer is
+     killed, and the URL it was visiting is fetched and redisplayed.
+     Your position within the buffer will remain the same (unless the
+     document has changed since you last retrieved it, in which case it
+     should be relatively close).
+
+`o, M-x w3-open-local'
+     Find a local file, interactively.  This will prompt you for a
+     local file name to open.  The file must exist, and may be a
+     directory.  If the requested file is a directory and
+     W3-DIRECTORY-FORMAT is `'dired', then a dired-mode buffer is
+     displayed.  If `'hypertext', then W3 automatically generates a
+     hypertext listing of the directory.  `'hypertext' is the default,
+     so that all the keys and functions remain the same.
+
+`s, M-x w3-search'
+     Perform a search, if this is a searchable index.  This will send a
+     string of the type `'URL?search-terms'' to the server this document
+     was retrieved from.  Searching requires a server, W3 can not do
+     local file searching, as there are too many possible types of
+     searches people could want to do.
+
+`C-c C-b, M-x w3-show-history-list'
+     If W3-KEEP-HISTORY is non-`nil', then W3 will keep track of all
+     the URLs you visit in an emacs session.  This function will take
+     all the links that are in that internal list, and format them as
+     hypertext links in a list.
+
+`u, q, M-x w3-quit'
+     Quit WWW mode.  This kills the current buffer and goes to the most
+     recently visited buffer.
+
+`button2, M-x w3-follow-mouse'
+     This function expects to be bound to a mouse button.  It will move
+     to the point under mouse and try to fetch the link that was
+     clicked on.  If no link is found, a message is displayed in the
+     minibuffer.
+
+`C-o, M-x w3-fetch'
+     This function prompts for a URL in the minibuffer, and attempts to
+     fetch it.  If there are any errors, or W3 cannot understand the
+     type of link you requested, the errors are displayed in a
+     hypertext buffer.
+
+                          -------------------
+
+                              Information
+
+                          -------------------
+
+`v, M-x w3-view-url'
+     View the current document's URL in the minibuffer.
+
+`V, M-x w3-view-this-url'
+     This will display the URL of the link under point in the
+     minibuffer.  If no link is found, an error message is displayed in
+     the minibuffer.
+
+`C-k, M-x w3-save-url'
+     Save current url in the kill ring, and copy it to the Xwindows
+     clipboard if necessary.  With prefix-arg, this function operates
+     on the URL under point instead.
+
+`M-TAB, M-x w3-insert-this-url'
+     Insert the current url in another buffer, with prefix ARG, insert
+     URL under point.  Prompts for a buffer to insert into.  Point and
+     current-buffer are not affected.
+
+`C-q, M-x w3-write-global-history'
+     Write the global history file into W3-GLOBAL-HISTORY-FILE.  This
+     will only work if W3-KEEP-HISTORY is non-`nil' so that W3 has been
+     keeping track of the URLs that have been visited.
+
+`C-c C-v, M-x w3-version'
+     Show the version number of W3 in the minibuffer.
+
+                          -------------------
+
+                          Miscellaneous Keys
+
+                          -------------------
+
+`M, M-x w3-mail-current-document'
+     Mail the current-document to someone.  You can mail several
+     different formats, including LaTeX, HTML source, or formatted text.
+
+`P, M-x w3-print-this-url'
+     Print out the current document.  You can print out several
+     different formats, including Postscript (via conversion to LaTeX),
+     HTML source, or formatted text.  *Note Printing::.
+
+`h, M-x w3-help'
+     Display documentation on W3 mode - this is a hypertext document
+     generated automatically by W3 from a list of functions and
+     variables.
+
+`w, M-x w3-submit-bug'
+     Function to submit a bug to the programs maintainer.  Will include
+     the version of W3 and emacs that you are using automatically.
+
+`button3, M-x w3-popup-menu'
+     Pop up a menu of common W3 commands.  Expects to be bound to a
+     mouse key.
+
+`M-s, M-x w3-document-source'
+     View this documents source.
+
+
+File: w3.info,  Node: Mosaic Compatibility,  Next: Hyperbole Compatibility,  Prev: Basic Movement,  Up: Top
+
+   Since NCSA Mosaic is the de-facto hypertext browser at most sites,
+W3 is compatible with it in several ways.
+
+* Menu:
+
+* Hotlist Handling::            Hotlist Handling
+* History::                     History
+* Annotations::                 Annotations
+
+
+File: w3.info,  Node: Hotlist Handling,  Next: History,  Prev: Mosaic Compatibility,  Up: Mosaic Compatibility
+
+   Compatibility
+
+   In order to avoid having to traverse many documents to get to the
+same document over and over, W3 supports a "hotlist" like Mosaic.  This
+is a file that contains URLS and aliases.  You can quickly go to any
+document in the Web, providing you've been there before and added it to
+your hotlist.  The variable W3-HOTLIST-FILE determines where this
+information is saved.  The structure of the file is compatible with
+Mosaic's hotlist file, so this defaults to ~/.mosaic-hotlist-default.
+
+   Hotlist commands are:
+
+   * To add a document to your hotlist, just hit `a' or `M-x
+     w3-add-document-to-hotlist' in any W3 buffer.  This will add the
+     current document to your hotlist, with the buffer name as its
+     identifier.  This function will modify the file specified by
+     W3-HOTLIST-FILE.
+
+   * To kill a hotlist entry, hit `d' in a W3 buffer, or `M-x
+     w3-remove-from-hotlist' in any buffer.  You will be prompted for
+     the alias of the entry to kill.  You may press the spacebar or tab
+     key for partial completions.  Once you select the item to delete,
+     the internal representation of the hotlist is updated, and the
+     file specified by W3-HOTLIST-FILE.
+
+   * To jump to a hotlist entry, type `H' in any W3 buffer, or `M-x
+     w3-use-hotlist' from anywhere will prompt you for the alias to
+     jump to.  You may press the spacebar or tab key for partial
+     completions.
+
+   * To see a list of all your hotlist entries in a W3 buffer, type
+     `M-x w3-show-hotlist' from any buffer.  This will convert your
+     hotlist into an ordered list and parse it as HTML.
+
+   * Some hotlist item names can be very unwieldy (`Mosaic for X level
+     2 fill out form support'), or uninformative (`Index of /').  If
+     you are not satisfied with how a specific item is labeled, you may
+     change it by typing `M-x w3-rename-hotlist-entry'.  You will be
+     prompted for the item to rename in the minibuffer - you may use
+     the spacebar or tab key for completion.  After you have chosen an
+     item to rename, you will be prompted for a new title until you
+     enter one that does not already exists in the hotlist.  This
+     function modifies the  file specified by W3-HOTLIST-FILE.
+
+
+File: w3.info,  Node: History,  Next: Annotations,  Prev: Hotlist Handling,  Up: Mosaic Compatibility
+
+   Mosaic supports the idea of a "history" of URLs you have visited, and
+it displays them in a different style than normal URLs so you will not
+visit someplace again on accident.
+
+   If you set the variable W3-KEEP-HISTORY to `t', then W3 will keeep a
+list of all the URLS you visit in a session.  To write the file out,
+you will have to hit `C-q' in a W3 buffer, or `M-x
+w3-write-global-history' then the list will be added to those already in
+the file specified by W3-GLOBAL-HISTORY-FILE, which defaults to
+~/.mosaic-global-history.  If any URL in the list is found in the file,
+it is not saved, but new ones are added at the end of the file.
+
+   To see a listing of your history for this session of W3, you can type
+M-X W3-SHOW-HISTORY from any buffer, and W3 will generate an HTML
+document showing every URL you have visited since you started emacs (or
+cleared the history list), and then format it.  Any of the links can be
+chosen and followed to the original document.  To clear the history
+list, you can choose 'Clear History' from the 'Options' menu.
+
+   Another twist on the history list mechanism is the fact that all W3
+buffers remember what URL, buffer, and buffer position you were at
+before jumping to this document, and also keeps track of where you jump
+to from that buffer.  This means that you can go forwards and backwards
+very easily along the path you took to reach a particular document.  To
+go forward, use the function `w3-forward-in-history', to go backward,
+use the function `w3-backward-in-history'.  These are fairly stable
+functions, but may not work as expected all the time.  First, the
+buffer-list is used to look at the URL of every buffer, and if it
+matches the item in the history list you are looking for, then it is
+brought forward.  If no buffer containing the desired URL is found,
+then the URL is fetched.  Then the desired position in the buffer is
+searched for.
+
+
+File: w3.info,  Node: Annotations,  Next: Group Annotations,  Prev: History,  Up: Mosaic Compatibility
+
+   Mosaic allows you to annotate documents.  You can type in comments
+about the current document, and these annotations will appear as a link
+to your comments at the end of the document when you browse it in
+Mosaic.  The original file is not changed.
+
+   There are two types of annotations supported in Mosaic, and both are
+supported by W3 as well.
+
+* Menu:
+
+Group Annotations::             Annotations accessible by everyone
+Personal Annotations::          Private annotations only you see
+
+
+File: w3.info,  Node: Group Annotations,  Next: Personal Annotations,  Prev: Annotations,  Up: Annotations
+
+   NOTE: The group annotation experiment has been terminated.  NCSA is
+running the annotation server temporarily, but it will not be around
+much longer.  It will be replaced with support on the server side for
+adding <LINK> tags to documents.
+
+   An experimental annotation server is running at NCSA.  This server
+allows people to annotate any document on the Web, and have anyone else
+see it.  To activate this feature in Mosaic, set the resource
+Mosaic*annotationServer to hoohoo.ncsa.uiuc.edu:8001.
+
+   In W3, if the variable W3-GROUP-ANNOTATION-SERVER is defined, then
+it will try to contact the server and retrieve any annotations for the
+current document.  This variable should be a string containing the name
+of the annotation server (defaults to "hoohoo.ncsa.uiuc.edu").  To turn
+off group annotation support, set this variable to `nil'.  If you have
+a slow connection to NCSA, I'd recommend doing this.  The variable
+W3-GROUP-ANNOTATION-PORT defaults to 8001, and should be an integer
+representing the port number the server is running on.
+
+   The group annotations (if any) will appear as normal links at the
+bottom of your document.  They can be selected just like any other link.
+
+   Both Mosaic and W3 support multiple levels of annotation
+(Annotations on annotations ad infitim).
+
+   To create a new annotation, type `M-x w3-add-group-annotation'.
+This will put you in a new buffer, in HTML-mode.  If you are not
+familiar with HTML-mode, hit `C-h m' for instructions, and see the file
+html-mode.el that came with W3.  At the top of this buffer is an HTML
+tag (</PRE>).  If you don't want to use any HTML commands, you can
+delete this and just type in your message and it should be formatted
+just as you type it.  If you leave this in, you can use any HTML
+formatting command (italics, headings, bold, etc) except adding a title.
+When you are finished editing your annotation, type `C-c C-c'.  W3 will
+then prompt you for a title for your annotation, defaulting to
+"Annotation by <user information>".  Hit return after typing in your
+title.  If any errors are received, they will be reported in a separate
+buffer.
+
+   To delete an annotation, you must be reading it.  Then type `M-x
+w3-delete-group-annotation'.  If any errors are received, they will be
+displayed in a separate buffer.
+
+   I do not currently support editing group annotations.
+
+
+File: w3.info,  Node: Personal Annotations,  Next: Hyperbole Compatibility,  Prev: Group Annotations,  Up: Annotations
+
+   If you do not want to share your musings about a particular document
+with the entire network, you can add a personal annotation that only you
+can see.  Personal annotations are stored in a subdirectory in the users
+account on the local disk, with a log file that contains information
+about what URLs have been annotated and which files contain the
+annotations.
+
+   W3 will look in the directory specified by
+W3-PERSONAL-ANNOTATION-DIRECTORY (defaults to
+~/.mosaic-personal-annotations).  Any personal annotations for a
+document will be automatically appended when it is retrieved.
+
+   To add a new personal annotation, type `M-x
+w3-add-personal-annotation'.  This will put you in a new buffer, in
+HTML-mode.  If you are not familiar with HTML-mode, hit C-h m for
+instructions, and see the file html-mode.el that came with W3.  At the
+top of this buffer is an HTML tag </PRE>.  If you don't want to use any
+HTML commands, you can delete this and just type in your message and it
+should be formatted just as you type it.  If you leave this in, you can
+use any HTML formatting command (italics, headings, bold, etc) except
+adding a title.  When you are finished editing your annotation, hit C-c
+C-c.  It will then prompt you for a title for your annotation,
+defaulting to Annotation by <user information> on <date>.
+
+   To delete a personal annotation, you must be reading it.  Once
+reading the annotation, type `M-x w3-delete-personal-annotation'.  It
+will delete the file containing the annotation, and any references to
+it in your log file.
+
+   I do not currently support editing personal annotations.
+
+
+File: w3.info,  Node: Hyperbole Compatibility,  Next: Internals of W3,  Prev: Personal Annotations,  Up: Top
+
+   Since hyperbole is such a general package, I have included a file
+written by Jin S. Choi (jsc@monolith.mit.edu) to add W3 support to
+hyperbole.  There are 2 small changes you have to make to the hyperbole
+source, but they are extremely minor (they keep hyperbole from thinking
+URLs are ftp links).  See the file w3-hyperbole.el for more information.
+
+   I am considering merging W3 with hyperbole more completely, but am
+not sure if this is a good idea.  If you have any strong feelings on the
+subject, send mail to me at wmperry@indiana.edu.  Any comments welcome.
+
+
+File: w3.info,  Node: Internals of W3,  Next: Customizing Formatting,  Prev: Hyperbole Compatibility,  Up: Top
+
+   I have done quite a bit of work trying to make a semi-clean
+interface to the internals of W3.  Here is a list of functions that you
+can use to take advantage of the World Wide Web.
+
+`w3-clear-tmp-buffer'
+     This will set the current buffer to be W3-WORKING-BUFFER, creating
+     it if necessary, and erase it.  This should usually be called
+     before retrieving URLs.
+
+`w3-convert-ask-to-form'
+     This functions takes a string that is a Gopher+ ASK block, and will
+     return a string that is a comparable HTML+ form.
+
+`w3-convert-html-to-latex'
+     This will take a buffer of HTML markup (which should be in
+     W3-WORKING-BUFFER), and convert it into LaTeX.  This is an
+     adaptation of the simple sed scripts from Cern.  Does as good a
+     job as the html2latex program, and I usually prefer its formatting
+     over html2latex's.
+
+`w3-extension-to-mime'
+     This functions takes a file extension and returns the corresponding
+     MIME-type, as defined in W3-MIME-EXTENSIONS.  For example,
+     `(w3-extension-to-mime ".gif")' would return `"image/gif"'.
+
+`w3-fetch'
+     This function takes a URL, a method, and a block of data as its
+     arguments.  It then attempts to retrieve the URL using the
+     specified method, using data (if any) as the body of the MIME
+     request.  For example: `(w3-fetch "http://cs.indiana.edu/" "GET"
+     nil)' would retrieve the Indiana University CS home page and parse
+     it as HTML.
+
+`w3-fix-entities-in-string'
+     This function takes a string, and removes all HTML[+] entity
+     references from it, replacing them with the correct character(s).
+     It consults the variable W3-HTML-ENTITIES for the entity names and
+     translations.  For example, `(w3-fix-entities-in-string
+     "&gt;testing&lt;&amp;")' would return `">testing<&"'.
+
+`w3-generate-new-buffer-name'
+     This function takes a string, and returns the first unique buffer
+     name using that string as a base.  For example
+     `(w3-generate-new-buffer-name "new-buff")' would return
+     `"new-buff<1>"' if buffer new-buff already existed.
+
+`w3-generate-unique-filename'
+     This functions returns a string that represents a unique filename
+     in the /tmp directory.  For example,
+     `(w3-generate-unique-filename)' would return
+     `"/tmp/w3-tmp129440"'.  The filename is arrived at by using a
+     unique prefix (w3-tmp), the uid of the current user (12944 in my
+     case), and a number that is incremented if a file already exists.
+
+`w3-get-url-at-point'
+     This function returns the url at a point specified by an optional
+     argument.  If no argument is given to the function (point) is used.
+     Tries to find the url closest to that point, but does not change
+     the users position in the buffer.  Has a preference for looking
+     backward when not directly on a URL.
+
+`w3-hexify-string'
+     This function takes a string and replaces any characters that are
+     not acceptable in a URL with the "escaped" encoding that is
+     standard for URLs (replaces the character with a % followed by the
+     hexadecimal representation of the ASCII value of the character).
+     For example, `(w3-hexify-string "this is a test")' would return
+     `"this%20is%20a%20test"'.
+
+`w3-insert-entities-in-string'
+     This function takes a string and replaces any occurences of HTML[+]
+     reserved characters with the corresponding entity definitions.  For
+     example, `(w3-insert-entities-in-string "<testing>")' would return
+     `"&lt;testing&gt;"'.
+
+`w3-mime-viewer'
+     This functions takes a string specifying a MIME content-type, and
+     returns a string or symbol.  If it returns a string, it specifies a
+     shell command to execute to view that type of file.  This string
+     can be passed to 'format with a file name to get the complete
+     command to use.  If it is a symbol, it represents an emacs lisp
+     function to call with no arguments.
+
+`w3-open-stream'
+     This function takes the same parameters as `open-network-stream',
+     and functions similarly.  It takes a process name, a buffer name,
+     a host name, and a port number or server name.  It attempts to
+     open a network connection to the remote host on the specified
+     port/service name, with output going to the buffer.  It returns
+     the process object that is the network connection.
+
+     This function is different from `open-network-stream' in that it
+     allows you to use programs in a subprocess to emulate a network
+     connection.  This is necessary if you are behind a firewall, or
+     something similar.  If the variable W3-USE-TELNET is `t', then the
+     program specified by W3-TELNET-PROG will be run in an asynchronous
+     subprocess.  This program should expect a command line of the form
+     `w3-telnet-prog hostname portnumber', and feed anything on its
+     standard input to the remote machine.
+
+`w3-retrieve'
+     This function takes 3 arguments, a URL, a method type, and a data
+     block.  It then attempts to retrieve the URL using the specified
+     method, using data (if any) as the body of the MIME request.  For
+     example: `(w3-fetch "http://cs.indiana.edu/" "GET" nil)' would
+     retrieve the Indiana University CS home page.  This function will
+     do no parsing of the retrieved page, and leaves you in the buffer
+     containing the document you requested.  Any HTTP/1.0
+     redirection/authorization is done before this function exits.
+
+`w3-unhex-string'
+     This is the opposite of `w3-hexify-string'.  It removes any %XXX
+     encoded characters in a string.  For example `(w3-unhex-string
+     "this%20is%20a%20test")' would return `"this is a test"'.
+
+`w3-upcase-region'
+     This function takes a start and end position in the current buffer
+     as its arguments, and converts all the text to uppercase, except
+     for text between < and >.  This is useful for converting regions
+     to uppercase without corrupting any URLs within it.
+
+`w3-view-this-url'
+     This function returns the URL of the zone under point (if no zone
+     is under point, then it returns nil).  If the optional argument is
+     `nil', then the URL is also displayed in the minibuffer.
+
+`w3-view-url'
+     This function returns the URL of current document.  If the optional
+     argument is `nil', then the URL is also displayed in the
+     minibuffer.
+
+
+File: w3.info,  Node: Customizing Formatting,  Next: Character based terminals,  Prev: Internals of W3,  Up: Top
+
+   How W3 formats a document is very customizable.  How a document is
+displayed depends on several things - whether the user is on a terminal
+capable of graphics, and a few variables.
+
+   The following sections describe in more detail how to change the
+formatting of a document.
+
+* Menu:
+
+* General formatting::                 Changing general things about a
+                                       document.
+* Character based terminals::          Changing how a document is
+                                       displayed on a non-graphics
+                                       terminal (vt100, etc) or if
+                                       W3-DELIMIT-EMPHASIS is `t'.
+* Graphics workstations::              Changing how a document is
+                                       displayed on a graphics terminal
+                                       (Xwindows, Windows, NeXTstep,
+                                       OS/2, etc)
+
+
+File: w3.info,  Node: General formatting,  Next: Character based terminals,  Prev: Customizing Formatting,  Up: Customizing Formatting
+
+                          -------------------
+
+                     Formatting of hypertext links
+
+                          -------------------
+
+   If the variable W3-DELIMIT-LINKS is non-`nil', then hypertext links
+will be surrounded by text specified by the user.  The string
+W3-LINK-START-DELIMITER will be inserted just before the body of the
+hyperlink, and W3-LINK-END-DELIMITER will be inserted just after the
+body of the link.  All reserved characters should be replaced with
+their HTML[+] entity definitions.
+
+                          -------------------
+
+                          Formatting of lists
+
+                          -------------------
+
+   There are several different ways to control the formatting of lists.
+The most obvious is how deeply they are indented relative to the rest of
+the paragraphs in the document.  To control this, you should set the
+variables TAB-STOP-LIST and TAB-WIDTH.  A tab every eight spaces is
+considered normal, but I prefer to have a tab every four spaces.  So
+TAB-STOP-LIST would be `'(4 8 12 16 20 24 28 32 36 ...)', and TAB-WIDTH
+would be `4'.  I use `setq-default' in my .emacs for these, but you can
+also use them from W3-MODE-HOOKS.  Something like `(add-hook
+'w3-mode-hooks (function (lambda () (setq tab-stop-width '(...)
+tab-width 4))))'.
+
+   Another thing that is easy to change about lists is the bullet
+character put at the front of each list item.  This is controlled by
+the variable W3-LIST-CHARS-ASSOC, which is an assoc list.  This is a
+list of lists, each sublist describing what to put at the start of each
+particular list type.  The `car' of this list should be the type of
+list, in all caps (ie: `UL').  The rest of the list should consist of
+strings to insert at certain levels of lists.  The `n'th element of
+this list will be used when the list is nested `n + 1' levels.  If the
+list is not long enough to define a string for a certain nesting level,
+then it defaults to either a '*' or a '.'.
+
+                          -------------------
+
+                   Formatting of gopher directories
+
+                          -------------------
+
+   The main way to control the display of gopher directories is by the
+variable W3-GOPHER-LABELS.  This variable controls the text that is
+inserted at the front of each item.  This is an assoc list of gopher
+types (as one character strings), and a string to insert just after the
+list item.  All the normal gopher types are defined.  Entries should be
+similar to: `("0" . "(TXT)")'.  I have tried to keep all the tags to
+three characters plus two parentheses.
+
+
+File: w3.info,  Node: Character based terminals,  Next: Graphics workstations,  Prev: General formatting,  Up: Customizing Formatting
+
+   On character based terminals, there is no easy way to show that a
+certain range of text is in bold or italics.  If the variable
+W3-DELIMIT-EMPHASIS is non-`nil', then W3 can insert characters before
+and after character formatting commands in HTML documents.
+
+   Two variables control what text is inserted around different markup
+tags.  W3-HEADER-CHARS-ASSOC controls what characters are inserted
+around header items, and W3-STYLE-CHARS-ASSOC controls what characters
+are inserted around most other markup (italics, addresses, etc).
+
+   W3-HEADER-CHARS-ASSOC is an assoc list of header tags and a list of
+formatting instructions.  The `car' of the list is the level of the
+header (1 - 6).  The rest of the list should contain three items.  The
+first item is text to insert before the header.  The second item is
+text to insert after the header.  Both should have reserved characters
+converted to their HTML[+] entity definitions.  The third item is a
+function to call on the area the header is in.  This function is called
+with arguments specifying the start and ending character positions of
+the header.  The starting point will always be first.  To convert a
+region to upper case, please use `w3-upcase-region' instead of
+`upcase-region', so that URLs within the region will not be corrupted.
+
+   W3-STYLE-CHARS-ASSOC is an assoc list of style tags and a list of
+strings.  The `car' of the list is the type of style tag it specifies
+(DFN, B, I, etc).  The rest of the list should contain two items.  The
+`car' is text to insert before the stylized text.  The `cdr' is text to
+insert after the stylized text.  Both should have reserved characters
+converted to their HTML[+] entity definitions.
+
+
+File: w3.info,  Node: Graphics workstations,  Next: Printing,  Prev: Character based terminals,  Up: Customizing Formatting
+
+   When you are running in a graphic environemnt (Xwindows or NeXTstep
+for example), the fonts and colors used by W3 to display text can be
+controlled by setting a few resources.  To specify these resources:
+
+   * Xwindows: Place them into your `~/.Xresources' file or the
+     `/usr/lib/X11/app-defaults/Emacs' file.
+
+   * NeXTstep: If you are using the NeXTstep port of Emacs 19, you
+     should use the dwrite command to install these resources.  The
+     command should look something like: (`dwrite Emacs
+     <Style>.Attribute<item> value', where style and attribute are one
+     of the choices below.
+
+   * OS/2 or Windows: If you are using the Lucid Emacs or FSF Emacs
+     that has been ported to the Presentation Manager or Windows 3.x,
+     it will tell you where to store a file that Emacs will look at for
+     Xresources.
+
+   The resources for each version of emacs are the same.  For each
+style of text that W3 uses, you can specify any of the following
+resources by replacing <style> with the actual style name.
+
+   * Emacs*<Style>.AttributeFont: Font name
+
+   * Emacs*<Style>.AttributeForeground: Foreground color
+
+   * Emacs*<Style>.AttributeBackground: Background color
+
+   * Emacs*<Style>.AttributeUnderline: Underline text?
+
+   W3 uses these style names:
+W3-ADDRESS-STYLE
+     For anything in $<$ADDRESS$>$ tags.
+
+W3-BOLD-STYLE
+     For anything in bold, strong, or a definition
+
+W3-DEFAULT-STYLE
+     For normal text
+
+W3-HEADER-STYLE
+     For any headers
+
+W3-ITALIC-STYLE
+     For italic text, emphasized, or addresses
+
+W3-NODE-STYLE
+     For links to other documents
+
+W3-STRIKETHRU-STYLE
+     For items that should be shown as struck-out.
+
+W3-SUBSCRIPT-STYLE
+     For subscripted items
+
+W3-SUPERSCRIPT-STYLE
+     For superscripted items
+
+W3-TT-STYLE
+     For fixed width fonts, code segments, samples, or variables
+
+W3-UNDERLINE-STYLE
+     For underlining, and citations
+
+
+File: w3.info,  Node: Printing,  Next: Saving Files,  Prev: Graphics workstations,  Up: Top
+
+   There are two ways to print a document in W3.  Typing `P' or `M-x
+w3-print-this-url' will print out the current document, and typing `M-x
+w3-print-url-under-point' will attempt to print the document the cursor
+is on.
+
+   You will be prompted to choose how the document will be printed.
+
+
+File: w3.info,  Node: Saving Files,  Next: Using W3 behind a firewall,  Prev: Printing,  Up: Top
+
+
+File: w3.info,  Node: Using W3 behind a firewall,  Next: Hook Variables,  Prev: Saving Files,  Up: Top
+
+
+File: w3.info,  Node: Hook Variables,  Next: Miscellaneous,  Prev: Using W3 behind a firewall,  Up: Top
+
+
+File: w3.info,  Node: Miscellaneous,  Next: More Help,  Prev: Hook Variables,  Up: Top
+
+
+File: w3.info,  Node: More Help,  Next: HTML,  Prev: Miscellaneous,  Up: Top
+
+   If you need more help on W3, please send me mail
+(wmperry@indiana.edu).  Several discussion lists have also been created
+for W3.  To subscribe, send mail to <listname>-request@indiana.edu.
+All other mail should go to <listname>@indiana.edu
+
+   * w3-announce - this list is for anyone interested in W3, and should
+     in general only be used by me.  The gnu.emacs.sources newsgroup
+     and a few other mailing lists are included on this.  You may use
+     this if you have written an enhancement to W3 that you wish more
+     people to know about.  (www-announce@info.cern.ch is included on
+     this list).
+
+   * w3-beta - this list is for beta testers of W3.  These brave souls
+     test out not-quite stable code.
+
+   * w3-dev - a list consisting of myself and a few other people who are
+     interested in the internals of W3, and doing active development
+     work.  Pretty dead right now, but I hope it will grow.
+
+   If you need more help on the World Wide Web in general, please refer
+to the newsgroup comp.infosystems.www.  There are also several
+discussion lists concerning the Web.  Send mail to
+listserv@info.cern.ch with a subject line of 'subscribe <listname>'.
+All mail should go to <listname>@info.cern.ch.  Administrative mail
+should go to www-admin@info.cern.ch.  The lists are:
+
+   * www-talk - for general discussion of the World Wide Web, where its
+     going, new features, etc.  All the major developers are subscribed
+     to this list.
+
+   * www-announce - for announcements concerning the World Wide Web.
+     Server changes, new servers, new software, etc.
+
+   As a last resort, you may always mail me.  I'll try to answer as
+quickly as I can.
+
+
+File: w3.info,  Node: HTML,  Next: WWW,  Prev: More Help,  Up: Top
+
+   HTML is composed of a set of elements that define a document and
+guide its display.  An HTML element may include a name, some attributes
+and some text or hypertext, and will appear in an HTML document as
+<tag_name> text </tag_name> <tag_name attribute_name=argument> text
+</tag_name>, or just <tag_name>.
+
+   For example: `<title> My Useful Document </title>', and `<pre
+width=60> A lot of text here.  </pre>'.
+
+   An HTML document is composed of a single element: <html>...</html>,
+that is, in turn, composed of head and body elements: <head>...</head>,
+and <body>...</body>.  To allow older HTML documents to remain readable,
+<html>, <head>, and <body> are actually optional within HTML documents.
+
+           Elements restricted to the head element include:
+
+   * <isindex> -  Specify index file.
+
+   * <title> .  .  .  </title> -  Specify document title.
+
+   * <nextid> - Set a variable value.  Attribute: variable name.
+
+   * <link> - Specify relationships to other documents.  Attributes:
+     same as Anchor below.
+
+   * <base> -  Specify the name of the file in which the current
+     document is stored.  This is useful when link references within
+     the document do  not include full pathnames (i.e., are partially
+     qualified)
+
+   The following sections describe elements that can be used in the
+body of the document.
+
+                             Text Elements
+
+   * <p> - The end of a paragraph that will be formatted before it is
+     displayed on the screen.
+
+   * <pre> .  .  .  </pre> - Identifies text that has already been
+     formatted (preformatted) by some other system and must be
+     displayed as is.  Preformatted text may include embedded tags, but
+     not all tag types are permitted.  Attribute: width.
+
+   * <listing> .  .  .  </listing> - Example computer listing; embedded
+     tags will be ignored, but embedded tabs will work.
+
+   * <plaintext> - all text from this marker to the end of the document
+     will not be parsed as HTML.  All newlines/tabs/spaces will be
+     preserved.
+
+   * <blockquote> .  .  .  </blockquote> - Include a section of text
+     quoted from some other source.
+
+                         Hyperlinks or Anchors
+
+   * <a name="target_anchor_name"> .  .  .  </a> -  Define a target
+     location in a document.
+
+   * <a href="#anchor_name"> .  .  .  </a> - Link to a location in the
+     same file.
+
+   * <a href="URL"> .  .  .  </a> - Link to another file.
+
+   * <a href="URL#target_string"> .  .  .  </a> - Link to a target
+     location in another file.
+
+   Required attributes for anchors: one of name or href.  Optional
+attributes: rel, rev, urn, title, methods.
+
+                                Headers
+
+   * <h1> .  .  .  </h1> - Most prominent header.
+
+   * <h2> .  .  .  </h2>
+
+   * <h3> .  .  .  </h2>
+
+   * <h4> .  .  .  </h4>
+
+   * <h5> .  .  .  </h5>
+
+   * <h6> .  .  .  </h6> - Least prominent header.
+
+                            Logical Styles
+
+   * <em> .  .  .  </em> - Generic emphasis.
+
+   * <strong> .  .  .  </strong> - Stronger emphasis
+
+   * <code> .  .  .  </code> - Display an HTML directive
+
+   * <samp> .  .  .  </samp> - Include sample output
+
+   * <kbd> .  .  .  </kbd> - Display a keyboard key
+
+   * <var> .  .  .  </var> - Define a variable
+
+   * <dfn> .  .  .  </dfn> - Display a definition
+
+   * <cite> .  .  .  </cite> - Display a citation
+
+                            Physical Styles
+
+   * <b> .  .  .  </b> - Bold font
+
+   * <i> .  .  .  </i> - Italics
+
+   * <u> .  .  .  </u> - Underline
+
+   * <tt> .  .  .  </tt> - Typewriter font
+
+                              List Types
+
+   * Definition list/glossary: <dl> ... </dl>, <dt> defines a term to be
+     defined, <dd> is the definition of the term.
+
+   * Unordered list: <ul> ... </ul>.  <li> defines an item of the list.
+
+   * Ordered list: <ol> ... </ol>.  <li> defines an item of the list.
+
+   * Interactive menu: <menu> ... </menu>.  <li> defines an item of the
+     list.
+
+   * A directory list of items: <dir> ... </dir> <li> defines an item
+     of the list.
+
+                               Entities
+
+`&keyword;'
+     Display a particular character identified by a special keyword.
+     For example the entity &amp; specifies the ampersand ( & ), and
+     the entity &lt; specifies the less than ( < ) character. Note that
+     the semicolon following the keyword is required.
+
+`&#ascii_equivalent;'
+     Use a character literally.  Again note that the semicolon
+     following the ASCII numeric value is required.
+
+`<!-- text -->'
+     Place a comment in the HTML source
+
+
+File: w3.info,  Node: WWW,  Next: Concept Index,  Prev: HTML,  Up: Top
+
+
+File: w3.info,  Node: Concept Index,  Next: Key Index,  Prev: WWW,  Up: Top
+
+* Menu:
+
+* Annotations:                          Annotations.
+* Colors:                               Customizing Formatting.
+* Customizing formatting:               Customizing Formatting.
+* Distribution:                         License.
+* Fonts:                                Customizing Formatting.
+* General Public License:               License.
+* Group Annotations:                    Group Annotations.
+* History Lists:                        History.
+* HTML:                                 HTML.
+* Hyperbole:                            Hyperbole Compatibility.
+* Hypertext Markup Language:            HTML.
+* Internals of W3:                      Internals of W3.
+* license to copy Emacs:                License.
+* Newsgroups:                           More Help.
+* NeXTstep resources:                   Graphics workstations.
+* Personal Annotations:                 Personal Annotations.
+* Printing:                             Printing.
+* Relevant Newsgroups:                  More Help.
+* Specifying Fonts:                     Customizing Formatting.
+* Support:                              More Help.
+* Uniform Resource Locator:             Starting Up.
+* URL:                                  Starting Up.
+* Using W3 from your own programs:      Internals of W3.
+* World Wide Web:                       Introduction.
+* World Wide Web:                       WWW.
+* WWW:                                  WWW.
+* Xresources:                           Graphics workstations.
+
+
+File: w3.info,  Node: Key Index,  Next: Command Index,  Prev: Concept Index,  Up: Top
+
+* Menu:
+
+* <:                                    Basic Movement.
+* >:                                    Basic Movement.
+* a:                                    Hotlist Handling.
+* b:                                    Basic Movement.
+* button2:                              Basic Movement.
+* button3:                              Basic Movement.
+* C-c C-b:                              Basic Movement.
+* C-c C-v:                              Basic Movement.
+* C-k:                                  Basic Movement.
+* C-o:                                  Basic Movement.
+* C-q:                                  History.
+* C-q:                                  Basic Movement.
+* d:                                    Hotlist Handling.
+* DEL:                                  Basic Movement.
+* f:                                    Basic Movement.
+* h:                                    Basic Movement.
+* H:                                    Basic Movement.
+* H:                                    Hotlist Handling.
+* l:                                    Basic Movement.
+* m:                                    Basic Movement.
+* M:                                    Basic Movement.
+* M-s:                                  Basic Movement.
+* M-TAB:                                Basic Movement.
+* o:                                    Basic Movement.
+* P:                                    Basic Movement.
+* P:                                    Printing.
+* q:                                    Basic Movement.
+* r:                                    Basic Movement.
+* RET:                                  Basic Movement.
+* s:                                    Basic Movement.
+* SPC:                                  Basic Movement.
+* u:                                    Basic Movement.
+* U:                                    Basic Movement.
+* v:                                    Basic Movement.
+* V:                                    Basic Movement.
+* w:                                    Basic Movement.
+
+
+File: w3.info,  Node: Command Index,  Next: Variable Index,  Prev: Key Index,  Up: Top
+
+* Menu:
+
+* w3:                                   Starting Up.
+* w3-add-document-to-hotlist:           Hotlist Handling.
+* w3-add-group-annotation:              Group Annotations.
+* w3-add-personal-annotation:           Personal Annotations.
+* w3-back-link:                         Basic Movement.
+* w3-backward-in-history:               History.
+* w3-clear-tmp-buffer:                  Internals of W3.
+* w3-complete-link:                     Basic Movement.
+* w3-convert-ask-to-form:               Internals of W3.
+* w3-convert-html-to-latex:             Internals of W3.
+* w3-delete-group-annotation:           Group Annotations.
+* w3-delete-personal-annotation:        Personal Annotations.
+* w3-document-source:                   Basic Movement.
+* w3-end-of-document:                   Basic Movement.
+* w3-extension-to-mime:                 Internals of W3.
+* w3-fetch:                             History.
+* w3-fetch:                             Internals of W3.
+* w3-fetch:                             Basic Movement.
+* w3-fetch:                             Starting Up.
+* w3-fix-entities-in-string:            Internals of W3.
+* w3-follow-link:                       Basic Movement.
+* w3-follow-mouse:                      Basic Movement.
+* w3-follow-url-at-point:               Starting Up.
+* w3-forward-in-history:                History.
+* w3-forward-link:                      Basic Movement.
+* w3-generate-new-buffer-name:          Internals of W3.
+* w3-generate-unique-filename:          Internals of W3.
+* w3-get-url-at-point:                  Internals of W3.
+* w3-goto-last-buffer:                  Basic Movement.
+* w3-help:                              Basic Movement.
+* w3-hexify-string:                     Internals of W3.
+* w3-insert-entities-in-string:         Internals of W3.
+* w3-insert-this-url:                   Basic Movement.
+* w3-mail-current-document:             Basic Movement.
+* w3-mime-viewer:                       Internals of W3.
+* w3-open-local:                        Starting Up.
+* w3-open-local:                        Basic Movement.
+* w3-open-stream:                       Internals of W3.
+* w3-popup-menu:                        Basic Movement.
+* w3-preview-this-buffer:               Starting Up.
+* w3-print-this-url:                    Basic Movement.
+* w3-print-this-url:                    Printing.
+* w3-print-url-under-point:             Printing.
+* w3-quit:                              Basic Movement.
+* w3-reload-document:                   Basic Movement.
+* w3-remove-from-hotlist:               Hotlist Handling.
+* w3-rename-hotlist-entry:              Hotlist Handling.
+* w3-retrieve:                          Internals of W3.
+* w3-save-url:                          Basic Movement.
+* w3-search:                            Basic Movement.
+* w3-show-history:                      History.
+* w3-show-history-list:                 Basic Movement.
+* w3-show-hotlist:                      Hotlist Handling.
+* w3-start-of-document:                 Basic Movement.
+* w3-submit-bug:                        Basic Movement.
+* w3-unhex-string:                      Internals of W3.
+* w3-upcase-region:                     Internals of W3.
+* w3-upcase-region:                     Character based terminals.
+* w3-use-hotlist:                       Basic Movement.
+* w3-use-hotlist:                       Hotlist Handling.
+* w3-use-hotlist:                       Starting Up.
+* w3-use-links:                         Basic Movement.
+* w3-version:                           Basic Movement.
+* w3-view-this-url:                     Basic Movement.
+* w3-view-this-url:                     Internals of W3.
+* w3-view-url:                          Internals of W3.
+* w3-view-url:                          Basic Movement.
+* w3-write-global-history:              History.
+* w3-write-global-history:              Basic Movement.
+
+
+File: w3.info,  Node: Variable Index,  Next: Introduction,  Prev: Command Index,  Up: Top
+
+* Menu:
+
+* tab-stop-list:                        General formatting.
+* tab-width:                            General formatting.
+* w3-default-homepage:                  Starting Up.
+* w3-delimit-emphasis:                  Character based terminals.
+* w3-delimit-links:                     General formatting.
+* w3-directory-format:                  Basic Movement.
+* w3-global-history-file:               History.
+* w3-global-history-file:               Basic Movement.
+* w3-group-annotation-port:             Group Annotations.
+* w3-group-annotation-server:           Group Annotations.
+* w3-header-chars-assoc:                Character based terminals.
+* w3-hotlist-file:                      Hotlist Handling.
+* w3-hotlist-file:                      Hotlist Handling.
+* w3-hotlist-file:                      Hotlist Handling.
+* w3-html-entities:                     Internals of W3.
+* w3-keep-history:                      Basic Movement.
+* w3-keep-history:                      Basic Movement.
+* w3-keep-history:                      History.
+* w3-keep-old-buffers:                  Basic Movement.
+* w3-link-end-delimiter:                General formatting.
+* w3-link-start-delimiter:              General formatting.
+* w3-list-chars-assoc:                  General formatting.
+* w3-mime-extensions:                   Internals of W3.
+* w3-mime-viewers:                      Internals of W3.
+* w3-mode-hooks:                        General formatting.
+* w3-personal-annotation-directory:     Personal Annotations.
+* w3-print-command:                     Printing.
+* w3-style-chars-assoc:                 Character based terminals.
+* w3-telnet-prog:                       Internals of W3.
+* w3-use-html2latex:                    Printing.
+* w3-use-telnet:                        Internals of W3.
+* w3-working-buffer:                    Internals of W3.
+
+
+
+Tag Table:
+Node: Top361
+Node: License1791
+Node: Introduction15102
+Node: Setting Up17335
+Node: Starting Up20079
+Node: Basic Movement21318
+Node: Mosaic Compatibility27799
+Node: Hotlist Handling28166
+Node: History30514
+Node: Annotations32524
+Node: Group Annotations33122
+Node: Personal Annotations35590
+Node: Hyperbole Compatibility37318
+Node: Internals of W338000
+Node: Customizing Formatting44443
+Node: General formatting45493
+Node: Character based terminals48207
+Node: Graphics workstations50043
+Node: Printing52065
+Node: Saving Files52450
+Node: Using W3 behind a firewall52550
+Node: Hook Variables52656
+Node: Miscellaneous52763
+Node: More Help52853
+Node: HTML54609
+Node: WWW59214
+Node: Concept Index59288
+Node: Key Index60853
+Node: Command Index62961
+Node: Variable Index66917
+
+End Tag Table

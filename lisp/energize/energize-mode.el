@@ -14,7 +14,7 @@
 (defun energize-beginning-of-defun (&optional arg)
   "Move point to the beginning of the current top-level form.
 With a numeric argument, move back that many forms."
-  (interactive "p")
+  (interactive "_p")
   (or arg (setq arg 1))
   (if (not (energize-buffer-p (current-buffer)))
       (error "Not an Energize buffer")
@@ -36,7 +36,7 @@ With a numeric argument, move back that many forms."
 (defun energize-end-of-defun (&optional arg)
   "Move point to the end of the current top-level form.
 With a numeric argument, move forward over that many forms."
-  (interactive "p")
+  (interactive "_p")
   (or arg (setq arg 1))
   (if (not (energize-buffer-p (current-buffer)))
       (error "Not an Energize buffer")
@@ -77,6 +77,16 @@ With a numeric argument, move forward over that many forms."
       (error "energize-revert-buffer-hook called for a non-energize buffer"))
   (widen)
   (cond ((equal file buffer-file-name)		; reverting from energize
+	 ;; Do the default as in files.el
+	 (if (file-exists-p file)
+	     (progn
+	       ;; Bind buffer-file-name to nil
+	       ;; so that we don't try to lock the file.
+	       (let ((buffer-file-name nil))
+		 (unlock-buffer)
+		 (erase-buffer))
+	       (insert-file-contents file t)))
+	 ;; Then asks the extents from Energize
 	 (energize-execute-command "revert"))
 	(t					; reverting from autosave
 	 (if (not (file-exists-p file))
@@ -577,8 +587,8 @@ You cannot get them back until you recompile the file."
 	(setq e (extent-at (point)))
 	(while (and e
 		    (< (extent-end-position e) (point-max)))
-	  (if (memq 'begin-glyph (extent-attributes e))
-	      (set-extent-begin-glyph e ()))
+	  (if (extent-property e 'begin-glyph)
+	      (set-extent-begin-glyph e nil))
 	  (setq e (next-extent e)))))))
 
 ;;; Dired-like commands

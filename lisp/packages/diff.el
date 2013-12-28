@@ -31,7 +31,8 @@
 (require 'compile)
 
 ;;; This is duplicated in vc.el.
-(defvar diff-switches "-c"
+;;;###autoload
+(defvar diff-switches (purecopy "-c")
   "*A string or list of strings specifying switches to be be passed to diff.")
 
 (defvar diff-regexp-alist
@@ -160,7 +161,7 @@ is nil, REGEXP matches only half a section.")
 ;;;###autoload
 (defun diff (old new &optional switches)
   "Find and display the differences between OLD and NEW files.
-Interactively the current buffer's file name is the default for for NEW
+Interactively the current buffer's file name is the default for NEW
 and a backup file for NEW is the default for OLD.
 With prefix arg, prompt for diff switches."
   (interactive
@@ -192,7 +193,8 @@ With prefix arg, prompt for diff switches."
   (setq new (expand-file-name new)
 	old (expand-file-name old))
   (let ((old-alt (file-local-copy old))
-	(new-alt (file-local-copy new)))
+	(new-alt (file-local-copy new))
+	buf)
     (unwind-protect
 	(let ((command
 	       (mapconcat 'identity
@@ -210,22 +212,23 @@ With prefix arg, prompt for diff switches."
 				  (list (or old-alt old))
 				  (list (or new-alt new)))
 			  " ")))
-	  (compile-internal command
-			    "No more differences" "Diff"
-			    'diff-parse-differences))
-      (save-excursion
-	(set-buffer compilation-error-buffer)
-	(set (make-local-variable 'diff-old-file) old)
-	(set (make-local-variable 'diff-new-file) new)
-	(set (make-local-variable 'diff-old-temp-file) old-alt)
-	(set (make-local-variable 'diff-new-temp-file) new-alt)
-	(set (make-local-variable 'compilation-finish-function)
-	     (function (lambda (buff msg)
-			 (if diff-old-temp-file
-			     (delete-file diff-old-temp-file))
-			 (if diff-new-temp-file
-			     (delete-file diff-new-temp-file))))))
-      compilation-error-buffer)))
+	  (setq buf
+		(compile-internal command
+				  "No more differences" "Diff"
+				  'diff-parse-differences))
+	  (save-excursion
+	    (set-buffer buf)
+	    (set (make-local-variable 'diff-old-file) old)
+	    (set (make-local-variable 'diff-new-file) new)
+	    (set (make-local-variable 'diff-old-temp-file) old-alt)
+	    (set (make-local-variable 'diff-new-temp-file) new-alt)
+	    (set (make-local-variable 'compilation-finish-function)
+		 (function (lambda (buff msg)
+			     (if diff-old-temp-file
+				 (delete-file diff-old-temp-file))
+			     (if diff-new-temp-file
+				 (delete-file diff-new-temp-file))))))
+	  buf))))
 
 ;;;###autoload
 (defun diff-backup (file &optional switches)

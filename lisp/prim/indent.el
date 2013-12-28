@@ -27,9 +27,9 @@
 
 ;;; Code:
 
-;Now in loaddefs.el
-;(defvar indent-line-function 'indent-to-left-margin "\
-;Function to indent current line.")
+;jwz: this is preloaded so don't ;;;###autoload
+(defvar indent-line-function 'indent-to-left-margin
+  "Function to indent current line.")
 
 (defun indent-according-to-mode ()
   "Indent line in proper way for current major mode."
@@ -190,7 +190,7 @@ A colon indicates a column where there is a tab stop.
 You can add or remove colons and then do \\<edit-tab-stops-map>\\[edit-tab-stops-note-changes] to make changes take effect."
   (interactive)
   (setq edit-tab-stops-buffer (current-buffer))
-  (switch-to-buffer (get-buffer-create "*Tab Stops*"))
+  (switch-to-buffer (get-buffer-create (gettext "*Tab Stops*")))
   (use-local-map edit-tab-stops-map)
   (make-local-variable 'indent-tabs-mode)
   (setq indent-tabs-mode nil)
@@ -212,7 +212,7 @@ You can add or remove colons and then do \\<edit-tab-stops-map>\\[edit-tab-stops
     (while (> count 0)
       (insert "0123456789")
       (setq count (1- count))))
-  (insert "\nTo install changes, type C-c C-c")
+  (insert (gettext "\nTo install changes, type C-c C-c"))
   (goto-char (point-min)))
 
 (defun edit-tab-stops-note-changes ()
@@ -227,7 +227,7 @@ You can add or remove colons and then do \\<edit-tab-stops-map>\\[edit-tab-stops
       (bury-buffer (prog1 (current-buffer)
 			  (switch-to-buffer edit-tab-stops-buffer)))
       (setq tab-stop-list tabs))
-  (message "Tab stops installed"))
+  (message (gettext "Tab stops installed")))
 
 (defun tab-to-tab-stop ()
   "Insert spaces or tabs to next defined tab-stop column.

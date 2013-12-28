@@ -1,0 +1,333 @@
+@c ===================================================================
+@node Revision History, Index, Todo List, Top
+@section Revision History
+
+Here is a summary of changes to edebug recorded in the RCS log, in
+reverse chronological order.
+
+Revision 2.9  1993/02/04  22:40:58  liberte
+Fix handling of 0 and t edebug-form-specs.
+
+Remove loop for consecutive special specs to simplify code.
+
+Fix [&optional specs] again.
+
+Bug: [&rest specs] still broken.
+
+Bug: nested definitions may have problems still - let me know.
+
+New variable edebug-debugger holds name of debugger for errors or quit.
+
+Unrestore edebug-buffer's window-point after edebug display.
+Needed in addition to setting the buffer point
+because otherwise quitting doesnt leave point as is.
+But doing it causes point not to be restored other times.
+Let me know if there are problems.
+
+Fix zmacs-regions typo for lemacs.
+
+Revision 2.8  1993/01/13  18:34:19  liberte
+Support edebugging top-level forms and generalize handling
+of defining forms.
+
+Rename edebug-defun to edebug-eval-top-level-form.
+edebug-defun still points to the latter.
+
+Rename edebug-all-defuns to edebug-all-defs.
+
+Add edebug-all-forms option and command.
+
+Add edebug-continue-kbd-macro option.
+
+Stop defining epoch::version.
+
+Rename def-edebug-form-spec to def-edebug-spec.  Arguments are unevaluated.
+
+edebug-form-spec supports indirection.  List specs may now
+contain body, &define, name, arglist, def-body, def-form, and strings.
+
+While parsing, commit to alternative after matching a symbol.
+
+Fix nested &optional handling.
+
+Improve syntax error reporting.
+
+Use edebug-form-specs for many Emacs special-forms: defun, defmacro,
+interactive, condition-case, cond, as well as lambda forms and
+functions that take function arguments.  Define specs for all cl.el
+macros.
+
+Fix printing of window objects so they show the correct buffer.
+
+Numerous display fixes that are too complex to explain.
+
+Display frequency counts along with coverage data by inserting comment
+lines.
+
+Add global break condition.
+
+Add "next" mode to stop only after expression evaluation.
+Add top-level-nonstop to stop no more.
+
+Add time argument to edebug-bounce-point.
+
+Allow editing of previous breakpoint condition.
+
+Fix edebug-step-in.
+
+Clean up the backtrace display better.
+
+Support Lucid Emacs command events.
+
+
+Revision 2.7  92/03/23
+
+Fix edebug-get-displayed-buffer-points to actually change buffers.
+
+Restore current buffer in edebug-set-buffer-points
+
+Use epoch::version instead of edebug-epoch-running.
+
+Apparently we need to set-buffer in edebug-pop-to-buffer,
+even after select-window.
+
+Define dynamically bound variables to quite byte-compiler,
+but leave them unbound to cause runtime error if used improperly.
+
+Fix other problems with window-start, current-buffer, and
+edebug-outside-excursion.
+
+Revision 2.6  92/03/19
+Disable edebug-save-point.  Now point of source code buffers is always
+saved, mark is never saved, and window-start is always saved.
+
+Change name of edebug-save-buffer-points to
+edebug-save-displayed-buffer-points.  Also, if non-nil, only displayed
+buffer points are saved.
+
+Restructure definition of epoch specific functions so there is no
+overhead for non-epoch use.
+
+Add support for custom-print functions to handle print-level and
+print-circle.  Use edebug-prin* functions instead of standard
+print functions.
+
+Yet another change of the instrumenting scheme:
+edebug-enter gets a lambda form which can be byte-compiled;
+edebug-after gets the after expression index from edebug-before which
+is given the before expression index.  (Perhaps it is false economy to
+avoid the after expression index.)  edebug-after also gets the
+evaluated expression result, so no explicit evals need be done.
+
+Most of edebug-defun was moved to edebug-func-form which also
+handles embedded defuns.
+
+Add functions edebug-forms and edebug-sexps.
+
+Rename edebug-list to edebug-list-form.
+
+Use edebug-form-specs for all special forms.  The spec may now be
+a function which is called to process args.  Added -form to
+the names of special form parser functions.
+
+Rename edebug-form-parser to edebug-interpret-form-spec.  Add handling
+of [...], function spec, and backtracking.  &optional now only applies
+to one following spec.  Fixed some other bugs.
+
+Added macro def-edebug-form-spec for convenience, and to convert
+0 and t values to edebug-forms and edebug-sexps.
+
+Add edebug-form-specs for mapcar, mapconcat, mapatoms, apply, and funcall
+that all use the new function spec.
+
+Rebuilt edebug-read-sexp to be simpler, faster, and more complete.
+
+Accummulate frequencies of expression evaluation, displayable
+with edebug-display-freq-count.
+
+No longer do save-restriction since edebug's eval-region doesnt narrow.
+
+Numerous other display changes related to source code buffer's
+point and window-start.
+
+Add -mode to the names of mode changing functions.
+
+Set debugger to edebug-debug while inside edebug - it's almost
+always useful inside, and not useful outside of edebug.
+
+Add edebug-trace function to output FMT with ARGS to *edebug-trace* buffer.
+
+Other changes I've forgotten.
+
+Revision 2.5  91/07/25
+
+Doc string cleanup.
+
+If edebug-form-spec is t, evaluate all arguments.
+
+If edebug-form-spec is 0, evaluate no arguments.
+
+If edebug-form-spec is nil, evaluate macro args according
+	to edebug-eval-macro-args.
+
+Save the outside value of executing macro.
+
+Save and restore the outside restriction.
+
+Dont force update for go and Go-nonstop.
+
+Save and restore last-command-char, last-command,
+	this-command, last-input-char.
+
+For epoch, do epoch::dispatch-events before sit-for
+	and input-pending-p since X events could interfere.
+
+Warn about unsetting non-existent breakpoint.
+
+Fix edebug-forward-sexp with prefix arg.
+
+Add edebug-step-out to exit from current sexp.
+
+Revision 2.4  91/03/18
+Force update after go or Go-nonstop modes, so overlay arrow is correct.
+
+Support debug-on-quit.  Remove edebug-on-error.
+
+Fix edebug-anonymous.  Bug found by jackr@wpd.sgi.com (Jack Repenning).
+
+Don't discard-input anymore.  Easier to change modes this way.
+
+Fix max-lisp-eval-depth and max-specpdl-size incrementing.
+
+Save and restore points in all buffers, if
+        edebug-save-buffer-points is non-nil.  Expensive!
+        Bug caught by wolfgang@wsrcc.com (Wolfgang S. Rupprecht)
+
+Save standard-output and standard-input in edebug-recursive-edit
+        so that edebug-outside-excursion can restore them.
+
+Call set-buffer in edebug-pop-to-buffer since
+        select-window does not do that.
+
+Fix edebug's eval-defun to remember current buffer inside evaluations
+        and to evaluate top-level forms.  Found by Jamie Zawinski.
+
+Add edebug-interactive-entry to support interactive forms with
+        non-string arg. Bug found by Jack Repenning.
+
+Simplify edebug-restore-match-data to just store-match-data.
+        Motivated by linus@lysator.liu.se.
+
+Move the match-data call to before the outside
+        buffer is changed, since it assumes that.
+
+Revision 2.3  91/01/17
+
+Fix bug found by hollen@megatek.uucp.
+	Current buffer was not being restored.
+
+Call edebug with (edebug begin end 'exp)
+	and add additional wrapper around body of functions:
+	(edebug-enter function body).
+
+Make &optional only apply to immediate next arg
+	in edebug-interpret-form-spec (was edebug-macro-parser).
+
+Catch debug errors with edebug.  Yeah!
+
+Reset edebug-mode on first function entry.  Yeah!
+	Motivated by Dion Hollenbeck.
+
+Add the missing bindings to the global-edebug-map.
+
+eval-current-buffer now uses eval-region.
+
+eval-region now does not narrow region.
+	Narrowing was the cause of the window-start being set wrong.
+
+Reset edebug-mode only on
+	first entry of any function at each recursive-edit level.
+
+Add edebug-backtrace, to generate cleaned up
+	backtrace.  It doesnt "work" like the debug backtrace, however.
+
+Require reselecting outside window even if
+	quit occurs, otherwise save-excursions may restore
+	buffer to the wrong window.
+
+Revision 2.2  90/11/26
+
+Shadow eval-defun and eval-region.  Toggle
+	edebugging with edebug-all-defuns.
+
+Call edebug with (edebug 'function begin end 'exp)
+	Suggested by Jamie Zawinski <jwz@lucid.com>.
+
+Add edebug-interpret-form-spec to process macro args.
+	Motivated by Darryl Okahata darrylo@hpnmxx.hp.com.
+
+Fix by Roland McGrath <roland@ai.mit.edu>
+	to wrap body of edebug-save-restriction in progn.
+
+Fix by Darryl Okahata <darrylo%hpnmd@hpcea.hp.com>
+	to add (set-window-hscroll (selected-window) 0) to
+	edebug-pop-to-buffer.
+
+Revision 2.1  90/11/16
+
+Clean up.
+
+Add edebug-form-spec to edebug macro calls. Thanks to Joe Wells.
+
+edebug-forward-sexp uses step mode if no forward-sexp.
+
+Revision 2.0  90/11/14  22:30:54  liberte
+
+Handle lambda forms, function, interactive evals, defmacro.
+
+Clean up display for Epoch - save and restore screen configurations.
+  Note: epoch 3.2 broke set-window-configuration.
+  Also, sit-for pauses do not always work in epoch.
+
+Display evaluations window.
+
+Display result after expression evaluation.
+  Thanks to discussions with Shinichirou Sugou.
+
+Conditional and temporary breakpoints.
+
+Change "continue" to "go" mode and add different "continue" mode.
+
+Option to stop before symbols.
+
+Fix by: Glen Ditchfield  gjditchfield@violet.uwaterloo.ca
+to handle ?# type chars.
+
+
+Revision 1.5  89/05/10
+Fix condition-case expression lists.
+
+Reorganize edebug.
+
+Revision 1.4  89/02/14
+Fix broken breakpointing.
+
+Temporarily widen elisp buffer during edebug.
+
+Revision 1.3  89/01/30
+More bug fixes for cond and let.
+
+Another parsing fix backquote.
+
+Fix for lambda forms inside defuns.
+
+Leave point at syntax error, mark at starting position.
+
+Revision 1.2  88/11/28
+Bug fixes: cond construct didnt execute.
+  () in sexp list didnt parse
+  () as variable in condition-case didnt parse.
+
+Revision 1.1  88/11/28
+Initial revision
+

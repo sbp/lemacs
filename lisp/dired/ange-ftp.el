@@ -654,6 +654,10 @@
 ;;; - call compute-buffer-file-truename to set truenames properly for
 ;;;   when find-file-compare-truenames is set
 ;;; - make-directory takes a second optional argument
+;;; - made ange-ftp-overwrite-fn use the 19.8 interface to byte-code objects
+;;; - made ange-ftp-shell-mode work better with the latest comint
+;;; - insert-file-contents takes 2-4 args in v19
+;;; - moved invocation of shell-mode to get along with the latest shell-font.el
 
 ;;; -----------------------------------------------------------
 ;;; Hall of fame:
@@ -1764,13 +1768,13 @@ been queued with no result.  CONT will still be called, however."
 	      cmd (concat cmd "\n"))
 	(and msg ange-ftp-process-verbose (ange-ftp-message "%s..." msg))
 	(goto-char (point-max))
-	(move-marker last-input-start (point))
+;	(move-marker last-input-start (point))
 	;; don't insert the password into the buffer on the USER command.
 	(ange-ftp-save-match-data
 	  (if (string-match "^user \"[^\"]*\"" cmd)
 	      (insert (substring cmd 0 (match-end 0)) " Turtle Power!\n")
 	    (insert cmd)))
-	(move-marker last-input-end (point))
+;	(move-marker last-input-end (point))
 	(send-string proc cmd)
 	(set-marker (process-mark proc) (point))
 	(if nowait
@@ -1821,11 +1825,14 @@ on the gateway machine to do the ftp instead."
 				    args))))
       (setq proc (apply 'start-process name name args)))
     (process-kill-without-query proc)
+    (set-process-sentinel proc (function ange-ftp-process-sentinel))
+    (set-process-filter proc (function ange-ftp-process-filter))
+    ;; jwz: turn on shell mode after setting the proc filter for the
+    ;; benefit of shell-font.
+    (require 'shell)
     (save-excursion
       (set-buffer (process-buffer proc))
       (ange-ftp-shell-mode))
-    (set-process-sentinel proc (function ange-ftp-process-sentinel))
-    (set-process-filter proc (function ange-ftp-process-filter))
     (accept-process-output proc)	;wait for ftp startup message
     proc))
 
@@ -2204,20 +2211,15 @@ Runs ange-ftp-shell-mode-hook if not nil."
   (interactive)
   (let ((proc (get-buffer-process (current-buffer))))
     (kill-all-local-variables)
-    (if (not ange-ftp-shell-mode-map)
+    (shell-mode)
+    (if (null ange-ftp-shell-mode-map)
 	(progn
-	  (require 'shell)
-	  (setq ange-ftp-shell-mode-map (copy-keymap shell-mode-map))
-	  (define-key
-	    ange-ftp-shell-mode-map "\C-m" 'ange-ftp-shell-send-input)))
+	  (setq ange-ftp-shell-mode-map (make-sparse-keymap))
+	  (set-keymap-parent ange-ftp-shell-mode-map shell-mode-map)
+	  (set-keymap-name ange-ftp-shell-mode-map 'ange-ftp-shell-mode-map)))
     (use-local-map ange-ftp-shell-mode-map)
     (setq major-mode 'ange-ftp-shell-mode)
     (setq mode-name "ange-ftp")
-    (setq mode-line-process '(": %s"))
-    (make-local-variable 'last-input-start)
-    (setq last-input-start (make-marker))
-    (make-local-variable 'last-input-end)
-    (setq last-input-end (make-marker))
     (goto-char (point-max))
     (set-marker (process-mark proc) (point))
     (make-local-variable 'ange-ftp-process-string)
@@ -2238,36 +2240,6 @@ Runs ange-ftp-shell-mode-hook if not nil."
     (setq ange-ftp-xfer-size 0)
     (setq ange-ftp-process-result-line "")
     (run-hooks 'ange-ftp-shell-mode-hook)))
-
-(defun ange-ftp-shell-send-input ()
-  "Send input to FTP process.
-At end of buffer, sends all text after last output as input to the subshell,
-including a newline inserted at the end.  When not at end, copies current line
-to the end of the buffer and sends it, after first attempting to discard any
-prompt at the beginning of the line."
-  (interactive)
-  (let ((process (get-buffer-process (current-buffer))))
-    (or process
-	(error "Current buffer has no process"))
-    (end-of-line)
-    (if (eobp)
-	(progn
-	  (move-marker last-input-start
-		       (process-mark process))
-	  (insert ?\n)
-	  (move-marker last-input-end (point)))
-      (beginning-of-line)
-      (re-search-forward "ftp> *"
-			 (save-excursion (end-of-line) (point))
-			 t)
-      (let ((copy (buffer-substring (point)
-				    (progn (forward-line 1) (point)))))
-	(goto-char (point-max))
-	(move-marker last-input-start (point))
-	(insert copy)
-	(move-marker last-input-end (point))))
-    (process-send-region process last-input-start last-input-end)
-    (set-marker (process-mark process) (point))))
 
 ;;;; ------------------------------------------------------------
 ;;;; Remote file and directory listing support.
@@ -3019,7 +2991,7 @@ ftp transfers."
 	  (ange-ftp-add-file-entry filename))
       (ange-ftp-real-write-region start end filename append visit))))
 
-(defun ange-ftp-insert-file-contents (filename &optional visit)
+(defun ange-ftp-insert-file-contents (filename &optional visit beg end)
   "Documented as original."
   (barf-if-buffer-read-only)
   (setq filename (expand-file-name filename))
@@ -3064,7 +3036,9 @@ ftp transfers."
 			  (setq
 			   size
 			   (nth 1 (ange-ftp-real-insert-file-contents temp
-								      visit)))
+								      visit
+								      beg
+								      end)))
 			(signal 'ftp-error
 				(list
 				 "Opening input file:"
@@ -3084,7 +3058,7 @@ ftp transfers."
 		    (list 
 		     "Opening input file"
 		     filename))))
-      (ange-ftp-real-insert-file-contents filename visit))))
+      (ange-ftp-real-insert-file-contents filename visit beg end))))
  
 (defun ange-ftp-revert-buffer (arg noconfirm)
   "Revert this buffer from a remote file using ftp."
@@ -4803,11 +4777,24 @@ placed on the new definition suitably augmented."
 		 (setcar ndoc-cdr ange-ftp-overwrite-msg))))
 	    (t
 	     ;; it's an emacs19 compiled-code object
-	     (let ((new-code (append nfun nil))) ; turn it into a list
-	       (if (nthcdr 4 new-code)
-		   (setcar (nthcdr 4 new-code) ndoc-str)
-		 (setcdr (nthcdr 3 new-code) (cons ndoc-str nil)))
-	       (fset new (apply 'make-byte-code new-code))))))))
+	     (if (not (fboundp 'compiled-function-arglist))
+		 ;; the old way (typical emacs lack of abstraction)
+		 (let ((new-code (append nfun nil))) ; turn it into a list
+		   (if (nthcdr 4 new-code)
+		       (setcar (nthcdr 4 new-code) ndoc-str)
+		     (setcdr (nthcdr 3 new-code) (cons ndoc-str nil)))
+		   (fset new (apply 'make-byte-code new-code)))
+	       ;; the new way (marginally less random) for lemacs 19.8+
+	       (apply 'make-byte-code
+		      (compiled-function-arglist nfun)
+		      (compiled-function-instructions nfun)
+		      (compiled-function-constants nfun)
+		      (compiled-function-stack-depth nfun)
+		      ndoc-str
+		      (if (commandp nfun)
+			  (list (nth 1 (compiled-function-interactive nfun)))
+			nil))
+	       ))))))
 
 (defun ange-ftp-overwrite-dired ()
   (if (not (fboundp 'dired-ls))		;dired should have been loaded by now

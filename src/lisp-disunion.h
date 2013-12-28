@@ -29,7 +29,7 @@ typedef LISP_WORD_TYPE Lisp_Object;
 # define VALMASK ((1L << (VALBITS)) - 1L)
 #endif
 #define GCTYPEMASK ((1L << (GCTYPEBITS)) - 1L)
-#define MARKBIT (1L << ((VALBITS) + (GCTYPEBITS)))
+#define MARKBIT (1UL << ((VALBITS) + (GCTYPEBITS)))
 
 
 /* These macros extract various sorts of values from a Lisp_Object.
@@ -142,4 +142,4 @@ extern int pure_size;
 /* Use this for turning a Lisp_Object into a  (void *), as when the
    Lisp_Object is passed into a toolkit callback function */
 #define LISP_TO_VOID(larg) ((void *) (larg))
-#define LISP_TO_CVOID(varg) ((const void *) (larg))
+#define LISP_TO_CVOID(varg) ((CONST void *) (larg))

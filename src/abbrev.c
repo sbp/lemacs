@@ -99,7 +99,7 @@ Returns t if expansion took place.")
 	del_range (wordstart, wordstart + 1);
     }
   else
-    wordstart = scan_words (point, -1);
+    wordstart = scan_words (PT, -1);
 
   if (!wordstart)
     return value;
@@ -108,9 +108,9 @@ Returns t if expansion took place.")
   if (!wordend)
     return value;
 
-  if (wordend > point)
-    wordend = point;
-  whitecnt = point - wordend;
+  if (wordend > PT)
+    wordend = PT;
+  whitecnt = PT - wordend;
   if (wordend <= wordstart)
     return value;
 
@@ -159,7 +159,7 @@ Returns t if expansion took place.")
 
   expansion = XSYMBOL (sym)->value;
   insert_from_string (expansion, -1);
-  SET_PT (point + whitecnt);
+  SET_PT (PT + whitecnt);
 
   if (uccount && !lccount)
     {
@@ -168,24 +168,24 @@ Returns t if expansion took place.")
       /* This used to be if (!... && ... >= ...) Fcapitalize; else Fupcase
 	 but Megatest 68000 compiler can't handle that */
       if (!abbrev_all_caps)
-	if (scan_words (point, -1) > scan_words (wordstart, 1))
+	if (scan_words (PT, -1) > scan_words (wordstart, 1))
 	  {
 	    upcase_initials_region (make_number (wordstart),
-				    make_number (point));
+				    make_number (PT));
 	    goto caped;
 	  }
       /* If expansion is one word, or if user says so, upcase it all. */
-      Fupcase_region (make_number (wordstart), make_number (point));
+      Fupcase_region (make_number (wordstart), make_number (PT));
     caped: ;
     }
   else if (uccount)
     {
       /* Abbrev included some caps.  Cap first initial of expansion */
       int old_zv = ZV;
-      int old_pt = point;
+      int old_pt = PT;
 
       /* Don't let Fcapitalize_word operate on text after point.  */
-      ZV = point;
+      ZV = PT;
       SET_PT (wordstart);
       Fcapitalize_word (make_number (1));
 
@@ -194,7 +194,7 @@ Returns t if expansion took place.")
     }
 
   hook = XSYMBOL (sym)->function;
-  if (!NILP (hook))
+  if (!NILP (hook) && !EQ (hook, Qunbound))
     call0 (hook);
 
   return Qt;

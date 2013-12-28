@@ -22,53 +22,52 @@ If at the end of the current message, moves to the next message iff the
 value of vm-auto-next-message is non-nil.
 Prefix N scrolls forward N lines."
   (interactive "P")
-  (let ((mp-changed (vm-follow-summary-cursor)) was-invisible do-next-message)
+  (let ((mp-changed (vm-follow-summary-cursor))
+	(was-invisible nil))
     (vm-select-folder-buffer)
-    (vm-sanity-check-modification-flag)
     (vm-check-for-killed-summary)
     (vm-error-if-folder-empty)
-    (if (vm-within-current-message-buffer
-	 (null (get-buffer-window (current-buffer))))
+    (if (null (get-buffer-window (current-buffer)))
 	(progn
 	  (vm-display-current-message-buffer)
 	  (setq was-invisible t)))
     (if (eq vm-system-state 'previewing)
-	(vm-show-current-message)
+	(progn (vm-show-current-message)
+	       (vm-howl-if-eom))
       (if (or mp-changed was-invisible)
 	  (vm-howl-if-eom)
 	(let ((vmp vm-message-pointer)
-	      (msg-buf (vm-current-message-buffer))
+	      (msg-buf (current-buffer))
 	      (h-diff 0)
-	      w old-w result)
+	      w old-w old-w-height result)
 	(setq vm-system-state 'reading)
-	(setq old-w (get-buffer-window msg-buf))
+	(setq old-w (get-buffer-window msg-buf)
+	      old-w-height (window-height old-w))
 	(if (not (eq vm-window-configuration 'paging-message))
 	    (save-excursion (vm-set-window-configuration 'paging-message)))
 	(setq w (get-buffer-window msg-buf))
 	(if (null w)
 	    (error "paging-message configuration hides the message buffer.")
-	  (setq h-diff (- (window-height w) (window-height old-w))))
+	  (setq h-diff (- (window-height w) old-w-height)))
 	(setq old-w (selected-window))
-	(vm-within-current-message-buffer
-	 (unwind-protect
-	     (progn
-	       (select-window w)
-	       (let ((next-screen-context-lines
-		      (+ next-screen-context-lines h-diff))
-		     ;; restore
-		     (vm-message-pointer vmp))
-		 (while (eq (setq result (vm-scroll-forward-internal arg))
-			    'tryagain))
-		 (cond ((and (not (eq result 'next-message))
-			     vm-honor-page-delimiters)
-			(vm-narrow-to-page)
-			;; This voodoo is required!  For some
-			;; reason the 18.52 emacs display
-			;; doesn't immediately reflect the
-			;; clip region change that occurs
-			;; above without this mantra. 
-			(scroll-up 0)))))
-	   (select-window old-w)))
+	(unwind-protect
+	    (progn
+	      (select-window w)
+	      (let ((next-screen-context-lines
+		     (+ next-screen-context-lines h-diff)))
+		(while (eq (setq result (vm-scroll-forward-internal arg))
+			   'tryagain))
+		(cond ((and (not (eq result 'next-message))
+			    vm-honor-page-delimiters)
+		       (vm-narrow-to-page)
+		       ;; This voodoo is required!  For some
+		       ;; reason the 18.52 emacs display
+		       ;; doesn't immediately reflect the
+		       ;; clip region change that occurs
+		       ;; above without this mantra. 
+		       (scroll-up 0)))))
+	  (select-window old-w))
+	(set-buffer msg-buf)
 	(cond ((eq result 'next-message)
 	       (vm-next-message)
 	       (vm-set-window-configuration 'auto-next-message))
@@ -114,24 +113,28 @@ Prefix N scrolls forward N lines."
 	       (set-window-point w (point))
 	       'end-of-message)))))))
 
+;; exploratory scrolling, what a concept.
+;;
+;; we do this because pos-visible-in-window-p checks the current
+;; window copnfiguration, while this exploratory scrolling forces
+;; Emacs to recompute the display, giving us an up to the moment
+;; answer about where the end of the message is going to be
+;; visible when redisplay finally does occur.
 (defun vm-howl-if-eom ()
-  (let ((vmp vm-message-pointer))
-    (vm-within-current-message-buffer
-     (let ((w (get-buffer-window (current-buffer)))
-	   (vm-message-pointer vmp))
-       (and w
-	    (save-excursion
-	      (save-window-excursion
-		(condition-case ()
-		    (let ((next-screen-context-lines 0))
-		      (select-window w)
-		      (save-excursion
-			(save-window-excursion
-			  (scroll-up nil)))
-		      nil)
-		  (error t))))
-	    (= (vm-text-end-of (car vm-message-pointer)) (point-max))
-	    (vm-emit-eom-blurb))))))
+  (let ((w (get-buffer-window (current-buffer))))
+    (and w
+	 (save-excursion
+	   (save-window-excursion
+	     (condition-case ()
+		 (let ((next-screen-context-lines 0))
+		   (select-window w)
+		   (save-excursion
+		     (save-window-excursion
+		       (scroll-up nil)))
+		   nil)
+	       (error t))))
+	 (= (vm-text-end-of (car vm-message-pointer)) (point-max))
+	 (vm-emit-eom-blurb))))
 
 (defun vm-emit-eom-blurb ()
   (message "End of message %s from %s"
@@ -143,81 +146,75 @@ Prefix N scrolls forward N lines."
 Prefix N scrolls backward N lines."
   (interactive "P")
   (vm-scroll-forward (cond ((null arg) '-)
-			   ((symbolp arg) nil)
 			   ((consp arg) (list (- (car arg))))
+			   ((numberp arg) (- arg))
+			   ((symbolp arg) nil)
 			   (t arg))))
 
 (defun vm-preview-current-message ()
   (setq vm-system-state 'previewing)
-  (if (and (null (vm-within-current-message-buffer
-		  (get-buffer-window (current-buffer))))
-	   (eq major-mode 'vm-virtual-mode)
-	   (not (one-window-p t)))
-      (vm-display-current-message-buffer t))
-  (if (null vm-message-pointer) ; don't lose on empty folder -- jwz
-      nil
-  (let ((vmp vm-message-pointer))
-    (vm-within-current-message-buffer
-     (let ((vm-message-pointer vmp))
-       (widen)
-       (narrow-to-region
-	(vm-vheaders-of (car vm-message-pointer))
-	(if vm-preview-lines
-	    (min
-	     (vm-text-end-of (car vm-message-pointer))
-	     (save-excursion
-	       (goto-char (vm-text-of (car vm-message-pointer)))
-	       (forward-line (if (natnump vm-preview-lines)
-				 vm-preview-lines
-			       0))
-	       (point)))
-	  (vm-text-of (car vm-message-pointer))))
-       (if vm-honor-page-delimiters
-	   (vm-narrow-to-page))
-       (goto-char (vm-text-of (car vm-message-pointer)))
-       ;; If we have a window, set window start appropriately.
-       ;; Highlight appropriate headers if current buffer is visible.
-       (let ((w (get-buffer-window (current-buffer))))
-	 (if w (set-window-start w (point-min)))
-	 (vm-highlight-headers (car vm-message-pointer) w)))))
-  ;; De Morgan's Theorems could clear away most of the following negations,
-  ;; but the resulting code would be horribly obfuscated.
+  (if vm-real-buffers
+      (vm-make-virtual-copy (car vm-message-pointer)))
+  (widen)
+  ;; hide as much of the message body as vm-preview-lines specifies
+  (narrow-to-region
+   (vm-vheaders-of (car vm-message-pointer))
+   (cond ((not (eq vm-preview-lines t))
+	  (min
+	   (vm-text-end-of (car vm-message-pointer))
+	   (save-excursion
+	     (goto-char (vm-text-of (car vm-message-pointer)))
+	     (forward-line (if (natnump vm-preview-lines) vm-preview-lines 0))
+	     (point))))
+	  (t (vm-text-end-of (car vm-message-pointer)))))
+  ;; run the hooks here instead of before the narrow-to-region
+  ;; for Jamie Z's highlighting hooks.  reordering the headers
+  ;; screws up the extents.  the reference to vm-vheaders-of above
+  ;; assures that the rordering will have occurred by this point.
+  (vm-run-message-hook (car vm-message-pointer) 'vm-select-message-hook)
+  (and vm-select-new-message-hook (vm-new-flag (car vm-message-pointer))
+       (vm-run-message-hook (car vm-message-pointer)
+			    'vm-select-new-message-hook))
+  (and vm-select-unread-message-hook (vm-unread-flag (car vm-message-pointer))
+       (vm-run-message-hook (car vm-message-pointer)
+			    'vm-select-unread-message-hook))
+  (if vm-honor-page-delimiters
+      (vm-narrow-to-page))
+  (goto-char (vm-text-of (car vm-message-pointer)))
+  ;; If we have a window, set window start appropriately.
+  (let ((w (get-buffer-window (current-buffer))))
+    (if w
+	(progn (set-window-start w (point-min))
+	       (set-window-point w (vm-text-of (car vm-message-pointer))))))
   (if (or (null vm-preview-lines)
 	  (and (not vm-preview-read-messages)
 	       (not (vm-new-flag (car vm-message-pointer)))
 	       (not (vm-unread-flag (car vm-message-pointer)))))
       (vm-show-current-message)
-    (vm-update-summary-and-mode-line)
-    (run-hooks 'vm-preview-message-hook)	; jwz
-    )))
+    (vm-update-summary-and-mode-line)))
 
 (defun vm-show-current-message ()
-  (setq vm-system-state 'showing)
-  (let ((vmp vm-message-pointer)
-	(newp nil)
-	(unreadp nil))
-    (vm-within-current-message-buffer
-     (let ((vm-message-pointer vmp))
-       (save-excursion
-	 (goto-char (point-min))
-	 (widen)
-	 (narrow-to-region (point) (vm-text-end-of (car vm-message-pointer))))
-       (if vm-honor-page-delimiters
-	   (progn
-	     (if (looking-at page-delimiter)
-		 (forward-page 1))
-	     (vm-narrow-to-page)))))
-  (cond ((vm-new-flag (car vm-message-pointer))
-	 (setq newp t)		; jwz: for vm-show-new-message-hook.
-	 (vm-set-new-flag (car vm-message-pointer) nil))
-	((vm-unread-flag (car vm-message-pointer))
-	 (setq unreadp t)	; jwz: for vm-show-unread-message-hook.
-	 (vm-set-unread-flag (car vm-message-pointer) nil)))
-  (vm-update-summary-and-mode-line)
-  (cond (newp (run-hooks 'vm-show-new-message-hook))
-	(unreadp (run-hooks 'vm-show-unread-message-hook)))
-  (run-hooks 'vm-show-message-hook)
-  ))
+  (save-excursion
+    (save-excursion
+      (goto-char (point-min))
+      (widen)
+      (narrow-to-region (point) (vm-text-end-of (car vm-message-pointer))))
+    (if vm-honor-page-delimiters
+	(progn
+	  (if (looking-at page-delimiter)
+	      (forward-page 1))
+	  (vm-narrow-to-page))))
+  ;; don't mark the message as read if the user can't see it!
+  (if (get-buffer-window (current-buffer))
+      (progn
+	(setq vm-system-state 'showing)
+	(cond ((vm-new-flag (car vm-message-pointer))
+	       (vm-set-new-flag (car vm-message-pointer) nil))
+	      ((vm-unread-flag (car vm-message-pointer))
+	       (vm-set-unread-flag (car vm-message-pointer) nil)))
+	(vm-update-summary-and-mode-line)
+	(vm-howl-if-eom))
+    (vm-update-summary-and-mode-line)))
 
 (defun vm-expose-hidden-headers ()
   "Toggle exposing and hiding message headers that are normally not visible."
@@ -226,26 +223,23 @@ Prefix N scrolls backward N lines."
   (vm-select-folder-buffer)
   (vm-check-for-killed-summary)
   (vm-error-if-folder-empty)
-  (let ((vmp vm-message-pointer))
-    (vm-within-current-message-buffer
-     (let* ((vm-message-pointer vmp)
-	    (exposed (= (point-min) (vm-start-of (car vm-message-pointer)))))
-       (vm-widen-page)
-       (goto-char (point-max))
-       (widen)
-       (if exposed
-	   (narrow-to-region (point) (vm-vheaders-of (car vm-message-pointer)))
-	 (narrow-to-region (point) (vm-start-of (car vm-message-pointer))))
-       (goto-char (point-min))
-       (let (w)
-	 (setq w (get-buffer-window (current-buffer)))
-	 (and w (set-window-point w (point-min)))
-	 (and w
-	      (= (window-start w) (vm-vheaders-of (car vm-message-pointer)))
-	      (not exposed)
-	      (set-window-start w (vm-start-of (car vm-message-pointer)))))
-       (if vm-honor-page-delimiters
-	   (vm-narrow-to-page))))))
+  (let* ((exposed (= (point-min) (vm-start-of (car vm-message-pointer)))))
+    (vm-widen-page)
+    (goto-char (point-max))
+    (widen)
+    (if exposed
+	(narrow-to-region (point) (vm-vheaders-of (car vm-message-pointer)))
+      (narrow-to-region (point) (vm-start-of (car vm-message-pointer))))
+    (goto-char (point-min))
+    (let (w)
+      (setq w (get-buffer-window (current-buffer)))
+      (and w (set-window-point w (point-min)))
+      (and w
+	   (= (window-start w) (vm-vheaders-of (car vm-message-pointer)))
+	   (not exposed)
+	   (set-window-start w (vm-start-of (car vm-message-pointer)))))
+    (if vm-honor-page-delimiters
+	(vm-narrow-to-page))))
 
 (defun vm-widen-page ()
   (if (or (> (point-min) (vm-text-of (car vm-message-pointer)))
@@ -276,14 +270,11 @@ Prefix N scrolls backward N lines."
   (vm-select-folder-buffer)
   (vm-check-for-killed-summary)
   (vm-error-if-folder-empty)
-  (let ((vmp vm-message-pointer))
-    (vm-within-current-message-buffer
-     (let ((vm-message-pointer vmp))
-       (vm-widen-page)
-       (push-mark)
-       (goto-char (point-min))
-       (if vm-honor-page-delimiters
-	   (vm-narrow-to-page)))))
+  (vm-widen-page)
+  (push-mark)
+  (goto-char (point-min))
+  (if vm-honor-page-delimiters
+      (vm-narrow-to-page))
   (vm-display-current-message-buffer))
 
 (defun vm-end-of-message ()
@@ -297,12 +288,9 @@ as necessary."
   (if (eq vm-system-state 'previewing)
       (vm-show-current-message))
   (setq vm-system-state 'reading)
-  (let ((vmp vm-message-pointer))
-    (vm-within-current-message-buffer
-     (let ((vmp vm-message-pointer))
-       (vm-widen-page)
-       (push-mark)
-       (goto-char (point-max))
-       (if vm-honor-page-delimiters
-	   (vm-narrow-to-page)))))
-  (vm-display-current-message-buffer t))
+  (vm-widen-page)
+  (push-mark)
+  (goto-char (point-max))
+  (if vm-honor-page-delimiters
+      (vm-narrow-to-page))
+  (vm-display-current-message-buffer))

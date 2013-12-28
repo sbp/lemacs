@@ -118,7 +118,7 @@ thus showing a page other than the one point was originally in."
       (setq total (count-lines beg end)
 	    before (count-lines beg opoint)
 	    after (count-lines opoint end))
-      (message "Page has %d lines (%d + %d)" total before after))))
+      (message (gettext "Page has %d lines (%d + %d)") total before after))))
 
 (defun what-page ()
   "Print page and line number of point."
@@ -132,7 +132,7 @@ thus showing a page other than the one point was originally in."
 	(goto-char 1)
 	(while (re-search-forward page-delimiter opoint t)
 	  (setq count (1+ count)))
-	(message "Page %d, line %d"
+	(message (gettext "Page %d, line %d")
 		 count
 		 (1+ (count-lines (point) opoint)))))))
 

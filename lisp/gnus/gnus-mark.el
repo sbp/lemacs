@@ -1,13 +1,14 @@
 ;;; -*- Mode:Emacs-Lisp -*-
 
-;;; gnus-mark.el v1.5
+;;; gnus-mark.el v1.6
 ;;; Operating on more than one news article at a time.
-;;; Created: 28-Jun-91 by Jamie Zawinski <jwz@lucid.com>
+;;; Created:  28-Jun-91 by Jamie Zawinski <jwz@lucid.com>
 ;;; Modified: 28-Jun-91 by Sebastian Kremer <sk@thp.Uni-Koeln.DE>
-;;; Modified: 1-Dec-91 by Jamie Zawinski <jwz@lucid.com>
+;;; Modified: 01-Dec-91 by Jamie Zawinski <jwz@lucid.com>
 ;;; Modified: 05-Dec-91 by Paul D. Smith <paul_smith@dg.com>
 ;;; Modified: 28-Nov-92 by A1C Tim Miller <tjm@hrt213.brooks.af.mil>
 ;;; Modified: 10-Jun-93 by Vivek Khera <khera@cs.duke.edu> (GNUS 3.15 fixes)
+;;; Modified: 15-Sep-93 by Jamie Zawinski <jwz@lucid.com> (article saving)
 ;;;
 ;;; typing `@' in the subject buffer will mark the current article with
 ;;; an `@'.  After marking more than one article this way, you can use one
@@ -45,36 +46,24 @@
 ;;; dirty work.  If the directory you specify doesn't exist, you have the
 ;;; option of creating it.
 ;;;
-;;; M-x gnus-save-marked-articles-in-file will save marked articles in a file;
-;;; prompts with gnus' standard filename query for each article unless
-;;; gnus-save-marked-in-same-file is non-nil.
+;;; `C-o' and `o' (`gnus-summary-save-in-mail' and `gnus-summary-save-article')
+;;; will operate on the marked articles, assuming you are using one of the 
+;;; standard functions for `gnus-default-article-saver', those being
+;;; `gnus-summary-save-in-rmail', `gnus-summary-save-in-mail',
+;;; `gnus-summary-save-in-folder', and `gnus-summary-save-in-file'.  If you 
+;;; use a different function here, it should be pretty obvious from reading
+;;; the code how to convert it to operate on the marked articles.
+;;;
+;;; When saving articles, the variable `gnus-save-marked-in-same-file' controls
+;;; whether to prompt for the file/folder intowhich each article should be 
+;;; written.  If t, you will be asked where to save them once, and all 
+;;; messages will be saved to the same place.  If nil, you will be prompted
+;;; for each article.
 ;;
 ;; LCD Archive Entry:
 ;; gnus-mark|Jamie Zawinski|jwz@lucid.com
 ;; |Operate on more than one news article at a time
-;; |92-11-30||~/misc/gnus-mark.el.Z|
-
-;; 05 Dec 91 pds - Paul D. Smith (paul_smith@dg.com)
-;;
-;;  * Changed the key binding for gnus-forward-marked-articles to C-f
-;;    instead of F: `F' is Followup-yank-original which is a very
-;;    common function!
-;;
-;;  * Added local gnus-mark-shell-command function which performs
-;;    more exactly what we want to happen; namely allows the shell
-;;    output buffer to be displayed before the command is executed and
-;;    to be filled real-time.  It will either erase the buffer or just
-;;    add text to the end.
-;;
-;;  * Fixed a bug where if you had one of the articles you marked
-;;    actually read in when you used one of the three mark processing
-;;    commands the mark would not be deleted.
-;;
-;;  * Modified gnus-summary-mark-article to use GNUS functions to do
-;;    the marking instead of modifying the character itself.  This
-;;    keeps the cursor in the right position in the buffer, doesn't
-;;    allow it to go beyond the end of the buffer even if you select
-;;    the last article, etc.
+;; |93-09-15|1.6|~/misc/gnus-mark.el.Z|
 
 (require 'gnus)
 
@@ -319,6 +308,12 @@ gnus-uudecode-file-mode, gnus-uudecode-auto-chmod, and
 	  (let ((p (point))
 		(case-fold-search nil))
 	    (insert-buffer gnus-article-buffer)
+	    (goto-char p)
+	    ;; Some MSDOS losers post uuencoded articles with CRLF.
+	    (while (search-forward "\r\n" nil t)
+	      (forward-char -1)
+	      (delete-char -1))
+	    (goto-char p)
 	    (cond
 	     ((eq state 'first)
 	      (or (re-search-forward gnus-uudecode-begin-pattern nil t)
@@ -506,31 +501,82 @@ and then run the result through gnus-unshar-program (typically /bin/sh.)"
 ;	  (display-buffer "*Article*"))
       )))
 
-(defvar gnus-save-marked-in-same-file nil
-  "*Tells GNUS whether or not to prompt for a filename for each marked 
-article being saved.")
+
+;;; This code encapsulates the definitions of the standard gnus-save-in-*
+;;; functions to operate on the marked articles.
 
-;;; Save marked articles in a file
-;;; Started: 28 Nov 92, because I need this kind of functionality
-;;; By: A1C Tim Miller, tjm@hrt213.brooks.af.mil
-;;; Map the function down the marked articles that grabs the article
-;;; and saves it in a file, requesting a filename to save in
+(defvar gnus-save-marked-in-same-file t
+  "*When saving multiple marked articles, whether to prompt each time.
+If t, you will be asked where to save them once, and all messages will
+be saved there.  If nil, you will be prompted for each article.")
 
-(defun gnus-save-marked-articles-in-file ()
-  "Save marked messages in a file."
+(defvar inside-gnus-save-marked-articles-mapper)
+(defun gnus-save-marked-articles-mapper (saver filename var)
+  (let* ((count 0)
+	 (fn (function (lambda (msg)
+			(if filename
+			    (funcall saver filename)
+			  (call-interactively saver)
+			  (if gnus-save-marked-in-same-file
+			      (setq filename (symbol-value var))))
+			(setq count (1+ count))))))
+    (if (and (boundp 'inside-gnus-save-marked-articles-mapper)
+	     inside-gnus-save-marked-articles-mapper)
+	(funcall fn nil)
+      (let ((inside-gnus-save-marked-articles-mapper t))
+	  (gnus-summary-mark-map-articles gnus-default-mark-char fn)
+	  (if (> count 0)
+	      (message "%s"
+		       (concat (format "Saved %d article%s"
+				       count (if (= count 1) "" "s"))
+			       (if gnus-save-marked-in-same-file
+				   (format " to %s" filename)))))))))
+
+
+(defvar gm-orig-gnus-summary-save-in-rmail
+  (symbol-function 'gnus-summary-save-in-rmail))
+
+(defun gnus-summary-save-in-rmail (&optional filename)
+  "Append the marked articles to an Rmail file.
+Optional argument FILENAME specifies file name.
+Directory to save to is default to `gnus-article-save-directory' which
+is initialized from the SAVEDIR environment variable."
   (interactive)
-  (let ((state 'first))
-    (unwind-protect
-	(progn
-	  (gnus-summary-mark-map-articles
-	   gnus-default-mark-char
-	   (function (lambda (msg)
-		       (if (eq state 'first) (setq state t) (setq state nil))
-		       (message "Grabbing Article %s..." (aref msg 0))
-		       (or (eq gnus-current-article (aref msg 0))
-			   (gnus-summary-display-article (aref msg 0)))
-		       (if (and (not state) gnus-save-marked-in-same-file)
-			   (gnus-summary-save-in-file gnus-newsgroup-last-file)
-			 (gnus-summary-save-in-file)))))))))
+  (gnus-save-marked-articles-mapper gm-orig-gnus-summary-save-in-rmail
+				    filename 'gnus-newsgroup-last-rmail))
+
+(defvar gm-orig-gnus-summary-save-in-mail
+  (symbol-function 'gnus-summary-save-in-mail))
+
+(defun gnus-summary-save-in-mail (&optional filename)
+  "Append the marked articles to a Unix mail file.
+Optional argument FILENAME specifies file name.
+Directory to save to is default to `gnus-article-save-directory' which
+is initialized from the SAVEDIR environment variable."
+  (interactive)
+  (gnus-save-marked-articles-mapper gm-orig-gnus-summary-save-in-mail
+				    filename 'gnus-newsgroup-last-mail))
+
+(defvar gm-orig-gnus-summary-save-in-file
+  (symbol-function 'gnus-summary-save-in-file))
+
+(defun gnus-summary-save-in-file (&optional filename)
+  "Append the marked articles to a file.
+Optional argument FILENAME specifies file name.
+Directory to save to is default to `gnus-article-save-directory' which
+is initialized from the SAVEDIR environment variable."
+  (interactive)
+  (gnus-save-marked-articles-mapper gm-orig-gnus-summary-save-in-file
+				    filename 'gnus-newsgroup-last-file))
+
+(defvar gm-orig-gnus-summary-save-in-folder
+  (symbol-function 'gnus-summary-save-in-folder))
+
+(defun gnus-summary-save-in-folder (&optional folder)
+  "Save the marked articles to a MH folder (using `rcvstore' in MH library).
+Optional argument FOLDER specifies folder name."
+  (interactive)
+  (gnus-save-marked-articles-mapper gm-orig-gnus-summary-save-in-folder
+				    folder 'gnus-newsgroup-last-folder))
 
 (provide 'gnus-mark)

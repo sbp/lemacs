@@ -54,6 +54,9 @@
 #define XtNinitialGeometry "initialGeometry"
 #define XtCInitialGeometry "InitialGeometry"
 
+#define XtNmenubar "menubar"
+#define XtCMenubar "menubar"
+
 /* structures
  */
 typedef struct _EmacsScreenRec *EmacsScreen;

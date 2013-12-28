@@ -26,8 +26,13 @@ struct line_header;
 struct char_block;
 struct font_standin_struct;
 
+#ifdef I18N4
 extern int  (*text_width_hook) (Lisp_Object font,
-                                const unsigned char *s, int l);
+                                CONST wchar_t *s, int l);
+#else
+extern int  (*text_width_hook) (Lisp_Object font,
+                                CONST unsigned char *s, int l);
+#endif
 extern void (*clear_window_end_hook) ();
 extern void (*update_line_hook) (struct window *w, 
                                  struct line_header *l,

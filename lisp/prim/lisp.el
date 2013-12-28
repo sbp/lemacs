@@ -53,14 +53,10 @@ Negative arg -N means move forward across N balanced expressions."
 (defun mark-sexp (arg)
   "Set mark ARG sexps from point.
 The place mark goes is the same place \\[forward-sexp] would move to
-with the same argument."
+with the same argument.
+Repeat this command to mark more sexps in the same direction."
   (interactive "p")
-  (push-mark
-    (save-excursion
-      (forward-sexp arg)
-      (point))
-    nil
-    t))
+  (mark-something 'mark-sexp 'forward-sexp arg))
 
 (defun forward-list (&optional arg)
   "Move forward across one balanced group of parentheses.
@@ -260,13 +256,13 @@ or properties are considered."
 	 (completion (try-completion pattern obarray predicate)))
     (cond ((eq completion t))
 	  ((null completion)
-	   (message "Can't find completion for \"%s\"" pattern)
+	   (message (gettext "Can't find completion for \"%s\"") pattern)
 	   (ding))
 	  ((not (string= pattern completion))
 	   (delete-region beg end)
 	   (insert completion))
 	  (t
-	   (message "Making completion list...")
+	   (message (gettext "Making completion list..."))
 	   (let ((list (all-completions pattern obarray predicate)))
 	     (or (eq predicate 'fboundp)
 		 (let (new)
@@ -277,8 +273,8 @@ or properties are considered."
 				     new))
 		     (setq list (cdr list)))
 		   (setq list (nreverse new))))
-	     (with-output-to-temp-buffer "*Help*"
+	     (with-output-to-temp-buffer (gettext "*Help*")
 	       (display-completion-list list)))
-	   (message "Making completion list...%s" "done")))))
+	   (message (gettext "Making completion list...%s") "done")))))
 
 ;;; lisp.el ends here

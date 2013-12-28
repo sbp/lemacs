@@ -18,6 +18,7 @@ along with GNU Emacs; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include "config.h"
+#include "intl.h"
 #include "lisp.h"
 #include "buffer.h"
 #include "window.h"
@@ -133,6 +134,11 @@ event_equal (Lisp_Object o1, Lisp_Object o2, int depth)
                && (XEVENT (o1)->event.button.modifiers
                    == XEVENT (o2)->event.button.modifiers)));
 
+#ifdef I18N4
+    case wchar_event:
+      return (XEVENT (o1)->event.wchar.data == XEVENT (o2)->event.wchar.data);
+#endif
+
     case pointer_motion_event:
       return ((XEVENT (o1)->event.motion.x == XEVENT (o2)->event.motion.x
                && XEVENT (o1)->event.motion.y == XEVENT (o2)->event.motion.y));
@@ -203,7 +209,7 @@ explicitly deallocate events when you are sure that that is safe.")
 
   e = XEVENT (event);
   if (e->event_type == dead_event)
-    error ("this event is already deallocated!");
+    error (GETTEXT ("this event is already deallocated!"));
 
   if (e->event_type < first_event_type || e->event_type > last_event_type)
     abort ();
@@ -258,7 +264,7 @@ be made as with `allocate-event.'  See also the function `deallocate-event'.")
   if (EQ (event1, event2))
     return Fsignal (Qerror,
                     list3 (build_string
-                           ("copy-event called with `eq' events"),
+                           (GETTEXT ("copy-event called with `eq' events")),
                            event1, event2));
   e1 = XEVENT (event1);
   e2 = XEVENT (event2);
@@ -271,8 +277,8 @@ be made as with `allocate-event.'  See also the function `deallocate-event'.")
   if ((e1->event_type == dead_event) ||
       (e2->event_type == dead_event))
     return Fsignal (Qerror,
-		    list3 (build_string
-			   ("copy-event called with a deallocated event!"),
+		    list3 (build_string (GETTEXT
+			("copy-event called with a deallocated event!")),
 			   event1,
                            event2));
   {

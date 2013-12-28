@@ -195,12 +195,15 @@ the term "frame" as well, but we have not done so yet.
 
 Lucid Emacs uses "extents" to represent all non-textual aspects of buffers;
 FSF 19 uses two distinct objects, "text properties" and "overlays", which
-divide up the functionality between them.
+divide up the functionality between them.  Extents are a superset of the
+functionality of the two FSF data types.  A large subset of the FSF 19 
+interface to text properties is supported in lemacs (with extents being the
+underlying representation.)
 
-Currently, extents are not copied into strings, and are not restored by kill
-and yank, but the underlying functionality is there.  Extents were designed 
-to be a superset of the functionality of "text properties" and "overlays."
-
+Extents can be made to be copied into strings, and thus restored by kill
+and yank.  Thus, one can specify this behavior on either "extents" or
+"text properties", whereas in FSF 19 text properties always have this
+behavior and overlays never do.
 
 Here are some more specifics about the Lucid Emacs implementation:
 
@@ -853,17 +856,93 @@ There are several structural widgets between the terminal EmacsScreen widget
 and the top level ApplicationShell; the exact names and types of these widgets
 are subject to change in the future, so you should avoid mentioning them in
 your resource database.  The above-mentioned syntaxes should be forward-
-compatible.  As of 19.8, the exact widget hierarchy is
+compatible.  As of 19.9, the exact widget hierarchy is as follows:
 
-    invocation-name            "shell"       "pane"   screen-name
-    x-emacs-application-class  "EmacsShell"  "Paned"  "EmacsScreen"
+For Motif:
+-----------
+   invocation-name            "shell"          "pane"          screen-name
+   x-emacs-application-class  "TopLevelShell"  "XmMainWindow"  "EmacsScreen"
+
+For Athena:
+-----------
+   invocation-name            "shell"          "pane"   "pane"   screen-name
+   x-emacs-application-class  "TopLevelShell"  "Paned"  "Paned"  "EmacsScreen"
 
 where `invocation-name' is the terminal component of the name of the emacs
-executable, and `x-emacs-application-class' is generally "Emacs".  It is likely
-that the future introduction of scrollbars will cause there to be one or more
-additional "Paned" superiors of the EmacsScreen.  Also, the "EmacsShell" may be
-named simply "Shell" someday, so it is wise to avoid mentioning specific
-widgets between the application name/class and the EmacsScreen.
+executable, and `x-emacs-application-class' is generally "Emacs".
+
+Since, as you see, the exact widget hierarchy depends on the toolkit in use,
+and is subject to change in the future, it is best to use wildcards instead of
+fully specifying the path of the resource you want to st.
+
+Here is the hierarchy including the other widgets:
+
+	Widget Name:            Athena Class:       Motif Class:
+	------------            -------------       ------------
+	lemacs                  Emacs               Emacs
+	  shell                 TopLevelShell       TopLevelShell
+	    pane                Paned               XmMainWindow
+	      menubar           XlwMenu             XmMenuBar
+	      lower_pane        Paned               *
+	        screen-name     EmacsScreen         EmacsScreen
+	        sb_container    Paned               XmPanedWindow
+	          scrollbar     Scrollbar           XmScrollBar
+	    dialog              XtPopupShell        XmDialogShell
+              label             Label               XmLabel
+              button1 ...       Command             XmPushbutton
+
+  * Note that the "lower_pane" widget exists only in Athena versions;
+    in Motif versions, both the "menubar" and `screen-name' widgets
+    are children of the "pane".
+
+As the menubar is implemented as a widget which is not a part of emacs proper,
+it does not use the "face" mechanism for specifying fonts and colors: it uses
+whatever resources are appropriate to the type of widget which is used to
+implement it.
+
+If Emacs was compiled to use only the Motif-lookalike menu widgets, then one
+way to specify the font of the menubar would be
+
+	Emacs*menubar*font: *-courier-medium-r-*-*-*-120-*-*-*-*-*-*
+
+If the Motif library is being used, then one would have to use 
+
+	Emacs*menubar*fontList: *-courier-medium-r-*-*-*-120-*-*-*-*-*-*
+
+because the Motif library uses the "fontList" resource name instead of "font",
+which has subtly different semantics.
+
+The same is true of the scrollbars: they accept whichever resources are 
+appropriate to the toolkit in use.
+
+
+Source Code Highlighting
+========================
+
+It's possible to have your buffers "decorated" with fonts or colors indicating
+syntactic structures (such as strings, comments, function names, "reserved
+words", etc.)  In Lucid Emacs, the preferred way to do this is with 
+font-lock-mode; activate it by adding the following code to your .emacs file:
+
+	(add-hook 'emacs-lisp-mode-hook	'turn-on-font-lock)
+	(add-hook 'c-mode-hook		'turn-on-font-lock)
+	(add-hook 'c++-mode-hook	'turn-on-font-lock)
+	(add-hook 'dired-mode-hook	'turn-on-font-lock)
+	...etc...
+
+To customize it, see the descriptions of the function `font-lock-mode' and
+the variables `font-lock-keywords', `c-font-lock-keywords', etc.
+
+There exist several other source code highlighting packages, but font-lock
+does does one thing that most others don't do: highlights as you type new
+text; and one thing that no others do: bases part of its decoration on the
+syntax table of the major mode.  Font-lock has C-level support to do this
+efficiently, so it should also be significantly faster than the others.
+
+If there's something that another highlighting package does that you can't
+make font-lock do, let us know.  We would prefer to consolidate all of the
+desired functionality into one package rather than ship several different
+packages which do essentially the same thing in different ways.
 
 
 Known Problems / TODO List
@@ -872,7 +951,7 @@ Known Problems / TODO List
 There are a number of minor redisplay glitches involving the echo area and
 minibuffer.  These will be fixed soon.  
 
-Most of the `screen-parameters' don't work.  I'm not convinced that the
+Many of the `screen-parameters' don't work.  I'm not convinced that the
 screen-parameters/modify-screen-parameters functions are the best interface
 anyway.
 
@@ -882,9 +961,6 @@ that real Motif menubars use (as much as possible, anyway.)
 The `mouse-motion-hook' should be called whenever a buffer scrolls or the
 sizes of windows change, so that it can correctly frob the mouse-cursor based
 on the text that the mouse is now over.
-
-Scrollbars will be in the next release.  They will be real "toolkit" 
-scrollbars.
 
 We should use the configure system for emacs and lwlib, and should not use
 imake.  (Won't someone please volunteer to do this?)
@@ -1171,6 +1247,12 @@ If the second argument is not supplied (or is nil) then a new event will
 be made as with `allocate-event.'  See also the function `deallocate-event'.
 
 ------------------------------
+copy-extent: (extent &optional buffer)
+
+Make a copy of EXTENT.  It is initially detached.
+The optional BUFFER argument defaults to EXTENT's buffer.
+
+------------------------------
 copy-face: (old-face new-name &optional screen)
 
 Defines and returns a new face which is a copy of an existing one,
@@ -1191,6 +1273,17 @@ Return the cosine of ARG.
 ------------------------------
 cosh: (arg)
 Return the hyperbolic cosine of ARG.
+
+------------------------------
+colorize-pixmap: (pixmap foreground background)
+
+Make the pixmap be displayed in the given colors.
+Pixmaps come in two varieties: bitmaps, which are 1 bit deep which are
+rendered in the prevailing foreground and background colors; and pixmaps,
+which are of arbitrary depth (including 1) and which have the colors
+explicitly specified.  This function converts a bitmap to a pixmap.
+If the pixmap was a pixmap already, nothing is done (and nil is returned.)
+Otherwise t is returned.
 
 ------------------------------
 current-case-table: ()
@@ -1225,7 +1318,7 @@ Open (de-iconify) the iconified screen SCREEN.
 delete-extent: (extent)
 
 Remove EXTENT from its buffer; this does not modify the buffer's text,
-only its display properties.
+only its display properties.  The extent cannot be used thereafter.
 
 ------------------------------
 delete-menu-item: (path)
@@ -1248,6 +1341,21 @@ delete-window: (&optional window)
 
 Remove WINDOW from the display.  Default is selected window.
 If window is the only one on the screen, the screen is destroyed.
+
+------------------------------
+detach-extent: (extent_obj)
+
+Remove EXTENT from its buffer in such a way that it can be re-inserted.
+An extent is also detached when all of its characters are all killed by a
+deletion.
+
+Extents which have the `duplicable' attribute are tracked by the undo
+mechanism.  Detachment via `detach-extent' and string deletion is recorded,
+as is attachment via `insert-extent', `update-extent', and string insertion.
+Extent motion, face changes, and attachment via `make-extent' are not
+recorded.  This means that extent changes which are to be undo-able must be
+performed by character editing, or by insertion and detachment of duplicable
+extents.
 
 ------------------------------
 disable-menu-item: (path)
@@ -1429,36 +1537,20 @@ expt: (x y)
 Return the exponential x ** y.
 
 ------------------------------
-extent-at: (pos &optional buffer flag)
+extent-at: (pos &optional buffer property before)
 
-Find "smallest" extent at POS in BUFFER having FLAG set.  BUFFER
-defaults to the current buffer, FLAG defaults to nil, meaning that any
-extent will do. Possible values for FLAG are nil, 'menu, 'highlight,
-'invisible, and 'write-protected. Returns nil if there is no matching
-extent at POS.
-
-------------------------------
-extent-attributes: (extent_obj &optional raw_p)
-
-Return a list of attributes of EXTENT.
-This list may contain any or none of the following symbols:
-
-    highlight		highlight when the mouse moves over it
-    write-protected	text within this extent will be unmodifyable
-    invisible		don't display the text in this region
-    begin-glyph		there is a begin-glyph
-    end-glyph		there is an end-glyph
-    detached		the text around the extent has been deleted
+Find "smallest" extent at POS in BUFFER having PROPERTY set.
+BUFFER defaults to the current buffer.
+PROPERTY defaults to nil, meaning that any extent will do.
+Properties are attached to extents with `set-extent-property', which see.
+Returns nil if there is no matching extent at POS.
+If the fourth argument BEFORE is not nil, it must be an extent; any returned
+extent will precede that extent.  This feature allows `extent-at' to be used
+by a loop over extents.
 
 ------------------------------
 extent-buffer: (extent_obj)
 Return buffer of EXTENT.
-
-------------------------------
-extent-data: (extent)
-
-Return the user data associated with the given extent.
-Set this using the `set-extent-data' function.
 
 ------------------------------
 extent-end-position: (extent)
@@ -1466,7 +1558,19 @@ Return first position after EXTENT.
 
 ------------------------------
 extent-face: (extent)
-Returns the name of the face in which EXTENT is displayed.
+Returns the name of the face in which EXTENT is displayed, or nil
+if the extent's face is unspecified.
+
+------------------------------
+extent-glyph: (extent)
+
+Return the glyph object associated with EXTENT.
+Returns nil, a pixmap, or a string.
+
+------------------------------
+extent-in-region-p: (extent &optional from to closed-end)
+
+Whether map-extents would visit EXTENT when called with these args.
 
 ------------------------------
 extent-length: (extent)
@@ -1475,6 +1579,18 @@ Return length of EXTENT in characters.
 ------------------------------
 extent-priority: (extent)
 Returns the display priority of EXTENT; see `set-extent-priority'.
+
+------------------------------
+extent-properties: (extent)
+
+Return a property list of the attributes of the given extent.
+Do not modify this list; use `set-extent-property' instead.
+
+------------------------------
+extent-property: (extent property)
+
+Returns the extent's value of the given property.
+See `set-extent-property' for builtin property names.
 
 ------------------------------
 extent-start-position: (extent)
@@ -1595,6 +1711,16 @@ This is the same as `highlight-extent', except that it will work even
 on extents without the 'highlight property.
 
 ------------------------------
+forward-comment: (n)
+
+Move forward across up to N comments.  If N is negative, move backward.
+Stop scanning if we find something other than a comment or whitespace.
+Set point to where scanning stops.
+If N comments are found as expected, with nothing except whitespace
+between them, return t; otherwise return nil.
+Point is set in either case.
+
+------------------------------
 get-face: (name &optional screen)
 
 Retrieve the face of the given name.
@@ -1633,6 +1759,11 @@ first time.
 This function may be used as the value of `pre-display-buffer-function', 
 to cause the display-buffer function and its callers to exhibit the above
 behavior.
+
+------------------------------
+getf: (plist prop &optional defalt)
+Search PROPLIST for property PROPNAME; return its value or DEFAULT.
+PROPLIST is a list of the sort returned by `symbol-plist'.
 
 ------------------------------
 gethash: (key table &optional default)
@@ -1781,6 +1912,10 @@ make-extent: (from to &optional buffer)
 Make extent for range [FROM, TO) in BUFFER -- BUFFER defaults to 
 current buffer.  Insertions at point TO will be outside of the extent;
 insertions at FROM will be inside the extent (and the extent will grow.)
+The extent is initially detached if if both FROM and TO are null, and
+in this case BUFFER defaults to NIL, meaning the extent is in no buffer.
+The initial attributes are (end-open), meaning that start and end points
+behave like markers.
 
 ------------------------------
 make-face: (name)
@@ -1944,9 +2079,26 @@ Map FUNCTION over the extents which overlap region in BUFFER,
 starting at FROM and ending at TO.  FUNCTION is called with the arguments
  (extent, MAPARG).
 The arguments FROM, TO, MAPARG, and BUFFER default to the beginning of
- BUFFER, the end of BUFFER, nil, and (current-buffer\, respectively.
-If the map function returns non-nil, then map-extents returns immediately.
-map-extents always returns nil.
+ BUFFER, the end of BUFFER, nil, and (current-buffer), respectively.
+MAP-EXTENTS returns the first non-null result produced by FUNCTION,
+and no more calls to FUNCTION are made after it returns non-null.
+If BUFFER is an extent, FROM and TO default to the extent's endpoints,
+and the mapping omits that extent and its predecessors.
+This feature supports restarting a loop based on `map-extents'.
+
+------------------------------
+map-extent-children: (function &optional buffer from to maparg closed_end)
+
+Map FUNCTION over the extents in the region from FROM to TO.
+FUNCTION is called with arguments (extent, MAPARG).
+The arguments are the same as for `map-extents', but this function differs
+in that it only visits extents which start in the given region, and also
+in that, after visiting an extent E, it skips all other extents which start
+inside E but end before E's end.
+
+Thus, this function may be used to walk a tree of extents in a buffer:
+	(defun walk-extents (buffer &optional ignore)
+	  (map-extent-children 'walk-extents buffer))
 
 ------------------------------
 map-keymap: (function keymap &optional sort_first)
@@ -2183,6 +2335,39 @@ pixmap-file-name: (pixmap)
 Returns the file name from which the given pixmap was read, or nil
 if the pixmap was created from Lisp data (the lisp data is not retained,
 since it usually won't be needed again might be quite large.)
+
+------------------------------
+pixmap-depth: (pixmap)
+
+Return the depth of the pixmap.
+This is 0 for a bitmap, or a positive integer for a pixmap.
+
+------------------------------
+pixmap-file-name: (pixmap)
+
+Returns the file name from which the given pixmap was read, or nil
+if the pixmap was created from Lisp data (the lisp data is not retained,
+since it usually won't be needed again might be quite large.)
+
+------------------------------
+pixmap-height: (pixmap)
+Return the height of the pixmap, in pixels.
+
+------------------------------
+pixmap-hotspot-x: (pixmap)
+
+Returns the X coordinate of the pixmap's hotspot.
+See `set-pixmap-hotspot'.
+
+------------------------------
+pixmap-hotspot-y: (pixmap)
+
+Returns the Y coordinate of the pixmap's hotspot.
+See `set-pixmap-hotspot'.
+
+------------------------------
+pixmap-width: (pixmap)
+Return the width of the pixmap, in pixels.
 
 ------------------------------
 pixmapp: (obj)
@@ -2447,39 +2632,25 @@ Only the low 9 bits are used.
 This setting is inherited by subprocesses.
 
 ------------------------------
-set-extent-attribute: (extent attr)
+set-extent-begin-glyph: (extent begin_glyph &optional layout)
 
-Make EXTENT have ATTRIBUTE.
-ATTRIBUTE must be one of the following symbols:
-
-    highlight		highlight when the mouse moves over it
-    write-protected	text within this extent will be unmodifyable
-    invisible		don't display the text in this region
-    unhighlight		turn off `highlight'
-    writable		turn off `write-protected'
-    visible		turn off `invisible'
+Display a bitmap or string at the beginning of the given extent.
+The begin-glyph should either be a pixmap object or the string to
+display.  The layout policy defaults to `text'.
 
 ------------------------------
-set-extent-begin-glyph: (extent_obj begin_glyph &optional layout)
+set-extent-end-glyph: (extent end_glyph &optional layout)
 
-Display a bitmap at the beginning of the given extent.
-The begin-glyph should be a string naming a bitmap file (or nil.)
-
-------------------------------
-set-extent-data: (extent data)
-
-Set the user data slot of the given extent.
-Access this using the `extent-data' function.
+Display a bitmap or string at the end of the given extent.
+The end-glyph should either be a pixmap object or the string to
+display.  The layout policy defaults to `text'.
 
 ------------------------------
-set-extent-end-glyph: (extent_obj end_glyph &optional layout)
+set-extent-endpoints: (extent start end)
 
-Display a bitmap at the end of the given extent.
-The end-glyph should be a string naming a bitmap file (or nil.)
-
-------------------------------
-set-extent-endpoints: (extent_obj start end)
 Set the endpoints of EXTENT to START, END.
+If START and END are null, call detach-extent on EXTENT.
+See documentation on `detach-extent' for a discussion of undo recording.
 
 ------------------------------
 set-extent-face: (extent face)
@@ -2495,6 +2666,86 @@ is used to determine which extent takes precedence in the event of a
 conflict (two extents whose faces both specify font, for example: the
 font of the extent with the higher priority will be used.)
 Extents are created with priority 0; priorities may be negative.
+
+------------------------------
+set-extent-property: (extent property value)
+
+Change a property of an extent.
+PROPERTY may be any symbol; the value stored may be accessed with
+ the `extent-property' function.
+The following symbols have predefined meanings:
+
+ detached	Removes the extent from its buffer; setting this is the same
+		as calling `detach-extent'.
+
+ destroyed	Removes the extent from its buffer, and makes it unusable in
+		the future; this is the same calling `delete-extent'.
+
+ priority	Change redisplay priority; same as `set-extent-priority'.
+
+ start-open	Whether the set of characters within the extent is treated
+		being open on the left, that is, whether the start position
+		is an exclusive, rather than inclusive, boundary.  If true,
+		then characters inserted exactly at the beginning of the
+		extent will remain outside of the extent; otherwise they
+		will go into the extent, extending it.
+
+ end-open	Whether the set of characters within the extent is treated
+		being open on the right, that is, whether the end position
+		is an exclusive, rather than inclusive, boundary.  If true,
+		then characters inserted exactly at the end of the extent
+		will remain outside of the extent; otherwise they will go
+		into the extent, extending it.
+
+ read-only	Text within this extent will be unmodifiable.
+
+ face		The face in which to display the text.  Setting this is the
+		same as calling `set-extent-face'.
+
+ highlight	Highlight the extent when the mouse moves over it.
+
+ duplicable	Whether this extent should be copied into strings, so that
+		kill, yank, and undo commands will restore or copy it.
+
+ unique		Meaningful only in conjunction with `duplicable'.  When this
+		is set, there may be only one instance of this extent
+		attached at a time: if it is copied to the kill ring and
+		then yanked, the extent is not copied.  If, however, it is
+		killed (removed from the buffer) and then yanked, it will
+		be re-attached at the new position.
+
+ invisible	Text under this extent is elided (not yet implemented).
+
+ keymap		This keymap is consulted for mouse clicks on this extent, or
+		keypresses made while point is within the extent.
+
+ copy-function	This is a hook that is run when a duplicable extent is about
+		to be copied from a buffer to a string (or the kill ring.)
+		It is called with three arguments, the extent, and the
+		buffer-positions within it which are being copied.  If this
+		function returns nil, then the extent will not be copied;
+		otherwise it will.
+
+ paste-function This is a hook that is run when a duplicable extent is
+		about to be copied from a string (or the kill ring) into a
+		buffer.  It is called with three arguments, the original
+		extent, and the buffer positions which the copied extent
+		will occupy.  (This hook is run after the corresponding text
+		has already been inserted into the buffer.)  Note that the
+		extent argument may be detached when this function is run.
+		If this function returns nil, no extent will be inserted.
+		Otherwise, there will be an extent covering the range in
+		question.
+
+		If the original extent is not attached to a buffer, then it
+		will be re-attached at this range.  Otherwise, a copy will
+		be made, and that copy attached here.
+
+		The copy-function and paste-function are meaningful only for
+		extents with the `duplicable' flag set, and if they are not
+		specified, behave as if `t' was the returned value.  When
+		these hooks are invoked, the current buffer is the buffer
+		which the extent is being copied from/to, respectively.
 
 ------------------------------
 set-face-background: (face color &optional screen)
@@ -2558,6 +2809,32 @@ set-mouse-position: (screen x y)
 Move the mouse pointer to the center of character cell (X,Y) in SCREEN.
 
 ------------------------------
+set-pixmap-data: (pixmap data)
+
+Set the pixmap's data.  The data must be in the form of a list;
+currently only the format (width height data) is supported.  See
+`make-pixmap'.
+
+------------------------------
+set-pixmap-hotspot: (pixmap x y)
+
+Set the pixmap's hotspot.
+This is a point relative to the origin of the pixmap.  When a pixmap is
+used as a cursor or similar pointing indicator, the hotspot is the point
+on the pixmap that sits over the location that the pointer points to.
+This is, for example, the tip of the arrow or the center of the crosshairs.
+
+------------------------------
+set-pixmap-mask: (pixmap data)
+
+Set the pixmap's mask according to the specified data.
+The data must be in XY format and must be at least (width * height)
+bits long, one bit per pixel in the pixmap.  When the pixmap is used
+as a cursor or similar pointing indicator, the mask indicates which
+pixels in the pixmap's rectangular outline are to be taken from the
+pixmap and which from the background.
+
+------------------------------
 set-screen-position: (screen xoffset yoffset)
 Sets position of SCREEN in pixels to XOFFSET by YOFFSET.
 If XOFFSET or YOFFSET are negative, they are interpreted relative to
@@ -2614,23 +2891,23 @@ sqrt: (arg)
 Return the square root of ARG.
 
 ------------------------------
-start-timer: (name function value &optional restart)
+start-itimer: (name function value &optional restart)
 
-Start a timer.
+Start an itimer.
 Args are NAME, FUNCTION, VALUE &optional RESTART.
-NAME is an identifier for the timer.  It must be a string.  If a timer
+NAME is an identifier for the itimer.  It must be a string.  If an itimer
   already exists with this name, NAME will be modified slightly to until
   it is unique.
 FUNCTION should be a function (or symbol naming one) of no arguments.  It
-  will be called each time the timer expires.  The function can access
-  timer that invoked it through the variable `current-timer'.
-VALUE is the number of seconds until this timer expires.
-Optional fourth arg RESTART non-nil means that this timer should be
-  restarted automatically after its function is called.  Normally a timer
+  will be called each time the itimer expires.  The function can access
+  itimer that invoked it through the variable `current-itimer'.
+VALUE is the number of seconds until this itimer expires.
+Optional fourth arg RESTART non-nil means that this itimer should be
+  restarted automatically after its function is called.  Normally an itimer
   is deleted at expiration after its function has returned. 
   If non-nil RESTART should be a number indicating the value at which the
-  timer should be set at restart time.
-Returns the newly created timer.
+  itimer should be set at restart time.
+Returns the newly created itimer.
 
 ------------------------------
 switch-to-buffer-new-screen: (buffer)
@@ -3078,6 +3355,12 @@ auto-fill-inhibit-regexp
 *Regexp to match lines which should not be auto-filled.
 
 ------------------------------
+auto-gc-threshold
+
+*GC when this many bytes have been consed since the last GC, 
+and the user has been idle for `auto-save-timeout' seconds.
+
+------------------------------
 auto-lower-screen
 
 *If true, screens will be lowered to the bottom when no longer selected.
@@ -3102,8 +3385,6 @@ to the size of the current buffer.  This variable is the number of seconds
 after which an auto-save will happen when the current buffer is 50k or less;
 the timeout will be 2 1/4 times this in a 200k buffer, 3 3/4 times this in a
 1000k buffer, and 4 1/2 times this in a 2000k buffer.
-
-For this variable to have any effect, you must do (require 'timer).
 
 See also the variable `auto-save-interval', which controls auto-saving based
 on the number of characters typed.
@@ -3264,6 +3545,10 @@ default-screen-name
 The default name to assign to newly-created screens.
 This can be overridden by arguments to `x-create-screen'.
 This must be a string.
+
+------------------------------
+delete-screen-hook
+Function or functions of one argument, called with each to-be-deleted screen.
 
 ------------------------------
 describe-function-show-arglist
@@ -3487,6 +3772,13 @@ are not valid completions, an extra RET must be typed to confirm the
 response.  This is helpful for catching typos, etc.
 
 ------------------------------
+minibuffer-max-depth
+
+*Global maximum number of minibuffers allowed;
+compare to enable-recursive-minibuffers, which is only consulted when the
+minibuffer is reinvoked while it is the selected window.
+
+------------------------------
 mode-line-map
 
 Keymap consulted for mouse-clicks on the modeline of a window.
@@ -3534,6 +3826,10 @@ next-line-add-newlines
 *If non-nil, when C-n is invoked on the last line of a buffer,
 a newline character is inserted to create a new line.
 If nil, C-n signals an `end-of-buffer' in that situation.
+
+------------------------------
+popup-menu-titles
+If true, popup menus will have title bars at the top.
 
 ------------------------------
 post-command-hook
@@ -3594,19 +3890,28 @@ print-readably
 
 If non-nil, then all objects will be printed in a readable form.
 If an object has no readable representation, then an error is signalled.
-When this is true, compiled-function objects will be written in #[...] form
-instead of in #<byte-code [...]> form.
+When print-readably is true, compiled-function objects will be written in
+ #[...] form instead of in #<byte-code [...]> form, and two-element lists
+ of the form (quote object) will be written as the equivalent 'object.
 Do not SET this variable; bind it instead.
 
 ------------------------------
 print-gensym
 
-If non-nil, then uninterned symbols (those made with `make-symbol'
-instead of `intern') will be preceeded by "#:", which tells the reader to
-create a new symbol instead of interning.  Beware: the #: syntax creates a
-new symbol each time it is seen, so if you print an object which contains
-two pointers to the same uninterned symbol, `read' will not duplicate that
-structure.
+If non-nil, then uninterned symbols will be printed specially.
+Uninterned symbols are those which are not present in `obarray', that is,
+those which were made with `make-symbol' or by calling `intern' with a
+second argument.
+
+When print-gensym is true, such symbols will be preceeded by "#:", which
+causes the reader to create a new symbol instead of interning and returning
+an existing one.  Beware: the #: syntax creates a new symbol each time it is
+seen, so if you print an object which contains two pointers to the same
+uninterned symbol, `read' will not duplicate that structure.
+
+Also, since emacs has no real notion of packages, there is no way for the
+printer to distinguish between symbols interned in no obarray, and symbols
+interned in an alternate obarray.
 
 ------------------------------
 revert-buffer-insert-file-contents-function
@@ -3634,6 +3939,11 @@ screen-title-format
 
 Controls the title of the X window corresponding to the selected screen.
 This is the same format as `mode-line-format'.
+
+------------------------------
+scrollbar-width
+
+The width (in pixels) of the scrollbars.
 
 ------------------------------
 search-caps-disable-folding
@@ -3766,6 +4076,13 @@ tags-always-build-completion-table
 asking first, regardless of the size of the tags file.
 
 ------------------------------
+teach-extended-commands-p
+
+*If true, then `M-x' will teach you keybindings.
+Any time you execute a command with M-x which has a shorter keybinding,
+you will be shown the alternate binding before the command executes.
+
+------------------------------
 terminal-screen
 The initial screen-object, which represents Emacs's stdout.
 
@@ -3865,6 +4182,10 @@ These override what is specified in `~/.Xdefaults' but are overridden
 by the arguments to the particular call to `x-create-screen'.
 
 ------------------------------
+x-scrollbar-pointer-shape
+The shape of the mouse pointer when over a scrollbar.
+
+------------------------------
 x-selection-pointer-shape
 *The shape of the mouse-pointer when over a selectable text region.
 
@@ -3891,8 +4212,8 @@ Definitions of logical color-names used when reading XPM files.
 Elements of this list should be of the form (COLOR-NAME FORM-TO-EVALUATE).
 The COLOR-NAME should be a string, which is the name of the color to define;
 the FORM should evaluate to a `pixel' object, or a string to be passed to
-`make-pixel'.  If a loaded XPM file references a color called COLOR-NAME, it
-will display as the computed pixel instead.
+`make-pixel'.  If a loaded XPM file references a symbolic color called
+COLOR-NAME, it will display as the computed pixel instead.
 
 The default value of this variable defines the logical color names
 "foreground" and "background" to be the colors of the `default' face.
@@ -3963,6 +4284,21 @@ See the variable `zmacs-regions'.
 Changed Functions:
 ==================
 
+accept-process-output: (proc &optional timeout-secs timeout-msecs)
+
+Allow any pending output from subprocesses to be read by Emacs.
+It is read into the process' buffers or given to their filter functions.
+Non-nil arg PROCESS means do not return until some output has been received
+ from PROCESS.
+If the second arg is non-nil, it is the maximum number of seconds to wait:
+ this function will return after that much time even if no input has arrived
+ from PROCESS.  This argument may be a float, meaning wait some fractional
+ part of a second.
+If the third arg is non-nil, it is a number of microseconds that is added
+ to the first arg.  (This exists only for compatibility.)
+Return non-nil ifn we received any output before the timeout expired.
+
+------------------------------
 baud-rate: ()
 Obsolete function returning the value of the `baud-rate' variable.
 
@@ -4187,8 +4523,20 @@ format: (arg1 &rest args)
 ...
 %s means print strings using `princ' and other objects using `prin1'.
 %S means print all objects using `prin1' (including strings.)
+%$ means reposition to read a specific numbered argument;
+ for example, %3$%s would apply the `%s' and all following format directives
+ to the third argument after the control string.  (There must be a positive
+ integer between the % and the $.)
 ...
 [%s retains the (undocumented) behavior of v18.  %S is new.]
+
+------------------------------
+get: (sym prop &optional defalt)
+
+Return the value of SYMBOL's PROPNAME property.
+This is the last VALUE stored with `(put SYMBOL PROPNAME VALUE)'.
+If there is no such property, return optional third arg DEFAULT
+  (which defaults to `nil'.)
 
 ------------------------------
 get-buffer-window: (buffer &optional screen invisible-too)
@@ -4250,6 +4598,28 @@ Other control and meta characters terminate the search
 
 If this function is called non-interactively, it does not return to
 the calling function until the search is done.
+
+------------------------------
+key-binding: (keys)
+
+Return the binding for command KEYS in current keymaps.
+KEYS is a string, a vector of events, or a vector of key-description lists
+as described in the documentation for the `define-key' function.
+The binding is probably a symbol with a function definition; see
+the documentation for `lookup-key' for more information.
+
+For key-presses, the order of keymaps searched is:
+  - the `keymap' property of any extent(s) at point;
+  - the current-local-map of the current-buffer;
+  - the current global map.
+
+For mouse-clicks, the order of keymaps searched is:
+  - the current-local-map of the `mouse-grabbed-buffer' if any;
+  - the `keymap' property of any extent(s) at the position of the click;
+  - the mode-line-map of the buffer corresponding to the mode-line under
+    the mouse (if the click happened over a mode line);
+  - the current-local-map of the buffer under the mouse;
+  - the current global map.
 
 ------------------------------
 kill-emacs: (&optional arg)
@@ -4619,3 +4989,363 @@ and the rest are not called.
 These hooks are considered to pertain to the visited file.
 So this list is cleared if you change the visited file name.
 See also `write-contents-hooks'.
+
+
+Major Differences Between 19.8 and 19.9
+=======================================
+
+Scrollbars!  If you have Motif, these are real Motif scrollbars; otherwise,
+Athena scrollbars are used.  They obey all the usual resources of their
+respective toolkits.
+
+There is now an implementation of dialog boxes based based on the Athena
+widgets, as well as the existing Motif implementation.
+
+This release works with Motif 1.2 as well as 1.1.  If you link with Motif, 
+you do not also need to link with Athena.
+
+If you compile lwlib with both USE_MOTIF and USE_LUCID defined (which is the
+recommended configuration) then the Lucid menus will draw text using the Motif
+string-drawing library, instead of the Xlib one.  The reason for this is that
+one can take advantage of the XmString facilities for including non-Latin1
+characters in resource specifications.  However, this is a user-visible change
+in that, in this configuration, the menubar will use the "*fontList" resource 
+in preference to the "*font" resource, if it is set.
+
+It's possible to make extents which are copied/pasted by kill and undo.
+There is an implementation of FSF19-style text properties based on this.
+
+There is a new variable, minibuffer-max-depth, which is intended to circumvent
+a common source of confusion among new Emacs users.  Since, under a window
+system, it's easy to jump out of the minibuffer (by doing M-x, then getting
+distracted, and clicking elsewhere) many, many novice users have had the
+problem of having multiple minibuffers build up, even to the point of
+exhausting the lisp stack.  So the default behavior is to disallow the
+minibuffer to ever be reinvoked while active; if you attempt to do so, you
+will be prompted about it.
+
+There is a new variable, teach-extended-commands-p, which if set, will cause
+`M-x' to remind you of any keybindings of the command you just invoked the
+"long way."
+
+There are menus in Dired, Tar, Comint, Compile, and Grep modes.
+
+There is a menu of window management commands on the right mouse button over
+the modelines.
+
+Popup menus now have titles at the top; this is controlled by the new 
+variable `popup-menu-titles'.
+
+The `Find' key on Sun keyboards will search for the next (or previous)
+occurrence of the selected text, as in OpenWindows programs.
+
+The `timer' package has been renamed to `itimer' to avoid a conflict with
+a different package called `timer'.
+
+VM 5.40 is included.
+
+W3, the emacs interface to the World Wide Web, is included.
+
+Felix Lee's GNUS speedups have been installed, including his new version of
+nntp.el which makes GNUS efficiently utilize the NNTP XOVER command if
+available (which is much faster.)  
+
+GNUS should also be much friendlier to new users: it starts up much faster,
+and doesn't (necessarily) subscribe you to every single newsgroup.
+
+The byte-compiler issues a new class of warnings: variables which are
+bound but not used.  This is merely an advisory, and does not mean the
+code is incorrect; you can disable these warnings in the usual way with
+the `byte-compiler-options' macro.
+
+the `start-open' and `end-open' extent properties, for specifying whether
+characters inserted exactly at a boundary of an extent should go into the
+extent or out of it, now work correctly.
+
+The `extent-data' slot has been generalized/replaced with a property list,
+so it's easier to attach arbitrary data to extent objects.
+
+The `event-modifiers' and `event-modifier-bits' functions work on motion
+events as well as other mouse and keyboard events.
+
+Forms-mode uses fonts and read-only regions.
+
+The behavior of the -geometry command line option should be correct now.
+
+The `iconic' screen parameter works when passed to x-create-screen.
+
+The user's manual now documents Lucid Emacs 19.9.
+
+The relocating buffer allocator is turned on by default; this means that when
+buffers are killed, their storage will be returned to the operating system, 
+and the size of the emacs process will shrink.
+
+CAVEAT: code which contains calls to certain `face' accessor functions will
+need to be recompiled by version 19.9 before it will work.  The functions
+whose callers must be recompiled are: face-font, face-foreground,
+face-background, face-background-pixmap, and face-underline-p.  The symptom
+of this problem is the error "Wrong type argument, arrayp, #<face ... >".
+The .elc files generated by version 19.9 will work in 19.6 and 19.8, but
+older .elc files which contain calls to these functions will not work in 19.9.
+
+Work In Progress:
+
+ - We have been in the process of internationalizing Lucid Emacs.  This code
+   is ***not*** ready for general use yet.  However, the code is included (and
+   turned off by default) in this release.
+
+   - If you define I18N2 at compile-time, then sorting/collation will be done
+     according to the locale returned by setlocale().
+
+   - If you define I18N3 at compile-time, then all messages printed by lemacs
+     will be filtered through the gettext() library routine, to enable the use
+     of locale-specific translation catalogues.  The current implementation of
+     this is quite dependent on Solaris 2, and has a very large impact on 
+     existing code, therefore we are going to be making major changes soon.
+     (You'll notice calls to `gettext' and `GETTEXT' scattered around much of
+     the lisp and C code; ignore it, this will be going away.)
+
+   - If you define I18N4 at compile-time, then lemacs will internally use a
+     wide representation of characters, enabling the use of large character
+     sets such as Kanji.  This code is very OS dependent: it requires X11R5, 
+     and several OS-supplied library routines for reading and writing wide
+     characters (getwc(), putwc(), and a few others.)  Performance is also a
+     problem.  This code is also scheduled for a major overhaul, with the
+     intent of improving performance and portability.  
+
+     Our eventual goal is to merge with MULE, or at least provide the same base
+     level of functionality.  If you would like to help out with this, let us 
+     know.
+
+ - Other work-in-progress includes Motif drag-and-drop support, ToolTalk 
+   support, and support for embedding an Emacs widget inside another 
+   application (where it can function as that other application's text-entry
+   area).  This code has not been extensively tested, and may (or may not)
+   have portability problems, but it's there for the adventurous.  Comments, 
+   suggestions, bug reports, and especially fixes are welcome.  But have no
+   expectations that this experimental code will work at all.
+
+
+Major Differences Between 19.6 and 19.8
+=======================================
+
+There were almost no differences between versions 19.6 and 19.7; version 19.7
+was a bug-fix release that was distributed with Energize 2.1.
+
+Lucid Emacs 19.8 represents the first stage of the Lucid Emacs/Epoch merger.
+The redisplay engine now in lemacs is an improved descendant of the Epoch
+redisplay.  As a result, many bugs have been eliminated, and several disabled
+features have been re-enabled.  Notably:
+
+Selective display (and outline-mode) work.
+
+Horizontally split windows work.
+
+The height of a line is the height of the tallest font displayed on that line;
+it is possible for a screen to display lines of differing heights. (Previously,
+the height of all lines was the height of the tallest font loaded.)
+
+There is lisp code to scale fonts up and down, for example, to load the next-
+taller version of a font.
+
+There is a new internal representation for lisp objects, giving emacs-lisp 28
+bit integers and a 28 bit address space, up from the previous maximum of 26.
+We expect eventually to increase this to 30 bit integers and a 32 bit address
+space, eliminating the need for DATA_SEG_BITS on some architectures.  (On 64
+bit machines, add 32 to all of these numbers.)
+
+GC performance is improved.
+
+Various X objects (fonts, colors, cursors, pixmaps) are accessible as first-
+class lisp objects, with finalization.
+
+When using XPM files, one can specify the values of logical color names to be
+used when loading the files.
+
+It is possible to resize windows by dragging their modelines up and down.  More
+generally, it is possible to add bindings for mouse gestures on the modelines.
+
+There is support for playing sound files on HP machines.
+
+ILISP version 5.5 is included.
+
+The Common Lisp #' read syntax is supported (#' is to "function" as ' is to
+"quote".)
+
+The `active-p' slot of menu items is now evaluated, so one can put arbitrary
+lisp code in a menu to decide whether that item should be selectable, rather
+than doing this with an `activate-menubar-hook'.
+
+The X resource hierarchy has changed slightly, to be more consistent.  It used
+to be
+ 	argv[0]			SCREEN-NAME	pane	screen
+  	ApplicationShell	EmacsShell	Paned	EmacsScreen
+
+   now it is
+
+	argv[0]			shell		pane	SCREEN-NAME
+	ApplicationShell	EmacsShell	Paned	EmacsScreen
+
+The Lucid Emacs sources have been largely merged with FSF version 19; this
+means that the lisp library contains the most recent releases of various
+packages, and many new features of FSF 19 have been incorporated.
+
+Because of this, the lemacs sources should also be substantially more portable.
+
+
+Major Differences Between 19.4 and 19.6
+=======================================
+
+There were almost no differences between versions 19.4 and 19.5; we fixed
+a few minor bugs and repacked 19.4 as 19.5 for a CD-ROM that we gave away
+as a trade show promotion.
+
+The primary goal of the 19.6 release is stability, rather than improved
+functionality, so there aren't many user-visible changes.  The most notable
+changes are:
+
+ - The -geometry command-line option now correctly overrides geometry
+   specifications in the resource database.
+ - The `width' and `height' screen-parameters work.
+ - Font-lock-mode considers the comment start and end characters to be
+   a part of the comment.
+ - The lhilit package has been removed.  Use font-lock-mode instead.
+ - vm-isearch has been fixed to work with isearch-mode.
+ - new versions of ispell and calendar.
+ - sccs.el has menus.
+
+Lots of bugs were fixed, including the problem that lemacs occasionally
+grabbed the keyboard focus.
+
+Also, as of Lucid Emacs 19.6 and Energize 2.0 (shipping now) it is possible
+to compile the public release of Lucid Emacs with support for Energize; so
+now Energize users will be able to build their own Energize-aware versions
+of lemacs, and will be able to use newer versions of lemacs as they are
+released to the net.  (Of course, this is not behavior covered by your
+Energize support contract; you do it at your own risk.)
+
+I have not incorporated all portability patches that I have been sent since
+19.4; I will try to get to them soon.  However, if you need to make any
+changes to lemacs to get it to compile on your system, it would be quite
+helpful if you would send me context diffs (diff -c) against version 19.6.
+
+
+Major Differences Between 19.3 and 19.4
+=======================================
+
+Prototypes have been added for all functions.  Emacs compiles in the strict
+ANSI modes of lcc and gcc, so portability should be vastly improved.
+
+Many many many many core leaks have been plugged, especially in screen 
+creation and deletion.
+
+The float support reworked to be more portable and ANSI conformant.  This
+resulted in these new configuration parameters: HAVE_INVERSE_HYPERBOLIC, 
+HAVE_CBRT, HAVE_RINT, FLOAT_CHECK_ERRNO, FLOAT_CATCH_SIGILL, 
+FLOAT_CHECK_DOMAIN.  Let us know if you had to change the defaults on your
+architecture.
+
+The SunOS unexec has been rewritten, and now works with either static or 
+dynamic libraries, depending on whether -Bstatic or -Bdynamic were specified
+at link-time.
+
+Small (character-sized) bitmaps can be mixed in with buffer text via the new
+functions set-extent-begin-glyph and set-extent-end-glyph.  (This is actually
+a piece of functionality that Energize has been using for a while, but we've
+just gotten around to making it possible to use it without Energize.  See how
+nice we are?  Go buy our product.)
+
+If compiled with Motif support, one can pop up dialog boxes from emacs lisp.
+We encourage someone to contribute Athena an version of this code; it
+shouldn't be much work.  
+
+If dialog boxes are available, then y-or-n-p and yes-or-no-p use dialog boxes
+instead of the minibuffer if invoked as a result of a command that was 
+executed from a menu instead of from the keyboard.
+
+Multiple screen support works better; check out doc of get-screen-for-buffer.
+
+The default binding of backspace is the same as delete.  (C-h is still help.)
+
+A middle click while the minibuffer is active does completion if you click on 
+a highlighted completion, otherwise it executes the global binding of button2.
+
+New versions of Barry Warsaw's c++-mode and syntax.c.  Font-lock-mode works
+with C++ mode now.
+
+The semantics of activate-menubar-hook has changed; the functions are called
+with no arguments now.
+
+`truename' no longer hacks the automounter; use directory-abbrev-alist instead.
+
+Most minibuffer handling has been reimplemented in emacs-lisp.
+
+There is now a builtin minibuffer history mechanism which replaces gmhist.
+
+
+Major Differences Between 19.2 and 19.3
+=======================================
+
+The ISO characters have correct case and syntax tables now, so the word-motion
+and case-converting commands work sensibly on them.
+
+If you set ctl-arrow to an integer, you can control exactly which characters
+are printable.  (There will be a less crufty way to do this eventually.)
+
+Menubars can now be buffer local; the function set-screen-menubar no longer
+exists.  Look at GNUS and VM for examples of how to do this, or read 
+menubar.el.
+
+When emacs is reading from the minibuffer with completions, any completions
+which are visible on the screen will highlight when the mouse moves over them;
+clicking middle on a completion is the same as typing it at the minibuffer.
+Some implications of this:  The *Completions* buffer is always mousable.  If
+you're using the completion feature of find-tag, your source code will be
+mousable when you type M-.  Dired buffers will be mousable as soon as you 
+type ^X^F.  And so on.
+
+The old isearch code has been replaced with a descendant of Dan LaLiberte's
+excellent isearch-mode; it is more customizable, and generally less bogus.
+You can search for "composed" characters.  There are new commands, too; see
+the doc for ^S, or the NEWS file.
+
+A patched GNUS 3.14 is included.
+
+The user's manual now documents Lucid Emacs 19.3.
+
+A few more modes have mouse and menu support.
+
+The startup code should be a little more robust, and give you more reasonable
+error messages when things aren't installed quite right (instead of the
+ubiquitous "cannot open DISPLAY"...)
+
+Subdirectories of the lisp directory whose names begin with a hyphen or dot
+are not automatically added to the load-path, so you can use this to avoid
+accidentally inflicting experimental software on your users.
+
+I've tried to incorporate all of the portability patches that were sent to
+me; I tried to solve some of the problems in different ways than the 
+patches did, so let me know if I missed something.
+
+Some systems will need to define NEED_STRDUP, NEED_REALPATH, HAVE_DREM, or
+HAVE_REMAINDER in config.h.  Really this should be done in the appropriate
+s- or m- files, but I don't know which systems need these and which don't.
+If yours does, let me know which file it should be in.
+
+Check out these new packages:
+
+blink-paren.el:	causes the matching parenthesis to flash on and off whenever
+		the cursor is sitting on a paren-syntax character.
+
+pending-del.el:	Certain commands implicitly delete the highlighted region:
+		Typing a character when there is a highlighted region replaces
+		that region with the typed character.
+
+lhilit.el:	Attaches fonts/colors to patterns matching regular expressions.
+
+font-lock.el:	Yet Another code-highlighting package, but this one is driven
+		off of syntax tables, so that it understands block comments,
+		strings, etc.  The insertion hook is used to fontify text as
+		you type it in.  (This is fast now.)
+
+shell-font.el:	Displays your shell-buffer prompt in boldface.

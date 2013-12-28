@@ -1,5 +1,6 @@
 /* Fundamental definitions for GNU Emacs Lisp interpreter.
-   Copyright (C) 1985, 1986, 1987, 1992, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1987, 1992, 1993, 1994
+   Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -22,25 +23,12 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #ifdef emacs	/* some things other than emacs want the structs */
 
-/* I don't know how correct this attempt to get more prototypes is... */
-#if defined(sun) && defined(_POSIX_SOURCE)
-# undef _POSIX_SOURCE
-#endif
-
-#if defined(__lucid) && !defined(__STDC_EXTENDED__)
-# define __STDC_EXTENDED__ 1
-#endif
-
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>            /* primarily for memcpy, etc */
 
 #ifdef __lucid
 # include <sysent.h>
-#endif
-
-#ifdef NeXT
-typedef int pid_t;
 #endif
 
 /* Emacs needs to use its own definitions of certain system calls on some
@@ -105,7 +93,6 @@ typedef int pid_t;
 # endif
 #endif
 
-
 /* These values are overridden by the m- file on some machines.  */
 #ifndef GCTYPEBITS
 # define GCTYPEBITS 3L
@@ -119,10 +106,7 @@ typedef int pid_t;
 /* There's not any particular reason not to use lrecords for these; some
    objects get slightly larger, but we get 3 bit tags instead of 4.
  */
-#define LRECORD_FLOAT
 #define LRECORD_SYMBOL
-#define LRECORD_BYTECODE
-#define LRECORD_EXTENT
 
 
 /* Define the fundamental Lisp data structures */
@@ -152,25 +136,9 @@ enum Lisp_Type
        The length of the vector, and its contents, are stored therein. */
     ,Lisp_Vector                /* 4  DTP-SIMPLE-ARRAY */
 
-#ifndef LRECORD_EXTENT
-    /* An active region in buffer or string.  See extents.h */
-    ,Lisp_Extent
-#endif /* !LRECORD_EXTENT */
-
-#ifndef LRECORD_BYTECODE
-    /* Byte-compiled function.  See bytecode.h */
-    ,Lisp_Compiled
-#endif /* !LRECORD_BYTECODE */
-
 #ifndef LRECORD_SYMBOL
     ,Lisp_Symbol
 #endif /* !LRECORD_SYMBOL */
-
-#ifdef LISP_FLOAT_TYPE
-#ifndef LRECORD_FLOAT
-   ,Lisp_Float
-#endif /* !LRECORD_FLOAT */
-#endif /* LISP_FLOAT_TYPE */
   };
 
 #define POINTER_TYPE_P(type) ((type) != Lisp_Int)
@@ -239,6 +207,7 @@ struct Lisp_Vector
   };
 #define vector_length(v) ((v)->size)
 #define vector_next(v) ((v)->contents[(v)->size])
+#define XSETVECTOR(v,p) XSET ((v), Lisp_Vector, (p))
 
 /* In a symbol, the markbit of the plist is used as the gc mark bit */
 struct Lisp_Symbol
@@ -267,9 +236,9 @@ struct Lisp_Subr
   {
     struct lrecord_header lheader;
     short min_args, max_args;
-    const char *prompt;
-    const char *doc;
-    const char *name;
+    CONST char *prompt;
+    CONST char *doc;
+    CONST char *name;
     Lisp_Object (*subr_fn) ();
   };
 #define subr_function(subr) (subr)->subr_fn
@@ -287,20 +256,11 @@ struct Lisp_Marker
 #ifdef LISP_FLOAT_TYPE
 struct Lisp_Float
   {
-#ifdef LRECORD_FLOAT
     struct lrecord_header lheader;
     union { double d; struct Lisp_Float *next; } data;
 # define float_next(f) ((f)->data.next)
 # define float_data(f) ((f)->data.d)
 # define XSETFLOAT(s, p) XSETR ((s), Lisp_Float, (p))
-#else /* !LRECORD_FLOAT */
-    struct Lisp_Float *next;    /* used as a mark-bit when not on freelist
-                                   Used for chaining when on free-list */
-    double data;  
-# define float_next(f) ((f)->next)
-# define XSETFLOAT(s, p) XSET ((s), Lisp_Float, (p))
-# define float_data(f) ((f)->data)
-#endif /* !LRECORD_FLOAT */
   };
 #endif /* LISP_FLOAT_TYPE */
 
@@ -310,10 +270,11 @@ struct Lisp_Float
    of some character set associated with the current buffer. */
 typedef unsigned char UCHAR;
 
-/* A UCHAR is displayed on a given terminal by means of a
-   sequence of one or more GLYPHs.
-   A GLYPH is something that takes
-   up exactly one display position on the screen.  */
+#ifdef I18N4
+#include <stdlib.h>
+#endif
+
+/* A GLYPH is an index into the `glyph_to_pixmaps_table'. */
 typedef unsigned short GLYPH;
 
 #endif /* emacs */
@@ -327,7 +288,7 @@ typedef unsigned short GLYPH;
 
 #ifdef LRECORD_SYMBOL
 # define SYMBOLP(x) (RECORD_TYPEP ((x), lrecord_symbol))
-extern const struct lrecord_implementation lrecord_symbol[];
+extern CONST struct lrecord_implementation lrecord_symbol[];
 #else /* !LRECORD_SYMBOL */
 # define SYMBOLP(x) (XTYPE ((x)) == Lisp_Symbol)
 #endif /* !LRECORD_SYMBOL */
@@ -336,24 +297,16 @@ extern const struct lrecord_implementation lrecord_symbol[];
 
 #define VECTORP(x) (XTYPE ((x)) == Lisp_Vector)
 
-#ifdef LRECORD_FLOAT
-# define FLOATP(x) (RECORD_TYPEP ((x), lrecord_float))
-extern const struct lrecord_implementation lrecord_float[];
-#else /* !LRECORD_FLOAT */
-# define FLOATP(x) (XTYPE ((x)) == Lisp_Float)
-#endif /* !LRECORD_FLOAT */
+#define FLOATP(x) (RECORD_TYPEP ((x), lrecord_float))
+extern CONST struct lrecord_implementation lrecord_float[];
 
-#ifdef LRECORD_BYTECODE
-# define COMPILEDP(x) (RECORD_TYPEP ((x), lrecord_bytecode))
-extern const struct lrecord_implementation lrecord_bytecode[];
-#else /* !LRECORD_BYTECODE */
-# define COMPILEDP(x) (XTYPE ((x)) == Lisp_Compiled)
-#endif /* !LRECORD_BYTECODE */
+#define COMPILEDP(x) (RECORD_TYPEP ((x), lrecord_bytecode))
+extern CONST struct lrecord_implementation lrecord_bytecode[];
 
 #define SUBRP(x) (RECORD_TYPEP((x), lrecord_subr))
-extern const struct lrecord_implementation lrecord_subr[];
+extern CONST struct lrecord_implementation lrecord_subr[];
 #define MARKERP(x) (RECORD_TYPEP((x), lrecord_marker))
-extern const struct lrecord_implementation lrecord_marker[];
+extern CONST struct lrecord_implementation lrecord_marker[];
 #ifdef LISP_FLOAT_TYPE
 # define NUMBERP(x) (FIXNUMP (x) || FLOATP (x))
 #else
@@ -497,16 +450,35 @@ extern const struct lrecord_implementation lrecord_marker[];
 /* Can't be const, because then subr->doc is read-only and
  *  FSnarf_documentation chokes */
 #define DEFUN(lname, fnname, sname, minargs, maxargs, prompt, doc) \
-  Lisp_Object fnname (); \
+  Lisp_Object fnname DEFUN_ARGS_ ## maxargs ; /* See below */ \
   static struct Lisp_Subr sname \
      = { { lrecord_subr }, minargs, maxargs, prompt, 0, lname, fnname }; \
   Lisp_Object fnname
+
+/* Scary ANSI C preprocessor hackery by Felix Lee <flee@guardian.cse.psu.edu>
+   to get DEFUN to declare a prototype that matches maxargs, so that the
+   compiler can complain if the "real" arglist doesn't match.  Clever hack
+   or repulsive kludge?  You be the judge.
+ */
+#define DEFUN_ARGS_UNEVALLED (Lisp_Object)
+#define DEFUN_ARGS_MANY (int, Lisp_Object *)
+#define DEFUN_ARGS_0 (void)
+#define DEFUN_ARGS_1 (Lisp_Object)
+#define DEFUN_ARGS_2 (Lisp_Object, Lisp_Object)
+#define DEFUN_ARGS_3 (Lisp_Object, Lisp_Object, Lisp_Object)
+#define DEFUN_ARGS_4 (Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object)
+#define DEFUN_ARGS_5 (Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, \
+		      Lisp_Object)
+#define DEFUN_ARGS_6 (Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, \
+		      Lisp_Object, Lisp_Object)
+#define DEFUN_ARGS_7 (Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, \
+		      Lisp_Object, Lisp_Object, Lisp_Object)
 
 /* defsubr (Sname);
  is how we define the symbol for function `name' at start-up time. */
 extern void defsubr (struct Lisp_Subr *);
 
-extern void defsymbol (Lisp_Object *location, const char *name);
+extern void defsymbol (Lisp_Object *location, CONST char *name);
 
 struct symbol_value_forward;
 
@@ -517,24 +489,24 @@ struct symbol_value_forward;
  *   C sucks, yet again */
 #include "symeval.h"
 
-extern void defvar_mumble (const char *names,
-                           const void *magic, int sizeof_magic);
+extern void defvar_mumble (CONST char *names,
+                           CONST void *magic, int sizeof_magic);
 
 #define DEFVARLISP(lname, c_location, doc) \
- do { static const struct symbol_value_forward I_hate_C \
+ do { static CONST struct symbol_value_forward I_hate_C \
        = { { { { lrecord_symbol_value_forward }, (void *) (c_location), 69 }, \
              object_forward } }; \
       defvar_mumble ((lname), &I_hate_C, sizeof (I_hate_C)); \
       staticpro ((c_location)); \
  } while (0)
 #define DEFVARINT(lname, c_location, doc) \
- do { static const struct symbol_value_forward I_hate_C \
+ do { static CONST struct symbol_value_forward I_hate_C \
        = { { { {lrecord_symbol_value_forward}, (void *) (c_location), 69 }, \
              fixnum_forward } }; \
       defvar_mumble ((lname), (&I_hate_C), (sizeof (I_hate_C))); \
  } while (0)
 #define DEFVARBOOL(lname, c_location, doc) \
- do { static const struct symbol_value_forward I_hate_C \
+ do { static CONST struct symbol_value_forward I_hate_C \
        = { { { {lrecord_symbol_value_forward}, (void *) (c_location), 69 }, \
              boolean_forward } }; \
       defvar_mumble ((lname), &I_hate_C, sizeof (I_hate_C)); \
@@ -565,33 +537,82 @@ extern void signal_quit (void);
 
 
 /* 1 if CH is upper case.  */
+#ifdef I18N4
+#include "iso-wide.h"
+#endif
 
+#ifdef I18N4
+#define UPPERCASEP(CH)						\
+  (IN_TABLE_DOMAIN (CH)						\
+   && XSTRING (current_buffer->downcase_table)->		\
+	data[WIDE_TO_BYTE (CH)] != (WIDE_TO_BYTE (CH)))
+#else
 #define UPPERCASEP(CH) \
   (XSTRING (current_buffer->downcase_table)->data[CH] != (CH))
+#endif
 
 /* 1 if CH is lower case.  */
 
+#ifdef I18N4
+#define LOWERCASEP(CH)						\
+  (!UPPERCASEP (CH) &&						\
+   IN_TABLE_DOMAIN (CH)						\
+       && XSTRING (current_buffer->upcase_table)->		\
+	data[WIDE_TO_BYTE (CH)] != (WIDE_TO_BYTE (CH)))
+#else
 #define LOWERCASEP(CH) \
   (!UPPERCASEP (CH) \
    && XSTRING (current_buffer->upcase_table)->data[CH] != (CH))
+#endif
 
 /* 1 if CH is neither upper nor lower case.  */
 
+#ifdef I18N4
+#define NOCASEP(CH)						\
+  (!IN_TABLE_DOMAIN (CH)					\
+   || XSTRING (current_buffer->upcase_table)->			\
+	data[WIDE_TO_BYTE (CH)] == (WIDE_TO_BYTE (CH)))
+#else
 #define NOCASEP(CH) (XSTRING (current_buffer->upcase_table)->data[CH] == (CH))
+#endif
 
 /* Upcase a character, or make no change if that cannot be done.  */
 
+#ifdef I18N4
+#define UPCASE(CH)						\
+  ((IN_TABLE_DOMAIN (CH)					\
+    && XSTRING (current_buffer->downcase_table)->		\
+	data[WIDE_TO_BYTE (CH)] == (WIDE_TO_BYTE (CH)))		\
+   ? UPCASE1 (CH) : (CH))
+#else
 #define UPCASE(CH) \
   (XSTRING (current_buffer->downcase_table)->data[CH] == (CH) \
    ? UPCASE1 (CH) : (CH))
+#endif
 
 /* Upcase a character known to be not upper case.  */
 
+#ifdef I18N4
+#define UPCASE1(CH)						\
+  (IN_TABLE_DOMAIN (CH)						\
+   ? BYTE_TO_WIDE (XSTRING (current_buffer->upcase_table)->	\
+	data[WIDE_TO_BYTE (CH)])				\
+   : (CH))
+#else
 #define UPCASE1(CH) (XSTRING (current_buffer->upcase_table)->data[CH])
+#endif
 
 /* Downcase a character, or make no change if that cannot be done. */
 
+#ifdef I18N4
+#define DOWNCASE(CH)						\
+  (IN_TABLE_DOMAIN (CH)						\
+   ? BYTE_TO_WIDE (XSTRING (current_buffer->downcase_table)->	\
+	data[WIDE_TO_BYTE (CH)])				\
+   : (CH))
+#else
 #define DOWNCASE(CH) (XSTRING (current_buffer->downcase_table)->data[CH])
+#endif
 
 /* Current buffer's map from characters to lower-case characters.  */
 
@@ -701,9 +722,11 @@ extern int initialized;
  */
 extern int immediate_quit;
 
+#if 0 /* gcc 2.5.[34] apparently doesn't like this */
 #ifdef __GNUC__
 extern DOESNT_RETURN exit (int);
 extern DOESNT_RETURN abort (void);
+#endif
 #endif
 
 #include "emacsfns.h"

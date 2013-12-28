@@ -106,4 +106,5 @@ and this notice must be preserved on all copies.  */
 
 #define NO_SIOCTL_H
 
-#undef SIGIO
+/* #undef SIGIO		use BROKEN_SIGIO instead of this kludge -- jwz */
+#define BROKEN_SIGIO

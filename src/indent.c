@@ -20,6 +20,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 
 #include "config.h"
+#include "intl.h"
 #include "lisp.h"
 #include "buffer.h"
 #include "extents.h"
@@ -195,7 +196,7 @@ even if that goes past COLUMN; by default, MIN is zero.")
   register int fromcol;
   register int tab_width = XINT (current_buffer->tab_width);
   int opoint = 0;
-  EXTENT extent = extent_at (point, current_buffer, EF_INVISIBLE);
+  EXTENT extent = extent_at (PT, current_buffer, Qinvisible);
 
   CHECK_FIXNUM (col, 0);
   if (NILP (minimum))
@@ -215,13 +216,13 @@ even if that goes past COLUMN; by default, MIN is zero.")
   
   if (extent)
     {
-      int last_visible = last_visible_position (point, current_buffer);
-      opoint = point;
+      int last_visible = last_visible_position (PT, current_buffer);
+      opoint = PT;
 
       if (last_visible >= BEGV)
 	SET_PT (last_visible);
       else 
-        error ("Visible portion of buffer not modifiable");
+        error (GETTEXT ("Visible portion of buffer not modifiable"));
     }
 
   if (indent_tabs_mode)
@@ -239,7 +240,7 @@ even if that goes past COLUMN; by default, MIN is zero.")
 
   last_known_column_buffer = current_buffer;
   last_known_column = mincol;
-  last_known_column_point = point;
+  last_known_column_point = PT;
   last_known_column_modified = MODIFF;
 
   if (opoint > 0)
@@ -249,21 +250,22 @@ even if that goes past COLUMN; by default, MIN is zero.")
 }
 
 int
-position_indentation (pos)
+position_indentation (buf, pos)
+     register struct buffer *buf;
      register int pos;
 {
   register int col = 0;
   register int c;
-  register int end = ZV;
-  register int tab_width = XINT (current_buffer->tab_width);
+  register int end = BUF_ZV(buf);
+  register int tab_width = XINT (buf->tab_width);
 
-  if (extent_at (pos, current_buffer, EF_INVISIBLE))
+  if (extent_at (pos, buf, Qinvisible))
     return 0;
 
   if (tab_width <= 0 || tab_width > 20) tab_width = 8;
 
   while (pos < end &&
-	 (c = CHAR_AT (pos),
+	 (c = BUF_CHAR_AT (buf,pos),
 	  c == '\t' ? (col += tab_width - col % tab_width)
           : (c == ' ' ? ++col : 0)))
     pos++;
@@ -278,7 +280,9 @@ This is the horizontal position of the character\n\
 following any initial whitespace.")
   ()
 {
-  return (make_number (position_indentation (find_next_newline (point, -1))));
+  return (make_number 
+	  (position_indentation (current_buffer,
+				 find_next_newline (current_buffer, PT, -1))));
 }
 
 DEFUN ("move-to-column", Fmove_to_column, Smove_to_column, 1, 2, 0,
@@ -301,8 +305,8 @@ and if COLUMN is in the middle of a tab character, change it to spaces.")
   register int goal;
   register int end;
   register int tab_width = XINT (current_buffer->tab_width);
-  Lisp_Object ctl_arrow = current_buffer->ctl_arrow;
   register struct Lisp_Vector *dp = buffer_display_table (current_buffer);
+  struct glyphs_from_chars *displayed_glyphs;
 
   int prev_col;
   int c;
@@ -312,14 +316,14 @@ and if COLUMN is in the middle of a tab character, change it to spaces.")
   goal = XINT (column);
 
  retry:
-  pos = point;
+  pos = PT;
   end = ZV;
 
   /* If we're starting past the desired column,
      back up to beginning of line and scan from there.  */
   if (col > goal)
     {
-      pos = find_next_newline (pos, -1);
+      pos = find_next_newline (current_buffer, pos, -1);
       col = 0;
     }
 
@@ -330,22 +334,23 @@ and if COLUMN is in the middle of a tab character, change it to spaces.")
 	break;
       if (c == '\r' && EQ (current_buffer->selective_display, Qt))
 	break;
-      pos++;
       if (c == '\t')
 	{
 	  prev_col = col;
 	  col += tab_width;
 	  col = col / tab_width * tab_width;
 	}
-      else if (dp != 0 && STRINGP (DISP_CHAR_ROPE (dp, c)))
-	col += XSTRING (DISP_CHAR_ROPE (dp, c))->size / sizeof (GLYPH);
-      else if (!NILP (ctl_arrow) && (c < 040 || c == 0177))
-        col++;
-      else if (c < 040 ||
-	       ((NILP (ctl_arrow) || EQ (ctl_arrow, Qt)) && c > 0177))
-        col += 3;
       else
-	col++;
+	{
+	  displayed_glyphs = glyphs_from_bufpos (selected_screen,
+						 current_buffer, pos,
+						 dp, 0, col, 0, 0, 0);
+	  col += (displayed_glyphs->columns
+		  - (displayed_glyphs->begin_columns
+		     + displayed_glyphs->end_columns));
+	}
+
+      pos++;
     }
 
   SET_PT (pos);
@@ -354,7 +359,7 @@ and if COLUMN is in the middle of a tab character, change it to spaces.")
      and scan through it again.  */
   if (!NILP (force) && col > goal && c == '\t' && prev_col < goal)
     {
-      del_range (point - 1, point);
+      del_range (PT - 1, PT);
       Findent_to (make_number (col - 1), Qzero);
       insert_char (' ');
       goto retry;
@@ -369,7 +374,7 @@ and if COLUMN is in the middle of a tab character, change it to spaces.")
 
   last_known_column_buffer = current_buffer;
   last_known_column = col;
-  last_known_column_point = point;
+  last_known_column_point = PT;
   last_known_column_modified = MODIFF;
 
   return (make_number (col));
@@ -382,14 +387,17 @@ static struct position val_compute_motion;
   wid = text_width (lfont,a,1);\
   if ((pixpos + wid) > pwidth) {\
     if (truncate) {\
-      while (bufpos < to && CHAR_AT(bufpos) != '\n') bufpos++;\
+      while (bufpos < to && BUF_CHAR_AT(b,bufpos) != '\n') bufpos++;\
       bufpos--;\
     } else {\
-      vpos++; hpos = 1; pixpos = wid;\
+      vpos++; hpos = 0; pixpos = 0;\
       vpixpos += max_line_height;\
       max_line_height = font->height;\
       new_line = 1;\
       tab_offset += window_char_width(w) - 1;\
+      if (vpos > tovpos || (vpos == tovpos && hpos >= tohpos))\
+        goto foundpos;\
+      hpos = 1; pixpos = wid;\
     }\
   } else {\
     hpos++; pixpos += wid;\
@@ -407,9 +415,16 @@ compute_motion (struct window *w, int from, int fromvpos, int fromhpos,
   int vpixpos, max_line_height, new_line;
   int prevpos, prevhpos, prevvpos;
   int savehpos, savevpos, savepos;
+#ifdef I18N4
+  wchar_t c = 0;
+  wchar_t c1;
+  int wid;
+  wchar_t a[2];
+#else
   int c = 0;
   int c1,wid;
   unsigned char a[2];
+#endif
   int flag = 0;
   int loop;
 
@@ -433,12 +448,18 @@ compute_motion (struct window *w, int from, int fromvpos, int fromhpos,
   int selective = FIXNUMP(b->selective_display)
     ? XINT (b->selective_display)
       : !NILP (b->selective_display) ? -1 : 0;
-  int pwidth = w->pixwidth - LEFT_MARGIN (b, s) - RIGHT_MARGIN (b, s);
+  int pwidth = w->pixwidth - LEFT_MARGIN (b, s, w) - RIGHT_MARGIN (b, s, w);
   int pheight = (((window_char_height(w) - 1) == tovpos)
 		 ? (w->pixheight
-		    - XFONT (SCREEN_DEFAULT_FONT (s))->height)
+		    - (MINI_WINDOW_P (w)
+		       ? 0
+		       : XFONT (SCREEN_DEFAULT_FONT (s))->height))
 		 : 100000);
   int char_width;
+
+  /* don't run off the end of the buffer */
+  if (to > BUF_ZV(b))
+    to = BUF_ZV(b);
 
   if (tab_width <= 0 || tab_width > 20) tab_width = 8;
 
@@ -483,7 +504,7 @@ compute_motion (struct window *w, int from, int fromvpos, int fromhpos,
 	      struct extent *e = XEXTENT(class[i]);
 
 	      if (EXTENT_GLYPH_LAYOUT_P (e, GL_TEXT))
-		pixpos += XPIXMAP (glyph_to_pixmap (e->glyph))->width;
+		pixpos += glyph_width (extent_glyph (e), lfont);
 	    }
 	}
     }
@@ -492,14 +513,21 @@ compute_motion (struct window *w, int from, int fromvpos, int fromhpos,
   new_line = 1;
 
   if (w == XWINDOW(minibuf_window) && minibuf_prompt_width)
+#ifdef I18N4
+    {
+      safe_mbstowcs ((char *) XSTRING (Vminibuf_prompt)->data, &wc_buf);
+      pixpos = text_width(lfont, wc_buf.data, wc_buf.in_use + 1);
+    }
+#else
     pixpos = text_width(lfont, XSTRING(Vminibuf_prompt)->data,
 			XSTRING(Vminibuf_prompt)->size) + 1;
+#endif
 
   /* Adjust right logical border of window to account for
      truncate/continue glyph */
   pwidth -= (truncate
-	     ? XPIXMAP (glyph_to_pixmap (truncator_glyph))->width
-	     : XPIXMAP (glyph_to_pixmap (continuer_glyph))->width);
+	     ? glyph_width (truncator_glyph, lfont)
+	     : glyph_width (continuer_glyph, lfont));
 
   prevpos = from;
   for (bufpos = from; bufpos < to; bufpos++)
@@ -540,7 +568,7 @@ compute_motion (struct window *w, int from, int fromvpos, int fromhpos,
 	  if (new_line)
 	    max_line_height = font->height;
 	  else
-	    max_line_height = max (font->height, max_line_height);
+	    max_line_height = max ((int) font->height, max_line_height);
 
 	  /* Skip any textual glyphs. */
 	  for (loop = 0; loop < 2; loop++)
@@ -561,13 +589,13 @@ compute_motion (struct window *w, int from, int fromvpos, int fromhpos,
 		      struct extent *e = XEXTENT(class[i]);
 
 		      if (EXTENT_GLYPH_LAYOUT_P (e, GL_TEXT))
-			pixpos += XPIXMAP (glyph_to_pixmap (e->glyph))->width;
+			pixpos += glyph_width (extent_glyph (e), lfont);
 		    }
 		}
 	    }
 	}
 
-      c = CHAR_AT(bufpos);
+      c = BUF_CHAR_AT(b,bufpos);
       a[0] = c;
       char_width = text_width (lfont, a, 1);
 
@@ -590,15 +618,16 @@ compute_motion (struct window *w, int from, int fromvpos, int fromhpos,
 	}
       else if (c == '\n')
 	{
-	  if (selective > 0 && position_indentation(bufpos + 1) >= selective)
+	  if (selective > 0 && 
+	      position_indentation(b, bufpos + 1) >= selective)
 	    {
 	      /* Skip invisible lines */
 	      do
 		{
-		  while (++bufpos < to && CHAR_AT(bufpos) != '\n');
+		  while (++bufpos < to && BUF_CHAR_AT(b,bufpos) != '\n');
 		}
 	      while (selective > 0
-		     && position_indentation(bufpos + 1) >= selective);
+		     && position_indentation(b, bufpos + 1) >= selective);
 	      bufpos--;
 	      /* Allow for ' ...' */
 	      if (!NILP(current_buffer->selective_display_ellipses))
@@ -627,7 +656,7 @@ compute_motion (struct window *w, int from, int fromvpos, int fromhpos,
 	}
       else if (c == CR && selective < 0)
 	{
-	  while (bufpos < to && CHAR_AT(bufpos) != '\n') bufpos++;
+	  while (bufpos < to && BUF_CHAR_AT(b,bufpos) != '\n') bufpos++;
 	  bufpos--;
 	  /* Allow for ' ...' */
 	  if (!NILP(current_buffer->selective_display_ellipses))
@@ -646,6 +675,12 @@ compute_motion (struct window *w, int from, int fromvpos, int fromhpos,
 	    {
 	      CHECK_NEXT ('?');
 	    }
+#ifdef I18N4
+	  else if (!((c) < 040 || (c) == 0177))
+	    {
+	      CHECK_NEXT(c);
+	    }
+#endif
 	  else
 	    {
 	      CHECK_NEXT(c ^ 0100);
@@ -673,10 +708,10 @@ compute_motion (struct window *w, int from, int fromvpos, int fromhpos,
   /* If at end of buffer/narrowed region, don't fetch next character as
    * it isn't there.  Fake it with last character of buffer.
    */
-  c1 = ((bufpos < ZV) ? CHAR_AT(bufpos) : c);
+  c1 = ((bufpos < BUF_ZV(b)) ? BUF_CHAR_AT(b,bufpos) : c);
   if (c1)
     CHECK_NEXT(c1);
-  if (vpos != savevpos && savepos < ZV && (c1 != '\n') && !truncate)
+  if (vpos != savevpos && savepos < BUF_ZV(b) && (c1 != '\n') && !truncate)
     {
       vpos = savevpos + 1; hpos = 0;
     }
@@ -686,6 +721,7 @@ compute_motion (struct window *w, int from, int fromvpos, int fromhpos,
     }
   bufpos = savepos;
 
+ foundpos:
   val_compute_motion.bufpos = bufpos;
   val_compute_motion.hpos = hpos;
   val_compute_motion.vpos = vpos;
@@ -754,9 +790,9 @@ TOHPOS, TOVPOS first.")
   CHECK_FIXNUM (tovpos, 2);
 
   pos = compute_motion (XWINDOW (selected_window),
-			point, fromvpos, fromhpos, (point + XINT (n)),
+			PT, fromvpos, fromhpos, (PT + XINT (n)),
 			XINT (tovpos), XINT (tohpos), hscroll,
-			pos_tab_offset (XWINDOW (selected_window), point));
+			pos_tab_offset (XWINDOW (selected_window), PT));
   SET_PT (pos->bufpos);
   return Fcons (make_number (pos->vpos),
 		Fcons (make_number (pos->hpos), Qnil));
@@ -774,6 +810,7 @@ vmotion (from, vtarget, hscroll, window)
      int hscroll;
      Lisp_Object window;
 {
+  struct buffer *buf = XBUFFER (XWINDOW (window)->buffer);
   struct position pos;
   /* vpos is cumulative vertical position, changed as from is changed */
   register int vpos = 0;
@@ -782,9 +819,9 @@ vmotion (from, vtarget, hscroll, window)
   register int first;
   int lmargin = hscroll > 0 ? 1 - hscroll : 0;
   int selective
-    = FIXNUMP (current_buffer->selective_display)
-      ? XINT (current_buffer->selective_display)
-	: !NILP (current_buffer->selective_display) ? -1 : 0;
+    = FIXNUMP (buf->selective_display)
+      ? XINT (buf->selective_display)
+	: !NILP (buf->selective_display) ? -1 : 0;
   int start_hpos = (EQ (window, minibuf_window) ? minibuf_prompt_width : 0);
 
  retry:
@@ -792,13 +829,13 @@ vmotion (from, vtarget, hscroll, window)
     {
       /* Moving downward is simple, but must calculate from beg of line 
 	 to determine hpos of starting point */
-      if (from > BEGV && CHAR_AT (from - 1) != '\n')
+      if (from > BUF_BEGV(buf) && BUF_CHAR_AT (buf, from - 1) != '\n')
 	{
-	  prevline = find_next_newline (from, -1);
+	  prevline = find_next_newline (buf, from, -1);
 	  while (selective > 0
-		 && prevline > BEGV
-		 && position_indentation (prevline) >= selective)
-	    prevline = find_next_newline (prevline - 1, -1);
+		 && prevline > BUF_BEGV(buf)
+		 && position_indentation (buf, prevline) >= selective)
+	    prevline = find_next_newline (buf, prevline - 1, -1);
 	  pos = *compute_motion (XWINDOW (window),
 				 prevline, 0,
 				 lmargin + (prevline == 1 ? start_hpos : 0),
@@ -812,7 +849,7 @@ vmotion (from, vtarget, hscroll, window)
 	}
       return compute_motion (XWINDOW (window),
 			     from, vpos, pos.hpos,
-			     ZV, vtarget, - (1 << (SHORTBITS - 1)),
+			     BUF_ZV(buf), vtarget, - (1 << (SHORTBITS - 1)),
 			     hscroll, (pos.vpos * width));
     }
 
@@ -821,15 +858,15 @@ vmotion (from, vtarget, hscroll, window)
 
   first = 1;
 
-  while ((vpos > vtarget || first) && from > BEGV)
+  while ((vpos > vtarget || first) && from > BUF_BEGV(buf))
     {
       prevline = from;
       while (1)
 	{
-	  prevline = find_next_newline (prevline - 1, -1);
-	  if (prevline == BEGV
+	  prevline = find_next_newline (buf, prevline - 1, -1);
+	  if (prevline == BUF_BEGV(buf)
 	      || selective <= 0
-	      || position_indentation (prevline) < selective)
+	      || position_indentation (buf, prevline) < selective)
 	    break;
 	}
       pos = *compute_motion (XWINDOW (window),
@@ -872,15 +909,19 @@ Optional second argument is WINDOW to move in.")
 {
   if (NILP (window))
     window = selected_window;
+  CHECK_WINDOW (window, 0);
   {
     struct position pos;
     register struct window *w  = XWINDOW (window);
 
     CHECK_FIXNUM (lines, 0);
 
-    pos = *vmotion (point, XINT (lines), XINT (w->hscroll), window);
+    pos = *vmotion (BUF_PT (XBUFFER (w->buffer)), XINT (lines),
+		    XINT (w->hscroll), window);
 
-    SET_PT (pos.bufpos);
+    /* Note that the buffer's point is set, not the window's point. */
+    SET_BUF_PT (XBUFFER (w->buffer), pos.bufpos);
+
     return make_number (pos.vpos);
   }
 }

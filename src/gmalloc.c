@@ -272,6 +272,7 @@ extern void memory_warnings __P ((__ptr_t __start,
 				  void (*__warnfun) __P ((__const char *))));
 
 
+#if 0 /* unused in this file, and conflicting prototypes anyway */
 /* Relocating allocator.  */
 
 /* Allocate SIZE bytes, and store the address in *HANDLEPTR.  */
@@ -282,7 +283,7 @@ extern void r_alloc_free __P ((__ptr_t *__handleptr));
 
 /* Adjust the block at HANDLEPTR to be SIZE bytes long.  */
 extern __ptr_t r_re_alloc __P ((__ptr_t *__handleptr, size_t __size));
-
+#endif /* 0 */
 
 #ifdef	__cplusplus
 }

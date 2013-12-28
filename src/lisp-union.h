@@ -41,7 +41,7 @@ union Lisp_Object
 	unsigned LISP_WORD_TYPE val: VALBITS;
       } gu;
     void *v;
-    const void *cv;             /* C wanks */
+    CONST void *cv;             /* C wanks */
   }
 Lisp_Object;
 
@@ -69,7 +69,7 @@ union Lisp_Object
 	unsigned LISP_WORD_TYPE markbit: 1;
       } gu;
     void *v;
-    const void *cv;             /* C sucks */
+    CONST void *cv;             /* C sucks */
   }
 Lisp_Object;
 
@@ -143,7 +143,7 @@ extern Lisp_Object Qzero;
 #define VOID_TO_LISP(larg,varg) \
   do { ((larg).v = (void *) (varg)); } while (0)
 #define CVOID_TO_LISP(larg,varg) \
-  do { ((larg).cv = (const void *) (varg)); } while (0)
+  do { ((larg).cv = (CONST void *) (varg)); } while (0)
 
 /* Use this for turning a Lisp_Object into a  (void *), as when the
   Lisp_Object is passed into a toolkit callback function */

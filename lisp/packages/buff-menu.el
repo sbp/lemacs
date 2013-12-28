@@ -153,6 +153,63 @@ to generate such a string.  This variable is always buffer-local.")
 	(indent-to 40 1)
 	(insert file)))))
 
+(defun list-buffers-internal (output &optional predicate)
+  (let ((current (current-buffer))
+        (buffers (buffer-list)))
+    (save-excursion
+      (set-buffer output)
+      (Buffer-menu-mode)
+      (setq buffer-read-only nil)
+      (buffer-disable-undo output)
+      (insert list-buffers-header-line)
+
+      (while buffers
+        (let* ((col1 19)
+               (buffer (car buffers))
+               (name (buffer-name buffer))
+               (file (buffer-file-name buffer)))
+          (setq buffers (cdr buffers))
+          (cond ((null name))           ;deleted buffer
+                ((and predicate
+                      (not (if (stringp predicate)
+                               (string-match predicate name)
+                               (funcall predicate buffer))))
+                 nil)
+                (t
+                 (set-buffer buffer)
+                 (let ((ro buffer-read-only)
+                       (id list-buffers-identification))
+                   (set-buffer output)
+                   (insert (if (eq buffer current)
+                               (progn (setq current (point)) ?\.)
+                               ?\ ))
+                   (insert (if (buffer-modified-p buffer)
+                               ?\* 
+                               ?\ ))
+                   (insert (if ro
+                               ?\%
+                               ?\ ))
+                   (if (string-match "[\n\"\\ \t]" name)
+                       (let ((print-escape-newlines t))
+                         (prin1 name output))
+                       (insert ?\  name))
+                   (indent-to col1 1)
+                   (cond ((stringp id)
+                          (insert id))
+                         (id
+                          (set-buffer buffer)
+                          (condition-case e
+                              (funcall id output)
+                            (error
+                             (princ "***" output) (prin1 e output)))
+                          (set-buffer output)
+                          (goto-char (point-max)))))
+                 (insert ?\n)))))
+
+      (setq buffer-read-only t)
+      (if (not (bufferp current))
+          (goto-char current)))))
+
 (defun list-buffers (&optional files-only)
   "Display a list of names of existing buffers.
 Inserts it in buffer *Buffer List* and displays that.
@@ -161,63 +218,22 @@ Non-null optional arg FILES-ONLY means mention only file buffers.
 
 The M column contains a * for buffers that are modified.
 The R column contains a % for buffers that are read-only."
-  (interactive "P")
-  (let ((current (current-buffer))
-	(col1 19)
-	output)
-    (with-output-to-temp-buffer "*Buffer List*"
-      (save-excursion
-        (let ((buffers (buffer-list)))
-          (setq output standard-output)
-          (set-buffer output)
-          (Buffer-menu-mode)
-          (setq buffer-read-only nil)
-          (buffer-disable-undo output)
-          (insert list-buffers-header-line)
-          (while buffers
-            (let* ((buffer (car buffers))
-                   (name (buffer-name buffer))
-                   (file (buffer-file-name buffer)))
-              (setq buffers (cdr buffers))
-              (cond ((null name)) ;deleted buffer
-                    ((and (/= 0 (length name));don't mention if starts with " "
-                          (= (aref name 0) ?\ )))
-                    ((and files-only (null file)))
-                    (t
-                     (set-buffer buffer)
-                     (let ((ro buffer-read-only)
-                           (id list-buffers-identification))
-                       (set-buffer output)
-                       (insert (if (eq buffer current)
-                                   (progn (setq current (point)) ?\.)
-                                   ?\ ))
-		       (insert (if (buffer-modified-p buffer)
-                                   ?\* 
-				   ?\ ))
-		       (insert (if ro
-                                   ?\%
-                                   ?\ ))
-                       (if (string-match "[\n\"\\ \t]" name)
-                           (let ((print-escape-newlines t))
-                             (prin1 name output))
-                           (insert ?\  name))
-                       (indent-to col1 1)
-                       (cond ((stringp id)
-                              (insert id))
-                             (id
-                              (set-buffer buffer)
-                              (condition-case e
-                                  (funcall id output)
-                                (error
-                                 (princ "***" output) (prin1 e output)))
-                              (set-buffer output)
-                              (goto-char (point-max)))))
-                     (insert ?\n)))))
-          (setq buffer-read-only t))))
-    (if (not (bufferp current))
-	(save-excursion
-	  (set-buffer output)
-	  (goto-char current)))))
+  (interactive (list (if current-prefix-arg t nil)))
+  (with-output-to-temp-buffer "*Buffer List*"
+    (save-excursion
+      (list-buffers-internal standard-output
+                             (if (memq files-only '(t nil))
+                                 #'(lambda (b)
+                                     (let ((n (buffer-name b)))
+                                       (cond ((and (/= 0 (length n))
+                                                   (= (aref n 0) ?\ ))
+                                              ;;don't mention if starts with " "
+                                              nil)
+                                             (files-only
+                                              (buffer-file-name b))
+                                             (t
+                                              t))))
+                                 files-only)))))
 
 (defun buffer-menu (arg)
   "Make a menu of buffers so you can save, delete or select them.

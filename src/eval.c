@@ -1,5 +1,6 @@
 /* Evaluator for GNU Emacs Lisp interpreter.
-   Copyright (C) 1985, 1986, 1987, 1992, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1987, 1992, 1993, 1994
+   Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -23,6 +24,7 @@ int always_gc;
 
 #include "config.h"
 #include "lisp.h"
+#include "intl.h"
 #ifdef HAVE_X_WINDOWS
 #include "blockio.h"
 #endif
@@ -45,6 +47,7 @@ Lisp_Object Qinteractive, Qcommandp, Qdefun, Qeval, Qvalues;
 Lisp_Object Vquit_flag, Vinhibit_quit;
 Lisp_Object Qand_rest, Qand_optional;
 Lisp_Object Qdebug_on_error;
+Lisp_Object Qstack_trace_on_error;
 Lisp_Object Qdebugger;
 Lisp_Object Qinhibit_quit;
 
@@ -114,7 +117,8 @@ print_subr (Lisp_Object obj, Lisp_Object printcharfun, int escapeflag)
   struct Lisp_Subr *subr = XSUBR (obj);
 
   if (print_readably)
-    error ("printing unreadable object #<subr %s>", subr_name (subr));
+    error (GETTEXT ("printing unreadable object #<subr %s>"),
+	   subr_name (subr));
 
   write_string_1 (((subr->max_args == UNEVALLED)
                    ? "#<special-form "
@@ -126,8 +130,6 @@ print_subr (Lisp_Object obj, Lisp_Object printcharfun, int escapeflag)
                   -1, printcharfun);
 }
 
-#ifdef LRECORD_BYTECODE
-
 static Lisp_Object mark_bytecode (Lisp_Object, void (*) (Lisp_Object));
 extern void print_bytecode (Lisp_Object, Lisp_Object, int);
 static int sizeof_bytecode (void *h) {return (sizeof (struct Lisp_Bytecode));}
@@ -152,18 +154,16 @@ static int
 bytecode_equal (Lisp_Object o1, Lisp_Object o2, int depth)
 {
   struct Lisp_Bytecode *b1 = XBYTECODE (o1);
-  struct Lisp_Bytecode *b2 = XBYTECODE (o1);
+  struct Lisp_Bytecode *b2 = XBYTECODE (o2);
   return (b1->flags.documentationp == b2->flags.documentationp
 	  && b1->flags.interactivep == b2->flags.interactivep
+	  && b1->flags.domainp == b2->flags.domainp /* I18N3 */
 	  && internal_equal (b1->bytecodes, b2->bytecodes, depth + 1)
 	  && internal_equal (b1->constants, b2->constants, depth + 1)
 	  && internal_equal (b1->arglist, b2->arglist, depth + 1)
 	  && internal_equal (b1->doc_and_interactive, 
 			     b2->doc_and_interactive, depth + 1));
 }
-
-#endif /* LRECORD_BYTECODE */
-
 
 
 void
@@ -278,21 +278,30 @@ static Lisp_Object
 signal_call_debugger (Lisp_Object conditions, 
                       Lisp_Object sig, Lisp_Object data)
 {
+  int speccount = specpdl_depth_counter;
+
   if (!entering_debugger
       && wants_debugger (Vstack_trace_on_error, conditions))
-    internal_with_output_to_temp_buffer ("*Backtrace*", 
-                                         backtrace_259,
-                                         Qnil,
-                                         Qnil);
+    {
+      specbind (Qdebug_on_error, Qnil);
+      specbind (Qstack_trace_on_error, Qnil);
+
+      internal_with_output_to_temp_buffer ("*Backtrace*", 
+                                           backtrace_259,
+                                           Qnil,
+                                           Qnil);
+      unbind_to (speccount, Qnil);
+    }
+
   if (!entering_debugger
       && (EQ (sig, Qquit)
           ? debug_on_quit
           : wants_debugger (Vdebug_on_error, conditions)))
     {
       Lisp_Object val;
-      int speccount = specpdl_depth_counter;
 
       specbind (Qdebug_on_error, Qnil);
+      specbind (Qstack_trace_on_error, Qnil);
       val = call_debugger (list2 (Qerror, (Fcons (sig, data))));
       return unbind_to (speccount, val);
     }
@@ -687,6 +696,12 @@ If INITVALUE is missing, SYMBOL's value is not set.")
       if (NILP (tem))
 	Fset_default (sym, Feval (Fcar (Fcdr (args))));
     }
+
+#ifdef I18N3
+  if (!NILP (Vfile_domain))
+    pure_put (sym, Qvariable_domain, Vfile_domain);
+#endif
+
   tem = Fcar (Fcdr (Fcdr (args)));
   if (!NILP (tem))
     pure_put (sym, Qvariable_documentation, tem);
@@ -696,7 +711,8 @@ If INITVALUE is missing, SYMBOL's value is not set.")
 }
 
 DEFUN ("defconst", Fdefconst, Sdefconst, 2, UNEVALLED, 0,
-  "(defconst SYMBOL INITVALUE DOCSTRING): define SYMBOL as a constant variable.\n\
+  "(defconst SYMBOL INITVALUE DOCSTRING): define SYMBOL as a constant\n\
+variable.\n\
 The intent is that programs do not change this value, but users may.\n\
 Always sets the value of SYMBOL to the result of evalling INITVALUE.\n\
 If SYMBOL is buffer-local, its default value is what is set;\n\
@@ -716,7 +732,14 @@ it would override the user's choice.")
 
   sym = Fcar (args);
   Fset_default (sym, Feval (Fcar (Fcdr (args))));
+
+#ifdef I18N3
+  if (!NILP (Vfile_domain))
+    pure_put (sym, Qvariable_domain, Vfile_domain);
+#endif
+
   tem = Fcar (Fcdr (Fcdr (args)));
+
   if (!NILP (tem))
     pure_put (sym, Qvariable_documentation, tem);
 
@@ -766,10 +789,8 @@ Each VALUEFORM can refer to the symbols already bound by this VARLIST.")
       if (SYMBOLP (elt))
 	specbind (elt, Qnil);
       else if (! NILP (Fcdr (Fcdr (elt))))
-	signal_error (Qerror,
-                      list2 (build_string (
-			     "`let' bindings can have only one value-form"),
-                             elt));
+	signal_simple_error (GETTEXT ("`let' bindings can have only one value-form"),
+                             elt);
       else
 	{
 	  val = Feval (Fcar (Fcdr (elt)));
@@ -815,10 +836,8 @@ All the VALUEFORMs are evalled before any symbols are bound.")
       if (SYMBOLP (elt))
 	temps [argnum++] = Qnil;
       else if (! NILP (Fcdr (Fcdr (elt))))
-	signal_error (Qerror,
-                      list2 (build_string (
-			     "`let' bindings can have only one value-form"),
-                             elt));
+	signal_simple_error (GETTEXT ("`let' bindings can have only one value-form"),
+                             elt);
       else
 	temps [argnum++] = Feval (Fcar (Fcdr (elt)));
       gcpro2.nvars = argnum;
@@ -1156,9 +1175,7 @@ Fcondition_case_3 (Lisp_Object bodyform,
       tem = Fcar (val);
       if ((!NILP (tem)) 
           && (!CONSP (tem) || (!SYMBOLP (XCONS (tem)->car))))
-	signal_error (Qerror, 
-                      list2 (build_string ("Invalid condition handler"),
-                             tem));
+	signal_simple_error (GETTEXT ("Invalid condition handler"), tem);
     }
 
   return condition_case_1 (handlers, 
@@ -1296,8 +1313,8 @@ See also the function `condition-case'.")
 #else
 		  /* GACK!!! Really want some way for debug-on-quit errors
 		     to be continuable!! */
-		  error
-		    ("Returning a value from an error is no longer supported");
+		  error (GETTEXT
+		 ("Returning a value from an error is no longer supported"));
 #endif
 		}
 	    }
@@ -1317,6 +1334,19 @@ signal_error (Lisp_Object sig, Lisp_Object data)
 {
   for (;;)
     Fsignal (sig, data);
+}
+
+DOESNT_RETURN
+signal_simple_error (CONST char *reason, Lisp_Object frob)
+{
+  signal_error (Qerror, list2 (build_string (reason), frob));
+}
+
+DOESNT_RETURN
+signal_simple_error_2 (CONST char *reason,
+                       Lisp_Object frob0, Lisp_Object frob1)
+{
+  signal_error (Qerror, list3 (build_string (reason), frob0, frob1));
 }
 
 /* This is what the QUIT macro calls to signal a quit */
@@ -1365,15 +1395,7 @@ Also, a symbol satisfies `commandp' if its function definition does so.")
 
   else if (COMPILEDP (fun))
     {
-#ifndef LRECORD_BYTECODE
-      /* Bytecode objects are interactive if they are long enough to
-         have an element whose index is COMPILED_INTERACTIVE, which is
-         where the interactive spec is stored.  */
-      return (((vector_length (XVECTOR (fun)) > COMPILED_INTERACTIVE)
-               ? Qt : Qnil));
-#else
       return (((XBYTECODE (fun)->flags.interactivep) ? Qt : Qnil));
-#endif
     }
 
   /* Strings and vectors are keyboard macros.  */
@@ -1399,7 +1421,6 @@ Also, a symbol satisfies `commandp' if its function definition does so.")
 }
 #endif /* !standalone */
 
-/* ARGSUSED */
 DEFUN ("autoload", Fautoload, Sautoload, 2, 5, 0,
   "Define FUNCTION to autoload from FILE.\n\
 FUNCTION is a symbol; FILE is a file name string to pass to `load'.\n\
@@ -1508,7 +1529,7 @@ do_autoload (Lisp_Object fundef,
   if (EQ (fun, Qunbound)
       || (CONSP (fun)
           && EQ (XCONS (fun)->car, Qautoload)))
-    error ("Autoloading failed to define function %s",
+    error (GETTEXT ("Autoloading failed to define function %s"),
 	   XSYMBOL (funname)->name->data);
   UNGCPRO;
 }
@@ -1562,7 +1583,7 @@ DEFUN ("eval", Feval, Seval, 1, 1, 0,
       if (max_lisp_eval_depth < 100)
 	max_lisp_eval_depth = 100;
       if (lisp_eval_depth > max_lisp_eval_depth)
-	error ("Lisp nesting exceeds `max-lisp-eval-depth'");
+	error (GETTEXT ("Lisp nesting exceeds `max-lisp-eval-depth'"));
     }
 
   original_fun = Fcar (form);
@@ -1753,7 +1774,7 @@ Thus, (funcall 'cons 'x 'y) returns (x . y).")
       if (max_lisp_eval_depth < 100)
 	max_lisp_eval_depth = 100;
       if (lisp_eval_depth > max_lisp_eval_depth)
-	error ("Lisp nesting exceeds `max-lisp-eval-depth'");
+	error (GETTEXT ("Lisp nesting exceeds `max-lisp-eval-depth'"));
     }
 
   /* Count number of arguments to function */
@@ -2035,13 +2056,7 @@ funcall_lambda (Lisp_Object fun, int nargs, Lisp_Object arg_vector[])
   if (CONSP (fun))
     syms_left = Fcar (Fcdr (fun));
   else if (COMPILEDP (fun))
-    {
-#ifndef LRECORD_BYTECODE
-      syms_left = XVECTOR (fun)->contents[COMPILED_ARGLIST];
-#else
-      syms_left = XBYTECODE (fun)->arglist;
-#endif /* LRECORD_BYTECODE */
-    }
+    syms_left = XBYTECODE (fun)->arglist;
   else abort ();
 
   i = 0;
@@ -2080,16 +2095,10 @@ funcall_lambda (Lisp_Object fun, int nargs, Lisp_Object arg_vector[])
     val = Fprogn (Fcdr (Fcdr (fun)));
   else
     {
-#ifndef LRECORD_BYTECODE
-      val = Fbyte_code (XVECTOR (fun)->contents[COMPILED_BYTECODE],
-                        XVECTOR (fun)->contents[COMPILED_CONSTANTS],
-                        XVECTOR (fun)->contents[COMPILED_STACK_DEPTH]);
-#else
       struct Lisp_Bytecode *b = XBYTECODE (fun);
       val = Fbyte_code (b->bytecodes,
                         b->constants,
                         make_number (b->maxdepth));
-#endif
     }
   return unbind_to (speccount, val);
 }
@@ -2228,34 +2237,6 @@ call6 (Lisp_Object fn,
 }
 
 
-#ifdef EMACS_BTL
-#include "btl-get.h"
-int
-btl_symbol_id_number (sym)
-     Lisp_Object sym;
-{
-  if (SYMBOLP (sym))
-    {
-      extern Lisp_Object VBTL_id_tag;
-      register Lisp_Object tag = VBTL_id_tag;
-      Lisp_Object id;
-      int foundp = 0;
-    
-      BTL_GET (sym, tag, id, foundp);
-      if (foundp && (FIXNUMP (id)))
-        {
-          int id_number = XINT(id);
-          if (id_number > 0)
-            return id_number;
-        }
-    }
-
-  return 0;
-}
-#endif
-
-
-
 static void
 grow_specpdl ()
 {
@@ -2269,7 +2250,7 @@ grow_specpdl ()
 	    /* Leave room for some specpdl in the debugger.  */
 	    max_specpdl_size = specpdl_size + 100;
 	  Fsignal (Qerror,
-		   list1 (build_string ("Variable binding depth exceeds max-specpdl-size")));
+		   list1 (build_string (GETTEXT ("Variable binding depth exceeds max-specpdl-size"))));
 	}
     }
   specpdl_size *= 2;
@@ -2617,6 +2598,7 @@ before making `inhibit-quit' nil.");
   defsymbol (&Qinhibit_quit, "inhibit-quit");
   defsymbol (&Qautoload, "autoload");
   defsymbol (&Qdebug_on_error, "debug-on-error");
+  defsymbol (&Qstack_trace_on_error, "stack-trace-on-error");
   defsymbol (&Qdebugger, "debugger");
   defsymbol (&Qmacro, "macro");
   defsymbol (&Qand_rest, "&rest");

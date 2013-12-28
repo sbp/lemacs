@@ -117,6 +117,12 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
     modifiers		Bucky-bits on that key: control, meta, etc.
 			For most keys, Shift is not a bit; that is implicit
 			in the keyboard layout.
+
+ wchar_event (I18N4 only)
+    event_channel	A token representing which keyboard generated it.
+    timestamp		When the input method composed its input.
+    data		A single wide character.
+
  button_press_event
  button_release_event
     event_channel	A token representing which mouse generated it.
@@ -131,6 +137,8 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 			For this kind of event, this is a screen object.
     timestamp		When it happened
     x, y		Where it was after it moved (in pixels).
+    modifiers		Bucky-bits down when the motion was detected.
+			(Possibly not all window systems will provide this?)
 
  process_event
     timestamp		When it happened
@@ -183,10 +191,13 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 
 /* The following cruft is to determine whether we have SIGIO... */
+/* #### Maybe all this junk isn't necessary any more now that we have
+   syssignal.h? */
 
 #include "config.h"
 
-#include <signal.h>
+/* #include <signal.h>  use "syssignal.h" instead -jwz */
+#include "syssignal.h"
 
 /* Get FIONREAD, if it is available.  */
 #ifdef HAVE_TERMIO
@@ -246,6 +257,9 @@ extern struct event_stream *event_stream;
 typedef enum emacs_event_type {
   empty_event,
   key_press_event,
+#ifdef I18N4
+  wchar_event,
+#endif
   button_press_event,
   button_release_event,
   pointer_motion_event,
@@ -266,6 +280,12 @@ struct key_data {
   unsigned char     modifiers;
 };
 
+#ifdef I18N4
+struct wchar_data {
+  wchar_t           data;
+};
+#endif
+
 struct button_data {
   int               button;
   unsigned char     modifiers;
@@ -274,6 +294,7 @@ struct button_data {
 
 struct motion_data {
   int               x, y;
+  unsigned char     modifiers;
 };
 
 struct process_data {
@@ -321,6 +342,9 @@ struct Lisp_Event {
   union
     {
       struct key_data     key;
+#ifdef I18N4
+    struct wchar_data	wchar;
+#endif
       struct button_data  button;
       struct motion_data  motion;
       struct process_data process;
@@ -330,7 +354,7 @@ struct Lisp_Event {
     } event;
 };
 
-extern const struct lrecord_implementation lrecord_event[];
+extern CONST struct lrecord_implementation lrecord_event[];
 
 #define XEVENT(a) ((struct Lisp_Event *) XPNTR(a))
 #define CHECK_EVENT(x, i) CHECK_RECORD ((x), lrecord_event, Qeventp, (i))
@@ -360,6 +384,9 @@ extern const struct lrecord_implementation lrecord_event[];
 
 extern void format_event_object (char *buf, struct Lisp_Event *e, int brief);
 extern void character_to_event (unsigned int c, struct Lisp_Event *event);
+
+extern Lisp_Object Fenqueue_command_event (Lisp_Object function,
+					   Lisp_Object object);
 #endif /* emacs */
 
 #endif /* _EMACS_EVENTS_H_ */

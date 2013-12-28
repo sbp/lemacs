@@ -1,5 +1,6 @@
 /* Primitive operations on Lisp data types for GNU Emacs Lisp interpreter.
-   Copyright (C) 1985, 1986, 1988, 1992, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1988, 1992, 1993, 1994
+   Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -22,16 +23,31 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include <stdio.h>		/* For sprintf */
 
-#include <signal.h>
-
 #include "lisp.h"
+#include "intl.h"
 
 #include "syssignal.h"
 
 #include "bytecode.h"
 
 #ifdef LISP_FLOAT_TYPE
+
+/* Work around a problem that happens because math.h on hpux 7
+   defines two static variables--which, in Emacs, are not really static,
+   because `static' is defined as nothing.  The problem is that they are
+   here, in floatfns.c, and in lread.c.
+   These macros prevent the name conflict.
+
+   (Is it still necessary to define static to nothing on hpux7?
+   Removing that would be the best fix. -jwz)
+ */
+# if defined (HPUX) && !defined (HPUX8)
+#  define _MAXLDBL data_c_maxldbl
+#  define _NMAXLDBL data_c_nmaxldbl
+# endif
+
 #include <math.h>
+
 #endif /* LISP_FLOAT_TYPE */
 
 Lisp_Object Qnil, Qt, Qquote, Qlambda, Qfunction, Qunbound;
@@ -87,7 +103,7 @@ wrong_type_argument (predicate, value)
 DOESNT_RETURN
 pure_write_error ()
 {
-  error ("Attempt to modify read-only object");
+  error (GETTEXT ("Attempt to modify read-only object"));
 }
 
 DOESNT_RETURN
@@ -572,6 +588,83 @@ ARRAY may be a vector or a string.  INDEX starts at 0.")
 
 /* Function objects */
 
+/* The bytecode->doc_and_interactive slot uses the minimal number of conses,
+   based on bytecode->flags; it may take any of the following forms:
+	doc
+	interactive
+	domain
+	(doc . interactive)
+	(doc . domain)
+	(interactive . domain)
+	(doc . (interactive . domain))
+ */
+
+/* Caller must check flags.interactivep first */
+Lisp_Object
+bytecode_interactive (struct Lisp_Bytecode *b)
+{
+  if (! b->flags.interactivep)
+    abort ();
+  else if (b->flags.documentationp && b->flags.domainp)
+    return (XCONS (XCONS (b->doc_and_interactive)->cdr)->car);
+  else if (b->flags.documentationp)
+    return (XCONS (b->doc_and_interactive)->cdr);
+  else if (b->flags.domainp)
+    return (XCONS (b->doc_and_interactive)->car);
+  else
+    return (b->doc_and_interactive);
+}
+
+/* Caller need not check flags.documentationp first */
+Lisp_Object
+bytecode_documentation (struct Lisp_Bytecode *b)
+{
+  if (! b->flags.documentationp)
+    return Qnil;
+  else if (b->flags.interactivep && b->flags.domainp)
+    return (XCONS (b->doc_and_interactive)->car);
+  else if (b->flags.interactivep)
+    return (XCONS (b->doc_and_interactive)->car);
+  else if (b->flags.domainp)
+    return (XCONS (b->doc_and_interactive)->car);
+  else
+    return (b->doc_and_interactive);
+}
+
+/* Caller need not check flags.domainp first */
+Lisp_Object
+bytecode_domain (struct Lisp_Bytecode *b)
+{
+  if (! b->flags.domainp)
+    return Qnil;
+  else if (b->flags.documentationp && b->flags.interactivep)
+    return (XCONS (XCONS (b->doc_and_interactive)->cdr)->cdr);
+  else if (b->flags.documentationp)
+    return (XCONS (b->doc_and_interactive)->cdr);
+  else if (b->flags.interactivep)
+    return (XCONS (b->doc_and_interactive)->cdr);
+  else
+    return (b->doc_and_interactive);
+}
+
+/* used only by Snarf-documentation; there must be doc already. */
+void
+set_bytecode_documentation (struct Lisp_Bytecode *b, Lisp_Object new)
+{
+  if (! b->flags.documentationp)
+    abort ();
+  else if (!(FIXNUMP (new) || STRINGP (new)))
+    abort ();
+  else if (b->flags.interactivep && b->flags.domainp)
+    XCONS (b->doc_and_interactive)->car = new;
+  else if (b->flags.interactivep)
+    XCONS (b->doc_and_interactive)->car = new;
+  else if (b->flags.domainp)
+    XCONS (b->doc_and_interactive)->car = new;
+  else
+    b->doc_and_interactive = new;
+}
+
 DEFUN ("compiled-function-instructions", Fcompiled_function_instructions,
        Scompiled_function_instructions, 1, 1, 0,
        "Returns the byte-opcode string of the compiled-function object.")
@@ -579,11 +672,7 @@ DEFUN ("compiled-function-instructions", Fcompiled_function_instructions,
      Lisp_Object function;
 {
   CHECK_BYTECODE (function, 0);
-#ifdef LRECORD_BYTECODE
   return (XBYTECODE (function)->bytecodes);
-#else
-  return (Felt (function, make_number (COMPILED_BYTECODE)));
-#endif
 }
 
 DEFUN ("compiled-function-constants", Fcompiled_function_constants,
@@ -593,11 +682,7 @@ DEFUN ("compiled-function-constants", Fcompiled_function_constants,
      Lisp_Object function;
 {
   CHECK_BYTECODE (function, 0);
-#ifdef LRECORD_BYTECODE
   return (XBYTECODE (function)->constants);
-#else
-  return (Felt (function, make_number (COMPILED_CONSTANTS)));
-#endif
 }
 
 DEFUN ("compiled-function-stack-depth", Fcompiled_function_stack_depth,
@@ -607,11 +692,7 @@ DEFUN ("compiled-function-stack-depth", Fcompiled_function_stack_depth,
      Lisp_Object function;
 {
   CHECK_BYTECODE (function, 0);
-#ifdef LRECORD_BYTECODE
   return (make_number (XBYTECODE (function)->maxdepth));
-#else
-  return (Felt (function, make_number (COMPILED_STACK_DEPTH)));
-#endif
 }
 
 DEFUN ("compiled-function-arglist", Fcompiled_function_arglist,
@@ -621,11 +702,7 @@ DEFUN ("compiled-function-arglist", Fcompiled_function_arglist,
      Lisp_Object function;
 {
   CHECK_BYTECODE (function, 0);
-#ifdef LRECORD_BYTECODE
   return (XBYTECODE (function)->arglist);
-#else
-  return (Felt (function, make_number (COMPILED_ARGLIST)));
-#endif
 }
 
 DEFUN ("compiled-function-interactive", Fcompiled_function_interactive,
@@ -635,20 +712,22 @@ DEFUN ("compiled-function-interactive", Fcompiled_function_interactive,
      Lisp_Object function;
 {
   CHECK_BYTECODE (function, 0);
-#ifdef LRECORD_BYTECODE
   if (!XBYTECODE (function)->flags.interactivep)
     return Qnil;
-  return (list2 (Qinteractive,
-		 (XBYTECODE (function)->flags.documentationp
-		  ? XCONS (XBYTECODE (function)->doc_and_interactive)->cdr
-		  : XBYTECODE (function)->doc_and_interactive)));
-#else
-  if (XVECTOR (function)->size <= COMPILED_INTERACTIVE)
+  return (list2 (Qinteractive, bytecode_interactive (XBYTECODE (function))));
+}
+
+DEFUN ("compiled-function-domain", Fcompiled_function_domain,
+       Scompiled_function_domain, 1, 1, 0,
+       "Returns the domain of the compiled-function object, or nil.\n\
+This is only meaningful if I18N3 was enabled when emacs was compiled.")
+     (function)
+     Lisp_Object function;
+{
+  CHECK_BYTECODE (function, 0);
+  if (!XBYTECODE (function)->flags.domainp)
     return Qnil;
-  else
-    return (list2 (Qinteractive,
-		   Felt (function, make_number (COMPILED_INTERACTIVE))));
-#endif
+  return (bytecode_domain (XBYTECODE (function)));
 }
 
 
@@ -900,7 +979,7 @@ arith_driver (code, nargs, args)
      register Lisp_Object *args;
 {
   Lisp_Object val;
-  register LISP_WORD_TYPE argnum;
+  register int argnum;
   register LISP_WORD_TYPE accum;
   register LISP_WORD_TYPE next;
 
@@ -1111,7 +1190,17 @@ If either argument is a float, a float will be returned.")
       if (f2 == 0)
 	Fsignal (Qarith_error, Qnil);
 
+      /* Note, ANSI *requires* the presence of the fmod() library routine.
+         If your system doesn't have it, complain to your vendor, because
+         that is a bug. */
+#ifdef USE_DREM
+      /* drem returns a result in the range [-f2/2,f2/2] instead of
+         [0,f2), but the sign fixup below takes care of that. */
+      f1 = drem (f1, f2);
+#else
       f1 = fmod (f1, f2); /* fmod is ANSI. */
+#endif
+
       /* If the "remainder" comes out with the wrong sign, fix it.  */
       if ((f1 < 0) != (f2 < 0))
 	f1 += f2;
@@ -1335,112 +1424,114 @@ syms_of_data ()
   pure_put (Qerror, Qerror_conditions,
 	    list1 (Qerror));
   pure_put (Qerror, Qerror_message,
-	    build_string ("error"));
+	    build_string (DEFER_GETTEXT ("error")));
 
   pure_put (Qquit, Qerror_conditions,
 	    list1 (Qquit));
   pure_put (Qquit, Qerror_message,
-	    build_string ("Quit"));
+	    build_string (DEFER_GETTEXT ("Quit")));
 
   pure_put (Qwrong_type_argument, Qerror_conditions,
 	    list2 (Qwrong_type_argument, Qerror));
   pure_put (Qwrong_type_argument, Qerror_message,
-	    build_string ("Wrong type argument"));
+	    build_string (DEFER_GETTEXT ("Wrong type argument")));
 
   pure_put (Qargs_out_of_range, Qerror_conditions,
 	    list2 (Qargs_out_of_range, Qerror));
   pure_put (Qargs_out_of_range, Qerror_message,
-	    build_string ("Args out of range"));
+	    build_string (DEFER_GETTEXT ("Args out of range")));
 
   pure_put (Qvoid_function, Qerror_conditions,
 	    list2 (Qvoid_function, Qerror));
   pure_put (Qvoid_function, Qerror_message,
-	    build_string ("Symbol's function definition is void"));
+	    build_string (DEFER_GETTEXT
+			  ("Symbol's function definition is void")));
 
   pure_put (Qcyclic_function_indirection, Qerror_conditions,
 	    list2 (Qcyclic_function_indirection, Qerror));
   pure_put (Qcyclic_function_indirection, Qerror_message,
-	    build_string ("Symbol's chain of function indirections contains a loop"));
+	    build_string (DEFER_GETTEXT ("Symbol's chain of function indirections contains a loop")));
 
   pure_put (Qvoid_variable, Qerror_conditions,
 	    list2 (Qvoid_variable, Qerror));
   pure_put (Qvoid_variable, Qerror_message,
-	    build_string ("Symbol's value as variable is void"));
+	    build_string (DEFER_GETTEXT
+			  ("Symbol's value as variable is void")));
 
   pure_put (Qsetting_constant, Qerror_conditions,
 	    list2 (Qsetting_constant, Qerror));
   pure_put (Qsetting_constant, Qerror_message,
-	    build_string ("Attempt to set a constant symbol"));
+	    build_string (DEFER_GETTEXT ("Attempt to set a constant symbol")));
 
   pure_put (Qinvalid_read_syntax, Qerror_conditions,
 	    list2 (Qinvalid_read_syntax, Qerror));
   pure_put (Qinvalid_read_syntax, Qerror_message,
-	    build_string ("Invalid read syntax"));
+	    build_string (DEFER_GETTEXT ("Invalid read syntax")));
 
   pure_put (Qinvalid_function, Qerror_conditions,
 	    list2 (Qinvalid_function, Qerror));
   pure_put (Qinvalid_function, Qerror_message,
-	    build_string ("Invalid function"));
+	    build_string (DEFER_GETTEXT ("Invalid function")));
 
   pure_put (Qwrong_number_of_arguments, Qerror_conditions,
 	    list2 (Qwrong_number_of_arguments, Qerror));
   pure_put (Qwrong_number_of_arguments, Qerror_message,
-	    build_string ("Wrong number of arguments"));
+	    build_string (DEFER_GETTEXT ("Wrong number of arguments")));
 
   pure_put (Qno_catch, Qerror_conditions,
 	    list2 (Qno_catch, Qerror));
   pure_put (Qno_catch, Qerror_message,
-	    build_string ("No catch for tag"));
+	    build_string (DEFER_GETTEXT ("No catch for tag")));
 
   pure_put (Qend_of_file, Qerror_conditions,
 	    list2 (Qend_of_file, Qerror));
   pure_put (Qend_of_file, Qerror_message,
-	    build_string ("End of file during parsing"));
+	    build_string (DEFER_GETTEXT ("End of file during parsing")));
 
   pure_put (Qarith_error, Qerror_conditions,
 	    list2 (Qarith_error, Qerror));
   pure_put (Qarith_error, Qerror_message,
-	    build_string ("Arithmetic error"));
+	    build_string (DEFER_GETTEXT ("Arithmetic error")));
 
   pure_put (Qdomain_error, Qerror_conditions,
 	    list3 (Qdomain_error, Qarith_error, Qerror));
   pure_put (Qdomain_error, Qerror_message,
-	    build_string ("Arithmetic domain error"));
+	    build_string (DEFER_GETTEXT ("Arithmetic domain error")));
 
   pure_put (Qrange_error, Qerror_conditions,
 	    list3 (Qrange_error, Qarith_error, Qerror));
   pure_put (Qrange_error, Qerror_message,
-	    build_string ("Arithmetic range error"));
+	    build_string (DEFER_GETTEXT ("Arithmetic range error")));
 
   pure_put (Qsingularity_error, Qerror_conditions,
 	    list4 (Qsingularity_error, Qdomain_error, Qarith_error, Qerror));
   pure_put (Qsingularity_error, Qerror_message,
-	    build_string ("Arithmetic singularity error"));
+	    build_string (DEFER_GETTEXT ("Arithmetic singularity error")));
 
   pure_put (Qoverflow_error, Qerror_conditions,
 	    list4 (Qoverflow_error, Qdomain_error, Qarith_error, Qerror));
   pure_put (Qoverflow_error, Qerror_message,
-	    build_string ("Arithmetic overflow error"));
+	    build_string (DEFER_GETTEXT ("Arithmetic overflow error")));
 
   pure_put (Qunderflow_error, Qerror_conditions,
 	    list4 (Qunderflow_error, Qdomain_error, Qarith_error, Qerror));
   pure_put (Qunderflow_error, Qerror_message,
-	    build_string ("Arithmetic underflow error"));
+	    build_string (DEFER_GETTEXT ("Arithmetic underflow error")));
 
   pure_put (Qbeginning_of_buffer, Qerror_conditions,
 	    list2 (Qbeginning_of_buffer, Qerror));
   pure_put (Qbeginning_of_buffer, Qerror_message,
-	    build_string ("Beginning of buffer"));
+	    build_string (DEFER_GETTEXT ("Beginning of buffer")));
 
   pure_put (Qend_of_buffer, Qerror_conditions,
 	    list2 (Qend_of_buffer, Qerror));
   pure_put (Qend_of_buffer, Qerror_message,
-	    build_string ("End of buffer"));
+	    build_string (DEFER_GETTEXT ("End of buffer")));
 
   pure_put (Qbuffer_read_only, Qerror_conditions,
 	    list2 (Qbuffer_read_only, Qerror));
   pure_put (Qbuffer_read_only, Qerror_message,
-	    build_string ("Buffer is read-only"));
+	    build_string (DEFER_GETTEXT ("Buffer is read-only")));
 
   defsubr (&Seq);
   defsubr (&Snull);
@@ -1482,6 +1573,7 @@ syms_of_data ()
   defsubr (&Scompiled_function_stack_depth);
   defsubr (&Scompiled_function_arglist);
   defsubr (&Scompiled_function_interactive);
+  defsubr (&Scompiled_function_domain);
 
   defsubr (&Snumber_to_string);
   defsubr (&Sstring_to_number);

@@ -26,7 +26,7 @@
 ;;; Middle button selects indicated article in VM Summary buffers.
 
 (defvar vm-menu
-  '("View Mail"
+  '("VM Commands"
     ["Next Nondeleted Message"		vm-next-message t]
     ["Previous Nondeleted Message"	vm-previous-message t]
     ["Scroll Message Forward"		vm-scroll-forward t]
@@ -40,8 +40,6 @@
     ("Motion..."
      ["Goto Last Seen Message"		vm-goto-message-last-seen t]
      ["Goto Message"			vm-goto-message	t]
-     ["Move Message Backward"		vm-move-message-backward t]
-     ["Move Message Forward"		vm-move-message-forward t]
      ["Next Message"			vm-Next-message t]
      ["Next Unread Message"		vm-next-unread-message t]
      ["Previous Message"		vm-Previous-message t]
@@ -83,22 +81,42 @@
      ["Next Command Uses Marks..."	vm-next-command-uses-marks nil]
      )
     ("Sorting..."
-     ["Sort by Date"			vm-sort-by-date t]
-     ["Sort by Subject"			vm-sort-by-subject t]
-     ["Sort by Author"			vm-sort-by-author t]
-     ["Sort by Author/Recipient"	vm-sort-by-author-dwim t]
-     ["Sort by Size"			vm-sort-by-lines t]
-     ["Group Messages..."		vm-group-messages t]
+     ["Sort by Date"		    (vm-sort-messages "date"             t) t]
+     ["Sort by Subject"		    (vm-sort-messages "subject"          t) t]
+     ["Sort by Author"		    (vm-sort-messages "author"           t) t]
+     ["Sort by Recipients"	    (vm-sort-messages "recipients"       t) t]
+     ["Sort by Lines"		    (vm-sort-messages "line-count"       t) t]
+     ["Sort by Bytes"		    (vm-sort-messages "byte-count"       t) t]
+     "---"
+     ["Sort by Date (backward)"     (vm-sort-messages "reversed-date"    t) t]
+     ["Sort by Subject (backward)"  (vm-sort-messages "reversed-subject" t) t]
+     ["Sort by Author (backward)"   (vm-sort-messages "reversed-author"  t) t]
+     ["Sort by Recipients (backward)" (vm-sort-messages
+				                  "reversed-recipients"  t) t]
+     ["Sort by Lines (backwards)"   (vm-sort-messages
+						  "reversed-line-count"  t) t]
+     ["Sort by Bytes (backward)"    (vm-sort-messages
+						  "reversed-byte-count"  t) t]
+     "---"
+     ["Move Message Backward"		vm-move-message-backward t]
+     ["Move Message Forward"		vm-move-message-forward t]
+
+;;     ["Sort by Date"			vm-sort-by-date t]
+;;     ["Sort by Subject"		vm-sort-by-subject t]
+;;     ["Sort by Author"		vm-sort-by-author t]
+;;     ["Sort by Author/Recipient"	vm-sort-by-author-dwim t]
+;;     ["Sort by Size"			vm-sort-by-lines t]
+;;     ["Group Messages..."		vm-group-messages t]
      )
     ("Digests..."
      ["Send Folder as Digest"		vm-send-digest t]
      ["Burst Message as Digest"		vm-burst-digest t]
      )
-;    ("Window Configurations..."
-;     ["Apply Window Configuration"	vm-apply-window-configuration t]
-;     ["Delete Window Configuration"	vm-delete-window-configuration t]
-;     ["Save Window Configuration"	vm-save-window-configuration t]
-;     )
+    ("Window Configurations..."
+     ["Apply Window Configuration"	vm-apply-window-configuration t]
+     ["Delete Window Configuration"	vm-delete-window-configuration t]
+     ["Save Window Configuration"	vm-save-window-configuration t]
+     )
     ("Miscellaneous..."
      ["Edit Message"			vm-edit-message t]
      ["Toggle Hidden Headers"		vm-expose-hidden-headers t]
@@ -138,8 +156,8 @@
   (let ((vm-follow-summary-cursor t))
     (vm-scroll-forward)))
 
-(define-key vm-mode-map 'button2 'vm-mouse-select)
 (define-key vm-mode-map 'button3 'vm-menu)
+(define-key vm-summary-mode-map 'button2 'vm-mouse-select)
 
 
 ;;; originally defined in vm-folder.el
@@ -149,12 +167,14 @@
 (or vm-highlighted-header-regexp
     (setq vm-highlighted-header-regexp "^Subject: "))
 
-(defun vm-highlight-headers (message window)
+(defun vm-highlight-headers ()
   (let ((highlight-headers-regexp (or vm-highlighted-header-regexp
 				      highlight-headers-regexp)))
     (highlight-headers (marker-position (vm-start-of (car vm-message-pointer)))
 		       (vm-text-end-of (car vm-message-pointer))
 		       t)))
+
+(add-hook 'vm-select-message-hook 'vm-highlight-headers)
 
 
 ;;; Highlight the line under the mouse in the folder and summary buffers.
@@ -163,7 +183,7 @@
   (require 'mode-motion)
   (setq mode-motion-hook 'mode-motion-highlight-line))
 
-(add-hook 'vm-summary-mode-hooks 'vm-install-mouse-tracker)
+(add-hook 'vm-summary-mode-hook 'vm-install-mouse-tracker)
 
 
 ;;; Put the VM menu in the menubar
@@ -174,8 +194,8 @@
 	(set-buffer-menubar (copy-sequence current-menubar))
 	(add-menu nil "VM" (cdr vm-menu)))))
 
-(add-hook 'vm-mode-hooks 'vm-install-menubar)
-(add-hook 'vm-summary-mode-hooks 'vm-install-menubar)
+(add-hook 'vm-mode-hook 'vm-install-menubar)
+(add-hook 'vm-summary-mode-hook 'vm-install-menubar)
 
 
 ;;; `vm-mail' versus `mail'...

@@ -363,7 +363,7 @@ preserving the comment indentation or line-starting decorations."
 (defun electric-c-brace (arg)
   "Insert character and correct line's indentation."
   (interactive "P")
-  (let (insertpos)
+  (let ((insertpos nil))
     (if (and (not arg)
 	     (eolp)
 	     (or (save-excursion
@@ -386,9 +386,7 @@ preserving the comment indentation or line-starting decorations."
 	(save-excursion
 	  (goto-char insertpos)
 	  (self-insert-command (prefix-numeric-value arg)))
-      (if (> last-command-char 127) ; simply incredible kludge
-	  (setq last-command-char (- last-command-char 128)))
-      (self-insert-command (prefix-numeric-value arg)))))
+        (self-insert-command (prefix-numeric-value arg)))))
 
 (defun c-insert-brackets ()
   (interactive)
@@ -398,6 +396,7 @@ preserving the comment indentation or line-starting decorations."
 
 (defun c-insert-braces ()
   (interactive)
+  (setq last-command-char ?{)
   (electric-c-brace 1)
   (newline)
   (c-indent-line)
@@ -636,6 +635,9 @@ Returns nil if line starts inside a string, t if in a comment."
                                 ;; Make sure the "function decl" we found
                                 ;; is not inside a comment.
                                 (let ((comment nil))
+				  ;; Move back to the `(' starting arglist
+				  ;; -- cthomp
+				  (goto-char lim)
                                   (beginning-of-line)
                                   (while (and (not comment)
                                               (search-forward "/*" lim t))
@@ -1145,9 +1147,16 @@ If within a string or comment, move by sentences instead of statements."
 	      (if (= (following-char) ?})
 		  (setq this-indent (- this-indent c-indent-level)))
 	      (if (= (following-char) ?{)
-                  (if (zerop (current-column))
+                  ;; Don't move an open-brace in column 0.
+                  ;; This is good when constructs such as
+                  ;; `extern "C" {' surround a function definition
+                  ;; that should be indented as usual.
+                  ;; It is also good for nested functions.
+                  ;; It is bad when an open-brace is indented at column 0
+                  ;; and you want to fix that, but we can't win 'em all.
+		  (if (zerop (current-column))
                       (setq this-indent 0)
-                      (setq this-indent (+ this-indent c-brace-offset))))
+		    (setq this-indent (+ this-indent c-brace-offset))))
 	      ;; Don't leave indentation in empty lines.
 	      (if (eolp) (setq this-indent 0))
 	      ;; Put chosen indentation into effect.
@@ -1198,10 +1207,10 @@ If within a string or comment, move by sentences instead of statements."
     (goto-char start)
     (let ((endmark (copy-marker end))
 	  (c-tab-always-indent t))
-      (while (and (bolp) (not (eolp)))
+      (while (and (bolp) (not (eobp))) ;; eolp->eobp by cthomp
 	;; Indent one line as with TAB.
 	(let ((shift-amt (c-indent-line))
-	      nextline sexpend)
+	      nextline sexpbeg sexpend)
 	  (save-excursion
 	    ;; Find beginning of following line.
 	    (save-excursion
@@ -1215,10 +1224,16 @@ If within a string or comment, move by sentences instead of statements."
 		    (setq sexpend (point-marker)))
 		(error (setq sexpend nil)
 		       (goto-char nextline)))
-	      (skip-chars-forward " \t\n")))
+	      (skip-chars-forward " \t\n"))
+             ;; Make sure the sexp we found really starts on the
+ 	    ;; current line and extends past it.
+ 	    (goto-char sexpend)
+ 	    (backward-sexp 1)
+ 	    (setq sexpbeg (point)))
 	  ;; If that sexp ends within the region,
 	  ;; indent it all at once, fast.
-	  (if (and sexpend (> sexpend nextline) (<= sexpend endmark))
+	  (if (and sexpend (> sexpend nextline) (<= sexpend endmark)
+		   (< sexpbeg nextline))
 	      (progn
 		(indent-c-exp)
 		(goto-char sexpend)))

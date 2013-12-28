@@ -394,6 +394,7 @@ be erased and writable."
 ;		     current-prefix-arg))
 ;  (cvs-do-update directory local 'noupdate))
 
+;;;###autoload
 (defun cvs-update (directory &optional local)
   "Run a 'cvs update' in the current working directory. Feed the
 output to a *cvs* buffer and run cvs-mode on it.
@@ -404,6 +405,7 @@ If optional prefix argument LOCAL is non-nil, 'cvs update -l' is run."
   (cvs-do-update directory local nil)
   (switch-to-buffer cvs-buffer-name))
 
+;;;###autoload
 (defun cvs-update-other-window (directory &optional local)
   "Run a 'cvs update' in the current working directory. Feed the
 output to a *cvs* buffer, display it in the other window, and run
@@ -661,7 +663,23 @@ for \\(.*\\)lock in \\(.*\\)$")
 			(buffer-substring (match-beginning 1)
 					  (match-end 1))
 			"lock in " cvs-lock-file
-			".\n\t (type M-x cvs-delete-lock to delete it)")))))))
+			".\n\t (type M-x cvs-delete-lock to delete it)"))))
+	     (t
+	      ;; Hack by jwz to display some status in the *cvs* buffer...
+	      (let ((s (buffer-substring (point)
+					 (progn (end-of-line) (point)))))
+		(save-excursion
+		  (set-buffer cvs-buffer-name)
+		  (goto-char (point-min))
+		  (let ((buffer-read-only nil))
+		    (if (re-search-forward "^[ \t]*Status: .*\n" nil t)
+			(delete-region (match-beginning 0) (match-end 0)))
+		    (goto-char (point-min))
+		    (re-search-forward "^[ \t]" nil t)
+		    (forward-line 1)
+		    (insert "    Status: " s "\n")
+		    ))))
+	     )))
       (store-match-data data)
       (set-buffer old-buffer))))
 
@@ -1643,8 +1661,8 @@ the influence from cvs-diff-ignore-marks."
 (defun cvs-backup-diffable (tin)
   "Check if the TIN is backup-diffable.
 It must have a backup file to be diffable."
-  (file-readable-p
-   (cvs-fileinfo->backup-file (tin-cookie cvs-cookie-handle tin))))
+  (let ((file (cvs-fileinfo->backup-file (tin-cookie cvs-cookie-handle tin))))
+    (and file (file-readable-p file))))
 
 (defun cvs-mode-diff-backup (&optional ignore-marks)
   "Diff the files against the backup file.

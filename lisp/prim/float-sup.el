@@ -24,22 +24,22 @@
 
 (if (fboundp 'atan)
     nil
-  (error "Floating point was disabled at compile time"))
+  (error (gettext "Floating point was disabled at compile time")))
 
 ;; provide an easy hook to tell if we are running with floats or not.
 (provide 'lisp-float-type)
 
 ;; define pi and e via math-lib calls. (much less prone to killer typos.)
-(defconst pi (* 4 (atan 1)) "The value of Pi (3.1415926...)")
-(defconst e (exp 1) "The value of e (2.7182818...)")
+(defconst pi (purecopy (* 4 (atan 1))) "The value of Pi (3.1415926...)")
+(defconst e (purecopy (exp 1)) "The value of e (2.7182818...)")
 
 ;; Careful when editing this file ... typos here will be hard to spot.
 ;; (defconst pi       3.14159265358979323846264338327
 ;;  "The value of Pi (3.14159265358979323846264338327...)")
 
-(defconst degrees-to-radians (/ pi 180.0)
+(defconst degrees-to-radians (purecopy (/ pi 180.0))
   "Degrees to radian conversion constant")
-(defconst radians-to-degrees (/ 180.0 pi)
+(defconst radians-to-degrees (purecopy (/ 180.0 pi))
   "Radian to degree conversion constant")
 
 ;; these expand to a single multiply by a float

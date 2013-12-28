@@ -1,7 +1,4 @@
-;;; crypt++.el --- code for handling all sorts of compressed and encrypted files
-
-;;; Copyright (C) 1993 Lawrence R. Dodd and Rod Whitby
-;;; Copyright (C) 1988, 1989, 1990 Kyle E. Jones
+;;; crypt++.el -- code for handling all sorts of compressed and encrypted files
 
 ;; Author: Lawrence R. Dodd <dodd@roebling.poly.edu>
 ;;	Rod Whitby <rwhitby@research.canon.oz.au>
@@ -9,9 +6,12 @@
 ;; Maintainer: Lawrence R. Dodd <dodd@roebling.poly.edu>
 ;;	Rod Whitby <rwhitby@research.canon.oz.au>
 ;; Created: crypt.el in 1988, crypt++.el on 18 Jan 1993
-;; Version: 2.65
+;; Version: 2.77
 ;; Keywords: extensions
 
+;;; Copyright (C) 1993 Lawrence R. Dodd and Rod Whitby
+;;; Copyright (C) 1988, 1989, 1990 Kyle E. Jones
+;;;  
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
 ;;; the Free Software Foundation; either version 2 of the License, or
@@ -28,36 +28,29 @@
 
 ;;; Commentary:
 
-(defconst crypt-version (substring "!Revision: 2.65 !" 11 -2)
-  "Revision number of crypt++.el -- handles compressed and encrypted files.
-Type M-x crypt-submit-report to send a bug report.  Available via anonymous
-ftp in
-
-   /roebling.poly.edu:/pub/crypt++.el
-   /archive.cis.ohio-state.edu:/pub/gnu/emacs/elisp-archive/misc/crypt++.el.Z")
-
 ;;; LCD Archive Entry:
 ;;; crypt++|Rod Whitby and Lawrence R. Dodd|dodd@roebling.poly.edu|
 ;;; Code for handling all sorts of compressed and encrypted files.|
-;;; !Date: 1993/07/16 21:50:18 !|!Revision: 2.65 !|~/misc/crypt++.el.Z|
+;;; 1993/12/07 14:28:36|2.77|~/misc/crypt++.el.Z|
 
 ;;; AVAILABLE: 
 ;;; 
-;;; via anonymous ftp to roebling.poly.edu [128.238.5.31] in /pub/crypt++.el
-;;; (ange-ftp TAG: /roebling.poly.edu:/pub/crypt++.el)
+;;; via anonymous ftp to roebling.poly.edu [128.238.5.31] in 
+;;; /pub/lisp/crypt++.el.gz
 ;;; 
 ;;; via anonymous ftp to archive.cis.ohio-state.edu [128.146.8.52] in 
 ;;; /pub/gnu/emacs/elisp-archive/misc/crypt++.el.Z
 
 ;;; BUG REPORTS
 ;;; 
-;;; type M-x crypt-submit-report to generate a bug report template or put your
+;;; Type M-x crypt-submit-report to generate a bug report template or put your
 ;;; cursor at the end of this line and type C-x C-e: (crypt-submit-report)
 ;;; 
-;;; requires Barry Warsaw's reporter.el which can be obtained at
-;;; /roebling.poly.edu:/pub/reporter.el and the elisp-archive.
+;;; Requires Barry Warsaw's reporter.el which can be obtained at
+;;; /roebling.poly.edu:/pub/reporter.el and the elisp-archive and is part of
+;;; GNU Emacs 19.
 
-;;; please see notes on INSTALLATION and USAGE below
+;;; Please see notes on INSTALLATION and USAGE below.
 
 ;;; RESPONSIBLE PARTIES:
 ;;;
@@ -81,9 +74,9 @@ ftp in
 
 ;;; VERSION:
 ;;;  
-;;; !Id: crypt++.el,v 2.65 1993/07/16 21:50:18 dodd Exp !
-;;; !Date: 1993/07/16 21:50:18 !
-;;; !Revision: 2.65 !
+;;; Version: 2.77
+;;; Ident: crypt++.el,v 2.77 1993/12/07 14:28:36 dodd Posted
+;;; Date: 1993/12/07 14:28:36
 
 
 ;;; INSTALLATION:
@@ -104,6 +97,9 @@ ftp in
 ;;; loaded before this one (preferably the former).  Requires Barry Warsaw's
 ;;; reporter.el for submitting bug reports, available from roebling.poly.edu.
 ;;; Also bundled with GNU emacs 19.
+
+;;; SEE ALSO: /roebling.poly.edu:/pub/crypt++-fnf.el for file-not-found 
+;;; support for GNU Emacs.
 
 ;;; SPECIAL NOTES:
 ;;;  
@@ -148,13 +144,13 @@ ftp in
 ;;;        crypt-bind-insert-file
 ;;;        crypt-auto-decode-insert
 ;;;      
-;;; to find out more about these variables, load this file, put your cursor at 
+;;; To find out more about these variables, load this file, put your cursor at 
 ;;; the end of any of the variable names, and hit C-h v [RET].
 ;;;  
 ;;; NOTE: encryption users should set `crypt-encryption-type' to one of the
 ;;; values in `crypt-encryption-alist'
 ;;;
-;;; although rarely needed, the following functions may be called interactively
+;;; Although rarely needed, the following functions may be called interactively
 ;;;
 ;;;        (crypt-encoded-mode)
 ;;;        (crypt-encode-region)
@@ -166,7 +162,7 @@ ftp in
 ;;;        (crypt-bind-insert-file)
 ;;;        (crypt-submit-report)
 ;;;
-;;; to find out more about these functions, load this file, put your cursor
+;;; To find out more about these functions, load this file, put your cursor
 ;;; inside any of the `()' of the above lines, and hit C-h f [RET].
 
 
@@ -265,7 +261,7 @@ ftp in
 ;;;   Lucid Emacs has an after-write-file-hook.  Recent versions of hilit19.el 
 ;;;   do not automatically attach to `write-file-hooks' and return t. 
 ;;;   However, the general problem of multiple packages returning t still 
-;;;   remains.
+;;;   remains.  dos-mode.el and crypt.el also conflict.
 ;;;  
 ;;; * another possible source of trouble is with encryption (and encoding) 
 ;;;   programs sticking verbose output into buffers prior to being written to
@@ -618,6 +614,64 @@ ftp in
 ;;; 2.65 - 
 ;;;   lrd: (crypt-find-file-hook): move determination of key, password, into
 ;;;   (crypt-encrypted-p).
+;;; 2.66 - 
+;;;   lrd: (crypt-set-encryption-key): improve prompt string for encryption 
+;;;   key.
+;;; 2.67 - 
+;;;   lrd: (crypt-write-file-hook): make check for encryption file-name 
+;;;   extension case-sensitive.
+;;; 2.68 - 
+;;;   lrd: fixed check for previous addition to `minor-mode-alist' -- was not
+;;;   working. Check for an `add-hook' function; if one does not exist then
+;;;   use a copy of one from GNU Emacs 19.  When using `add-hook' to append to
+;;;   the `write-file-hooks' make sure that the version accepts the optional
+;;;   APPEND argument -- v19's does but the one in the elisp archive by Dan
+;;;   LaLiberte <liberte@cs.uiuc.edu> does not append.  This causes problems.
+;;;   Thanks to Francesco Potorti` <pot@fly.CNUCE.CNR.IT> for pointing this
+;;;   out.
+;;; 2.69 - [posted to gnu.emacs.sources]
+;;;   lrd: doc mod with regards `after-init-hook' and Lucid Emacs.  Add 
+;;;   pointer to crypt++-fnf.el for people who might be interested.
+;;; 2.70 -
+;;;   lrd: narrow conditions under which crypt-encryption-magic-regexp
+;;;   matches.  Thanks to Philippe Michel <michel@thomson-lcr.fr> and Francois
+;;;   Pinard <pinard@iro.umontreal.ca> for helping explain this with regards 
+;;;   to ISO/Latin-1.
+;;; 2.71 -
+;;;   lrd: applied patches from Darrin Jewell <jewell@bdi.com> for DOS to UNIX
+;;;   support.  DOS entry added to crypt-build-encoding-alist.
+;;;   (crypt-dos-to-unix-region, crypt-unix-to-dos-region): New
+;;;   functions. (crypt-dos-has-ctrl-z): New buffer-local variable.
+;;;   (crypt-encode-region): allow for encoding and decoding programs to be
+;;;   elisp expressions.  If they are then apply them directly to region.
+;;;   Point out that crypt++.el conflicts with dos-mode.el.
+;;; 2.72 - 
+;;;   lrd: The limit for the regular expression search done by
+;;;   `crypt-encrypted-p' is extended to 100 by default.  The enlargement of
+;;;   search field is needed because of previous reduction in size of regexp
+;;;   being searched for.  (crypt-magic-search-limit): New variable defining
+;;;   this new limit.  (crypt-encrypted-p): Uses it and cleaned up.  Doc mod.
+;;;   Thanks to Philippe Michel <michel@thomson-lcr.fr>, Francois Pinard
+;;;   <pinard@iro.umontreal.ca>, and Dave Goldberg <dsg@blackbird.mitre.org>.
+;;; 2.73 - [posted to gnu.emacs.sources]
+;;;   lrd: Apply patch from Kevin Rodgers <kevin@traffic.den.mmc.com> that
+;;;   uses more verbose messages and capitals.  Doc mod.
+;;; 2.74 - 
+;;;   lrd: Untabify.  (crypt-encrypted-p): Check value of
+;;;   `crypt-never-ever-decrypt' before anything else.
+;;; 2.75 - 
+;;;   lrd: (crypt-version): Remove call to `substring'.
+;;; 2.76 - 
+;;;   lrd: (crypt-encryption-magic-regexp-inverse): Add in regexp that will
+;;;   match ksh `.sh_history' files so that they are not interpreted as
+;;;   encrypted files.  Thanks to Francesco Potorti` <pot@fly.CNUCE.CNR.IT>.
+;;; 2.77 - [posted to gnu.emacs.sources]
+;;;   lrd: (crypt-bind-insert-file): Use substitute-key-definition to bind
+;;;   crypt-insert-file to whatever key insert-file is bound to (not
+;;;   necessarily C-x i).  Call crypt-bind-insert-file directly in
+;;;   file. Variable crypt-bind-insert-file: Doc mod.  Remove
+;;;   crypt-old-binding.  Replace `M-x foobar' in doc strings with
+;;;   `\\[foobar]'.
 
 
 ;;; Code:
@@ -626,13 +680,13 @@ ftp in
 
 (defvar crypt-encryption-type 'crypt
   "*Method of encryption.  Must be an element of `crypt-encryption-alist.'
-If you change this after crypt++ is loaded then do M-x crypt-rebuild-tables.")
+If you change this after crypt++ is loaded then do \\[crypt-rebuild-tables].")
 
 (defvar crypt-encryption-file-extension nil
   "*Regexp for extension of files encrypted with `crypt-encryption-type.'
 Should be of the form \"\\\\(\\\\.foo\\\\)$\".  nil says use default values in
 `crypt-encryption-alist.'  If you change this after crypt++ is loaded then do
-M-x crypt-rebuild-tables.")
+\\[crypt-rebuild-tables].")
 
 (defvar crypt-never-ever-decrypt nil
   "*t says never attempt to decrypt a buffer.")
@@ -655,16 +709,21 @@ nil says query.  See `crypt-auto-write-buffer.'")
 ;;; MAGIC-REGEXP-INVERSE will match Sun OS, 4.x BSD, and Ultrix executable
 ;;; magic numbers, so binaries can still be edited (heh) without headaches.
 
-(defconst crypt-encryption-magic-regexp "[\200-\377]"
+(defconst crypt-encryption-magic-regexp "[\000\200-\237]"
   "Regexp that must be found very close to beginning of encrypted buffer.
-this is intended to be an internal variable \(not user-visible\).  If you
-change this after crypt++ is loaded then do M-x crypt-rebuild-tables.")
+This is intended to be an internal variable \(not user-visible\).  If you
+change this after crypt++ is loaded then do \\[crypt-rebuild-tables].")
 
 (defconst crypt-encryption-magic-regexp-inverse
-  "^\\(..\\)?\\([\007\010\013]\001\\|\001[\007\010\013]\\)"
+  "\\`\201\001\\|^\\(..\\)?\\([\007\010\013]\001\\|\001[\007\010\013]\\)"
   "Regexp that must *not* be found very close to beginning of encrypted buffer.
-this is intended to be an internal variable \(not user-visible\).  If you
-change this after crypt++ is loaded then do M-x crypt-rebuild-tables.")
+This is intended to be an internal variable \(not user-visible\).  If you
+change this after crypt++ is loaded then do \\[crypt-rebuild-tables].")
+
+(defconst crypt-magic-search-limit 100
+  "Limit of regular expression search used to recognize encrypted files.
+Maximum position in file for presence of `crypt-encryption-magic-regexp' and
+absence of `crypt-encryption-magic-regexp-inverse'.")
 
 (defun crypt-build-encryption-alist ()
   ;; Returns the encryption alist
@@ -816,12 +875,12 @@ save-buffer so nil will mean that neither will query.")
 (defvar crypt-freeze-vs-fortran t
   "*t says `.F' file extension denotes a frozen file not a Fortran file.
 If you change this variable after crypt++ has been loaded then do
-M-x crypt-rebuild-tables.")
+\\[crypt-rebuild-tables].")
 
 (defvar crypt-compact-vs-C++ nil
   "*t says `.C' file extension denotes a compacted file not a C++ file.
 If you change this variable after crypt++ has been loaded then do
-M-x crypt-rebuild-tables.")
+\\[crypt-rebuild-tables].")
 
 (defvar crypt-ignored-filenames nil
   "*List of regexp filenames for which encoded to plain conversion is not done.
@@ -831,13 +890,21 @@ plain format.
 
 This variable is provided for users that want to compress their incoming mail
 for RMAIL and VM which look for files `RMAIL' and `INBOX,' respectively, to
-store incoming mail.  for example, the gzip extensions on `RMAIL.gz' and
+store incoming mail.  For example, the gzip extensions on `RMAIL.gz' and
 `INBOX.gz' can be removed, this variable set to '\(\"INBOX$\" \"RMAIL$\"\) and
 no query about conversion to plain format will be made.")
 
 (defvar crypt-default-encoding "gzip"
   "*Default encoding type as string used when `crypt-encoded-mode' is toggled.
 Must match one of the elements of `crypt-encoding-alist'.")
+
+(defvar crypt-dos-has-ctrl-z nil
+  "t if this buffer had a ctrl-z stripped from end, otherwise, nil.
+Buffer local and set by `crypt-dos-to-unix-region'")
+(make-variable-buffer-local 'crypt-dos-has-ctrl-z)
+(setq-default crypt-dos-has-ctrl-z nil)
+(put 'crypt-dos-has-ctrl-z 'permanent-local t) ; for v19 Emacs
+(put 'crypt-dos-has-ctrl-z 'preserved t)       ; for kill-fix.el
 
 (defun crypt-build-encoding-alist ()
   ;; Returns the encoding alist
@@ -878,6 +945,15 @@ Must match one of the elements of `crypt-encoding-alist'.")
          "Compact"
          "^Compression *:.*\n"
          crypt-compact-vs-C++)
+   ;; DOS
+   (list 'dos
+         "[^\n\r]*\r$" nil
+         "\\(\\.DOS\\)$"
+         'crypt-unix-to-dos-region 'crypt-dos-to-unix-region
+         nil nil
+         "Dos"
+         nil
+         nil)
    ;; Add new elements here ...
    ))
 
@@ -987,7 +1063,7 @@ Local to all buffers.")
 (defun crypt-get-alist-member (type n)
   ;; Returns TYPE's Nth element
   (nth n (or (assoc type crypt-encryption-alist)
-	     (assoc type crypt-encoding-alist))))
+             (assoc type crypt-encoding-alist))))
 
 (defmacro crypt-get-magic-regexp (type)
   ;; Returns regexp found at top of files encoded/encrypted with TYPE.
@@ -1222,58 +1298,59 @@ Derived from variable `crypt-encoding-alist' and function
   ;; Look for MAGIC-REGEXP and absence of MAGIC-REGEXP-INVERSE.  If so, then
   ;; assume it is an encrypted buffer.
   ;; Sets `crypt-buffer-encryption-key' to password if not set already.
-  (save-excursion
-    (and buffer (set-buffer buffer))
 
-    (save-restriction
-      (widen)
-      (goto-char (point-min))
+  ;; Do not try to decrypt buffer if not wanted.
+  (if (not crypt-never-ever-decrypt)
 
-      (if (and
+      (save-excursion
+        (and buffer (set-buffer buffer))
 
-           ;; Check for existence of MAGIC-REGEXP.
-           (let ((magic-regexp
-                  (crypt-get-magic-regexp crypt-encryption-type)))
-             (if (stringp magic-regexp)
-                 ;; regular expression
-                 (re-search-forward magic-regexp (min (point-max) 15) t)
-               ;; lisp expression
-               (eval magic-regexp)))
+        (save-restriction
+          (widen)
+          (goto-char (point-min))
 
-           (goto-char (point-min))
+          (let ((magic-regexp (crypt-get-magic-regexp crypt-encryption-type))
+                (magic-regexp-inverse (crypt-get-magic-regexp-inverse
+                                       crypt-encryption-type))
+                (limit (min (point-max) crypt-magic-search-limit)))
 
-           ;; Check for absence of MAGIC-REGEXP-INVERSE.
-           (let ((magic-regexp-inverse
-                  (crypt-get-magic-regexp-inverse crypt-encryption-type)))
-             (not
-              (if (stringp magic-regexp-inverse)
-                  ;; regular expression
-                  (re-search-forward magic-regexp-inverse
-                                     (min (point-max) 15) t)
-                ;; lisp expression
-                (eval magic-regexp-inverse))))
+            ;; Check all encryption conditions.  If any fail, then return nil
+            ;; value of this if-form, else check for password.
+            (if (and
 
-           ;; Shut off crypt mode if `crypt-never-ever-decrypt' is t.
-           (not crypt-never-ever-decrypt))
+                 ;; Check for existence of MAGIC-REGEXP.
+                 (if (stringp magic-regexp)
+                     ;; regular expression
+                     (re-search-forward magic-regexp limit t)
+                   ;; lisp expression
+                   (eval magic-regexp))
 
-          (progn
+                 (goto-char (point-min))
 
-            ;; Get key, i.e., the password?
-            (or crypt-buffer-encryption-key
-                ;; Do not confirm on reading an encrypted file.
-                (let ((crypt-confirm-password nil))
-                  (call-interactively 'crypt-set-encryption-key)))
-             
-            ;; If user did not enter key, don't turn on crypt mode, in case
-            ;; it's a binary file. Thanks to Paul Dworkin
-            ;; (paul@media-lab.media.mit.edu).
-            (if (equal crypt-buffer-encryption-key "")
+                 ;; Check for absence of MAGIC-REGEXP-INVERSE.
+                 (not (if (stringp magic-regexp-inverse)
+                          ;; regular expression
+                          (re-search-forward magic-regexp-inverse limit t)
+                        ;; lisp expression
+                        (eval magic-regexp-inverse))))
+
                 (progn
-                  ;; Return nil.
-                  (message "No key given. Assumed normal.")
-                  nil)
-              ;; Return t.
-              t))))))
+
+                  ;; Get key, i.e., the password?
+                  (or crypt-buffer-encryption-key
+                      ;; Do not confirm on reading an encrypted file.
+                      (let ((crypt-confirm-password nil))
+                        (call-interactively 'crypt-set-encryption-key)))
+             
+                  ;; Do not turn on encryption mode if no key: may be a binary
+                  ;; file.  Thanks to Paul Dworkin (paul@media-lab.media.mit.edu).
+                  (if (equal crypt-buffer-encryption-key "")
+                      ;; Return nil.
+                      (progn
+                        (message "No key given.  Assumed normal.")
+                        nil)
+                    ;; Return t.
+                    t))))))))
 
 
 ;;; 
@@ -1293,108 +1370,111 @@ Derived from variable `crypt-encoding-alist' and function
         (case-fold-search nil)
         found elt)
 
-    ;; search through the file name extensions for a match
+    ;; Search through the file name extensions for a match.
     (while (and alist (setq elt (car alist)) (not found))
       (if (string-match (nth 3 elt) buffer-file-name)
           (setq found t)
-        ;; decrement
+        ;; Decrement.
         (setq alist (cdr alist))))
     
-    ;; did we find a match? 
+    ;; Did we find a match? 
     (if found
         
-        ;; file name ends in a very provocative extension
+        ;; File name ends in a very provocative extension.
 
-        ;; check to see if already an encoded file
+        ;; Check to see if already an encoded file.
         (if crypt-buffer-save-encoded
             
-            ;; already encoded - do the methods of encoding match?
+            ;; Already encoded - do the methods of encoding match?
             (if (not (eq (nth 0 elt) crypt-buffer-encoding-type))
                  
-                ;; a new encoding method is desired
+                ;; A new encoding method is desired.
 
-                ;; can we play some filename extension tricks with the 
+                ;; Can we play some filename extension tricks with the 
                 ;; destination extension?
                 (if (crypt-get-extension-tricks (nth 0 elt))
 
-                    ;; can play tricks
-                    ;; change the method of encoding?
+                    ;; Can play tricks.
+                    ;; Change the method of encoding?
                     (if (or crypt-auto-write-buffer
                             (y-or-n-p
-                             (concat "write file using " (nth 4 elt) "? ")))
+                             (format "Write %s using %s? " (buffer-name) (nth 4 elt))))
                 
-                        ;; case one
-                        ;; turn off original encoding and turn on new encoding
+                        ;; Case one.
+                        ;; Turn off original encoding and turn on new encoding.
                         (progn (crypt-encoded-mode -1)
                                (setq crypt-buffer-encoding-type (nth 0 elt))
                                (crypt-encoded-mode 1)))
 
-                  ;; can not play tricks - maybe wants a plain file?
+                  ;; Can not play tricks - maybe wants a plain file?
                   (if (or crypt-auto-write-buffer
-                          (y-or-n-p "write as a plain file? "))
+                          (y-or-n-p
+                           (format "Write %s a plain file? " (buffer-name))))
 
-                      ;; case three
-                      ;; turn off the minor mode and _then_ the flags
+                      ;; Case three.
+                      ;; Turn off the minor mode and _then_ the flags.
                       (progn (crypt-encoded-mode -1)
                              (setq crypt-buffer-save-encoded nil)
                              (setq crypt-buffer-encoding-type nil)))))
           
-          ;; was a plain file
+          ;; Was a plain file.
           (if (and
-               ;; can we play some filename extension tricks?
-               ;; if not then we must abort
+               ;; Can we play some filename extension tricks?
+               ;; If not then we must abort.
                (crypt-get-extension-tricks (nth 0 elt))
                (or crypt-auto-write-buffer
-                   (y-or-n-p (concat "write file using " (nth 4 elt) "? "))))
+                   (y-or-n-p
+                    (format "Write %s using %s? " (buffer-name) (nth 4 elt)))))
               
-              ;; case two
-              ;; turn on encoding flags and _then_ the minor mode
+              ;; Case two.
+              ;; Turn on encoding flags and _then_ the minor mode.
               (progn (setq crypt-buffer-save-encoded t)
                      (setq crypt-buffer-encoding-type (nth 0 elt))
                      (crypt-encoded-mode 1))))
       
-      ;; no match - a plain-jane file extension - but if the encoded flag is
+      ;; No match - a plain-jane file extension - but if the encoded flag is
       ;; non-nil then the user may really want it written out in plain
-      ;; format so we must override this flag
+      ;; format so we must override this flag.
       (if (and crypt-buffer-save-encoded
                
-               ;; search the list of files to be ignored
-               ;; if `crypt-ignored-filenames' is nil then this let form 
-               ;; will return t.  if a match is found this form will return 
-               ;; nil.  otherwise it will return t.
+               ;; Search the list of files to be ignored.
+               ;; If `crypt-ignored-filenames' is nil then this let form 
+               ;; will return t.  If a match is found this form will return 
+               ;; nil.  Otherwise it will return t.
                (let ((tlist crypt-ignored-filenames)
                      case-fold-search found elt)
 
-                 ;; search through the list of filenames for a match
+                 ;; Search through the list of filenames for a match.
                  (while (and tlist (setq elt (car tlist)) (not found))
                    (if (string-match elt buffer-file-name)
                        (setq found t)
-                     ;; decrement
+                     ;; Decrement.
                      (setq tlist (cdr tlist))))
                  
-                 ;; return t if we can _not_ find a match
+                 ;; Return t if we can _not_ find a match.
                  (not found))
 
-               ;; if `(crypt-encoded-mode)' was called interactively, then
+               ;; If `(crypt-encoded-mode)' was called interactively, then
                ;; there is a high probability that no matter what the file
                ;; name extension the user wishes to write the file out in some
-               ;; encoded format thanks to Kimball Collins
+               ;; encoded format.  Thanks to Kimball Collins
                ;; <kpc@ptolemy.arc.nasa.gov> for pointing out the need for
-               ;; this.  unfortunately, still can not distinguish between
-               ;; write-file and save-buffer.  in the former the user may want
+               ;; this.  Unfortunately, still can not distinguish between
+               ;; write-file and save-buffer.  In the former the user may want
                ;; to write in plain format (or indeed some other format).
                
                (if crypt-buffer-interactive-encoded-mode
-                   ;; interactive
+                   ;; Interactive
                    crypt-query-if-interactive 
-                 ;; non-interactive but still may want encoded format
+                 ;; Non-interactive but still may want encoded format.
                  crypt-no-extension-implies-plain)
 
                (or crypt-auto-write-buffer
-                   (y-or-n-p "write as a plain file? ")))
+                   (y-or-n-p
+                    (format "Write %s as a plain file? " (buffer-name)))))
 
-          ;; case three
-          ;; turn off the minor mode and _then_ the flags
+          ;; Case three.
+          ;; Turn off the minor mode and _then_ the flags.
           (progn (crypt-encoded-mode -1)
                  (setq crypt-buffer-save-encoded nil)
                  (setq crypt-buffer-encoding-type nil))))))
@@ -1417,8 +1497,9 @@ Derived from variable `crypt-encoding-alist' and function
 
        ;; Maybe file ends with provocative extension w.r.t. encryption?
        (stringp (crypt-get-file-extension crypt-encryption-type))
-       (string-match (crypt-get-file-extension crypt-encryption-type)
-                     buffer-file-name)
+       (let ((case-fold-search nil)) ; Make case-sensitive.
+         (string-match (crypt-get-file-extension crypt-encryption-type)
+                       buffer-file-name))
        
        ;; Can we play tricks?
        (crypt-get-extension-tricks crypt-encryption-type)
@@ -1428,7 +1509,8 @@ Derived from variable `crypt-encoding-alist' and function
        
        ;; Query?
        (or crypt-auto-write-buffer-encrypted
-           (y-or-n-p "write as an encrypted file? ")))
+           (y-or-n-p
+            (format "Write %s as an encrypted file? " (buffer-name)))))
 
       (progn
         ;; Set password and toggle `crypt-encrypted-mode'
@@ -1460,9 +1542,9 @@ Derived from variable `crypt-encoding-alist' and function
                 ;; BODYFORM
                 (let (setmodes)
 
-                  ;; as of v19, if one of functions of the `write-file-hooks'
+                  ;; As of v19, if one of functions of the `write-file-hooks'
                   ;; returns a non-nil value, then `basic-save-buffer' no
-                  ;; longer creates a backup file.  we must do it ourselves. 
+                  ;; longer creates a backup file.  We must do it ourselves. 
                   ;; this should be a no-op in v18.
                   (or buffer-backed-up
                       (setq setmodes (backup-buffer)))
@@ -1558,41 +1640,41 @@ decryption is done."
 
   (crypt-save-point
 
-   ;; we define the PROGRAM as the encryption program or decryption program
-   ;; listed for `crypt-encryption-type' of `crypt-encryption-alist.'  these
+   ;; We define the PROGRAM as the encryption program or decryption program
+   ;; listed for `crypt-encryption-type' of `crypt-encryption-alist.'  These
    ;; should be just the name of the executable and should _not_ contain any
    ;; arguments.  `(call-process-region)' would be confused if we tried to
-   ;; pass the arguments as part of the PROGRAM.  the arguments are passed
+   ;; pass the arguments as part of the PROGRAM.  The arguments are passed
    ;; through the encryption args or decryption args listed for
    ;; `crypt-encryption-type' of `crypt-encryption-alist.'
 
-   ;; thanks to Joe Ilacqua <spike@world.std.com> and others for pointing out
+   ;; Thanks to Joe Ilacqua <spike@world.std.com> and others for pointing out
    ;; an error that occurs with some encryption programs (e.g., the crypt from
-   ;; Sun Microsystems, HPUX-8, and BSD) if `args' is `"".'  this will allow
+   ;; Sun Microsystems, HPUX-8, and BSD) if `args' is `"".'  This will allow
    ;; nil values and lists of strings for argument.
 
    (let (prog args)
 
-     ;; get the proper program and arguments
+     ;; Get the proper program and arguments.
      (if decrypt
          (setq prog (crypt-get-decoding-program crypt-encryption-type)
                args (crypt-get-decoding-args crypt-encryption-type))
        (setq prog (crypt-get-encoding-program crypt-encryption-type)
              args (crypt-get-encoding-args crypt-encryption-type)))
      
-     ;; check arguments
+     ;; Check arguments.
      (cond
 
-      ;; nil or "" args - don't pass
+      ;; nil or "" args - don't pass.
       ((or (not args) (equal "" args))
        (call-process-region start end prog t t nil key))
        
-      ;; check if the args are in the form of a list - must use apply
+      ;; Check if the args are in the form of a list - must use apply.
       ((listp args)
        (apply 'call-process-region
               (append (list start end prog t t nil) args (list key))))
        
-      ;; default - just a non-null string
+      ;; Default - just a non-null string.
       (t
        (call-process-region start end prog t t nil args key))))))
    
@@ -1624,84 +1706,95 @@ regexp, or executes a user-defined lisp expression, as defined in
 
   (interactive "*r\nP")
 
-  ;; if called interactively then we may need to determine the encoding type
+  ;; If called interactively then we may need to determine the encoding type.
   (if (and (interactive-p) (not crypt-buffer-encoding-type))
       (crypt-read-encoding-type))
 
   (crypt-save-point
 
-   ;; we define the PROGRAM as `shell-file-name' and have it call the encoding
+   ;; We define the PROGRAM as `shell-file-name' and have it call the encoding
    ;; or decoding program with the arguments.
 
    (let (prog args)
 
-     ;; get the proper program and arguments
+     ;; Get the proper program and arguments.
      (if decode
          (setq prog (crypt-get-decoding-program crypt-buffer-encoding-type)
                args (crypt-get-decoding-args crypt-buffer-encoding-type))
        (setq prog (crypt-get-encoding-program crypt-buffer-encoding-type)
              args (crypt-get-encoding-args crypt-buffer-encoding-type)))
-     
-     ;; check arguments
-     (cond
 
-      ;; check if the args are in the form of a list (will catch 'nil)
-      ((listp args)
+     (cond 
 
-       ;; cat all the strings together
-       (while args
-         (setq prog (concat prog " " (car args))
-               args (cdr args))))
+      ;; prog is a string?
+      ((stringp prog)
 
-      ;; check if a non-null string
-      ((and (not (string= "" args))
-            (not (eq args t))) ; just in case...
-       (setq prog (concat prog " " args))))
-
-     (call-process-region start end shell-file-name t t nil "-c" prog))
-
-   ;; encoding or decoding region?
+       ;; Check arguments.
+       (cond
+        
+        ;; Check if the args are in the form of a list, will catch 'nil.
+        ((listp args)
+         
+         ;; Cat all the strings together.
+         (while args
+           (setq prog (concat prog " " (car args))
+                 args (cdr args))))
+        
+        ;; Check if a non-null string.
+        ((and (not (string= "" args))
+              (not (eq args t))) ; just in case...
+         (setq prog (concat prog " " args))))
+       
+       (call-process-region start end shell-file-name t t nil "-c" prog))
+      
+      ;; Otherwise try and eval it.
+      (t
+       (eval (if args
+                 (list prog start end args)
+               (list prog start end))))))
+   
+   ;; Encoding or decoding region?
    (if (not decode)
 
-       ;; check if encoded region starts with magic number
+       ;; Check if encoded region starts with magic number.
        (let ((magic (crypt-get-magic-regexp crypt-buffer-encoding-type))
              (clean (crypt-get-cleanup-regexp crypt-buffer-encoding-type))
              (case-fold-search nil))
          
-         ;; top of region
+         ;; Top of region.
          (goto-char start)
          
-         ;; check for magic number
+         ;; Check for magic number.
          (if (not (looking-at magic))
              
-             ;; magic number not there. 
+             ;; Magic number not there. 
 
-             ;; some compression programs produce an (inane) standard error
-             ;; message that gets piped into the buffer.  for example, some
-             ;; versions of compact output "Compression : 35.50%."  there may
+             ;; Some compression programs produce an (inane) standard error
+             ;; message that gets piped into the buffer.  For example, some
+             ;; versions of compact output "Compression : 35.50%."  There may
              ;; be some way to clean up buffer and check again.
 
              (cond
 
-              ;; no mechanism to clean up - failed
+              ;; No mechanism to clean up - failed.
               ((eq clean nil)
                (error "Encoding failed!"))
 
-              ;; cleanup a regexp string?
+              ;; Cleanup a regexp string?
               ((stringp clean)
 
-               ;; is regexp there?
+               ;; Is regexp there?
                (if (looking-at clean)
 
                    (progn
-                     ;; delete the match
+                     ;; Delete the match.
                      (delete-region (match-beginning 0) (match-end 0))
 
-                     ;; check for magic again
+                     ;; Check for magic again.
                      (if (not (looking-at magic))
                          (error "Encoding failed!")))))
                
-              ;; default: evaluate a lisp expression and check again.
+              ;; Default: evaluate a lisp expression and check again.
               (t (eval clean)
                  (if (not (looking-at magic))
                      (error "Encoding failed!")))))))))
@@ -1716,6 +1809,41 @@ regexp, or executes a user-defined lisp expression, as defined in
   (save-excursion (set-buffer buffer)
                   (crypt-encode-region (point-min) (point-max) decode)))
 
+
+;;;; DOS <--> UNIX
+(defun crypt-dos-to-unix-region (start end)
+  "Converts region from START to END, from dos to unix format.
+Replaces \"\\r\\n\" with \"\\n\" and, if exists, removes ^Z at end of file.
+Sets `crypt-dos-has-ctrl-z'."
+  (save-excursion
+    (save-restriction
+      (let ((remove-ctrl-z (equal end (point-max))))
+        (narrow-to-region start end)
+        (goto-char (point-min))
+        (while (search-forward "\r\n" nil t)
+          (replace-match "\n" nil t))
+        (if remove-ctrl-z
+            (progn
+              (goto-char (1- (point-max)))
+              (setq crypt-dos-has-ctrl-z (looking-at "\C-z"))
+              (if crypt-dos-has-ctrl-z (replace-match ""))))))))
+
+(defun crypt-unix-to-dos-region (start end)
+  "Converts region from START to END, from dos to unix format.
+Replaces \"\\n\" with \"\\r\\n\" and adds a ^Z at end of file if
+`crypt-dos-has-ctrl-z' is non-nil."
+  (save-excursion
+    (save-restriction
+      (let ((add-ctrl-z (and crypt-dos-has-ctrl-z
+                            (equal end (point-max)))))
+        (narrow-to-region start end)
+        (goto-char (point-min))
+        (while (search-forward "\n" nil t)
+          (replace-match "\r\n" nil t))
+        (if add-ctrl-z
+            (progn
+              (goto-char (point-max))
+              (insert "\C-z")))))))
 
 
 ;;;; MODES
@@ -1738,31 +1866,31 @@ encrypted."
           (if arg (> arg 0) (not crypt-buffer-save-encrypted)))
 
     (if crypt-buffer-save-encrypted
-        ;; we are going to save as encrypted, we will turn off auto-saving.
+        ;; We are going to save as encrypted, we will turn off auto-saving.
         (progn
-          ;; if an auto-save file already exists, then delete it
+          ;; If an auto-save file already exists, then delete it.
           (if (and (stringp buffer-auto-save-file-name)
                    (file-exists-p buffer-auto-save-file-name))
               (delete-file buffer-auto-save-file-name))
-          ;; if the key is not set then ask for it.
+          ;; If the key is not set then ask for it.
           (if (not crypt-buffer-encryption-key)
               (call-interactively 'crypt-set-encryption-key))
-          ;; turn-off auto-saving
+          ;; Turn-off auto-saving.
           (auto-save-mode 0))
 
-      ;; we are not going to save as encrypted, we will turn on auto-saving
+      ;; We are not going to save as encrypted, we will turn on auto-saving
       ;; but only if we are editing a file and the default says we should.
       (auto-save-mode (if (and auto-save-default buffer-file-name) 1 0)))
 
     (if crypt-buffer-encryption-key
-        ;; set buffer-modified flag to t only if the mode has been changed, 
-        ;; old code set unconditionally to nil if mode was not changed 
-        ;; modification suggested by: Gerd Hillebrand <ggh@cs.brown.edu>
+        ;; Set buffer-modified flag to t only if the mode has been changed, 
+        ;; old code set unconditionally to nil if mode was not changed .
+        ;; Modification suggested by: Gerd Hillebrand <ggh@cs.brown.edu>
         (if (not (eq oldval crypt-buffer-save-encrypted))
             (set-buffer-modified-p t)))))
 
 
-;;; originally `tek-symbol-alist-to-table' from tek-highlight.el
+;;; Originally `tek-symbol-alist-to-table' from tek-highlight.el.
 (defun crypt-symbol-alist-to-table (list)
   ;; Converts an alist of symbols to a table suitable for `completing-read.'
   ;; Called by `crypt-read-encoding-type'
@@ -1774,22 +1902,22 @@ encrypted."
   ;; Function called to query user for `crypt-buffer-encoding-type' uses
   ;; contents of `crypt-encoding-alist' and `crypt-default-encoding.'
 
-  ;; use poor man's gmhist (i.e., we could have used gmhist's
-  ;; `completing-read-with-history-in' instead)
+  ;; Use poor man's gmhist (i.e., we could have used gmhist's
+  ;; `completing-read-with-history-in' instead).
   (let (
-        ;; find the encoding type desired by user
+        ;; Find the encoding type desired by user.
         (type
          (completing-read
           (concat "encoding type (? for list): [" crypt-default-encoding "] ")
           (crypt-symbol-alist-to-table crypt-encoding-alist))))
     
-    ;; test length of object returned by `completing-read'
+    ;; Test length of object returned by `completing-read'.
     (if (zerop (length type))
         
-        ;; nothing there, i.e., user hit return -- use default
+        ;; Nothing there, i.e., user hit return -- use default.
         (setq crypt-buffer-encoding-type (intern crypt-default-encoding))
       
-      ;; use the value from mini-buffer and update the default value
+      ;; Use the value from mini-buffer and update the default value.
       (setq crypt-buffer-encoding-type (intern type)
             crypt-default-encoding type))))
 
@@ -1806,52 +1934,52 @@ encoded."
 
   (interactive "P")
 
-  ;; set flag indicating whether or not `(crypt-encoded-mode)' was called 
-  ;; interactively
+  ;; Set flag indicating whether or not `(crypt-encoded-mode)' was called 
+  ;; interactively.
   (setq crypt-buffer-interactive-encoded-mode (interactive-p))
 
-  ;; if called interactively then need to determine encoding type
+  ;; If called interactively then need to determine encoding type.
   (if (and crypt-buffer-interactive-encoded-mode
            (not crypt-buffer-encoding-type))
       (crypt-read-encoding-type))
 
-  ;; save old value of `crypt-buffer-save-encoded'
+  ;; Save old value of `crypt-buffer-save-encoded'.
   (let ((oldval crypt-buffer-save-encoded))
 
-    ;; set the variable `crypt-buffer-save-encoded' to t if the argument is 
+    ;; Set the variable `crypt-buffer-save-encoded' to t if the argument is 
     ;; positive, otherwise toggle its current value.
     (setq crypt-buffer-save-encoded
           (if arg (> arg 0) (not crypt-buffer-save-encoded)))
 
-    ;; set the variable generated by `(crypt-buffer-save-name)' to the value
+    ;; Set the variable generated by `(crypt-buffer-save-name)' to the value
     ;; stored in `crypt-buffer-save-encoded.'
     (set-variable (crypt-buffer-save-name crypt-buffer-encoding-type)
                   crypt-buffer-save-encoded)
 
     (if crypt-buffer-save-encoded
-        ;; we are going to save as encoded, we will turn off auto-saving.
+        ;; We are going to save as encoded, we will turn off auto-saving.
         (progn
-          ;; if an auto-save file already exists, then delete it
+          ;; If an auto-save file already exists, then delete it.
           (if (and (stringp buffer-auto-save-file-name)
                    (file-exists-p buffer-auto-save-file-name))
               (delete-file buffer-auto-save-file-name))
-          ;; turn-off auto-saving
+          ;; Turn-off auto-saving.
           (auto-save-mode 0))
 
-      ;; we are not going to save as encoded, we will turn on auto-saving but
+      ;; We are not going to save as encoded, we will turn on auto-saving but
       ;; only if we are editing a file and the default says we should.
       (auto-save-mode (if (and auto-save-default buffer-file-name) 1 0)))
 
-    ;; have we toggled the mode? 
+    ;; Have we toggled the mode? 
 
-    ;; if yes, then mark buffer as modified.  if not, then leave
+    ;; If yes, then mark buffer as modified.  If not, then leave
     ;; buffer-modified flag alone.
 
-    ;; the old code previously set the variable `set-buffer-modified-p' to a
+    ;; The old code previously set the variable `set-buffer-modified-p' to a
     ;; value of t if there was a mode change and (unconditionally) to nil
     ;; if there was not a mode change.
 
-    ;; modification suggested by: Gerd Hillebrand <ggh@cs.brown.edu>
+    ;; Modification suggested by: Gerd Hillebrand <ggh@cs.brown.edu>.
 
     (if (not (eq oldval crypt-buffer-save-encoded))
         (set-buffer-modified-p t))))
@@ -1883,7 +2011,7 @@ encoded."
             char hold-password help-form kill-ring)
 
         (set-buffer input-buffer)
-        ;; don't add to undo ring
+        ;; Don't add to undo ring.
         (buffer-disable-undo input-buffer)
 
         (let ((cursor-in-echo-area t)
@@ -1892,12 +2020,12 @@ encoded."
           (unwind-protect
 
               ;; BODYFORM 
-              ;; repeat until we get a `throw'
+              ;; Repeat until we get a `throw'.
               (while t
                 (erase-buffer)
                 (message prompt)
 
-                ;; read string
+                ;; Read string.
                 (while (not (memq (setq char (read-char)) '(?\C-m ?\C-j)))
                   (if (setq help-form
                             (cdr
@@ -1911,7 +2039,7 @@ encoded."
                       (condition-case error-data
                           (eval help-form)
                         (error t))
-                    ;; just a plain character - insert into password buffer
+                    ;; Just a plain character - insert into password buffer.
                     (insert char))
 
                   ;; I think crypt-read-string-no-echo should echo asterisks.
@@ -1919,20 +2047,20 @@ encoded."
                   ;;
                   (message "%s%s" prompt (make-string (buffer-size) ?.)))
                 
-                ;; do we have to confirm password?
+                ;; Do we have to confirm password?
                 (cond
 
-                 ;; no confirmation requested - terminate
+                 ;; No confirmation requested - terminate.
                  ((not confirm)
                   (throw 'return-value (buffer-string)))
                  
-                 ;; can we compare (confirm) password values yet?
+                 ;; Can we compare (confirm) password values yet?
                  (hold-password
                   (if (string= hold-password (buffer-string))
-                      ;; the two passwords match - terminate
+                      ;; The two passwords match - terminate.
                       (throw 'return-value hold-password)
 
-                    ;; mismatch - start over
+                    ;; Mismatch - start over.
                     (progn
                       (message (concat prompt "[Mismatch. Start over]"))
                       (beep)
@@ -1940,14 +2068,14 @@ encoded."
                       (fillarray hold-password 0) ; destroy extra copy now
                       (setq hold-password nil))))
                  
-                 ;; store password and read again
+                 ;; Store password and read again.
                  (t
                   (setq hold-password (buffer-string))
                   (message (concat prompt "[Retype to confirm]"))
                   (sit-for 2))))
             
             ;; UNWINDFORMS
-            ;; clean up
+            ;; Clean up.
             (set-buffer input-buffer)
             (set-buffer-modified-p nil)
             (buffer-disable-undo input-buffer) ; redundant, but why not be safe.
@@ -1966,7 +2094,8 @@ needs to be saved with the new key."
    (progn
      (barf-if-buffer-read-only)
      (list (crypt-read-string-no-echo
-            (format "Set encryption key for buffer %s: " (buffer-name))
+            (format "Encryption key for %s? [Hit return to ignore]: "
+                    (buffer-name))
             crypt-confirm-password))))
 
   ;; For security reasons we remove `(crypt-set-encryption-key "password")' 
@@ -1986,7 +2115,7 @@ needs to be saved with the new key."
         ;; That wouldn't be ok if some other buffer held a pointer to it.
         (setq crypt-buffer-encryption-key key)
         
-        ;; don't touch the modify flag unless we're in `(crypt-encrypted-mode)'
+        ;; Don't touch the modify flag unless we're in `(crypt-encrypted-mode)'.
         (if crypt-buffer-save-encrypted
             (set-buffer-modified-p t))))))
 
@@ -1994,71 +2123,121 @@ needs to be saved with the new key."
 ;;;; Install hooks and mode indicators.
 
 ;;; Check if mode indicators are not already installed and then prepend them.
-(and (not (memq (car crypt-minor-mode-alist) minor-mode-alist))
+(and (not (assq 'crypt-buffer-save-encrypted minor-mode-alist))
      (setq minor-mode-alist (append crypt-minor-mode-alist minor-mode-alist)))
 
-;;; Install the hooks.  Can we use `add-hook'?  Oh, please, please, please...
-(if (fboundp 'add-hook)
+;;; Install the hooks. 
 
-    ;; Has an add-hook function, might be running v19.
-    (progn
-      (add-hook 'write-file-hooks 'crypt-write-file-hook t) ; *must* append this
-      (add-hook 'find-file-hooks 'crypt-find-file-hook)
-      (add-hook 'find-file-not-found-hooks 'crypt-find-file-hook)
+;;; If add-hook isn't already defined overwrite it with our own.
+;;; Note the `add-hook' function must take the optional APPEND argument.
+(if (not (fboundp 'add-hook))
+    ;; No add-hook found. 
+    ;; Use `add-hook' from GNU Emacs v19.
+    (defun add-hook (hook function &optional append)
+      "Add to the value of HOOK the function FUNCTION.
+FUNCTION is not added if already present.
+FUNCTION is added (if necessary) at the beginning of the hook list
+unless the optional argument APPEND is non-nil, in which case
+FUNCTION is added at the end.
 
-      ;; In order that the tables and key-binding correctly reflect user's
-      ;; preferences we add ourselves to the `after-init-hook' GNU Emacs v19.
-      ;; These are run *after* ~/.emacs and ../lisp/default.el are loaded.
+HOOK should be a symbol, and FUNCTION may be any valid function.  If
+HOOK is void, it is first set to nil.  If HOOK's value is a single
+function, it is changed to a list of functions."
+      (or (boundp hook) (set hook nil))
+      ;; If the hook value is a single function, turn it into a list.
+      (let ((old (symbol-value hook)))
+        (if (or (not (listp old)) (eq (car old) 'lambda))
+            (set hook (list old))))
+      (or (if (consp function)
+              ;; Clever way to tell whether a given lambda-expression
+              ;; is equal to anything in the hook.
+              (let ((tail (assoc (cdr function) (symbol-value hook))))
+                (equal function tail))
+            (memq function (symbol-value hook)))
+          (set hook 
+               (if append
+                   (nconc (symbol-value hook) (list function))
+                 (cons function (symbol-value hook)))))))
 
-      (cond ((boundp 'after-init-hook)
-             ;; Must be running GNU Emacs v19 :->
-             (add-hook 'after-init-hook 'crypt-rebuild-tables)
-             (add-hook 'after-init-hook 'crypt-rebuild-minor-modes-alist)
-             (add-hook 'after-init-hook 'crypt-bind-insert-file))
+;;; Attach ourselves to the find-file-hooks and find-file-not-found-hooks. 
+(add-hook 'find-file-hooks 'crypt-find-file-hook)
+(add-hook 'find-file-not-found-hooks 'crypt-find-file-hook)
 
-            ((and (string-match "^19" emacs-version) t)
-             ;; Has add-hook but probably running Lucid Emacs v19 since it,
-             ;; unfortunately, does not have `after-init-hook'.  Use
-             ;; `term-setup-hook' instead and hope jwz adds it in a future
-             ;; release of Lucid Emacs.
-             (add-hook 'term-setup-hook 'crypt-rebuild-tables)
-             (add-hook 'term-setup-hook 'crypt-rebuild-minor-modes-alist)
-             (add-hook 'term-setup-hook 'crypt-bind-insert-file))))
+;; Take care when appending to write-file-hook.  User's version of add-hook
+;; may not have APPEND option.  If it fails then do it by hand.  I wish
+;; everyone would upgrade - lrd 8/31/93.
+(condition-case err
+    (add-hook 'write-file-hooks 'crypt-write-file-hook t) ; *must* append this
+  (error
+   ;; Do it by hand.  Not as robust as `add-hook'.
 
-  ;; Running v18 :-<
+   ;; Contributed by Ken Laprade <laprade@trantor.harris-atd.com>
+   ;; Really should use some sort of add-hook - 16 Feb 93 - KCL
+   (or (and (listp write-file-hooks) (not (eq (car write-file-hooks) 'lambda)))
+       (setq write-file-hooks (list write-file-hooks)))
 
-  ;; Unfortunately, v18 does not have `after-init-hook' and `term-setup-hook'
-  ;; is just a single function.  It is a bit of a pain trying to work our
-  ;; functions in properly without overwriting the user's value.  Therefore,
-  ;; we do nothing and hope they upgrade to v19 soon.
+   (cond
+    ((not (memq 'crypt-write-file-hook write-file-hooks))
+     ;; make this hook last on purpose
+     (setq write-file-hooks (append write-file-hooks
+                                    (list 'crypt-write-file-hook)))))))
 
-  ;; Check that the hooks are not already installed.
+;; In order that the tables and key-binding correctly reflect user's
+;; preferences we add ourselves to the `after-init-hook' GNU Emacs v19 and
+;; Lucid Emacs v 19.8 (or later) or `term-setup-hook' in Lucid Emacs v 19.7
+;; (or earlier).  These are run *after* ~/.emacs and ../lisp/default.el are
+;; loaded.  Unfortunately, v18 does not have `after-init-hook' and
+;; `term-setup-hook' is just a single function.  It is a bit of a pain trying
+;; to work our functions in properly without overwriting the user's value.
+;; Therefore, we do nothing and hope they upgrade to v19 soon.
 
-  ;; Contributed by Ken Laprade <laprade@trantor.harris-atd.com>
-  ;; Really should use some sort of add-hook - 16 Feb 93 - KCL
-  (or (and (listp write-file-hooks) (not (eq (car write-file-hooks) 'lambda)))
-      (setq write-file-hooks (list write-file-hooks)))
+(cond ((boundp 'after-init-hook)
+       ;; Must be running GNU Emacs v19 :->
+       (add-hook 'after-init-hook 'crypt-rebuild-tables)
+       (add-hook 'after-init-hook 'crypt-rebuild-minor-modes-alist)
+       (add-hook 'after-init-hook 'crypt-bind-insert-file))
 
-  (cond
-   ((not (memq 'crypt-write-file-hook write-file-hooks))
-    ;; make this hook last on purpose
-    (setq write-file-hooks (append write-file-hooks
-                                   (list 'crypt-write-file-hook))
-          find-file-hooks (cons 'crypt-find-file-hook find-file-hooks)
-          find-file-not-found-hooks (cons 'crypt-find-file-hook
-                                          find-file-not-found-hooks)))))
+      ((and (string-match "^19" emacs-version) t)
+       ;; Probably running Lucid Emacs v19.7 (or earlier) since it,
+       ;; unfortunately, does not have `after-init-hook'.  Use
+       ;; `term-setup-hook' instead and hope they upgrade to Lucid 19.8 or GNU
+       ;; Emacs 19.
+       (add-hook 'term-setup-hook 'crypt-rebuild-tables)
+       (add-hook 'term-setup-hook 'crypt-rebuild-minor-modes-alist)
+       (add-hook 'term-setup-hook 'crypt-bind-insert-file)))
 
 
 ;;; Code for conditionally decoding/decrypting an inserted file
 
 (defvar crypt-bind-insert-file t
-  "*t value means bind `crypt-insert-file' to C-x i otherwise `insert-file'.
-If you change this variable after crypt++ has been loaded then do
-M-x crypt-bind-insert-file.")
+  "*t value means bind `crypt-insert-file' over `insert-file'.
+If you wish to change this variable after crypt++ has been loaded then do
+\\[crypt-bind-insert-file].")
 
 (defvar crypt-auto-decode-insert nil
   "*t says decode/decrypt files that are inserted with `crypt-insert-file'.
 nil says to ask before doing this.")
+
+;;; Bind `crypt-insert-file' over wherever `insert-file' is bound?
+(defun crypt-bind-insert-file ()
+
+  "Bind `crypt-insert-file' in place of `insert-file' or reverse based on
+`crypt-bind-insert-file'.  Part of `after-init-hook'."
+
+  (interactive)
+
+  (if (interactive-p)
+      (setq crypt-bind-insert-file
+            (y-or-n-p "Bind crypt-insert-file over insert-file? ")))
+
+  (if crypt-bind-insert-file
+      (substitute-key-definition
+       'insert-file 'crypt-insert-file (current-global-map))
+    (substitute-key-definition
+     'crypt-insert-file 'insert-file (current-global-map))))
+
+;;; Now call it.
+(crypt-bind-insert-file)
 
 ;;; crypt++ replacement for `insert-file'
 (defun crypt-insert-file (filename)
@@ -2078,37 +2257,6 @@ see variable `crypt-auto-decode-insert'."
   (let ((tem (crypt-insert-file-contents filename))) ; use crypt++ to insert
     (push-mark (+ (point) (car (cdr tem))))))
 
-(defvar crypt-old-binding nil
-  "Old C-x i binding provided it is not `crypt-insert-file'.")
-
-;;; bind `crypt-insert-file' over whatever is on C-x i (`insert-file'?)?
-(if crypt-bind-insert-file
-    (progn
-      (if (not (eq 'crypt-insert-file (key-binding "\C-xi")))
-          (setq crypt-old-binding (key-binding "\C-xi")))
-      (define-key ctl-x-map "i" 'crypt-insert-file)))
-
-(defun crypt-bind-insert-file ()
-  "Binds `crypt-insert-file' to C-x i based on `crypt-bind-insert-file'.
-Useful for changing C-x i binding interactively, sets `crypt-bind-insert-file'
-in that case.  Checks current binding of C-x i and if not `crypt-insert-file'
-then stores in `crypt-old-binding.'  Returns name of function bound to C-x i.
-Part of `after-init-hook'."
-  (interactive)
-  (if (interactive-p)
-      (setq crypt-bind-insert-file
-            (y-or-n-p "Bind crypt-insert-file to C-x i? ")))
-  ;; If `crypt-insert-file' is not currently bound to C-x i, then store
-  ;; whatever is bound for future use.
-  (if (not (eq 'crypt-insert-file (key-binding "\C-xi")))
-      (setq crypt-old-binding (key-binding "\C-xi")))
-  (let ((binding
-         (define-key ctl-x-map "i"
-           (if crypt-bind-insert-file 'crypt-insert-file crypt-old-binding))))
-    (if (interactive-p)
-        (message "`%s' bound to C-x i" binding))
-    binding))
-
 (defun crypt-insert-file-contents (file)
 
   ;; Similar to `insert-file-contents' except decoding/decrypting of FILE
@@ -2119,37 +2267,37 @@ Part of `after-init-hook'."
         (crypt-auto-decode-buffer crypt-auto-decode-insert)
         (orig-buffer (current-buffer)))
     
-    ;; create a temporary buffer and decode and decrypt it
+    ;; Create a temporary buffer and decode and decrypt it.
     (save-excursion
       
-      ;; temporary buffer, use the same name as the file to be inserted
+      ;; Temporary buffer, use the same name as the file to be inserted.
       (setq temp-buffer (generate-new-buffer (file-name-nondirectory file)))
       (set-buffer temp-buffer)
       
-      ;; original insert-file-contents - save list 
+      ;; Original insert-file-contents - save list.
       (setq temp-list (insert-file-contents file nil))
 
-      ;; make temp-buffer unmodified
+      ;; Make temp-buffer unmodified.
       (set-buffer-modified-p nil)
       
-      ;; need to set buffer name to file name for crypt++
+      ;; Need to set buffer name to file name for crypt++.
       (setq buffer-file-name file)
       
-      ;; decode and decrypt, if necessary
+      ;; Decode and decrypt, if necessary.
       (crypt-find-file-hook)
       
-      ;; find the length of the file to be inserted. `insert-file-contents' 
-      ;; returns it for the original encoded/encrypted file 
+      ;; Find the length of the file to be inserted. `insert-file-contents' 
+      ;; returns it for the original encoded/encrypted file.
       (setcdr temp-list (cons (buffer-size) ()))
       
-      ;; now insert temp-buffer into original buffer
+      ;; Now insert temp-buffer into original buffer.
       (set-buffer orig-buffer)
       (insert-buffer temp-buffer)
       
-      ;; kill the temporary buffer
+      ;; Kill the temporary buffer.
       (kill-buffer temp-buffer))
     
-    ;; return modified list from `insert-file-contents'
+    ;; Return modified list from `insert-file-contents'.
     temp-list))
 
 
@@ -2157,6 +2305,14 @@ Part of `after-init-hook'."
 
 ;;; This section is provided for reports.
 ;;; Using Barry A. Warsaw's reporter.el
+
+(defconst crypt-version "2.77"
+  "Revision number of crypt++.el -- handles compressed and encrypted files.
+Type \\[crypt-submit-report] to send a bug report.  Available via anonymous
+ftp in
+
+   /roebling.poly.edu:/pub/lisp/crypt++.el.gz
+   /archive.cis.ohio-state.edu:/pub/gnu/emacs/elisp-archive/misc/crypt++.el.Z")
 
 (defconst crypt-help-address
   "dodd@roebling.poly.edu, rwhitby@research.canon.oz.au"
@@ -2190,19 +2346,15 @@ Part of `after-init-hook'."
   "List of variables to be appended to reports sent by `crypt-submit-report.'")
 
 (defun crypt-submit-report ()
-
   "Submit via reporter.el a bug report on program.  Send report on `crypt-file'
 version `crypt-version,' to `crypt-maintainer' at address `crypt-help-address'
 listing variables `crypt-variable-list' in the message."
-
   (interactive)
 
   ;; In case we can't find reporter...
   (condition-case err
-
       (progn
-        
-        ;; Get it if we can
+        ;; Get it if we can.
         (require 'reporter)
 
         (reporter-submit-bug-report
@@ -2218,26 +2370,27 @@ listing variables `crypt-variable-list' in the message."
 
      ;; Do they have ange-ftp?
      (if (and (featurep 'ange-ftp)
-              (y-or-n-p (concat "sorry reporter.el not found.  "
-                                "can I ange-ftp it for you? ")))
+              (y-or-n-p (concat "Sorry, reporter.el not found.  "
+                                "Can I ange-ftp it for you? ")))
 
          ;; Yes.  Then Ange-ftp a copy from roebling.
          (let ((ange-ftp-generate-anonymous-password t))
-           ;; might want to use the elisp archive official site?  But
-           ;; then it would be uncompressed, etc. Ick!
+           ;; Might want to use the elisp archive official site?  But
+           ;; then it would have to be uncompressed, etc. Ick!
            (find-file-other-window
             "/anonymous@roebling.poly.edu:/pub/reporter.el")
            (eval-current-buffer)
-           (message (concat "please save this file somewhere "
-                            "emacs can find it and try again.")))
+           (message (concat "Save reporter.el somewhere in `load-path' "
+                            "and try again.")))
        
        ;; No ange-ftp.
-       (message (concat "sorry reporter.el not found. please get from "
-                        "elisp-archive or roebling.poly.edu"))))))
-  
+       (message "Sorry, reporter.el not found.")
+       (sit-for 3)
+       (message (concat "Get it from archive.cis.ohio-state.edu "
+                        "or roebling.poly.edu"))))))
 
-;;; Provide this package as crypt++ as well as crypt
+;;; Provide this package as crypt++ as well as crypt.
 (provide 'crypt++)
 (provide 'crypt)
 
-;;; crypt++.el ends here
+;;; crypt++.el ends here.

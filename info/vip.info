@@ -1,0 +1,74 @@
+This is Info file ../info/vip.info, produced by Makeinfo-1.55 from the
+input file vip.texinfo.
+
+Distribution
+************
+
+   Copyright (C) 1987 Masahiko Sato.
+
+   Permission is granted to make and distribute verbatim copies of this
+manual provided the copyright notice and this permission notice are
+preserved on all copies.
+
+   Permission is granted to copy and distribute modified versions of
+this manual under the conditions for verbatim copying, provided that
+the entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+
+   Permission is granted to copy and distribute translations of this
+manual into another language, under the same conditions as for modified
+versions.
+
+
+Indirect:
+vip.info-1: 729
+vip.info-2: 49752
+
+Tag Table:
+(Indirect)
+Node: Top729
+Node: Survey1723
+Node: Basic Concepts2213
+Node: Loading VIP3842
+Node: Modes in VIP4580
+Node: Emacs Mode7127
+Node: Vi Mode7486
+Node: Insert Mode7799
+Node: Differences from Vi8423
+Node: Undoing9422
+Node: Changing9782
+Node: Searching10397
+Node: z Command11112
+Node: Counts11448
+Node: Marking11954
+Node: Region Commands12459
+Node: New Commands13132
+Node: New Bindings15886
+Node: Window Commands18053
+Node: Buffer Commands18523
+Node: File Commands19008
+Node: Misc Commands19375
+Node: Vi Commands19791
+Node: Numeric Arguments20559
+Node: Important Keys21054
+Node: Buffers and Windows22797
+Node: Files25019
+Node: Viewing the Buffer28249
+Node: Mark Commands30143
+Node: Motion Commands31002
+Node: Searching and Replacing36532
+Node: Modifying Commands38804
+Node: Delete Commands40239
+Node: Yank Commands41943
+Node: Put Back Commands42828
+Node: Change Commands44282
+Node: Repeating and Undoing Modifications45302
+Node: Other Vi Commands46122
+Node: Commands in Insert Mode49752
+Node: Ex Commands51822
+Node: Ex Command Reference53002
+Node: Customization59489
+Node: Customizing Constants59911
+Node: Customizing Key Bindings61235
+
+End Tag Table

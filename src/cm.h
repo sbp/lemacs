@@ -39,25 +39,25 @@ struct cm
     int cm_curX;			/* Current column */
 
     /* Capabilities from termcap */
-    const char *cm_up;		/* up (up) */
-    const char *cm_down;	/* down (do) */
-    const char *cm_left;	/* left (le) */
-    const char *cm_right;	/* right (nd) */
-    const char *cm_home;	/* home (ho) */
-    const char *cm_cr;		/* carriage return (cr) */
-    const char *cm_ll;		/* last line (ll) */
-    const char *cm_tab;		/* tab (ta) */
-    const char *cm_backtab;	/* backtab (bt) */
-    const char *cm_abs;		/* absolute (cm) */
-    const char *cm_habs;	/* horizontal absolute (ch) */
-    const char *cm_vabs;	/* vertical absolute (cv) */
+    CONST char *cm_up;		/* up (up) */
+    CONST char *cm_down;	/* down (do) */
+    CONST char *cm_left;	/* left (le) */
+    CONST char *cm_right;	/* right (nd) */
+    CONST char *cm_home;	/* home (ho) */
+    CONST char *cm_cr;		/* carriage return (cr) */
+    CONST char *cm_ll;		/* last line (ll) */
+    CONST char *cm_tab;		/* tab (ta) */
+    CONST char *cm_backtab;	/* backtab (bt) */
+    CONST char *cm_abs;		/* absolute (cm) */
+    CONST char *cm_habs;	/* horizontal absolute (ch) */
+    CONST char *cm_vabs;	/* vertical absolute (cv) */
 #if 0
-    const char *cm_ds;		/* "don't send" string (ds) */
+    CONST char *cm_ds;		/* "don't send" string (ds) */
 #endif
-    const char *cm_multiup;	/* multiple up (UP) */
-    const char *cm_multidown;	/* multiple down (DO) */
-    const char *cm_multileft;	/* multiple left (LE) */
-    const char *cm_multiright;	/* multiple right (RI) */
+    CONST char *cm_multiup;	/* multiple up (UP) */
+    CONST char *cm_multidown;	/* multiple down (DO) */
+    CONST char *cm_multileft;	/* multiple left (LE) */
+    CONST char *cm_multiright;	/* multiple right (RI) */
     int cm_cols;		/* number of cols on screen (co) */
     int cm_rows;		/* number of rows on screen (li) */
     int cm_tabwidth;		/* tab width (it) */
@@ -102,7 +102,11 @@ struct cm
 
 extern struct cm Wcm;		/* Terminal capabilities */
 extern char PC;			/* Pad character */
+#ifdef HAVE_TERMIOS
+extern speed_t ospeed;		/* Output speed (from sg_ospeed) */
+#else
 extern short ospeed;		/* Output speed (from sg_ospeed) */
+#endif
 
 /* Shorthand */
 #ifndef NoCMShortHand

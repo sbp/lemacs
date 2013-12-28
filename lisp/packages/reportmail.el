@@ -118,6 +118,13 @@
 ;
 ; HISTORY
 ;
+; 19 dec 93	Jamie Zawinski <jwz@lucid.com>
+;	Protected it from edits of the *reportmail* buffer; made the process
+;	filters not interfere with the match data.
+;
+; 15 dec 93	Jamie Zawinski <jwz@lucid.com>
+;	Kyle renamed timer.el to itimer.el; made this use the new names.
+;
 ; 27 aug 93	Jamie Zawinski <jwz@lucid.com>
 ;	Use mail-extr to parse addresses if it is loadable.
 ;
@@ -200,13 +207,11 @@
 
 
 (if (string-match "Lucid" emacs-version)
-    (require 'timer))
+    (require 'itimer))
 
-;; Load mail-extr if possible
-(or (fboundp 'mail-extract-address-components)
-    (condition-case ()
-	(load-library "mail-extr")
-      (error nil)))
+(condition-case ()
+    (require 'mail-extr)
+  (error nil))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;                       User Variables                          ;;;
@@ -354,6 +359,15 @@ long after displaying each debugging message in mode line")
          (list 'display-time-debug-mesg
 	       (append (list 'format mesg) args))))
 
+(defmacro display-time-save-match-data (&rest body)
+  ;; Execute the BODY forms, restoring the global value of the match data.
+  ;; We need this because it's antisocial for process filters to change
+  ;; the regexp match registers.
+  (list 'let '((_match_data_ (match-data)))
+	(list 'unwind-protect
+	      (cons 'progn body)
+	      '(store-match-data _match_data_))))
+
 (defun display-time-init ()
   ;; If the mail-file isn't set, figure it out.
   (or display-time-incoming-mail-file
@@ -422,11 +436,11 @@ mode line of each buffer (if corresponding user variables are set)."
 		(append global-mode-string '(display-time-string))))
       (setq display-time-string "time and load")
       
-      (if (featurep 'timer)
-	  (let ((old (get-timer "display-time")))
-	    (if old (delete-timer old))
-	    (start-timer "display-time" 'display-time-timer-function
-			 display-time-interval display-time-interval)
+      (if (featurep 'itimer)
+	  (let ((old (get-itimer "display-time")))
+	    (if old (delete-itimer old))
+	    (start-itimer "display-time" 'display-time-timer-function
+			  display-time-interval display-time-interval)
 	    (display-time-timer-function))
 	;; if we don't have timers, then use one of the process mechanisms.
 	(setq display-time-loadst-process
@@ -461,6 +475,7 @@ mode line of each buffer (if corresponding user variables are set)."
 
 
 (defun display-time-sentinel (proc reason)
+ (display-time-save-match-data
   ;; notice if the process has died an untimely death...
   (display-time-debug "display-time-sentinel")
   (cond ((memq (process-status proc) '(stop exit closed signal))
@@ -470,9 +485,10 @@ mode line of each buffer (if corresponding user variables are set)."
 	 (setq display-time-string (format "%s" reason))
 	 (display-time-message "")
 	 (message "process %s: %s (%s)" proc reason (process-status proc))))
-  (display-time-force-redisplay))
+  (display-time-force-redisplay)))
 
 (defun display-time-filter-18-55 (proc string)
+ (display-time-save-match-data
   (if display-time-flush-echo-area (display-time-message ""))
   ;; Desired data can't need more than the last 30 chars,
   ;; so save time by flushing the rest.
@@ -512,9 +528,10 @@ mode line of each buffer (if corresponding user variables are set)."
 		      " ")))
     ;; Install the new time for display.
     (setq display-time-string time-string)
-    (display-time-force-redisplay)))
+    (display-time-force-redisplay))))
 
 (defun display-time-filter-18-57 (proc string) ; args are ignored
+ (display-time-save-match-data
   (display-time-debug "display-time-filter-18-57")
   (if display-time-flush-echo-area
       (progn
@@ -563,7 +580,7 @@ mode line of each buffer (if corresponding user variables are set)."
       ;; Install the new time for display.
       (setq display-time-string time-string)
 
-      (display-time-force-redisplay))))
+      (display-time-force-redisplay)))))
 
 (defun display-time-timer-function ()
   (display-time-filter-18-57 nil nil))
@@ -616,7 +633,13 @@ that things may have changed."
     (setq display-time-may-need-to-reset nil)
     (display-time-debug "Resetting mail processing")
     (let ((mail-buffer (get-buffer display-time-mail-buffer-name)))
-      (if mail-buffer (kill-buffer mail-buffer)))
+      (cond (mail-buffer
+	     ;; unmodify it before killing it in case it has accidentally
+	     ;; been typed in to.
+	     (save-excursion
+	       (set-buffer mail-buffer)
+	       (set-buffer-modified-p nil))
+	     (kill-buffer mail-buffer))))
     (if display-time-use-xbiff
 	;; This function is only called when no mail is in the spool.
 	;; Hence we should delete the mail-arrived file.
@@ -634,6 +657,9 @@ that things may have changed."
   (display-time-message "") ; clear the echo-area.
   )
 
+(or (fboundp 'buffer-disable-undo)
+    (fset 'buffer-disable-undo 'buffer-flush-undo))
+
 (defun display-time-process-new-mail ()
   (setq display-time-may-need-to-reset t)
   (let ((mail-buffer (get-buffer display-time-mail-buffer-name))
@@ -643,19 +669,28 @@ that things may have changed."
       (save-window-excursion
        (save-excursion
 	(display-time-debug "Spool file has changed... rereading...")
-	(if mail-buffer (kill-buffer mail-buffer))
+	(cond (mail-buffer
+	       ;; unmodify it before killing it in case it has accidentally
+	       ;; been typed in to.
+	       (save-excursion
+		 (set-buffer mail-buffer)
+		 (set-buffer-modified-p nil))
+	       (kill-buffer mail-buffer))))
 	;; Change to pop-to-buffer when we're debugging:
 	(set-buffer (get-buffer-create display-time-mail-buffer-name))
-	(buffer-flush-undo (current-buffer))
+	(buffer-disable-undo (current-buffer))
 	(erase-buffer)
 	(condition-case nil
 	    ;; I wish we didn't have to mark the buffer as visiting the file,
 	    ;; since that interferes with the user's ability to use find-file
 	    ;; on their spool file, but there's no way to simulate what
 	    ;; verify-visited-file-modtime does.  Lose lose.
-	    (insert-file-contents display-time-incoming-mail-file t)
+	    (let ((buffer-read-only nil))
+	      (insert-file-contents display-time-incoming-mail-file t))
 	  (file-error nil))
-	(display-time-process-mail-buffer))))))
+	;; this buffer belongs to us; hands off.
+	(setq buffer-read-only t)
+	(display-time-process-mail-buffer)))))
 
 (defun display-time-process-mail-buffer ()
   (if (< display-time-previous-mail-buffer-max (point-max))
@@ -755,8 +790,9 @@ that things may have changed."
     ;; clear the thing, like, don't bother, that's annoying.
     (if (and in-echo-area-already (string= "" str))
 	nil
-      (message "%s" str))
-    ))
+      (if (and (string= str "") (string-match "^19" emacs-version))
+	  (message nil)
+	(message "%s" str)))))
 
 (defun display-time-process-good-message ()
   (display-time-debug "Formatting message announcement (good message)")
@@ -935,6 +971,7 @@ non-nil, always match using regexps."
   "When non-NIL, reportmail displays status messages in real time.")
 
 (defun display-time-debug-mesg (mesg)
+ (display-time-save-match-data
   (if display-time-debugging-messages
       (progn 
 	(message "Reportmail: %s" mesg)
@@ -951,6 +988,6 @@ non-nil, always match using regexps."
 			 (- (point-max) display-time-max-debug-info)))))
   (if display-time-debugging-delay
       (progn (message "Reportmail: %s" mesg)
-	     (sit-for display-time-debugging-delay))))
+	     (sit-for display-time-debugging-delay)))))
 
 (provide 'reportmail)

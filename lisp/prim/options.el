@@ -28,9 +28,9 @@
   "Display a list of Emacs user options, with values and documentation."
   (interactive)
   (save-excursion
-    (set-buffer (get-buffer-create "*List Options*"))
+    (set-buffer (get-buffer-create (gettext "*List Options*")))
     (Edit-options-mode))
-  (with-output-to-temp-buffer "*List Options*"
+  (with-output-to-temp-buffer (gettext "*List Options*")
     (let (vars)
       (mapatoms #'(lambda (sym)
 		    (if (user-variable-p sym)
@@ -43,7 +43,7 @@
 	  (princ ":\n\t")
 	  (if (boundp sym)
 	      (prin1 (symbol-value sym))
-              (princ "#<unbound>"))
+              (princ (gettext "#<unbound>")))
 	  (terpri)
 	  (princ (substitute-command-keys 
 		  (documentation-property sym 'variable-documentation)))
@@ -58,7 +58,7 @@ in which there are commands to set the option values.
 Type \\[describe-mode] in that buffer for a list of commands."
   (interactive)
   (list-options)
-  (pop-to-buffer "*List Options*"))
+  (pop-to-buffer (gettext "*List Options*")))
 
 (defvar Edit-options-mode-map
   (let ((map (make-keymap)))
@@ -96,12 +96,12 @@ For convenience, the characters \\[backward-paragraph] and \\[forward-paragraph]
   (setq paragraph-start "^\t")
   (setq truncate-lines t)
   (setq major-mode 'Edit-options-mode)
-  (setq mode-name "Options")
+  (setq mode-name (gettext "Options"))
   (run-hooks 'Edit-options-mode-hook))
 
 (defun Edit-options-set () (interactive)
   (Edit-options-modify
-   '(lambda (var) (eval-minibuffer (concat "New " (symbol-name var) ": ")))))
+   '(lambda (var) (eval-minibuffer (format (gettext "New %s:") (symbol-name var))))))
 
 (defun Edit-options-toggle () (interactive)
   (Edit-options-modify '(lambda (var) (not (symbol-value var)))))

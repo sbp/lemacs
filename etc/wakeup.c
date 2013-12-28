@@ -2,6 +2,11 @@
 
 #include "../src/config.h"
 
+#if __STDC__
+#include <stdlib.h>
+#include <unistd.h>
+#endif
+
 #include <stdio.h>
 #include <sys/types.h>
 

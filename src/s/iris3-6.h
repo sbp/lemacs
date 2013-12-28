@@ -144,7 +144,8 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define sigblock(x) x
 
 /* The IRIS defines SIGIO in signal.h, but doesn't implement it. */
-#undef SIGIO
+/* #undef SIGIO		use BROKEN_SIGIO instead of this kludge -- jwz */
+#define BROKEN_SIGIO
 
 #define LIBS_MACHINE -lbsd -ldbm -lPW
 #define C_SWITCH_MACHINE -I/usr/include/bsd

@@ -17,21 +17,35 @@ You should have received a copy of the GNU General Public License
 along with GNU Emacs; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
+#ifndef _EMACS_SYSSIGNAL_H_
+#define _EMACS_SYSSIGNAL_H_
+
+/* In the old world, one could not #include <signal.h> here.  The party line
+   was that that header should always be #included before "config.h", because
+   some configuration files (like s/hpux.h) indicate that SIGIO doesn't work
+   by #undef-ing SIGIO, and if this file #includes <signal.h>, then that will
+   re-#define SIGIO and confuse things.
+
+   This was, however, a completely fucked up state of affairs, because on some
+   systems it's necessary for the s/m files to #define things in order to get
+   <signal.h> to provide the right typedefs, etc.  And it's generally a broken
+   concept for "config.h" to not be the very very first file included.
+
+   So instead of #undef'ing SIGIO in the various s/m files, I've changed them
+   to define BROKEN_SIGIO instead, then we (syssignal.h) do an #undef SIGIO
+   at the end, after including signal.h.  Therefore, it's important that
+   <signal.h> not be included after "syssignal.h", but that's the normal state:
+   nothing should be directly including <signal.h> these days.
+							-- jwz, 29-nov-93
+ */
+
+#include <signal.h>
+
 #ifdef POSIX_SIGNALS
 
-/* Don't #include <signal.h>.  That header shouldalways be #included
-   before "config.h", because some configuration files (like s/hpux.h)
-   indicate that SIGIO doesn't work by #undef-ing SIGIO.  If this file
-   #includes <signal.h>, then that will re-#define SIGIO and confuse
-   things. 
-
-   ####  This is totally fucked up.  This should be done by having the
-   ####  configuration files define something like BROKEN_SIGIO and
-   ####  having code which does `#ifdef SIGIO' do that instead.  Having
-   ####  so much dependence on the order in which files are included is
-   ####  just asking for trouble, and it strikes me as especially bogus
-   ####  for config.h to not be the first file included.  -- jwz.
- */
+#ifdef BROKEN_SIGIO
+# undef SIGIO
+#endif
 
 #define SIGMASKTYPE sigset_t
 
@@ -41,7 +55,7 @@ extern sigset_t empty_mask, full_mask, temp_mask;
 
 /* POSIX pretty much destroys any possibility of writing sigmask as a
    macro in standard C.  */
-#ifdef hpux
+#if defined(hpux) || defined(HPUX) || defined(_AIX)
 #undef sigmask
 #endif
 #ifndef sigmask
@@ -68,7 +82,6 @@ extern sigset_t sys_sigmask ();
 
 /* Whether this is what all systems want or not, this is what
    appears to be assumed in the source, for example data.c:arith_error() */
-#ifndef SOLARIS2
 typedef SIGTYPE (*signal_handler_t) (int);
 
 signal_handler_t sys_signal (int signal_number, signal_handler_t action);
@@ -76,7 +89,6 @@ int sys_sigpause (sigset_t new_mask);
 sigset_t sys_sigblock (sigset_t new_mask);
 sigset_t sys_sigunblock (sigset_t new_mask);
 sigset_t sys_sigsetmask (sigset_t new_mask);
-#endif /* !SOLARIS2 */
 
 #define sys_sigdel(MASK,SIG) sigdelset(&MASK,SIG)
 
@@ -158,3 +170,5 @@ extern int sigblock();
 #endif /* SIGCHLD */
 #endif /* ! defined (SIGCLD) */
 #endif /* VMS */
+
+#endif /* _EMACS_SYSSIGNAL_H_ */

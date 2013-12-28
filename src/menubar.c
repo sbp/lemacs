@@ -1,5 +1,5 @@
 /* Implements an elisp-programmable menubar.
-   Copyright (C) 1993
+   Copyright (C) 1993, 1994
    Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
@@ -21,15 +21,22 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* created 16-dec-91 by jwz */
 
 #include "config.h"
+#include "intl.h"
 
 #include <stdio.h>	/* for sprintf */
 
 #include "lisp.h"
 
-#include <X11/Intrinsic.h>
+#include "xintrinsicp.h"
 #include <X11/StringDefs.h>
-#include <X11/Xaw/Paned.h>
 
+#ifdef LWLIB_USES_MOTIF
+# include <Xm/MainW.h>
+#else
+# include <X11/Xaw/Paned.h>
+#endif
+
+#include "EmacsScreen.h"
 #include "screen.h"
 #include "xterm.h"
 #include "events.h"
@@ -42,8 +49,8 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include "lwlib.h"
 
-#ifdef LWLIB_USES_MOTIF
-/* right now there is only Motif support for dialog boxes */
+#if !defined(LWLIB_USES_OLIT)
+/* right now there is only Motif and Athena support for dialog boxes */
 # define HAVE_DIALOG_BOXES
 #endif
 
@@ -55,7 +62,9 @@ int menubar_has_changed;
 Lisp_Object Qcurrent_menubar;
 Lisp_Object Qmenu_no_selection_hook;
 
-static void set_screen_menubar (struct screen *s, int deep_p);
+static void set_screen_menubar (struct screen *s,
+				int deep_p,
+				int first_time_p);
 
 /* we need a unique id for each popup menu and dialog box */
 unsigned int popup_id_tick;
@@ -65,6 +74,8 @@ int popup_menu_up_p;
 int dbox_up_p;
 
 int menubar_show_keybindings;
+
+int popup_menu_titles;
 
 
 /* Converting Lisp menu tree descriptions to lwlib's `widget_value' form.
@@ -130,7 +141,8 @@ widget_value_unwind (Lisp_Object closure)
  */
 static widget_value *
 menu_item_descriptor_to_widget_value_1 (Lisp_Object desc, 
-					int menubar_p, int deep_p)
+					int menubar_p, int deep_p,
+					int depth)
 {
   widget_value *wv;
   Lisp_Object wv_closure;
@@ -143,9 +155,10 @@ menu_item_descriptor_to_widget_value_1 (Lisp_Object desc,
   wv_closure = long_to_cons ((unsigned long) wv);
   record_unwind_protect (widget_value_unwind, wv_closure);
 
+/*  IGNORE_DEFER_GETTEXT (desc);			/ * I18N3 */
   if (STRINGP (desc))
     {
-      wv->name = (char *) XSTRING (desc)->data;
+      wv->name = GETTEXT ((char *) XSTRING (desc)->data);
       wv->value = 0;
       wv->enabled = 1;
     }
@@ -155,16 +168,20 @@ menu_item_descriptor_to_widget_value_1 (Lisp_Object desc,
 	  vector_length (XVECTOR (desc)) > 4)
 	signal_error (Qerror, 
                       list2 (build_string
-			     ("button descriptors must be 3 or 4 long"),
+			     (GETTEXT ("button descriptors must be 3 or 4 long")),
 			     desc));
 
+/*      IGNORE_DEFER_GETTEXT (XVECTOR (desc)->contents [0]);	/ * I18N3 */
       CHECK_STRING (XVECTOR (desc)->contents [0], 0);
-      wv->name = (char *) XSTRING (XVECTOR (desc)->contents [0])->data;
+      wv->name = GETTEXT ((char *) XSTRING
+			  (XVECTOR (desc)->contents [0])->data);
       if (vector_length (XVECTOR (desc)) == 4
           && !NILP (XVECTOR (desc)->contents [3]))
 	{
+/*	  IGNORE_DEFER_GETTEXT (XVECTOR (desc)->contents [3]);	/ * I18N3 */
 	  CHECK_STRING (XVECTOR (desc)->contents [3], 0);
-	  wv->value = (char *) XSTRING (XVECTOR (desc)->contents [3])->data;
+	  wv->value = GETTEXT ((char *) XSTRING
+			       (XVECTOR (desc)->contents [3])->data);
 	}
       else
 	wv->value = 0;
@@ -185,18 +202,49 @@ menu_item_descriptor_to_widget_value_1 (Lisp_Object desc,
     }
   else if (CONSP (desc))
     {
+      widget_value *prev = 0;
+
+/*      IGNORE_DEFER_GETTEXT (XCONS (desc)->car);		/ * I18N3 */
       if (STRINGP (XCONS (desc)->car))
 	{
-	  wv->name = (char *) XSTRING (XCONS (desc)->car)->data;
+	  wv->name = GETTEXT ((char *) XSTRING (XCONS (desc)->car)->data);
 	  desc = Fcdr (desc);
+
+	  if (popup_menu_titles && depth == 0)
+	    {
+	      /* Simply prepend three more widget values to the contents of
+		 the menu: a label, and two separators (to get a double line.)
+	       */
+	      widget_value *title_wv, *sep1_wv, *sep2_wv;
+	      BLOCK_INPUT;
+	      title_wv = malloc_widget_value ();
+	      sep1_wv = malloc_widget_value ();
+	      sep2_wv = malloc_widget_value ();
+	      UNBLOCK_INPUT;
+	      title_wv->name = wv->name;
+	      title_wv->value = 0;
+	      title_wv->enabled = 1;
+	      title_wv->next = sep1_wv;
+	      sep1_wv->name = "---------";
+	      sep1_wv->value = 0;
+	      sep1_wv->enabled = 1;
+	      sep1_wv->next = sep2_wv;
+	      sep2_wv->name = "---------";
+	      sep2_wv->value = 0;
+	      sep2_wv->enabled = 1;
+	      sep2_wv->next = 0;
+
+	      wv->contents = title_wv;
+	      prev = sep2_wv;
+	    }
 	}
       else if (menubar_p)
 	wv->name = "menubar";
       else
 	{
 	  signal_error (Qerror,
-                        list2 (build_string
-			       ("menu name (first element) must be a string"),
+                        list2 (build_string (GETTEXT
+			       ("menu name (first element) must be a string")),
                                desc));
 	}
 
@@ -204,11 +252,12 @@ menu_item_descriptor_to_widget_value_1 (Lisp_Object desc,
       wv->enabled = 1;
       if (deep_p || menubar_p)
 	{
-	  widget_value *prev = 0, *next;
+	  widget_value *next;
 	  for (; !NILP (desc); desc = Fcdr (desc))
 	    {
 	      next = menu_item_descriptor_to_widget_value_1 (Fcar (desc),
-							     0, deep_p);
+							     0, deep_p,
+							     depth + 1);
 	      if (! next)
 		continue;
 	      else if (prev)
@@ -226,7 +275,8 @@ menu_item_descriptor_to_widget_value_1 (Lisp_Object desc,
       if (NILP (desc)) /* ignore nil for now */
 	wv = 0;
       else
-	signal_error (Qerror, list2 (build_string ("unrecognised descriptor"),
+	signal_error (Qerror, list2 (build_string
+				     (GETTEXT ("unrecognised descriptor")),
                                      desc));
     }
 
@@ -286,7 +336,7 @@ menu_item_descriptor_to_widget_value (Lisp_Object desc,
   record_unwind_protect (restore_gc_inhibit,
 			 make_number (gc_currently_forbidden));
   gc_currently_forbidden = 1;
-  wv = menu_item_descriptor_to_widget_value_1 (desc, menubar_p, deep_p);
+  wv = menu_item_descriptor_to_widget_value_1 (desc, menubar_p, deep_p, 0);
   unbind_to (count, Qnil);
   return wv;
 }
@@ -385,6 +435,7 @@ gcpro_menu_callbacks_1 (Lisp_Object menu, Lisp_Object *vector, int index)
 {
   if (NILP (menu))
     return index;
+/*  IGNORE_DEFER_GETTEXT (menu);		/ * I18N3 */
   if (VECTORP (menu))
     {
       if (vector_length (XVECTOR (menu)) > 2)
@@ -491,7 +542,7 @@ pre_activate_callback (widget, id, client_data)
       any_changes = 1;
   if (any_changes ||
       !SCREEN_MENUBAR_DATA (s)->menubar_contents_up_to_date)
-    set_screen_menubar (s, 1);
+    set_screen_menubar (s, 1, 0);
   UNGCPRO;
 }
 
@@ -513,7 +564,7 @@ menubar_selection_callback (Widget ignored_widget,
   VOID_TO_LISP (data, client_data);
 
   /* Flush the X and process input */
-  Faccept_process_output (Qnil);
+  Faccept_process_output (Qnil, Qnil, Qnil);
 
   if (((LISP_WORD_TYPE) client_data) == -1)
     {
@@ -537,7 +588,8 @@ menubar_selection_callback (Widget ignored_widget,
       fn = Qeval;
       arg = list3 (Qsignal,
                    list2 (Qquote, Qerror),
-                   list2 (Qquote, list2 (build_string ("illegal menu callback:"),
+                   list2 (Qquote, list2 (build_string
+					 (GETTEXT ("illegal menu callback:")),
                                          data)));
     }
 
@@ -604,34 +656,43 @@ compute_menubar_data (struct screen* s, Lisp_Object menubar, int deep_p)
 }
 
 static void
-set_screen_menubar (struct screen *s, int deep_p)
+set_screen_menubar (struct screen *s, int deep_p, int first_time_p)
 {
   widget_value *data;
-  Lisp_Object obuf = Fcurrent_buffer ();
   Lisp_Object menubar;
 
   if (! SCREEN_IS_X (s))
     return;
 
-  /* evaluate `current-menubar' in the buffer of the selected window of
-     the screen in question.
-     */
-  Fset_buffer (XWINDOW (s->selected_window)->buffer);
-  menubar = Fsymbol_value (Qcurrent_menubar);
-  Fset_buffer (obuf);
+  if (! first_time_p)
+    {
+      /* evaluate `current-menubar' in the buffer of the selected window
+	 of the screen in question.
+       */
+      Lisp_Object obuf = Fcurrent_buffer ();
+      Fset_buffer (XWINDOW (s->selected_window)->buffer);
+      menubar = Fsymbol_value (Qcurrent_menubar);
+      Fset_buffer (obuf);
+    }
+  else
+    {
+      /* That's a little tricky the first time since the screen isn't
+	 fully initalized yet. */
+      menubar = Fsymbol_value (Qcurrent_menubar);
+    }
 
   data = compute_menubar_data (s, menubar, deep_p);
 
   if (NILP (s->menubar_data))
-  {
-    struct menubar_data *data = alloc_lcrecord (sizeof (struct menubar_data),
-                                                lrecord_menubar_data);
-
-    data->last_menubar_buffer = Qnil;
-    data->menubar_callbacks = Qnil;
-    data->menubar_contents_up_to_date = 0;
-    XSET (s->menubar_data, Lisp_Record, data);
-  }
+    {
+      struct menubar_data *data = alloc_lcrecord (sizeof (struct menubar_data),
+						  lrecord_menubar_data);
+      
+      data->last_menubar_buffer = Qnil;
+      data->menubar_callbacks = Qnil;
+      data->menubar_contents_up_to_date = 0;
+      XSET (s->menubar_data, Lisp_Record, data);
+    }
 
   {
     Widget menubar_widget = s->display.x->menubar_widget;
@@ -652,9 +713,9 @@ set_screen_menubar (struct screen *s, int deep_p)
       lw_modify_all_widgets (id, data, deep_p ? True : False);
     else
       {
-	Widget parent = s->display.x->column_widget;
+	Widget parent = s->display.x->container;
 
-	/* It's the first time we map the menubar so compute its
+	/* It's the first time we've mapped the menubar so compute its
 	   contents completely once.  This makes sure that the menubar
 	   components are created with the right type. */
 	if (!deep_p)
@@ -668,11 +729,16 @@ set_screen_menubar (struct screen *s, int deep_p)
 			    0, pre_activate_callback,
 			    menubar_selection_callback, 0);
 	s->display.x->menubar_widget = menubar_widget;
+
+#ifndef LWLIB_USES_MOTIF
+	/* For Athena, we need to set some flags on each newly-created menubar
+	   to make the parent (a Paned) do the right thing with it. */
 	XtVaSetValues (menubar_widget,
 		       XtNshowGrip, 0,
 		       XtNresizeToPreferred, 1,
 		       XtNallowResize, 1,
 		       0);
+#endif
       }
     UNBLOCK_INPUT;
   }
@@ -681,10 +747,21 @@ set_screen_menubar (struct screen *s, int deep_p)
   SCREEN_MENUBAR_DATA (s)->menubar_contents_up_to_date = deep_p;
   SCREEN_MENUBAR_DATA (s)->last_menubar_buffer =
     XWINDOW (s->selected_window)->buffer;
-  menubar_has_changed = 0;
 
   gcpro_menu_callbacks (menubar, &SCREEN_MENUBAR_DATA (s)->menubar_callbacks);
 }
+
+
+/* Called from x_create_widgets() to create the inital menubar of a screen
+   before it is mapped, so that the window is mapped with the menubar already
+   there instead of us tacking it on later and thrashing the window after it
+   is visible. */
+void
+initialize_screen_menubar (struct screen *s)
+{
+  set_screen_menubar (s, 1, 1);
+}
+
 
 static LWLIB_ID last_popup_selection_callback_id;
 
@@ -823,14 +900,15 @@ The syntax, more precisely:\n\
   widget_value *data;
   Widget parent, menu;
 
-  if (!SCREEN_IS_X (s)) error ("not an X screen");
+  if (!SCREEN_IS_X (s)) error (GETTEXT ("not an X screen"));
   if (SYMBOLP (menu_desc))
     menu_desc = Fsymbol_value (menu_desc);
   CHECK_CONS (menu_desc, 0);
+/*  IGNORE_DEFER_GETTEXT (XCONS (menu_desc)->car);	/ * I18N3 */
   CHECK_STRING (XCONS (menu_desc)->car, 0);
   data = menu_item_descriptor_to_widget_value (menu_desc, 0, 1);
 
-  if (! data) error ("no menu");
+  if (! data) error (GETTEXT ("no menu"));
   
   parent = s->display.x->widget;
 
@@ -873,7 +951,7 @@ See popup-menu.")
 
 #ifdef HAVE_DIALOG_BOXES
 
-static const char * const button_names [] = {
+static CONST char * CONST button_names [] = {
   "button1", "button2", "button3", "button4", "button5",
   "button6", "button7", "button8", "button9", "button10" };
 
@@ -891,11 +969,12 @@ dbox_descriptor_to_widget_value (Lisp_Object desc)
   int n = 0;
 
   CHECK_CONS (desc, 0);
+/*  IGNORE_DEFER_GETTEXT (XCONS (desc)->car);	/ * I18N3 */
   CHECK_STRING (XCONS (desc)->car, 0);
-  name = (char *) XSTRING (XCONS (desc)->car)->data;
+  name = GETTEXT ((char *) XSTRING (XCONS (desc)->car)->data);
   desc = XCONS (desc)->cdr;
   if (!CONSP (desc))
-    error ("dialog boxes must have some buttons");
+    error (GETTEXT ("dialog boxes must have some buttons"));
 
   kids = prev = malloc_widget_value ();
   prev->name = "message";
@@ -908,13 +987,15 @@ dbox_descriptor_to_widget_value (Lisp_Object desc)
       Lisp_Object button = XCONS (desc)->car;
       widget_value *wv;
       if (vector_length (XVECTOR (button)) != 4)
-	error ("dialog box text field descriptors must be 4 long");
+	error (GETTEXT ("dialog box text field descriptors must be 4 long"));
+/*      IGNORE_DEFER_GETTEXT (XVECTOR (button)->contents [2]);	/ * I18N3 */
       CHECK_STRING (XVECTOR (button)->contents [2], 0);
       BLOCK_INPUT;
       wv = malloc_widget_value ();
       UNBLOCK_INPUT;
       wv->name = "value";
-      wv->value = (char *) XSTRING (XVECTOR (button)->contents [2])->data;
+      wv->value = (GETTEXT ((char *)
+		   XSTRING (XVECTOR (button)->contents [2])->data));
       wv->call_data = LISP_TO_VOID (XVECTOR (button)->contents [1]);
       wv_set_enabled (wv, XVECTOR (button)->contents [3]);
       text_field_p = 1;
@@ -932,15 +1013,16 @@ dbox_descriptor_to_widget_value (Lisp_Object desc)
       if (NILP (button))
 	{
 	  if (partition_seen)
-	    error ("more than one partition (nil) seen in dbox spec");
+	    error (GETTEXT("more than one partition (nil) seen in dbox spec"));
 	  partition_seen = 1;
 	  continue;
 	}
       CHECK_VECTOR (button, 0);
       if (vector_length (XVECTOR (button)) != 3)
         signal_error (Qerror, list2 (build_string
-                                     ("button descriptors must be 3 long"),
+                                     (GETTEXT ("button descriptors must be 3 long")),
                                      button));
+/*      IGNORE_DEFER_GETTEXT (XVECTOR (button)->contents [0]);	/ * I18N3 */
       CHECK_STRING (XVECTOR (button)->contents [0], 0);
       cb = XVECTOR (button)->contents [1];
       
@@ -948,7 +1030,8 @@ dbox_descriptor_to_widget_value (Lisp_Object desc)
       wv = malloc_widget_value ();
       UNBLOCK_INPUT;
       wv->name = (char *) button_names [n];
-      wv->value = (char *) XSTRING (XVECTOR (button)->contents [0])->data;
+      wv->value = GETTEXT ((char *) XSTRING
+			    (XVECTOR (button)->contents [0])->data);
       wv_set_enabled (wv, XVECTOR (button)->contents [2]);
       wv->call_data = LISP_TO_VOID (XVECTOR (button)->contents [1]);
 
@@ -959,14 +1042,14 @@ dbox_descriptor_to_widget_value (Lisp_Object desc)
       n++;
 
       if (lbuttons > 9 || rbuttons > 9)
-	error ("too many buttons (9)"); /* #### this leaks */
+	error (GETTEXT ("too many buttons (9)")); /* #### this leaks */
 
       prev->next = wv;
       prev = wv;
     }
 
   if (n == 0)
-    error ("dialog boxes must have some buttons");
+    error (GETTEXT ("dialog boxes must have some buttons"));
   {
     char type = (text_field_p ? 'P' : 'Q');
     widget_value *dbox;
@@ -1019,10 +1102,11 @@ The syntax, more precisely:\n\
   widget_value *data;
   Widget parent, dbox;
 
-  if (!SCREEN_IS_X (s)) error ("not an X screen");
+  if (!SCREEN_IS_X (s)) error (GETTEXT ("not an X screen"));
   if (SYMBOLP (dbox_desc))
     dbox_desc = Fsymbol_value (dbox_desc);
   CHECK_CONS (dbox_desc, 0);
+/*  IGNORE_DEFER_GETTEXT (XCONS (dbox_desc)->car);	/ * I18N3 */
   CHECK_STRING (XCONS (dbox_desc)->car, 0);
   data = dbox_descriptor_to_widget_value (dbox_desc);
 
@@ -1071,12 +1155,13 @@ extern void notify_energize_sheet_hidden (unsigned long);
 
 #endif
 
+static void update_screen_menubar (struct screen *s);
+
 void
-update_screen_menubars ()
+update_menubars ()
 {
-  struct screen* s;
+  struct screen *s;
   Lisp_Object tail;
-  int save_menubar_has_changed = menubar_has_changed;
   
   for (tail = Vscreen_list; CONSP (tail); tail = XCONS (tail)->cdr)
     {
@@ -1084,37 +1169,29 @@ update_screen_menubars ()
       if (!SCREENP (screen))
 	continue;
       s = XSCREEN (screen);
-      
       if (!SCREEN_IS_X (s))
 	continue;
-      
-      /* If the menubar_has_changed flag was set, or the displayed buffer
-	 has changed we have to update the menubar. */
-      if (save_menubar_has_changed
-	  || !RECORD_TYPEP (s->menubar_data, lrecord_menubar_data)
-	  || (!EQ (SCREEN_MENUBAR_DATA (s)->last_menubar_buffer,
-		   XWINDOW (s->selected_window)->buffer)))
-	if (!MINI_WINDOW_P (XWINDOW (s->selected_window)))
-#ifndef LWLIB_USES_OLIT
-	  set_screen_menubar (s, 0);
-#else /* LWLIB_USES_OLIT */
-      /* ####  BUG BUG BUG!
-	 ####  The lwlib OLIT code doesn't correctly implement "non-deep" mode.
-	 ####  This must be fixed before this is usable at all.
-       */
-	  set_screen_menubar (s, 1);
-#endif /* LWLIB_USES_OLIT */
+      if (MINI_WINDOW_P (XWINDOW (s->selected_window)))
+	continue;
+      update_screen_menubar (s);
     }
+
+  menubar_has_changed = 0;
+
+#ifdef ENERGIZE
+  current_debuggerpanel_exposed_p = desired_debuggerpanel_exposed_p;
+#endif
 }
 
-extern void fix_pane_constraints (Widget);
-
 static void
-update_one_screen_psheets (screen)
-     Lisp_Object screen;
+update_screen_menubar (struct screen *s)
 {
-  struct screen *s = XSCREEN (screen);
   struct x_display *x = s->display.x;
+#ifdef LWLIB_USES_MOTIF
+  Widget text_area = x->edit_widget;
+#else
+  Widget text_area = XtParent (x->edit_widget);	/* text + scrollbars */
+#endif
   
 #ifdef ENERGIZE
   int i;
@@ -1129,19 +1206,59 @@ update_one_screen_psheets (screen)
 			 || !EQ (old_buf, new_buf));
   int debuggerpanel_changed = (desired_debuggerpanel_exposed_p
 			       != current_debuggerpanel_exposed_p);
-#endif
-  int menubar_changed;
-  
-  menubar_changed = (x->menubar_widget
-		     && !XtIsManaged (x->menubar_widget));
+#endif /* ENERGIZE */
+
+  /* We assume the menubar contents has changed if the global flag is set,
+     or if the current buffer has changed, or if the menubar has never
+     been updated before.
+   */
+  int menubar_contents_changed =
+    (menubar_has_changed
+     || NILP (s->menubar_data)
+     || (!EQ (SCREEN_MENUBAR_DATA (s)->last_menubar_buffer,
+	      XWINDOW (s->selected_window)->buffer)));
+				  
+  int menubar_was_visible = !!x->menubar_widget;
+  int menubar_visibility_changed;
+
+  Dimension shell_height;
 
 #ifdef ENERGIZE
   x->current_psheets = x->desired_psheets;
   x->current_psheet_count = x->desired_psheet_count;
   x->current_psheet_buffer = x->desired_psheet_buffer;
-#endif
+#endif /* ENERGIZE */
 
-  if (! (menubar_changed
+
+  /* Remember the old height of the toplevel window, and don't let it change
+     no matter what happens to the menubar or psheets.  Note that this is
+     different from what happens with scrollbars: changing the width or
+     visibility of the scrollbars resizes the top-level window, but that's
+     because it's not such a big deal to change the number of text lines
+     visible, but changing the number of columns visible is a big pain.
+
+     Current theory indicates that we have to remember the height before the
+     menubar widget may get created or destroyed, because with some instances
+     of Motif, that causes the height to change.
+   */
+  shell_height = x->widget->core.height;
+
+
+  if (menubar_contents_changed)
+#ifndef LWLIB_USES_OLIT
+    set_screen_menubar (s, 0, 0);
+#else /* LWLIB_USES_OLIT */
+    /* ####  BUG BUG BUG!
+       ####  The lwlib OLIT code doesn't correctly implement "non-deep"
+       ####  mode.  This must be fixed before this is usable at all.
+     */
+    set_screen_menubar (s, 1, 0);
+#endif /* LWLIB_USES_OLIT */
+
+  menubar_visibility_changed = (menubar_was_visible != (!!x->menubar_widget));
+
+
+  if (! (menubar_visibility_changed
 #ifdef ENERGIZE
 	 || psheets_changed || debuggerpanel_changed
 #endif
@@ -1149,25 +1266,50 @@ update_one_screen_psheets (screen)
     return;
 
   BLOCK_INPUT;
-  XawPanedSetRefigureMode (x->column_widget, 0);
-  
+
+  /* Do the voodoo which means "I'm changing lots of things, don't try to
+     refigure sizes until I'm done." */
+#ifdef LWLIB_USES_MOTIF
+  XtUnmanageChild (x->container);
+#else /* !LWLIB_USES_MOTIF */
+  XawPanedSetRefigureMode (x->container, False);
+#endif /* !LWLIB_USES_MOTIF */
+
+
+#ifdef LWLIB_USES_MOTIF
+  /* Make sure all the right stuff is in the slots of the MainWindow. */
+  XmMainWindowSetAreas (x->container,
+			x->menubar_widget,	/* menubar */
+# ifdef ENERGIZE
+			x->psheet_manager,	/* comm area */
+# else  /* !ENERGIZE */
+			0,			/* comm area */
+# endif /* !ENERGIZE */
+			0,			/* horizontal scrollbar */
+			x->scrollbar_manager,	/* vertical scrollbar */
+			x->edit_widget);	/* work area */
+#endif
+
+
   /* the order in which children are managed is the top to
      bottom order in which they are displayed in the paned window.
      First, remove the text-area widget.
    */
-  XtUnmanageChild (x->edit_widget);
+  XtUnmanageChild (text_area);
 
 #ifdef ENERGIZE
   /* Remove the psheets that are there now
    */
-  if (menubar_changed || debuggerpanel_changed || psheets_changed)
+  if (menubar_visibility_changed ||
+      debuggerpanel_changed ||
+      psheets_changed)
     {
       i = old_count;
       while (i)
 	{
 	  Widget w;
 	  unsigned long sheet = old_sheets[--i];
-	  w = lw_get_widget (sheet, x->column_widget, 0);
+	  w = lw_get_widget (sheet, x->psheet_manager, 0);
 	  if (psheets_changed && w)
 	    {
 	      notify_energize_sheet_hidden (sheet);
@@ -1180,11 +1322,11 @@ update_one_screen_psheets (screen)
 
   /* remove debugger panel if present */
   if (current_debuggerpanel_exposed_p && debuggerpanel_sheet &&
-      (menubar_changed || debuggerpanel_changed))
+      (menubar_visibility_changed || debuggerpanel_changed))
     {
       Widget w;
       int sheet = debuggerpanel_sheet;
-      w = lw_get_widget (sheet, x->column_widget, 0);
+      w = lw_get_widget (sheet, x->psheet_manager, 0);
       if (!desired_debuggerpanel_exposed_p && w)
 	{
 	  notify_energize_sheet_hidden (sheet);
@@ -1193,86 +1335,81 @@ update_one_screen_psheets (screen)
 	  XtUnmapWidget (w);
 	}
     }
-#endif
+#endif /* ENERGIZE */
 
-  /* remove the menubar that is there now, and put up the menubar that
-     should be there.
+  /* Make sure the menubar is managed if it exists.
    */
-  if (menubar_changed)
+  if (x->menubar_widget)
     {
       XtManageChild (x->menubar_widget);
       XtMapWidget (x->menubar_widget);
-      XtVaSetValues (x->menubar_widget, XtNmappedWhenManaged, 1, 0);
+      XtVaSetValues (x->menubar_widget, XtNmappedWhenManaged, True, 0);
     }
 
 #ifdef ENERGIZE
-  /* add debugger panel if desired */
+  /* Add debugger panel if desired.
+   */
   if (desired_debuggerpanel_exposed_p && debuggerpanel_sheet &&
-      (menubar_changed || debuggerpanel_changed))
+      (menubar_visibility_changed || debuggerpanel_changed))
     {
       Widget w;
-      w = lw_make_widget (debuggerpanel_sheet, x->column_widget, 0);
-      fix_pane_constraints (w);
+      w = lw_make_widget (debuggerpanel_sheet, x->psheet_manager, 0);
       XtManageChild (w);
       XtMapWidget (w);
       XtVaSetValues (w, XtNmappedWhenManaged, 1, 0);
     }
   
-  /* Add the psheets that should be there now
+  /* Add the psheets that should be there now.
    */
   i = new_count;
   while (i)
     {
       Widget w;
       unsigned long sheet = new_sheets[--i];
-      w = lw_make_widget (sheet, x->column_widget, 0);
-      fix_pane_constraints (w);
+      w = lw_make_widget (sheet, x->psheet_manager, 0);
       /* Put the mappedWhenManaged property back in or the Motif widgets
 	 refuse to take the focus! */
       XtVaSetValues (w, XtNmappedWhenManaged, 1, 0);
       XtManageChild (w);
     }
 
-  /* Give back the focus to emacs if no p_sheets are displayed anymore */
-  if (psheets_changed)
-    Fselect_screen (screen);
-#endif
+  /* Manage the psheet-manager iff there are psheets displayed.
+     If we manage it with no kids, it consumes some space. */
+  {
+    int any_psheets = (new_count != 0 || desired_debuggerpanel_exposed_p);
+    if (!any_psheets && XtIsManaged (x->psheet_manager))
+      XtUnmanageChild (x->psheet_manager);
+    else if (any_psheets && !XtIsManaged (x->psheet_manager))
+      XtManageChild (x->psheet_manager);
+  }
+#endif /* ENERGIZE */
 
-  /* Re-manage the text-area widget */
-  XtManageChild (x->edit_widget);
+  /* Re-manage the text-area widget, and then thrash the sizes. */
+  XtManageChild (text_area);
+  XtMapWidget (text_area);
 
-  /* and now thrash the sizes */
-  XawPanedSetRefigureMode (x->column_widget, 1);
+#ifdef LWLIB_USES_MOTIF
+  XtManageChild (x->container);
+#else /* !LWLIB_USES_MOTIF */
+  XawPanedSetRefigureMode (x->container, True);
+#endif /* !LWLIB_USES_MOTIF */
+
+  /* The height of the top-level window may have changed, maybe.
+     Make sure that doesn't happen.
+   */
+  XtVaSetValues (x->widget, XtNheight, shell_height, 0);
+
   UNBLOCK_INPUT;
-}
 
-void
-update_psheets ()
-{
-  struct screen* s;
-  Lisp_Object tail;
-
-  for (tail = Vscreen_list; CONSP (tail); tail = XCONS (tail)->cdr)
-    {
-      Lisp_Object screen = XCONS (tail)->car;
-      struct window* w;
-      struct buffer* buf;
-      if (!SCREENP (screen))
-	continue;
-      s = XSCREEN (screen);
-      w = XWINDOW (s->selected_window);
-      buf = XBUFFER (w->buffer);
-
-      if (!SCREEN_IS_X (s)
-	  || MINI_WINDOW_P (w)
-	  || EQ (screen, Vglobal_minibuffer_screen))
-	continue;
-
-      update_one_screen_psheets (screen);
-    }
 #ifdef ENERGIZE
-  current_debuggerpanel_exposed_p = desired_debuggerpanel_exposed_p;
-#endif
+  /* Give back the focus to emacs if no psheets are displayed anymore */
+  if (psheets_changed)
+    {
+      Lisp_Object screen;
+      XSETR (screen, Lisp_Screen, s);
+      Fselect_screen (screen);
+    }
+#endif /* ENERGIZE */
 }
 
 
@@ -1298,7 +1435,7 @@ free_screen_menubar (struct screen *s)	/* called from Fdelete_screen() */
 #ifdef ENERGIZE
   {
     /* Also destroy this screen's psheets */
-    Widget parent = s->display.x->column_widget;
+    Widget parent = s->display.x->psheet_manager;
     int *sheets = s->display.x->current_psheets;
     int i = s->display.x->current_psheet_count;
     while (i--)
@@ -1459,4 +1596,8 @@ without a selecting having been made.");
     "If true, the menubar will display keyboard equivalents.\n\
 If false, only the command names will be displayed.");
   menubar_show_keybindings = 1;
+
+  DEFVAR_BOOL ("popup-menu-titles", &popup_menu_titles,
+	       "If true, popup menus will have title bars at the top.");
+  popup_menu_titles = 1;
 }

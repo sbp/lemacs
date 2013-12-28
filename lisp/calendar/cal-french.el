@@ -3,7 +3,8 @@
 ;; Copyright (C) 1988, 1989, 1992 Free Software Foundation, Inc.
 
 ;; Author: Edward M. Reingold <reingold@cs.uiuc.edu>
-;; Keywords: French Revolutionary calendar, calendar, diary
+;; Keywords: calendar
+;; Human-Keywords: French Revolutionary calendar, calendar, diary
 
 ;; This file is part of GNU Emacs.
 
@@ -30,8 +31,8 @@
 ;; Technical details of the French Revolutionary calendrical calculations can
 ;; be found in ``Calendrical Calculations, Part II: Three Historical
 ;; Calendars'' by E. M. Reingold,  N. Dershowitz, and S. M. Clamen,
-;; Report Number UIUCDCS-R-92-1743, Department of Computer Science,
-;; University of Illinois, April, 1992.
+;; Software--Practice and Experience, Volume 23, Number 4 (April, 1993),
+;; pages 383-404.
 
 ;; Comments, corrections, and improvements should be sent to
 ;;  Edward M. Reingold               Department of Computer Science
@@ -71,7 +72,7 @@ multiples of 4000."
            (not (zerop (% year 4000))))))
 
 (defun french-calendar-last-day-of-month (month year)
-  "Last day of MONTH, YEAR on the French Revolutionary calendar.
+  "Return last day of MONTH, YEAR on the French Revolutionary calendar.
 The 13th month is not really a month, but the 5 (6 in leap years) day period of
 `sansculottides' at the end of the year."
   (if (< month 13)
@@ -81,7 +82,7 @@ The 13th month is not really a month, but the 5 (6 in leap years) day period of
       5)))
 
 (defun calendar-absolute-from-french (date)
-  "Absolute date of French Revolutionary DATE.
+  "Compute absolute date from French Revolutionary date DATE.
 The absolute date is the number of days elapsed since the (imaginary)
 Gregorian date Sunday, December 31, 1 BC."
   (let ((month (extract-calendar-month date))
@@ -101,8 +102,9 @@ Gregorian date Sunday, December 31, 1 BC."
        654414)));; Days before start of calendar (September 22, 1792).
 
 (defun calendar-french-from-absolute (date)
-  "Compute the French Revolutionary date (month day year) corresponding to
-absolute DATE.  The absolute date is the number of days elapsed since the
+  "Compute the French Revolutionary equivalent for absolute date DATE.
+The result is a list of the form (MONTH DAY YEAR).
+The absolute date is the number of days elapsed since the
 (imaginary) Gregorian date Sunday, December 31, 1 BC."
   (if (< date 654415)
       (list 0 0 0);; pre-French Revolutionary date
@@ -126,8 +128,7 @@ absolute DATE.  The absolute date is the number of days elapsed since the
     (list month day year))))
 
 (defun calendar-print-french-date ()
-  "Show the French Revolutionary calendar equivalent of the date under the
-cursor."
+  "Show the French Revolutionary calendar equivalent of the selected date."
   (interactive)
   (let* ((french-date (calendar-french-from-absolute
                        (calendar-absolute-from-gregorian
@@ -149,7 +150,7 @@ cursor."
                  y)))))
 
 (defun calendar-goto-french-date (date &optional noecho)
-  "Move cursor to French Revolutionary DATE.
+  "Move cursor to French Revolutionary date DATE.
 Echo French Revolutionary date unless NOECHO is t."
   (interactive
    (let* ((year (calendar-read

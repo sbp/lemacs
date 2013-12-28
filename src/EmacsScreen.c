@@ -1,5 +1,5 @@
 /* The emacs screen widget.
-   Copyright (C) 1992, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1992, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -19,6 +19,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include <stdio.h>
 #include "config.h"
+#include "intl.h"
 #include "lisp.h"
 #include "xterm.h"
 #include "xobjs.h"
@@ -26,11 +27,23 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "screen.h"
 
 #include <X11/StringDefs.h>
-#include <X11/IntrinsicP.h>
+#include "xintrinsicp.h"
 #include <X11/cursorfont.h>
 #include "EmacsScreenP.h"
 #include <X11/Shell.h>
 #include <X11/ShellP.h>
+
+#ifndef LWLIB_USES_MOTIF /* Athena */
+#include <X11/Xaw/Paned.h>
+#endif /* Athena */
+
+#ifdef EXTERNAL_WIDGET
+#include "EmacsShell.h"
+#endif
+
+#ifdef DEBUG_WIDGET
+extern int debug_widget;
+#endif
 
 #define max(a, b) ((a) > (b) ? (a) : (b))
 
@@ -50,9 +63,15 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
    #### Perhaps we could have this code explicitly set XtDefaultFont to this?
  */
+#ifdef I18N4
+/* Use more "generic" font base so that an appropriate font set can be constructed
+   from this base according to the locale. */
+#define DEFAULT_FONT_SET "-*-*-medium-r-*-*-*-120-*-*-*-*-*-*"
+#else
 #define DEFAULT_FACE_FONT "-*-courier-medium-r-*-*-*-120-*-*-*-*-iso8859-*"
+#endif
 
-void emacs_Xt_focus_event_handler ();
+void emacs_Xt_focus_event_handler (XEvent *x_event, struct screen *s);
 
 static void EmacsScreenInitialize (Widget, Widget, ArgList, Cardinal *);
 static void EmacsScreenDestroy (Widget);
@@ -83,6 +102,8 @@ static XtResource resources[] = {
 
   {XtNemacsScreen, XtCEmacsScreen, XtRPointer, sizeof (XtPointer),
      offset (screen), XtRImmediate, 0},
+  {XtNmenubar, XtCMenubar, XtRBoolean, sizeof (Boolean),
+     offset (menubar_p), XtRImmediate, (XtPointer)1},
 
   {XtNminibuffer, XtCMinibuffer, XtRInt, sizeof (int),
      offset (minibuffer), XtRImmediate, (XtPointer)0},
@@ -92,8 +113,13 @@ static XtResource resources[] = {
      offset (internal_border_width), XtRImmediate, (XtPointer)4},
   {XtNinterline, XtCInterline, XtRInt, sizeof (int),
      offset (interline), XtRImmediate, (XtPointer)0},
+#ifdef I18N4
+  {XtNfontSet,  XtCFontSet, XtRFontSet, sizeof(XFontSet),
+     offset(font), XtRString, DEFAULT_FONT_SET},
+#else
   {XtNfont,  XtCFont, XtRFontStruct, sizeof(XFontStruct *),
-     offset(font),XtRString, DEFAULT_FACE_FONT},
+     offset(font), XtRString, DEFAULT_FACE_FONT},
+#endif
   {XtNforeground, XtCForeground, XtRPixel, sizeof(Pixel),
      offset(foreground_pixel), XtRString, "XtDefaultForeground"},
   {XtNcursorColor, XtCForeground, XtRPixel, sizeof(Pixel),
@@ -165,12 +191,28 @@ static void
 get_default_char_pixel_size (EmacsScreen ew, int* pixel_width,
 			     int* pixel_height)
 {
+#ifdef I18N4
+  *pixel_width = XmbTextEscapement (ew->emacs_screen.font, "n", 1);
+#else
   *pixel_width = XTextWidth (ew->emacs_screen.font, "n", 1);
+#endif
+
+#if 0
+  /* #### x->text_height does not have the right value at this point.
+     What was the point of using this value?  It doesn't really save
+     anything.  Was it intended to differ from ascent+descent?
+   */
   if (ew->emacs_screen.screen->display.x->text_height)
     *pixel_height = ew->emacs_screen.screen->display.x->text_height;
   else
+#endif
+
     *pixel_height =
+#ifdef I18N4
+      XExtentsOfFontSet (ew->emacs_screen.font)->max_logical_extent.height;
+#else
       ew->emacs_screen.font->ascent + ew->emacs_screen.font->descent;
+#endif
 }
 
 static void
@@ -184,8 +226,8 @@ pixel_to_char_size (EmacsScreen ew,
 
   get_default_char_pixel_size (ew, &cpw, &cph);
   egw = max (cpw,
-	     max (XPIXMAP (glyph_to_pixmap (continuer_glyph))->width,
-		  XPIXMAP (glyph_to_pixmap (truncator_glyph))->width));
+	     (int) max (XPIXMAP (glyph_to_pixmap (continuer_glyph))->width,
+			XPIXMAP (glyph_to_pixmap (truncator_glyph))->width));
 
   *char_width = 1 +
     (int)((pixel_width - egw) - 2 * ew->emacs_screen.internal_border_width) /
@@ -205,8 +247,8 @@ char_to_pixel_size (EmacsScreen ew, int char_width, int char_height,
   *pixel_width =
     (char_width - 1) * cpw + 2 * ew->emacs_screen.internal_border_width +
       max (cpw,
-	   max (XPIXMAP (glyph_to_pixmap (continuer_glyph))->width,
-		XPIXMAP (glyph_to_pixmap (truncator_glyph))->width));
+	   (int) max (XPIXMAP (glyph_to_pixmap (continuer_glyph))->width,
+		      XPIXMAP (glyph_to_pixmap (truncator_glyph))->width));
   *pixel_height =
     char_height * cph + 2 * ew->emacs_screen.internal_border_width;
 }
@@ -228,8 +270,17 @@ get_wm_shell (Widget w)
   Widget wmshell;
 
   for (wmshell = XtParent (w);
-       wmshell && !XtIsWMShell (wmshell);
-       wmshell = XtParent (wmshell));
+       (wmshell
+	&& !XtIsWMShell (wmshell)
+#ifdef EXTERNAL_WIDGET
+	/* The Emacs shell is not normally recognized as a WM shell but
+	   for purposes it should be.
+	 */
+	&& !is_emacs_shell (wmshell)
+#endif
+	);
+       wmshell = XtParent (wmshell))
+    ;
 
   return wmshell;
 }
@@ -243,6 +294,50 @@ mark_shell_size_user_specified (Widget wmshell)
   ((WMShellWidget) wmshell)->wm.size_hints.flags |= USSize;
 }
 
+static void
+set_wm_shell_iconic_p (Widget shell, int iconic_p)
+{
+  /* This is all that SHOULD be necessary to do what we want: */
+  XtVaSetValues (shell, XtNiconic, iconic_p, 0);
+
+  /* Except that the above SetValues call doesn't actually DO anything
+     (the TopLevelShell only looks at `iconic' when it is being
+     *initialized* instead of when it is being *managed*, dammit) so
+     we have to smash the contents of the wmshell by hand.  Xt sucks. */
+  {
+    WMShellWidget wmshell;
+    int old, new;
+    if (! XtIsSubclass (shell, wmShellWidgetClass)) abort ();
+    wmshell = (WMShellWidget) shell;
+    old = (wmshell->wm.wm_hints.flags & StateHint
+	   ? wmshell->wm.wm_hints.initial_state
+	   : NormalState);
+    new = (iconic_p ? IconicState : NormalState);
+    wmshell->wm.wm_hints.flags |= StateHint;
+    wmshell->wm.wm_hints.initial_state = new;
+
+    /* If the window has already been created, update the properties too... */
+    if (old != new && XtWindow (shell))
+      XSetWMHints (XtDisplay (shell), XtWindow (shell),
+		   &wmshell->wm.wm_hints);
+  }
+}
+
+
+#ifdef EXTERNAL_WIDGET
+/* find the EmacsShell parent, or return NULL if none. */
+Widget
+get_emacs_shell (Widget w)
+{
+  Widget emshell;
+
+  for (emshell = XtParent (w);
+       emshell && !is_emacs_shell (emshell);
+       emshell = XtParent (emshell));
+
+  return emshell;
+}
+#endif /* EXTERNAL_WIDGET */
 
 /* Can't have static frame locals because of some broken compilers.
    Normally, initializing a variable like this doesn't work in emacs,
@@ -257,8 +352,8 @@ set_screen_size (EmacsScreen ew)
 {
   /* The widget hierarchy is
 
-	argv[0]			emacsShell	pane	SCREEN-NAME
-	ApplicationShell	EmacsShell	Paned	EmacsScreen
+	argv[0]			shell		pane		SCREEN-NAME
+	ApplicationShell	TopLevelShell	XmMainWindow	EmacsScreen
 
      We accept geometry specs in this order:
 
@@ -269,10 +364,10 @@ set_screen_size (EmacsScreen ew)
      Other possibilities for widget hierarchies might be
 
 	argv[0]			screen		pane	SCREEN-NAME
-	ApplicationShell	EmacsShell	Paned	EmacsScreen
+	ApplicationShell	TopLevelShell	Paned	EmacsScreen
      or
 	argv[0]			SCREEN-NAME	pane	SCREEN-NAME
-	ApplicationShell	EmacsShell	Paned	EmacsScreen
+	ApplicationShell	TopLevelShell	Paned	EmacsScreen
      or
 	argv[0]			SCREEN-NAME	pane	emacsTextPane
 	ApplicationShell	EmacsScreen	Paned	EmacsTextPane
@@ -282,11 +377,13 @@ set_screen_size (EmacsScreen ew)
      (the menubar and the parent of the menubar and all that sort of thing
      are managed by lwlib.)
 
+#ifdef EXTERNAL_WIDGET
      The EmacsShell widget is simply a replacement for the Shell widget 
      which is able to deal with using an externally-supplied window instead
      of always creating its own.  It is not actually emacs specific, and
      should possibly have class "Shell" instead of "EmacsShell" to simplify
      the resources.
+#endif
 
    */
 
@@ -427,7 +524,7 @@ set_screen_size (EmacsScreen ew)
     char shell_position [32];
 
 
-    change_screen_size (screen, w, h, 0);
+    change_screen_size (screen, h, w, 0);
     char_to_pixel_size (ew, w, h, &pixel_width, &pixel_height);
     ew->core.width = pixel_width;
     ew->core.height = pixel_height;
@@ -467,7 +564,7 @@ set_screen_size (EmacsScreen ew)
 
     /* Also assign the iconic status of the screen to the Shell, so that
        the WM sees it. */
-    XtVaSetValues (wmshell, XtNiconic, ew->emacs_screen.iconic, 0);
+    set_wm_shell_iconic_p (wmshell, ew->emacs_screen.iconic);
   }
 }
 
@@ -484,6 +581,12 @@ update_wm_hints (EmacsScreen ew)
   int char_height;
   int base_width;
   int base_height;
+
+#ifdef EXTERNAL_WIDGET
+  /* don't do anything if we're a child of an EmacsShell */
+  if (!XtIsWMShell(wmshell))
+    return;
+#endif
 
   pixel_to_char_size (ew, ew->core.width, ew->core.height,
 		      &char_width, &char_height);
@@ -512,95 +615,6 @@ update_wm_hints (EmacsScreen ew)
 }
 
 static void
-create_screen_gcs (EmacsScreen ew)
-{
-  struct screen* s = ew->emacs_screen.screen;
-
-  s->display.x->normal_gc =
-    XCreateGC (XtDisplay (ew), RootWindowOfScreen (XtScreen (ew)), 0, 0);
-  s->display.x->reverse_gc =
-    XCreateGC (XtDisplay (ew), RootWindowOfScreen (XtScreen (ew)), 0, 0);
-  s->display.x->cursor_gc =
-    XCreateGC (XtDisplay (ew), RootWindowOfScreen (XtScreen (ew)), 0, 0);
-}
-
-static void
-setup_screen_gcs (EmacsScreen ew)
-{
-  XGCValues gc_values;
-  struct screen* s = ew->emacs_screen.screen;
-  Pixmap blank_stipple, blank_tile;
-
-  static char cursor_bits[] =
-    {
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-    };
-
-  /* We have to initialize all of our GCs to have a stipple/tile, otherwise
-     XGetGCValues returns uninitialized data when we query the stipple
-     (instead of None or something sensible) and it makes things hard.
-
-     This should be fixed for real by not querying the GCs but instead having
-     some GC-based cache instead of the current face-based cache which doesn't
-     effectively cache all of the GC settings we need to use.
-   */
-
-  blank_stipple = 
-    XCreateBitmapFromData (XtDisplay (ew), RootWindowOfScreen (XtScreen (ew)),
-			   cursor_bits, 2, 2);
-
-  /* use fg = 0, bg = 1 below, but it's irrelevant since this pixmap should
-     never actually get used as a background tile!
-   */
-  blank_tile =
-    XCreatePixmapFromBitmapData (XtDisplay(ew),
-				 RootWindowOfScreen (XtScreen (ew)),
-				 cursor_bits, 2, 2, 0, 1, ew->core.depth);
-
-  /* Normal video */
-  gc_values.font = ew->emacs_screen.font->fid;
-  gc_values.foreground = ew->emacs_screen.foreground_pixel;
-  gc_values.background = ew->core.background_pixel;
-  gc_values.graphics_exposures = False;
-  gc_values.stipple = blank_stipple;
-  gc_values.tile = blank_tile;
-  XChangeGC (XtDisplay (ew), s->display.x->normal_gc,
-	     (GCFont | GCForeground | GCBackground | GCGraphicsExposures
-	      | GCStipple | GCTile),
-	     &gc_values);
-
-  /* Reverse video style. */
-  gc_values.font = ew->emacs_screen.font->fid;
-  gc_values.foreground = ew->core.background_pixel;
-  gc_values.background = ew->emacs_screen.foreground_pixel;
-  gc_values.graphics_exposures = False;
-  gc_values.stipple = blank_stipple;
-  gc_values.tile = blank_tile;
-  XChangeGC (XtDisplay (ew), s->display.x->reverse_gc,
-	     (GCFont | GCForeground | GCBackground | GCGraphicsExposures
-	      | GCStipple | GCTile),
-	     &gc_values);
-
-  /* Cursor has to have an empty stipple. */
-  gc_values.font = ew->emacs_screen.font->fid;
-  gc_values.foreground = ew->core.background_pixel;
-  gc_values.background = ew->emacs_screen.cursor_color;
-  gc_values.graphics_exposures = False;
-  gc_values.tile = blank_tile;
-  gc_values.stipple =
-    XCreateBitmapFromData (XtDisplay (ew),
-			   RootWindowOfScreen (XtScreen (ew)),
-			   cursor_bits, 16, 16);
-  XChangeGC (XtDisplay (ew), s->display.x->cursor_gc,
-	     (GCFont | GCForeground | GCBackground | GCGraphicsExposures
-	      | GCStipple | GCTile),
-	     &gc_values);
-}
-
-static void
 update_various_screen_slots (EmacsScreen ew)
 {
   struct x_display* x = ew->emacs_screen.screen->display.x;
@@ -616,11 +630,7 @@ EmacsScreenInitialize (Widget request, Widget new,
   EmacsScreen ew = (EmacsScreen)new;
 
   if (!ew->emacs_screen.screen)
-    {
-      fprintf (stderr,
-	       "can't create an emacs screen widget without a screen\n");
-      exit (1);
-    }
+    fatal ("can't create an emacs screen widget without a screen\n");
 
   /* If the "Emacs.EmacsScreen.{default,Face}.{attributeFont,AttributeFont}"
      resource is set, then it always overrides "Emacs.EmacsScreen.{font,Font}".
@@ -633,12 +643,21 @@ EmacsScreenInitialize (Widget request, Widget new,
      and the default face's font to be different.
    */
   {
+#ifdef I18N4
+    XFontSet f = 0;
+#else
     XFontStruct *f = 0;
+#endif
     XtResource face_res;
     face_res.resource_name = "attributeFont";
     face_res.resource_class = "AttributeFont";
+#ifdef I18N4
+    face_res.resource_type = XtRFontSet;
+    face_res.resource_size = sizeof (XFontSet);
+#else
     face_res.resource_type = XtRFontStruct;
     face_res.resource_size = sizeof (XFontStruct *);
+#endif
     face_res.resource_offset = 0;
     face_res.default_type = XtRImmediate;
     face_res.default_addr = 0;
@@ -648,15 +667,10 @@ EmacsScreenInitialize (Widget request, Widget new,
     if (f)
       ew->emacs_screen.font = f;
     else if (! ew->emacs_screen.font)
-      {
-	fprintf (stderr, "emacs screen widget could not load a font\n");
-	exit (1);
-      }
+      fatal ("screen widget could not load a font\n");
   }
 
   set_screen_size (ew);
-  create_screen_gcs (ew);
-  setup_screen_gcs (ew);
   update_various_screen_slots (ew);
 }
 
@@ -666,17 +680,54 @@ EmacsScreenRealize (Widget widget, XtValueMask *mask,
 		    XSetWindowAttributes *attrs)
 {
   EmacsScreen ew = (EmacsScreen)widget;
+#ifdef EXTERNAL_WIDGET
+  Widget emshell = get_emacs_shell (widget);
+#endif
+  long other_event_mask;
 
-  attrs->event_mask = (KeyPressMask | ExposureMask | ButtonPressMask |
-		       ButtonReleaseMask | StructureNotifyMask |
-		       FocusChangeMask | PointerMotionHintMask |
-		       PointerMotionMask | LeaveWindowMask | EnterWindowMask |
+  attrs->event_mask = (ExposureMask | StructureNotifyMask |
 		       VisibilityChangeMask | PropertyChangeMask |
 		       StructureNotifyMask | SubstructureNotifyMask |
 		       SubstructureRedirectMask);
+
+  other_event_mask = KeyPressMask | ButtonPressMask | ButtonReleaseMask |
+		     FocusChangeMask | PointerMotionHintMask |
+		     PointerMotionMask | LeaveWindowMask | EnterWindowMask;
+
+#ifdef I18N4
+  /* Make sure that events wanted by the input method are selected. */
+  other_event_mask |= input_method_event_mask;
+#endif
+
+#if 1
+  attrs->event_mask |= other_event_mask;
+#endif
+
+#ifdef EXTERNAL_WIDGET
+  if (!emshell)
+    {
+# ifdef DEBUG_WIDGET
+      if (debug_widget)
+	printf ("no emacs shell.\n");
+# endif
+      attrs->event_mask |= other_event_mask;
+    }
+# ifdef DEBUG_WIDGET
+  else
+    if (debug_widget)
+      printf ("yes emacs shell.\n");
+# endif
+#endif /* EXTERNAL_WIDGET */
+
   *mask |= CWEventMask;
   XtCreateWindow (widget, InputOutput, (Visual *)CopyFromParent, *mask,
 		  attrs);
+
+#ifdef EXTERNAL_WIDGET
+  if (emshell)
+    EmacsShellReady (emshell, XtWindow (widget), KeyPressMask);
+#endif
+
   update_wm_hints (ew);
 }
 
@@ -690,17 +741,11 @@ EmacsScreenDestroy (Widget widget)
 
   if (! s) abort ();
   if (! s->display.x) abort ();
-  if (! s->display.x->normal_gc) abort ();
 
   /* this would be called from Fdelete_screen() but it needs to free some
      stuff after the widget has been finalized but before the widget has
      been freed. */
   free_screen_faces (s);
-
-  /* need to be careful that the face-freeing code doesn't free these too */
-  XFreeGC (XtDisplay (widget), s->display.x->normal_gc);
-  XFreeGC (XtDisplay (widget), s->display.x->reverse_gc);
-  XFreeGC (XtDisplay (widget), s->display.x->cursor_gc);
 }
 
 void
@@ -726,20 +771,27 @@ EmacsScreenSetValues (Widget cur_widget, Widget req_widget, Widget new_widget,
 
   Boolean needs_a_refresh = False;
   Boolean has_to_recompute_size;
-  Boolean has_to_recompute_gcs;
+  Boolean has_to_recompute_gcs = 0;
   Boolean has_to_update_hints;
 
   int char_width, char_height;
   Dimension pixel_width;
   Dimension pixel_height;
   
+#ifdef I18N4
+  has_to_recompute_gcs = ((cur->emacs_screen.foreground_pixel
+			      != new->emacs_screen.foreground_pixel)
+			  || (cur->core.background_pixel
+			      != new->core.background_pixel)
+			  );
+#else
   has_to_recompute_gcs = (cur->emacs_screen.font != new->emacs_screen.font
 			  || (cur->emacs_screen.foreground_pixel
 			      != new->emacs_screen.foreground_pixel)
 			  || (cur->core.background_pixel
 			      != new->core.background_pixel)
 			  );
-  
+#endif
   has_to_recompute_size = (cur->emacs_screen.font != new->emacs_screen.font
 			   && cur->core.width == new->core.width
 			   && cur->core.height == new->core.height);
@@ -748,15 +800,31 @@ EmacsScreenSetValues (Widget cur_widget, Widget req_widget, Widget new_widget,
 
   if (has_to_recompute_gcs)
     {
-      setup_screen_gcs (new);
       needs_a_refresh = True;
     }
-			  
+
   if (has_to_recompute_size)
     {
-      pixel_width = new->core.width;
-      pixel_height = new->core.height;
-      pixel_to_char_size (new, pixel_width, pixel_height, &char_width,
+#if 0
+      /* I think none of this junk is necessary.
+	 When the font of the screen changes, it happens via the call to
+	 XtSetValues() in update_EmacsScreen() in faces.c.  Which then does
+	 Fset_screen_size() to make sure that the pixel size of the screen
+	 is still sensible.  This code was apparently trying to do that
+	 itself, in a kind of strange way.  (Fset_screen_size() will
+	 eventually call EmacsScreenSetCharSize() in this file.)
+
+	 It's probably appropriate that changing the font of the screen
+	 via the higher level face mechanism may cause a resize, but simply
+	 setting XtNfont doesn't.				-jwz
+       */
+
+
+      /* note that cur and new have the same w/h here because of how
+	 has_to_recompute_size was computed. */
+      pixel_width = cur->core.width;
+      pixel_height = cur->core.height;
+      pixel_to_char_size (cur, pixel_width, pixel_height, &char_width,
 			  &char_height);
       char_to_pixel_size (new, char_width, char_height, &pixel_width,
 			  &pixel_height);
@@ -765,6 +833,7 @@ EmacsScreenSetValues (Widget cur_widget, Widget req_widget, Widget new_widget,
 
       change_screen_size (new->emacs_screen.screen, char_height, char_width,
 			  0);
+#endif
       needs_a_refresh = True;
     }
 
@@ -773,18 +842,9 @@ EmacsScreenSetValues (Widget cur_widget, Widget req_widget, Widget new_widget,
 
   update_various_screen_slots (new);
 
-  /* #### This doesn't work, I haven't been able to find ANY kludge that
-     will let (x-create-screen '((iconic . t))) work.  It seems that changes
-     to wm_shell's iconic slot have no effect after it has been realized,
-     and calling XIconifyWindow doesn't work either (even thought the window
-     has been created.)  Perhaps there is some property we could smash
-     directly, but I'm sick of this for now.  Xt is a steaming pile of shit!
-   */
   if (cur->emacs_screen.iconic != new->emacs_screen.iconic)
-    {
-      Widget wmshell = get_wm_shell ((Widget) cur);
-      XtVaSetValues (wmshell, XtNiconic, new->emacs_screen.iconic, 0);
-    }
+    set_wm_shell_iconic_p (get_wm_shell ((Widget) cur),
+			   new->emacs_screen.iconic);
 
   return needs_a_refresh;
 }
@@ -832,6 +892,19 @@ static void
 emacs_screen_focus_handler (Widget w, XEvent *event, String *params,
 			    Cardinal *n_params)
 {
+  struct screen *s = x_any_window_to_screen (event->xfocus.window);
+
+  if (!s) return;	/* Does this happen?  What does it mean? */
+
+#ifdef EXTERNAL_WIDGET
+  /* External widget lossage: Ben or Chuck said:
+     YUCK.  The only way to make focus changes work properly is to
+     completely ignore all FocusIn/FocusOut events and depend only
+     on notifications from the EmacsClient widget. */
+  if (s->display.x->emacs_shell_p)
+    return;
+#endif
+
   emacs_Xt_focus_event_handler (event, 0);
 }
 
@@ -840,22 +913,65 @@ void
 EmacsScreenSetCharSize (Widget widget, int columns, int rows)
 {
   EmacsScreen ew = (EmacsScreen) widget;
-  Dimension pixel_width, pixel_height, granted_width, granted_height;
-  XtGeometryResult result;
+  Dimension pixel_width, pixel_height;
   if (columns < 3) columns = 3;  /* no way buddy */
   if (rows < 3) rows = 3;
 
   char_to_pixel_size (ew, columns, rows, &pixel_width, &pixel_height);
-  result = XtMakeResizeRequest ((Widget)ew,
-				pixel_width, pixel_height,
-				&granted_width, &granted_height);
-  if (result == XtGeometryAlmost)
-    XtMakeResizeRequest ((Widget) ew, granted_width, granted_height,
-			 NULL, NULL);
-  /* damn Paned widget won't ever change its width.  Force it. */
-  if (ew->core.width != pixel_width)
-    {
-      XtVaSetValues (XtParent ((Widget) ew), XtNwidth, pixel_width, 0);
-      XtVaSetValues ((Widget) ew, XtNwidth, pixel_width, 0);
-    }
+
+#ifdef LWLIB_USES_MOTIF
+  /* For Motif, it's easy: */
+  XtVaSetValues ((Widget) ew,
+		 XtNwidth, pixel_width,
+		 XtNheight, pixel_height,
+		 0);
+
+#else /* Athena */
+  {
+    /* For Athena, we must sacrifice a goat to the vengeful, angry gods
+       of geometry management: */
+    struct screen *s = ew->emacs_screen.screen;
+    int old_container_width   = s->display.x->container->core.width;
+    int old_container_height  = s->display.x->container->core.height;
+    int old_container2_width  = s->display.x->container2->core.width;
+    int old_container2_height = s->display.x->container2->core.height;
+    int wdelta = pixel_width  - ew->core.width;
+    int hdelta = pixel_height - ew->core.height;
+
+    if (wdelta != 0 || hdelta != 0)
+      {
+	XawPanedSetRefigureMode (s->display.x->container, False);
+	XawPanedSetRefigureMode (s->display.x->container2, False);
+
+	XtVaSetValues ((Widget) ew,
+		       XtNwidth,  pixel_width,
+		       XtNheight, pixel_height,
+		       0);
+
+	XtVaSetValues (s->display.x->container2,
+		       XtNwidth,  old_container2_width + wdelta,
+		       XtNheight, old_container2_height + hdelta,
+		       0);
+	XtVaSetValues (s->display.x->container,
+		       XtNwidth,  old_container_width + wdelta,
+		       XtNheight, old_container_height + hdelta,
+		       0);
+
+	XawPanedSetRefigureMode (s->display.x->container2, True);
+	XawPanedSetRefigureMode (s->display.x->container, True);
+      }
+  }
+#endif /* Athena */
+
+  /* We have just called XtVaSetValues() on the EmacsScreen.
+     It's size had better be what we set it to.
+     (Unless it has not yet been mapped, in which case its
+     size does not change but that's ok.)
+   */
+/* ####
+  if (XtIsManaged (get_wm_shell ((Widget) ew)) &&
+      (ew->core.width != pixel_width ||
+       ew->core.height != pixel_height))
+    abort ();
+ */
 }

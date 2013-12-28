@@ -25,18 +25,17 @@
 
 ;;; Code:
 
-;; in loaddefs
-;(defvar case-replace t "\
-;*Non-nil means query-replace should preserve case in replacements.")
+(defvar case-replace t
+  "*Non-nil means query-replace should preserve case in replacements.")
 
 (defvar query-replace-history nil)
 
 (defun query-replace-read-args (string)
   (let (from to)
-    (setq from (read-from-minibuffer (format "%s: " string)
+    (setq from (read-from-minibuffer (format (gettext "%s: ") string)
 				     nil nil nil
 				     'query-replace-history))
-    (setq to (read-from-minibuffer (format "%s %s with: " string from)
+    (setq to (read-from-minibuffer (format (gettext "%s %s with: ") string from)
 				   nil nil nil
 				   'query-replace-history))
     (list from to current-prefix-arg)))
@@ -52,9 +51,9 @@ Third arg DELIMITED (prefix arg if interactive) non-nil means replace
 only matches surrounded by word boundaries.
 
 To customize possible responses, change the \"bindings\" in `query-replace-map'."
-  (interactive (query-replace-read-args "Query replace"))
+  (interactive (query-replace-read-args (gettext "Query replace")))
   (perform-replace from-string to-string t nil arg)
-  (or unread-command-event (message "Done")))
+  (or unread-command-event (message (gettext "Done"))))
 
 (defun query-replace-regexp (regexp to-string &optional arg)
   "Replace some things after point matching REGEXP with TO-STRING.
@@ -67,9 +66,9 @@ Third arg DELIMITED (prefix arg if interactive) non-nil means replace
 only matches surrounded by word boundaries.
 In TO-STRING, \\& means insert what matched REGEXP,
 and \\=\\<n> means insert what matched <n>th \\(...\\) in REGEXP."
-  (interactive (query-replace-read-args "Query replace regexp"))
+  (interactive (query-replace-read-args (gettext "Query replace regexp")))
   (perform-replace regexp to-string t t arg)
-  (or unread-command-event (message "Done")))
+  (or unread-command-event (message (gettext "Done"))))
 
 ;;>>> Not patently useful
 (defun map-query-replace-regexp (regexp to-strings &optional arg)
@@ -85,11 +84,11 @@ A prefix argument N says to use each replacement string N times
 before rotating to the next."
   (interactive
    (let (from to)
-     (setq from (read-from-minibuffer "Map query replace (regexp): "
+     (setq from (read-from-minibuffer (gettext "Map query replace (regexp): ")
 				      nil nil nil
 				      'query-replace-history))
      (setq to (read-from-minibuffer
-	       (format "Query replace %s with (space-separated strings): "
+	       (format (gettext "Query replace %s with (space-separated strings): ")
 		       from)
 	       nil nil nil
 	       'query-replace-history))
@@ -108,7 +107,7 @@ before rotating to the next."
 	  (setq replacements (append replacements (list to-strings))
 		to-strings ""))))
    (perform-replace regexp replacements t t nil arg))
-  (or unread-command-event (message "Done")))
+  (or unread-command-event (message (gettext "Done"))))
 
 (defun replace-string (from-string to-string &optional delimited)
   "Replace occurrences of FROM-STRING with TO-STRING.
@@ -122,9 +121,9 @@ What you probably want is a loop like this:
   (while (search-forward OLD-STRING nil t)
     (replace-match REPLACEMENT nil t))
 which will run faster and will not set the mark or print anything."
-  (interactive (query-replace-read-args "Replace string"))
+  (interactive (query-replace-read-args (gettext "Replace string")))
   (perform-replace from-string to-string nil nil delimited)
-  (or unread-command-event (message "Done")))
+  (or unread-command-event (message (gettext "Done"))))
 
 (defun replace-regexp (regexp to-string &optional delimited)
   "Replace things after point matching REGEXP with TO-STRING.
@@ -140,9 +139,9 @@ What you probably want is a loop like this:
   (while (re-search-forward REGEXP nil t)
     (replace-match REPLACEMENT nil nil))
 which will run faster and will not set the mark or print anything."
-  (interactive (query-replace-read-args "Replace regexp"))
+  (interactive (query-replace-read-args (gettext "Replace regexp")))
   (perform-replace regexp to-string nil t delimited)
-  (or unread-command-event (message "Done")))
+  (or unread-command-event (message (gettext "Done"))))
 
 
 (defvar regexp-history nil
@@ -154,7 +153,7 @@ which will run faster and will not set the mark or print anything."
 A match split across lines preserves all the lines it lies in.
 Applies to all lines after point."
   (interactive (list (read-from-minibuffer
-		      "Keep lines (containing match for regexp): "
+		      (gettext "Keep lines (containing match for regexp): ")
 		      nil nil nil 'regexp-history)))
   (save-excursion
     (or (bolp) (forward-line 1))
@@ -181,7 +180,7 @@ Applies to all lines after point."
 If a match is split across lines, all the lines it lies in are deleted.
 Applies to lines after point."
   (interactive (list (read-from-minibuffer
-		      "Flush lines (containing match for regexp): "
+		      (gettext "Flush lines (containing match for regexp): ")
 		      nil nil nil 'regexp-history)))
   (save-excursion
     (while (and (not (eobp))
@@ -195,7 +194,7 @@ Applies to lines after point."
 (defun count-matches (regexp)
   "Print number of matches for REGEXP following point."
   (interactive (list (read-from-minibuffer
-		      "How many matches for (regexp): "
+		      (gettext "How many matches for (regexp): ")
 		      nil nil nil 'regexp-history)))
   (let ((count 0) opoint)
     (save-excursion
@@ -205,7 +204,7 @@ Applies to lines after point."
        (if (= opoint (point))
 	   (forward-char 1)
 	 (setq count (1+ count))))
-     (message "%d occurrences" count))))
+     (message (gettext "%d occurrences") count))))
 
 
 (defvar occur-mode-map ())
@@ -229,12 +228,13 @@ in the buffer that the occurrences were found in.
   (kill-all-local-variables)
   (use-local-map occur-mode-map)
   (setq major-mode 'occur-mode)
-  (setq mode-name "Occur")
+  (setq mode-name (gettext "Occur"))
   (make-local-variable 'occur-buffer)
   (make-local-variable 'occur-nlines)
   (make-local-variable 'occur-pos-list)
   (require 'mode-motion)
-  (setq mode-motion-hook 'mode-motion-highlight-line))
+  (setq mode-motion-hook 'mode-motion-highlight-line)
+  (run-hooks 'occur-mode-hook))
 
 (defun occur-mouse-goto (e)
   (interactive "e")
@@ -249,7 +249,7 @@ in the buffer that the occurrences were found in.
       (progn
 	(setq occur-buffer nil
 	      occur-pos-list nil)
-	(error "Buffer in which occurrences were found is deleted")))
+	(error (gettext "Buffer in which occurrences were found is deleted"))))
   (let* ((occur-number (save-excursion
 			 (beginning-of-line)
 			 (/ (1- (count-lines (point-min)
@@ -263,7 +263,7 @@ in the buffer that the occurrences were found in.
 				  (t 1)))))
 	 (pos (nth occur-number occur-pos-list)))
     (or pos
-	(error "No occurrence on this line"))
+	(error (gettext "No occurrence on this line")))
     (pop-to-buffer occur-buffer)
     (goto-char (marker-position pos))))
 
@@ -299,8 +299,8 @@ It serves as a menu to find any of the occurrences in this buffer.
 			    (input 
 			     (read-from-minibuffer
 			      (if default
-				  (format "List lines matching regexp (default `%s'): " default)
-                                  "List lines matching regexp: ")
+				  (format (gettext "List lines matching regexp (default `%s'): ") default)
+                                  (gettext "List lines matching regexp: "))
 			      nil nil nil
 			      'regexp-history)))
 		       (if (> (length input) 0) 
@@ -319,12 +319,11 @@ It serves as a menu to find any of the occurrences in this buffer.
 	  (beginning-of-line)
 	  (setq linenum (1+ (count-lines (point-min) (point))))
 	  (setq prevpos (point))))
-    (with-output-to-temp-buffer "*Occur*"
+    (with-output-to-temp-buffer (gettext "*Occur*")
       (save-excursion
 	(set-buffer standard-output)
-	(insert "Lines matching ")
-	(prin1 regexp)
-	(insert " in buffer " (buffer-name buffer) ?. ?\n)
+	(insert (format (gettext "Lines matching %s in buffer %s.\n")
+			regexp (buffer-name buffer)))
 	(occur-mode)
 	(setq occur-buffer buffer)
 	(setq occur-nlines nlines)
@@ -390,7 +389,7 @@ It serves as a menu to find any of the occurrences in this buffer.
 	;; Put positions in increasing order to go with buffer.
 	(setq occur-pos-list (nreverse occur-pos-list))
 	(if (interactive-p)
-	    (message "%d matching lines." (length occur-pos-list)))))))
+	    (message (gettext "%d matching lines.") (length occur-pos-list)))))))
 
 ;; It would be nice to use \\[...], but there is no reasonable way
 ;; to make that display both SPC and Y.
@@ -515,7 +514,9 @@ which will run faster and do exactly what you probably want."
       ;; Before we make the replacement, decide whether the search string
       ;; can match again just after this match.
       (if regexp-flag
-	  (setq match-again (looking-at search-string)))
+	  (progn 
+            (setq match-again (looking-at search-string))
+            (store-match-data real-match-data)))
 
       ;; If time for a change, advance to next replacement string.
       (if (and (listp replacements)
@@ -531,9 +532,10 @@ which will run faster and do exactly what you probably want."
 	    (replace-match next-replacement nocasify literal)
 	    (setq replace-count (1+ replace-count)))
 	(undo-boundary)
-	(let ((help-form '(concat "Query replacing "
-			    (if regexp-flag "regexp " "")
-			    from-string " with " next-replacement ".\n\n"
+	(let ((help-form
+	       '(concat (format (gettext "Query replacing %s%s with %s.\n\n")
+				(if regexp-flag (gettext "regexp ") "")
+				from-string next-replacement)
                            (substitute-command-keys query-replace-help)))
               (done nil)
               (replaced nil)
@@ -541,19 +543,18 @@ which will run faster and do exactly what you probably want."
           ;; Loop reading commands until one of them sets done,
 	  ;; which means it has finished handling this occurrence.
 	  (while (not done)
-            (message "Query replacing %s with %s: "
+            (message (gettext "Query replacing %s with %s: ")
                      from-string next-replacement)
             (perform-replace-next-event event)
             (setq def (lookup-key map (vector event)))
 	    ;; Restore the match data while we process the command.
             (store-match-data real-match-data)
 	    (cond ((eq def 'help)
-		   (with-output-to-temp-buffer "*Help*"
-		     (princ
-		      (concat "Query replacing "
-			      (if regexp-flag "regexp " "")
-			      from-string " with "
-			      next-replacement ".\n\n"
+		   (with-output-to-temp-buffer (gettext "*Help*")
+		     (princ (concat
+			     (format "Query replacing %s%s with %s.\n\n"
+				     (if regexp-flag "regexp " "")
+				     from-string next-replacement)
 			      (substitute-command-keys
 			       query-replace-help)))))
 		  ((eq def 'exit)

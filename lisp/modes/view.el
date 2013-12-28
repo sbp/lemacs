@@ -72,8 +72,9 @@
 (defvar view-scroll-size)
 (defvar view-last-regexp)
 
-(defun view-file (file-name)
+(defun view-file (file-name &optional other-window)
   "View FILE in View mode, returning to previous buffer when done.
+With a prefix argument, view it in another window.
 The usual Emacs commands are not available; instead,
 a special set of commands (mostly letters and punctuation)
 are defined for moving around in the buffer.
@@ -81,17 +82,20 @@ Space scrolls forward, Delete scrolls backward.
 For list of all View commands, type ? or h while viewing.
 
 Calls the value of  view-hook  if that is non-nil."
-  (interactive "fView file: ")
+  (interactive "fView file: \nP")
   (let ((old-buf (current-buffer))
 	(had-a-buf (get-file-buffer file-name))
 	(buf-to-view (find-file-noselect file-name)))
-    (switch-to-buffer buf-to-view t)
+    (if other-window
+	(pop-to-buffer buf-to-view)
+      (switch-to-buffer buf-to-view t))
     (view-mode old-buf
 	       (and (not had-a-buf) (not (buffer-modified-p buf-to-view))
 		    'kill-buffer))))
 
-(defun view-buffer (buffer-name)
+(defun view-buffer (buffer-name &optional other-window)
   "View BUFFER in View mode, returning to previous buffer when done.
+With a prefix argument, view it in another window.
 The usual Emacs commands are not available; instead,
 a special set of commands (mostly letters and punctuation)
 are defined for moving around in the buffer.
@@ -99,10 +103,20 @@ Space scrolls forward, Delete scrolls backward.
 For list of all View commands, type ? or h while viewing.
 
 Calls the value of  view-hook  if that is non-nil."
-  (interactive "bView buffer: ")
+  (interactive "bView buffer: \nP")
   (let ((old-buf (current-buffer)))
-    (switch-to-buffer buffer-name t)
+    (if other-window
+	(pop-to-buffer buffer-name)
+      (switch-to-buffer buffer-name t))
     (view-mode old-buf nil)))
+
+(defun view-file-other-window (file)
+  "Find FILE in other window, and enter view mode."
+  (view-file file t))
+
+(defun view-buffer-other-window (buffer)
+  "Switch to BUFFER in another window, and enter view mode."
+  (view-buffer file t))
 
 (defun view-mode (&optional prev-buffer action)
   "Major mode for viewing text but not editing it.

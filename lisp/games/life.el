@@ -29,8 +29,6 @@
 
 ;;; Code:
 
-(provide 'life)
-
 (defconst life-patterns
   [("@@@" " @@" "@@@")
    ("@@@ @@@" "@@  @@ " "@@@ @@@")
@@ -62,34 +60,29 @@
 ;; because the compiler will convert them to constants, which should
 ;; eval faster than symbols.
 ;;
-;; The (require) wrapping forces the compiler to eval these macros at
-;; compile time.  This would not be necessary if we did not use macros
-;; inside of macros, which the compiler doesn't seem to check for.
-;;
 ;; Don't change any of the life-* macro constants unless you thoroughly
 ;; understand the `life-grim-reaper' function.
-(require
- (progn
-   (defmacro life-life-char () ?@)
-   (defmacro life-death-char () (1+ (life-life-char)))
-   (defmacro life-birth-char () 3)
-   (defmacro life-void-char () ?\ )
 
-   (defmacro life-life-string () (char-to-string (life-life-char)))
-   (defmacro life-death-string () (char-to-string (life-death-char)))
-   (defmacro life-birth-string () (char-to-string (life-birth-char)))
-   (defmacro life-void-string () (char-to-string (life-void-char)))
-   (defmacro life-not-void-regexp () (concat "[^" (life-void-string) "\n]"))
+(defmacro life-life-char () ?@)
+(defmacro life-death-char () (1+ (life-life-char)))
+(defmacro life-birth-char () 3)
+(defmacro life-void-char () ?\ )
 
-   ;; try to optimize the (goto-char (point-min)) & (goto-char (point-max))
-   ;; idioms.  This depends on goto-char's not griping if we undershoot
-   ;; or overshoot beginning or end of buffer.
-   (defmacro goto-beginning-of-buffer () '(goto-char 1))
-   (defmacro maxint () (lsh (lsh (lognot 0) 1) -1))
-   (defmacro goto-end-of-buffer () '(goto-char (maxint)))
+(defmacro life-life-string () (char-to-string (life-life-char)))
+(defmacro life-death-string () (char-to-string (life-death-char)))
+(defmacro life-birth-string () (char-to-string (life-birth-char)))
+(defmacro life-void-string () (char-to-string (life-void-char)))
+(defmacro life-not-void-regexp () (concat "[^" (life-void-string) "\n]"))
 
-   (defmacro increment (variable) (list 'setq variable (list '1+ variable)))
-   'life))
+;; try to optimize the (goto-char (point-min)) & (goto-char (point-max))
+;; idioms.  This depends on goto-char's not griping if we undershoot
+;; or overshoot beginning or end of buffer.
+(defmacro goto-beginning-of-buffer () '(goto-char 1))
+(defmacro maxint () (lsh (lsh (lognot 0) 1) -1))
+(defmacro goto-end-of-buffer () '(goto-char (maxint)))
+
+(defmacro increment (variable) (list 'setq variable (list '1+ variable)))
+
 
 ;; list of numbers that tell how many characters to move to get to
 ;; each of a cell's eight neighbors.
@@ -104,13 +97,13 @@
 ;; Sadly, mode-line-format won't display numbers.
 (defconst life-generation-string nil)
 
-(defun abs (n) (if (< n 0) (- n) n))
+;(defun abs (n) (if (< n 0) (- n) n))
 
 ;;;###autoload
 (defun life (&optional sleeptime)
   "Run Conway's Life simulation.
-The starting pattern is randomly selected.  Prefix arg (optional first arg
-non-nil from a program) is the number of seconds to sleep between
+The starting pattern is randomly selected.  Prefix arg (optional first
+arg non-nil from a program) is the number of seconds to sleep between
 generations (this defaults to 1)."
   (interactive "p")
   (or sleeptime (setq sleeptime 1))
@@ -119,12 +112,12 @@ generations (this defaults to 1)."
   (catch 'life-exit
     (while t
       (let ((inhibit-quit t))
-        (life-grim-reaper)
-        (life-expand-plane-if-needed)
-        (life-increment-generation)
-        (life-display-generation sleeptime)))))
+	(life-grim-reaper)
+	(life-expand-plane-if-needed)
+	(life-increment-generation)
+	(life-display-generation sleeptime)))))
 
-(define-function 'life-mode 'life)
+(defalias 'life-mode 'life)
 (put 'life-mode 'mode-class 'special)
 
 (random t)
@@ -277,6 +270,7 @@ generations (this defaults to 1)."
 (defun life-display-generation (sleeptime)
   (goto-char life-window-start)
   (recenter 0)
+  
   ;; Redisplay; if the user has hit a key, exit the loop.
   (or (eq t (sit-for sleeptime))
       (throw 'life-exit nil)))
@@ -287,5 +281,7 @@ generations (this defaults to 1)."
 
 (put 'life-extinct 'error-conditions '(life-extinct quit))
 (put 'life-extinct 'error-message "All life has perished")
+
+(provide 'life)
 
 ;;; life.el ends here

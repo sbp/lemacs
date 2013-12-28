@@ -1,5 +1,5 @@
 /* GNU Emacs site configuration template file.
-   Copyright (C) 1986-1993 Free Software Foundation, Inc.
+   Copyright (C) 1986, 1991, 1992, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -20,9 +20,8 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #ifndef _CONFIG_H_
 #define _CONFIG_H_
 
-#define TIME_WITH_SYS_TIME /* >>>> should be done via "config" */
 #ifndef HAVE_CONFIG_H
-#define HAVE_CONFIG_H
+# define HAVE_CONFIG_H
 #endif
 
 #define LOWTAGS
@@ -52,16 +51,15 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
  */
 #include "m/sparc.h"
 
-/* Load in the conversion definitions if this system
-   needs them and the source file being compiled has not
-   said to inhibit this.  There should be no need for you
-   to alter these lines.  */
 
-#ifdef SHORTNAMES
-#ifndef NO_SHORTNAMES
-#include "../shortnames/remap.h"
-#endif /* not NO_SHORTNAMES */
-#endif /* SHORTNAMES */
+/* The ANSI C `const' declaration is a portability problem, because many 
+   vendors are inconsistent in their use of it in the system header files.
+   This flag causes emacs to not use `const' internally.  You can comment
+   out this line to re-enable it (a good idea if you are developing new 
+   emacs code) but in general doing so doesn't buy you much, and could 
+   cause unnecessary compilation errors.
+*/
+#define CONST_IS_LOSING
 
 /* Define HAVE_X_WINDOWS if you want to use the X window system.  */
 #define HAVE_X_WINDOWS
@@ -92,29 +90,9 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* #define AMPERSAND_FULL_NAME */
 
-/* Define HIGHPRI as a negative number if you want Emacs to run at a higher
-   than normal priority.  For this to take effect, you must install it as
-   setuid root.  Emacs will change back to the users's own uid after setting
-   its priority.
+/* Define LISP_FLOAT_TYPE if you want emacs to support floating-point numbers.
  */
-/* #define HIGHPRI */
-
-/* support `getenv' and `setenv' in Emacs (unix only) */
-#define MAINTAIN_ENVIRONMENT
-
-/* Define LISP_FLOAT_TYPE if you want emacs to support floating-point
-   numbers. */
-
 #define LISP_FLOAT_TYPE
-
-/* Define GNU_MALLOC if you want to use the *new* GNU memory allocator.
-   If you have trouble with _malloc being multiply-defined, or if you're
-   on a NeXT (or possibly MACH in general) comment out the next four lines.
- */
-#ifdef SYSTEM_MALLOC
-#undef SYSTEM_MALLOC
-#endif
-#define GNU_MALLOC
 
 /* The SunOS 4.1 version of localtime() allocates 8 bytes and writes to 9,
    which causes predictably bad problems unless you use the SunOS version
@@ -122,7 +100,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    This is allegedly fixed by Sun patch 100267-04.  Its official designation
    is "1038500: localtime or tzsetwall corrupts malloc space."
  */
-#if defined(GNU_MALLOC) && defined(sparc) && !defined(__svr4__)
+#if !defined(SYSTEM_MALLOC) && defined(sparc) && !defined(__svr4__)
 # define SUNOS_LOCALTIME_BUG
 #endif
 
@@ -154,15 +132,54 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* Sun SparStations, SGI machines, and HP9000s700s have support for playing
    different sound files as beeps.  If you are on a SparcStation but do not 
-   have the sound option installed for some reason (It's usually found in
-   /usr/demo/SOUND/) then undefine USE_SOUND.
+   have the sound option installed for some reason, then undefine USE_SOUND.
+   (It's usually found in /usr/demo/SOUND/ on SunOS 4 and Solaris systems; 
+   on Solaris, you may need to install the "SUNWaudmo" package.)
  */
 /* #undef USE_SOUND */
 
 
 /* Compile in support for running emacs directly from temacs (useful for
    debugging emacs) */
-/* #define RUNNABLE_TEMACS */
+#define RUNNABLE_TEMACS
+
+/* Define TOOLTALK if your site supports the ToolTalk library.
+   WARNING, this code is under construction.
+ */
+/* #define TOOLTALK */
+
+/* Define SPARCWORKS if your site supports SPARCworks 3.0
+   which contains ToolTalk hooks for communication with the editor.
+   WARNING, this code is under construction.
+ */
+#if defined(sparc) && defined(USG) && defined(TOOLTALK)
+# define SPARCWORKS
+#endif
+
+
+/* Define this if you want level 2 internationalization compliance
+   (localized collation and formatting).  Generally this should be
+   defined, unless your system doesn't have the strcoll() and 
+   setlocale() library routines.  This really should be defined in
+   the appropriate s/ or m/ file.
+ */
+/* #define I18N2 */
+
+/* Define this if you want level 3 internationalization compliance
+   (localized messaging).  This will cause a small runtime performance
+   penalty, as the strings are read from the message catalog(s).
+   For this you need the gettext() and dgetext() library routines.
+   WARNING, this code is under construction.
+ */
+/* #define I18N3 */
+
+/* Define this if you want level 4 internationalization compliance
+   (multi-byte character support).  This has a large cost in terms of
+   runtime speed and memory usage, as the internal representation of
+   characters will be 32 bits instead of 8.
+   WARNING, this code is under construction.
+ */
+/* #define I18N4 */
 
 
 /* If you have defined USE_MOTIF in the lwlib Imakefile, then you must define
@@ -173,7 +190,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
    See the comments in lwlib/Imakefile for more info.
  */
-/* #define LWLIB_USES_MOTIF */
+#define LWLIB_USES_MOTIF
 /* #define LWLIB_USES_OLIT */
 
 /* Energize requires Motif. */
@@ -202,19 +219,20 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #endif
 
 /* Define REL_ALLOC if you want to use the relocating allocator for
-   buffer space.  (There are too many problems with this right now.)
+   buffer space.
+   This is desirable because it means that when you kill buffers, the space
+   will be returned to the OS (the emacs process size will shrink) but 
+   there are problems with this on some OSes and with some compilers. 
+   This requires GNU malloc, that is, that SYSTEM_MALLOC not be defined.
  */
-/* #define REL_ALLOC */
+#ifndef NO_REL_ALLOC
+# define REL_ALLOC
+#endif
 
 /* Some s- files may define SYSTEM_MALLOC, in which case make sure
    we don't use REL_ALLOC. */
 #ifdef SYSTEM_MALLOC
-#ifdef GNU_MALLOC
-#undef GNU_MALLOC
-#ifdef REL_ALLOC
-#undef REL_ALLOC
-#endif
-#endif
+# undef REL_ALLOC
 #endif
 
 #ifdef THIS_IS_YMAKEFILE
@@ -224,21 +242,21 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    X libraries aren't in a place that your loader can find on its own,
    you might want to add "-L/..." or something similar.  */
 
-/* #define LD_SWITCH_SITE -L/x11r5/usr.`arch`/lib */
+#define LD_SWITCH_SITE -L/local/lib/X11/lib
 
 /* Define C_SWITCH_SITE to contain any special flags your compiler may
    need.  For instance, if you've defined HAVE_X_WINDOWS above and your
    X include files aren't in a place that your compiler can find on its
    own, you might want to add "-I/..." or something similar.  */
 
-/* #define C_SWITCH_SITE -I/x11r5/usr/include */
+#define C_SWITCH_SITE -I/local/lib/X11/include
 
 #ifdef USE_GCC
 /* Depending on how GCC is installed, you may need to add the gcc library
    here.  This could also go in LD_SWITCH_SITE.  If you get errors about
    __fixunsdfsi or__main being undefined, you probably need to do this. */
 
-/* #define LIB_GCC /cadillacgnu/lib/sun4/gcc-gnulib */
+#define LIB_GCC /local/lib/gcc/lib/libgcc.a
 
 #endif /* USE_GCC */
 
@@ -261,10 +279,23 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    sometimes reference memory past the end of the string, which can segv.
    I don't know whether this is has been fixed as of 4.1.2 or 4.1.3.
  */
-#if defined(sparc) && !defined(__svr4__)
+#if defined(sparc) && !defined(USG)
 #define OBJECTS_SYSTEM sunOS-fix.o strcmp.o strcpy.o
 #endif
 
-
 #endif /* THIS_IS_YMAKEFILE */
+
+
+#ifndef THIS_IS_YMAKEFILE
+  /* To eliminate use of `const' in the emacs sources,
+     do `#define CONST_IS_LOSING' */
+# undef CONST
+# ifdef CONST_IS_LOSING
+#  define CONST
+# else
+#  define CONST const
+# endif /* CONST */
+#endif /* THIS_IS_YMAKEFILE */
+
+
 #endif /* _CONFIG_H_ */

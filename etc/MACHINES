@@ -294,7 +294,17 @@ Gould (m/gould.h; s/bsd4-2.h or s/bsd4-3.h)
   UTX/32 1.3 has a bug in the bcopy library routine.  Fix it by 
   #undef BSTRING in m/gould.h.
 
-HP 9000 series 200 or 300 (m/hp9000s300.h; s/hpux.h or s/bsd4-3.h)
+HP 9000 series 200, 300, 400 (m/hp9000s300.h; s/hpux.h, s/hpux8.h, s/hpux9.h, 
+			   s/hpux9shr.h, or s/bsd4-3.h)
+
+  Use:
+   s/hpux.h     -> if running HPUX version 7 or earlier.
+   s/hpux8.h    -> if running HPUX version 8.
+   s/hpux8shr.h -> if running HPUX version 8, and you want dynamic linking
+   s/hpux9.h    -> if running HPUX version 9
+   s/hpux9shr.h -> if running HPUX version 9, and you want dynamic linking
+
+  You can choose either HP's ANSI cc or gcc (2.4.5 works).
 
   Use the "-Aa +e" option to HP's cc.
 
@@ -332,7 +342,14 @@ HP 9000 series 200 or 300 (m/hp9000s300.h; s/hpux.h or s/bsd4-3.h)
   If you are compiling to work with X11 release 4, you may need
   to define HAVE_RANDOM in config.h.
 
-HP 9000 series 800 (Spectrum) (m/hp9000s800.h; s/hpux.h)
+HP 9000 series 700 or 800 (Spectrum) (m/hp9000s800.h; s/hpux.h)
+
+  Use:
+   s/hpux.h     -> if running HPUX version 7 or earlier.
+   s/hpux8.h    -> if running HPUX version 8.
+   s/hpux8shr.h -> if running HPUX version 8, and you want dynamic linking
+   s/hpux9.h    -> if running HPUX version 9
+   s/hpux9shr.h -> if running HPUX version 9, and you want dynamic linking
 
   Use the "-Aa +e" option to HP's cc.
 
@@ -366,9 +383,21 @@ IBM PS2 (m/ibmps2-aix.h; s/usg5-2-2.h or s/usg5-3.h)
 
 IBM RS/6000 (m/ibmrs6000.h; s/aix3-1.h or s/aix3-2.h)
 
-  Different link options are required for 3.2.4 than for 3.2.2/3.2.3.
-  If you are not running 3.2.4 or newer, you will need to select the
-  commented-out definition of LD_SWITCH_MACHINE in s/aix3-2.h.
+  The AIX setup needs additional import lists to make the linker
+  happy. For the C library, the file /lib/syscalls.exp is needed in
+  any case.  Depending on the local setup of X11, another import
+  list may be needed:
+
+  X11R4:
+	nothing else is needed
+  X11R5 straight from MIT:
+	dito
+  X11R5 that comes with AIX 3.2.4:
+	/usr/bin/X11/smt.exp is needed
+  X11R5 that comes with AIX 3.2.5:
+	/usr/lpp/X11/bin/smt.exp is needed
+
+  Change s/aix3-2.h accordingly.
 
 IBM RT/PC (m/ibmrt.h or m/ibmrt-aix.h; s/bsd4-2.h or s/usg5-2-2.h)
 
@@ -580,14 +609,17 @@ Sequent (m/sequent.h; s/bsd4-2.h)
   3.0.  18.5[23] is said to work.  Delete some lines at the end of
   m/sequent.h for earlier system versions.
 
-Solaris2 (m/sparc.h, s/solaris2.h)
+Solaris2 (m/sparc.h, s/sol2.h)
 
     If you're using the SunPro cc, you need to use /usr/ccs/lib/cpp
     (or the "-Xs" flag along with "cc -E") in order to preprocess
     files;  modify src/Makefile appropriately.
 
-    You'll get a warning about duplicate definitions of __free in libnsl
+    You may get a warning about duplicate definitions of __free in libnsl
     because of the definition in gmalloc.o.  Ignore this message.
+
+    If you don't have the files in /usr/demo/SOUND/, then either install
+    the "SUNWaudmo" package, or add #undef USE_SOUND to config.h.
 
 SONY News (m/news.h; s/bsd4-2.h, or s/bsd4-3.h for system release 3)
 

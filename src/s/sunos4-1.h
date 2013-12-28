@@ -10,3 +10,5 @@
 #define INTERRUPTIBLE_OPEN
 #define INTERRUPTIBLE_CLOSE
 #define INTERRUPTIBLE_IO
+
+# define LIB_INTL /*-L/usr/openwin/lib -lI18N*/

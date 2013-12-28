@@ -24,6 +24,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "insdel.h"
 #include "commands.h"
 #include "syntax.h"
+#include "intl.h"
 
 enum case_action {CASE_UP, CASE_DOWN, CASE_CAPITALIZE, CASE_CAPITALIZE_UP};
 
@@ -112,7 +113,11 @@ casify_region (flag, b, e)
      Lisp_Object b, e;
 {
   register int i;
+#ifdef I18N4
+  register wchar_t c;
+#else
   register int c;
+#endif
   register int inword = flag == CASE_DOWN;
   Lisp_Object syntax_table = current_buffer->syntax_table;
 
@@ -198,11 +203,11 @@ operate_on_word (arg)
   int end, farend;
 
   CHECK_FIXNUM (arg, 0);
-  farend = scan_words (point, XINT (arg));
+  farend = scan_words (PT, XINT (arg));
   if (!farend)
     farend = XINT (arg) > 0 ? ZV : BEGV;
 
-  end = ((point > farend) ? point : farend);
+  end = ((PT > farend) ? PT : farend);
   SET_PT (end);
   return (make_number (farend));
 }
@@ -216,7 +221,7 @@ See also `capitalize-word'.")
 {
   Lisp_Object opoint;
 
-  opoint = make_number (point);
+  opoint = make_number (PT);
   casify_region (CASE_UP, opoint, operate_on_word (arg));
   return Qnil;
 }
@@ -228,7 +233,7 @@ With negative argument, convert previous words but do not move.")
      Lisp_Object arg;
 {
   Lisp_Object opoint;
-  opoint = make_number (point);
+  opoint = make_number (PT);
   casify_region (CASE_DOWN, opoint, operate_on_word (arg));
   return Qnil;
 }
@@ -242,7 +247,7 @@ With negative argument, capitalize previous words but do not move.")
      Lisp_Object arg;
 {
   Lisp_Object opoint;
-  opoint = make_number (point);
+  opoint = make_number (PT);
   casify_region (CASE_CAPITALIZE, opoint, operate_on_word (arg));
   return Qnil;
 }

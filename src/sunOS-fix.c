@@ -9,6 +9,8 @@
    This appears to be fixed in SunOS 4.1.2.
  */
 
+#ifndef I18N4 /* we actually need these from the library in this case. */
+
 #ifdef __STDC__
 
 #include <stdlib.h>
@@ -37,4 +39,6 @@ void wcstombs ()
   abort ();
 }
 
-#endif
+#endif /* __STDC__ */
+
+#endif /* !I18N4 */

@@ -39,9 +39,9 @@ current newsgroup."
   (if (nntp-request-xgtitle group)
       (save-excursion
 	(set-buffer nntp-server-buffer)
-	(if (> (point-max) (point-min))
-	    (message (buffer-substring (point-min) (- (point-max) 1)))
-	  (message "%s    no description." group)))
+	(if (> (point-max) (+ (point-min) 4))
+	    (message (buffer-substring (point-min) (- (point-max) 5)))
+	  (message "No description for %s." group)))
     (message "cannot find description for %s." group)))
 
 
@@ -57,6 +57,6 @@ current newsgroup."
 
 (defun nntp-request-xgtitle (group)
   "Get description of a group via XGTITLE NNRP-command."
-  (prog1
-      (nntp-send-command "^\\.\r$" "XGTITLE" group)
-    (nntp-decode-text)))
+  (nntp/command "XGTITLE" group)
+  (if (eq (nntp/response) 282)
+      (nntp/wait-for-text)))

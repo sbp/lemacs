@@ -162,9 +162,11 @@ C-x SPACE sets break point at current line."
 
 (defvar current-gdb-buffer nil)
 
+;;;###autoload
 (defvar gdb-command-name "gdb"
   "Pathname for executing gdb.")
 
+;;;###autoload
 (defun gdb (path)
   "Run gdb on program FILE in buffer *gdb-FILE*.
 The directory containing FILE becomes the initial working directory
@@ -180,9 +182,11 @@ the GDB commands `cd DIR' and `directory'."
     (make-comint (concat "gdb-" file) (substitute-in-file-name gdb-command-name)
 		 nil "-fullname"
 		 "-cd" default-directory file)
-    (gdb-mode)
     (set-process-filter (get-buffer-process (current-buffer)) 'gdb-filter)
     (set-process-sentinel (get-buffer-process (current-buffer)) 'gdb-sentinel)
+    ;; lemacs change: turn on gdb mode after setting up the proc filters
+    ;; for the benefit of shell-font.el
+    (gdb-mode)
     (gdb-set-buffer)))
 
 (defun gdb-set-buffer ()

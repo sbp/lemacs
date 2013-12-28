@@ -37,18 +37,15 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* HPUX 9 has TERMIOS and POSIX signals */
 #undef  HAVE_TERMIO
 #define HAVE_TERMIOS
-/* But Neal Becker says:
-   hpux has posix signals!  But emacs doesn't!  What you get if you
-   define POSIX_SIGNALS is emacs emulates posix stuff in terms of bsd
-   stuff.  But hpux already has the same kind of emulation, so defining
-   POSIX_SIGNALS results in massive problems and gains nothing. */
-/* #define POSIX_SIGNALS */
+#define POSIX_SIGNALS
+#define I18N2
 
 /* include file locations for HPUX 9 (X11R5) */
 #ifdef __GNUC__
 #define C_SWITCH_SYSTEM -I/usr/include/X11R5 -I/usr/include/Motif1.2
 #else
-#define C_SWITCH_SYSTEM -D_HPUX_SOURCE -I/usr/include/X11R5 -I/usr/include/Motif1.2
+/* #define C_SWITCH_SYSTEM -D_HPUX_SOURCE -I/usr/include/X11R5 -I/usr/include/Motif1.2 */
+#define C_SWITCH_SYSTEM -Ae -I/usr/include/X11R5 -I/usr/include/Motif1.2
 #endif
 
 /* Don't use shared libraries.  unexec doesn't handle them.  */

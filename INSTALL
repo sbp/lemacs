@@ -42,8 +42,9 @@ PREPARATION
 
 3) If you wish, you may declare the place in the file system where 
  Emacs will be once installed.  This is done in the file `src/paths.h'.
- This is no longer necessary, as emacs will figure out where it (and
- its associated runtime support files) are at startup time.
+ This is no longer necessary, and is NOT RECOMMENDED as emacs will
+ figure out where it (and its associated runtime support files) are
+ at startup time.  See the NEWS file for more information.
 
  If you are using the shell-script `build-install'
  edit the `set' command that sets the variable `EMACS'.
@@ -53,14 +54,16 @@ PREPARATION
  automatically.
 
  If you are doing the building by hand (not using `build-install' or
- `make') and you want to hardwire pathnames into emacs, then you yourself
- must copy $BUILD/src/paths.h-dist to paths.h, and edit it to contain the
- correct directory names: $EMACS/lisp for the directory for Lisp libraries,
- and $EMACS/etc for the directory for executables and text files.
+ `make') and you want to hardwire pathnames into emacs, which is NOT 
+ RECOMMENDED, then you yourself must copy $BUILD/src/paths.h-dist to
+ paths.h, and edit it to contain the correct directory names: $EMACS/lisp
+ for the directory for Lisp libraries, and $EMACS/etc for the directory
+ for executables and text files.
 
  You may leave paths.h empty; if pathnames are not specified in paths.h,
  then emacs will search the directory tree near where its executable is
  located for likely-looking candidates for the lisp and etc directories.
+ This is the right thing to do.
 
 4) Look at $BUILD/lisp/paths.el; if some of those values
  are not right for your system, create a file
@@ -102,16 +105,14 @@ PREPARATION
 7) Refer to the file $BUILD/etc/TERMS for information on
  fields you may wish to add to various termcap entries.
 
-8) Edit the file $BUILD/src/lwlib/Imakefile, and set the parameters you
- desire.  
+8) Edit the file $BUILD/lwlib/Imakefile, and set the parameters you desire.  
 
-9) The directory $BUILD/src/lwlib/ contains a library of X routines that
- emacs uses.  You must compile this directory with an ANSI compiler, such 
- as GCC.  However, the Makefile in this directory is automatically generated
- using the `imake' program (a standard part of X.)  If you have not installed
- X in such a way that `imake' generates Makefiles that use GCC, then you 
- will have to edit the Makefile by hand after it has been automatically
- generated.
+9) The directory $BUILD/lwlib/ contains a library of X routines that emacs
+ uses.  You must compile this directory with an ANSI compiler, such as GCC.
+ However, the Makefile in this directory is automatically generated using the
+ `imake' program (a standard part of X.)  If you have not installed X in such
+ a way that `imake' generates Makefiles that use GCC, then you will have to
+ edit the Makefile by hand after it has been automatically generated.
 
  This will be made easier in the future.
 

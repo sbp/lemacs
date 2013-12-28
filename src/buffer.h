@@ -23,55 +23,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define SET_PT(arg) (set_point ((arg)))
 #define SET_BUF_PT(buf, value) (set_buffer_point ((buf),(value)))
 
-/* Character position of beginning of buffer.  */ 
-#define BEG (1)
-
-/* Character position of beginning of accessible range of buffer.  */ 
-#define BEGV (current_buffer->text.begv)
-
-/* Character position of point in buffer.  The "+ 0" makes this
-   not an l-value, so you can't assign to it.  Use SET_PT instead.  */
-#define PT (current_buffer->text.pt + 0)
-
-/* Character position of gap in buffer.  */ 
-#define GPT (current_buffer->text.gpt)
-
-/* Character position of end of accessible range of buffer.  */ 
-#define ZV (current_buffer->text.zv)
-
-/* Character position of end of buffer.  */ 
-#define Z (current_buffer->text.z)
-
-/* Modification count.  */
-#define MODIFF (current_buffer->text.modiff)
-
-/* Face changed.  */
-#define FACECHANGE (current_buffer->text.face_change)
-
-/* Margin changed. */
-#define MARGINCHANGE (current_buffer->text.margin_change)
-
-/* Address of beginning of buffer.  */ 
-#define BEG_ADDR (current_buffer->text.beg)
-
-/* Address of beginning of accessible range of buffer.  */ 
-#define BEGV_ADDR (CHAR_ADDRESS (current_buffer->text.begv))
-
-/* Address of point in buffer.  */ 
-#define PT_ADDR (CHAR_ADDRESS (current_buffer->text.pt))
-
-/* Address of beginning of gap in buffer.  */ 
-#define GPT_ADDR (current_buffer->text.beg + current_buffer->text.gpt - 1)
-
-/* Address of end of gap in buffer.  */
-#define GAP_END_ADDR (current_buffer->text.beg + current_buffer->text.gpt + current_buffer->text.gap_size - 1)
-
-/* Address of end of accessible range of buffer.  */ 
-#define ZV_ADDR (&CHAR_AT_POSITION (current_buffer->text.zv))
-
-/* Size of gap.  */
-#define GAP_SIZE (current_buffer->text.gap_size)
-
 
 #define POINT_MARKER_P(marker) \
    (XMARKER (marker)->buffer != 0 && \
@@ -83,33 +34,52 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* Character position of beginning of buffer.  */ 
 #define BUF_BEG(buf) (1)
+#define BEG BUF_BEG(current_buffer)
 
 /* Character position of beginning of accessible range of buffer.  */ 
 #define BUF_BEGV(buf) ((buf)->text.begv)
+#define BEGV BUF_BEGV(current_buffer)
 
-/* Character position of point in buffer.  */ 
-#define BUF_PT(buf) ((buf)->text.pt)
+/* Address of beginning of accessible range of buffer.  */ 
+#define BUF_BEGV_ADDR(buf) CHAR_ADDRESS (BUF_BEGV (buf))
+#define BEGV_ADDR BUF_BEGV_ADDR(current_buffer)
+
+/* Character position of point in buffer.  The "+ 0" makes this
+   not an l-value, so you can't assign to it.  Use SET_PT instead.  */
+#define BUF_PT(buf) ((buf)->text.pt + 0)
+#define PT BUF_PT(current_buffer)
+
+/* Address of point in buffer.  */ 
+#define BUF_PT_ADDR(buf) CHAR_ADDRESS (BUF_PT (buf))
+#define PT_ADDR BUF_PT_ADDR(current_buffer)
 
 /* Character position of gap in buffer.  */ 
 #define BUF_GPT(buf) ((buf)->text.gpt)
+#define GPT BUF_GPT(current_buffer)
 
 /* Character position of end of accessible range of buffer.  */ 
 #define BUF_ZV(buf) ((buf)->text.zv)
+#define ZV BUF_ZV(current_buffer)
 
 /* Character position of end of buffer.  */ 
 #define BUF_Z(buf) ((buf)->text.z)
+#define Z BUF_Z(current_buffer)
 
 /* Modification count.  */
 #define BUF_MODIFF(buf) ((buf)->text.modiff)
+#define MODIFF BUF_MODIFF(current_buffer)
 
 /* Face changed.  */
 #define BUF_FACECHANGE(buf) ((buf)->text.face_change)
+#define FACECHANGE BUF_FACECHANGE(current_buffer)
 
 /* Margin changed.  */
 #define BUF_MARGINCHANGE(buf) ((buf)->text.margin_change)
+#define MARGINCHANGE BUF_MARGINCHANGE(current_buffer)
 
 /* Address of beginning of buffer.  */
 #define BUF_BEG_ADDR(buf) ((buf)->text.beg)
+#define BEG_ADDR BUF_BEG_ADDR(current_buffer)
 
 /* Macro for setting the value of BUF_ZV (BUF) to VALUE,
    by varying the end of the accessible region.  */
@@ -117,6 +87,18 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* Size of gap.  */
 #define BUF_GAP_SIZE(buf) ((buf)->text.gap_size)
+#define GAP_SIZE BUF_GAP_SIZE(current_buffer)
+
+
+/* Address of beginning of gap in buffer.  */ 
+#define GPT_ADDR (current_buffer->text.beg + current_buffer->text.gpt - 1)
+
+/* Address of end of gap in buffer.  */
+#define GAP_END_ADDR (current_buffer->text.beg + current_buffer->text.gpt + current_buffer->text.gap_size - 1)
+
+/* Address of end of accessible range of buffer.  */ 
+#define ZV_ADDR (&CHAR_AT_POSITION (current_buffer->text.zv))
+
 
 /* Macros from translating between position, pointer, and char. */
 
@@ -146,15 +128,39 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #ifdef HAVE_X_WINDOWS
 /* Width of the outside margins in pixels. */
-#define LEFT_MARGIN(buf,scr) (XINT((buf)->left_outside_margin_width) * \
+/* These definitions were modified to make sure that the left outside
+   margin cannot overrun the window width, but the right side was not
+   taken into account.  This must be fixed if right margins are ever
+   implemented.
+*/
+#ifdef I18N4
+#define LEFT_MARGIN(buf,scr,bwin) (XINT((buf)->left_outside_margin_width) * \
+	XmbTextEscapement (SCREEN_DEFAULT_X_FONT (scr), "M", 1))
+#define RIGHT_MARGIN(buf,scr,bwin) (XINT((buf)->right_outside_margin_width) * \
+	XmbTextEscapement (SCREEN_DEFAULT_X_FONT (scr), "M", 1))
+#else
+#define LEFT_MARGIN(buf,scr,bwin) \
+(((XINT ((buf)->left_outside_margin_width) + 2) > window_real_width(bwin)) \
+  ? ((window_real_width(bwin) - 2) * XTextWidth (SCREEN_DEFAULT_X_FONT (scr), "M", 1)) \
+   : (XINT ((buf)->left_outside_margin_width) * XTextWidth (SCREEN_DEFAULT_X_FONT (scr), "M", 1)))
+/*
+#define LEFT_MARGIN(buf,scr,bwin) (XINT((buf)->left_outside_margin_width) * \
 	XTextWidth (SCREEN_DEFAULT_X_FONT (scr), "M", 1))
-#define RIGHT_MARGIN(buf,scr) (XINT((buf)->right_outside_margin_width) * \
+*/
+#define RIGHT_MARGIN(buf,scr,bwin) (XINT((buf)->right_outside_margin_width) * \
 	XTextWidth (SCREEN_DEFAULT_X_FONT (scr), "M", 1))
 #endif
+#endif
+
+
 
 struct buffer_text
   {
+#ifdef I18N4
+    wchar_t *beg;		/* Actual address of buffer contents. */    
+#else
     unsigned char *beg;		/* Actual address of buffer contents. */    
+#endif
     int begv;			/* Index of beginning of accessible range. */
     int pt;			/* Position of point in buffer. */
     int gpt;			/* Index of gap in buffer. */
@@ -218,7 +224,7 @@ struct buffer
 #undef MARKED_SLOT
 };
 
-extern const struct lrecord_implementation lrecord_buffer[];
+extern CONST struct lrecord_implementation lrecord_buffer[];
 
 #define XBUFFER(a) ((struct buffer *) XPNTR(a))
 #define CHECK_BUFFER(x, i) CHECK_RECORD ((x), lrecord_buffer, Qbufferp, (i))
@@ -253,37 +259,64 @@ extern struct buffer buffer_local_flags;
 
 /* Point in the current buffer.  This is an obsolete alias
    and should be eliminated.  */
-#define point (current_buffer->text.pt + 0)
+/* #define point PT */
 
 /* BUFFER_CEILING_OF (resp. BUFFER_FLOOR_OF), when applied to n, return
    the max (resp. min) p such that
 
-   &FETCH_CHAR (p) - &FETCH_CHAR (n) == p - n       */
+   &BUF_CHAR_AT (b,p) - &BUF_CHAR_AT (b,n) == p - n       */
 
 /*  Return the maximum index in the buffer it is safe to scan forwards
     past N to.  This is used to prevent buffer scans from running into
     the gap (see search.c) */
-#define BUFFER_CEILING_OF(n) (((n) < GPT && GPT < ZV ? GPT : ZV) - 1)
+#define BUFFER_CEILING_OF(b,n) \
+        (((n) < BUF_GPT(b) && BUF_GPT(b) < BUF_ZV(b) ? \
+	  BUF_GPT(b) : BUF_ZV(b)) \
+	 - 1)
 
 /*  Return the minium index in the buffer it is safe to scan backwards
     past N to. */
-#define BUFFER_FLOOR_OF(n) (BEGV <= GPT && GPT <= (n) ? GPT : BEGV)
+#define BUFFER_FLOOR_OF(b,n) \
+        (BUF_BEGV(b) <= BUF_GPT(b) && BUF_GPT(b) <= (n) ? \
+	 BUF_GPT(b) : BUF_BEGV(b))
 
-extern void reset_buffer ();
 
 /* Allocation of buffer data. */
 
 #ifdef REL_ALLOC
-#define BUFFER_ALLOC(data,size) ((unsigned char *) r_alloc (&data, (size)))
-#define BUFFER_REALLOC(data,size) ((unsigned char *) r_re_alloc (&data, (size)))
-#define BUFFER_FREE(data) (r_alloc_free (&data))
-#define R_ALLOC_DECLARE(var,data) (r_alloc_declare (&var, (data)))
-#else
+
+extern char* r_alloc (char **, unsigned long);
+extern char* r_re_alloc (char **, unsigned long);
+extern void r_alloc_free (void **);
+
+#ifdef I18N4
+#define BUFFER_ALLOC(data,size)\
+	((wchar_t *) r_alloc (&data, (size) * sizeof(wchar_t)))
+#define BUFFER_REALLOC(data,size)\
+	((wchar_t *) r_re_alloc (&data, (size) * sizeof(wchar_t)))
+#else /* not I18N4 */
+#define BUFFER_ALLOC(data,size) \
+	((unsigned char *) r_alloc ((char **) &(data), (size)))
+#define BUFFER_REALLOC(data,size) \
+	((unsigned char *) r_re_alloc ((char **) &(data), (size)))
+#endif /* not I18N4 */
+
+#define BUFFER_FREE(data) (r_alloc_free ((void **) &(data)))
+
+#else /* !REL_ALLOC */
+
+#ifdef I18N4
+#define BUFFER_ALLOC(data,size)\
+	(data = (wchar_t *) xmalloc ((size) * sizeof(wchar_t)))
+#define BUFFER_REALLOC(data,size)\
+	((wchar_t *) xrealloc ((data), (size) * sizeof(wchar_t)))
+#else /* not I18N4 */
 #define BUFFER_ALLOC(data,size) (data = (unsigned char *) xmalloc ((size)))
 #define BUFFER_REALLOC(data,size) ((unsigned char *) xrealloc ((data), (size)))
+#endif /* I18N4 */
 #define BUFFER_FREE(data) (xfree ((data)))
-#define R_ALLOC_DECLARE(var,data)
-#endif
+
+#endif /* !REL_ALLOC */
 
 /* A search buffer, with a fastmap allocated and ready to go.  */
 extern struct re_pattern_buffer searchbuf;

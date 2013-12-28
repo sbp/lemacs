@@ -2,11 +2,11 @@
 
 (defconst auto-save-version "cvs ate me")
 
-;;;; Copyright (C) 1992 by Sebastian Kremer <sk@thp.uni-koeln.de>
+;;;; Copyright (C) 1992, 1993 by Sebastian Kremer <sk@thp.uni-koeln.de>
 
 ;;;; This program is free software; you can redistribute it and/or modify
 ;;;; it under the terms of the GNU General Public License as published by
-;;;; the Free Software Foundation; either version 1, or (at your option)
+;;;; the Free Software Foundation; either version 2, or (at your option)
 ;;;; any later version.
 ;;
 ;;;; This program is distributed in the hope that it will be useful,
@@ -22,7 +22,7 @@
 ;;;;    LCD Archive Entry:
 ;;;;    auto-save|Sebastian Kremer|sk@thp.uni-koeln.de
 ;;;;    |safer auto saving with support for ange-ftp and /tmp
-;;;;    |$Date: 1992/08/19 00:01:02 $|$Revision: 1.2 $|
+;;;;    |$Date: 1993/11/23 19:58:05 $|$Revision: 1.3 $|
 
 ;;;; OVERVIEW ==========================================================
 
@@ -220,10 +220,6 @@ be local files if variable `ange-ftp-auto-save-remotely' is nil.
 
 Takes care of slashes in buffer names to prevent autosave errors.
 
-Takes care that autosave files for buffers not visiting any file (such
-as `*mail*') from two simultaneous Emacses don't collide by prepending
-the Emacs pid.
-
 Uses 14 character autosave names if `auto-save-hash-p' is true.
 
 Autosaves even if the current directory is not writable, using
@@ -248,7 +244,17 @@ See also function `auto-save-file-name-p'."
 	     ;; the next Emacs session (the one after the crash) the
 	     ;; pid will be different, but file-less buffers like
 	     ;; *mail* must be recovered manually anyway.
-	     (name-prefix (if file-name nil (make-temp-name "#%")))
+
+	     ;; jwz: putting the emacs PID in the auto-save file name is bad
+	     ;; news, because that defeats auto-save-recovery of *mail*
+	     ;; buffers -- the (sensible) code in sendmail.el calls
+	     ;; (make-auto-save-file-name) to determine whether there is
+	     ;; unsent, auto-saved mail to recover. If that mail came from a
+	     ;; previous emacs process (far and away the most likely case)
+	     ;; then this can never succeed as the pid differs.
+;;	     (name-prefix (if file-name nil (make-temp-name "#%")))
+	     (name-prefix (if file-name nil "#%"))
+
 	     (save-name (or file-name
 			    ;; Prevent autosave errors.  Buffername
 			    ;; (to become non-dir part of filename) will

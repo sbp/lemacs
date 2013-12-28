@@ -1,5 +1,5 @@
 ;; Mouse support that is independent of window systems.
-;; Copyright (C) 1988, 1992, 1993 Free Software Foundation, Inc.
+;; Copyright (C) 1988, 1992, 1993, 1994 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -58,16 +58,26 @@ instead of simple start/end regions.")
   (interactive "@e")
   (let ((window (event-window event))
 	(pos (event-point event)))
-    (or window (error "not in a window"))
+    (or window (error (gettext "not in a window")))
     (select-window window)
     (if (and pos (> pos 0))
+	;; If the event was over a text char, it's easy.
 	(goto-char pos)
+      ;; Otherwise we have to do a bunch of semi-heuristic crap to figure
+      ;; out where the "nearest" buffer position to the click is.
       (let ((ypos (- (event-y event) (nth 1 (window-edges window)))))
 	(if (and (< (move-to-window-line ypos) ypos) (> ypos 0))
-	  ;; if target line was past end of buffer, go to eol of last line.
-	  (end-of-line)
-	(move-to-column (- (event-x event) (nth 0 (window-edges window))))
-	)))))
+	    ;; If target line was past end of buffer, go to eol of last line.
+	    (end-of-line)
+	  ;; Otherwise we need to decide whether the point should be at the
+	  ;; beginning of the line, or the end, by determining whether it's
+	  ;; off the left side of the window, or the right.
+	  (if (> (event-x-pixel event)
+		 (+ (buffer-left-margin-pixwidth (window-buffer window))
+		    (or (cdr (assoc 'internal-border-width x-screen-defaults))
+			5)))
+	      (end-of-line)))))))
+
 
 (defun mouse-eval-last-sexpr (event)
   (interactive "@e")
@@ -80,7 +90,7 @@ instead of simple start/end regions.")
   (interactive "@e")
   (save-excursion
     (mouse-set-point event)
-    (message "Line length: %d"
+    (message (gettext "Line length: %d")
 	     (- (progn (end-of-line) (point))
 		(progn (beginning-of-line) (point)))))
   (sleep-for 1))
@@ -258,24 +268,16 @@ Display cursor at that position for a second."
 (defvar mouse-track-multiclick-time 400)
 (defvar mouse-track-timeout-id nil)
 (defvar mouse-track-scroll-delay
-  (if (featurep 'lisp-float-type) 
+  (if (featurep 'lisp-float-type)
       ;; so that the .elc file can load in an emacs without LISP_FLOAT_TYPE
-      (car (read-from-string "0.3"))
+      (purecopy (string-to-number "0.3"))
     1))
 
 (defun mouse-track-set-point-in-window (event window)
-  (if (eq (event-window event) window)
-      (let ((point (event-point event)))
-	(if point
-	    (goto-char point)
-	  (move-to-window-line (- (event-y event)
-				  (nth 1 (window-edges window))))
-	  (if (> (event-x-pixel event)
-		 (+ (buffer-left-margin-pixwidth (window-buffer window))
-		    (or (cdr (assoc 'internal-border-width x-screen-defaults))
-			5)))
-	      (end-of-line)))
-	t)))
+  (if (not (eq (event-window event) window))
+      nil
+    (mouse-set-point event)
+    t))
 
 (defun mouse-track-scroll-and-set-point (event window)
   (let ((edges (window-edges window))
@@ -348,7 +350,9 @@ Display cursor at that position for a second."
 	       (mouse-track-beginning-of-word t))
 	   (error ())))
 	((eq type 'line)
-	 (if forwardp (end-of-line) (beginning-of-line)))))
+	 (if forwardp (end-of-line) (beginning-of-line)))
+	((eq type 'buffer)
+	 (if forwardp (end-of-buffer) (beginning-of-buffer)))))
 
 (defun mouse-track-next-move (min-anchor max-anchor extent)
   (let ((anchor (if (<= (point) min-anchor) max-anchor min-anchor)))
@@ -433,11 +437,14 @@ Display cursor at that position for a second."
   (cond ((null type) 'char)
 	((eq type 'char) 'word)
 	((eq type 'word) 'line)
-	((eq type 'line) 'char)))
+	((eq type 'line) 'char)
+;;	((eq type 'line) 'buffer)
+;;	((eq type 'buffer) 'char)
+	))
 
 (defun mouse-track-select (event adjust face)
   (or (button-press-event-p event)
-      (error "%s must be invoked by a mouse-press" this-command))
+      (error (gettext "%s must be invoked by a mouse-press") this-command))
   (let* ((window (event-window event))
 	 (extent (make-extent 1 1 (window-buffer window)))
 	 (mouse-down t)
@@ -503,7 +510,7 @@ Display cursor at that position for a second."
 		   (mouse-track-next-move min-anchor max-anchor extent)
 		   (setq mouse-down nil))
 		  ((key-press-event-p event)
-		   (error "Selection aborted"))
+		   (error (gettext "Selection aborted")))
 		  (t
 		   (dispatch-event event))))
 	  (cond ((consp extent) ; rectangle-p
@@ -527,6 +534,21 @@ Display cursor at that position for a second."
 		(if (not (eobp))
 		    (setcdr result (1+ (cdr result))))
 		(goto-char (if end-p (cdr result) (car result)))))
+;;	  ;; Minor kludge sub 2.  If in char mode, and we drag the
+;;	  ;; mouse past EOL, include the newline.
+;;	  ;;
+;;	  ;; Major problem: can't easily distinguish between being
+;;	  ;; just past the last char on a line, and well past it,
+;;	  ;; to determine whether or not to include it in the region
+;;	  ;;
+;;	  (if nil ; (eq mouse-track-type 'char)
+;;	      (let ((after-end-p (and (not (eobp))
+;; 				      (eolp)
+;;				      (> (point) (car result)))))
+;;		(if after-end-p
+;;		    (progn
+;;		      (setcdr result (1+ (cdr result)))
+;;		      (goto-char (cdr result))))))
 	  )
       ;; protected
       (if (consp extent) ; rectangle-p
@@ -580,7 +602,7 @@ released the button, and the mark will be left at the initial click position.
 
 See also the `mouse-track-adjust' command, on \\[mouse-track-adjust]."
   (interactive "e")
-  (or (event-window event) (error "not in a window"))
+  (or (event-window event) (error (gettext "not in a window")))
   (select-screen (window-screen (event-window event)))
   (let ((p (point))
 	(b (current-buffer))
@@ -635,17 +657,17 @@ after being selected\; and the text of the selection is deleted."
 This should be bound to a mouse button in `mode-line-map'."
   (interactive "e")
   (or (button-press-event-p event)
-      (error "%s must be invoked by a mouse-press" this-command))
+      (error (gettext "%s must be invoked by a mouse-press") this-command))
   (or (null (event-window event))
-      (error "not over a modeline"))
-  (let ((y (event-y event))
+      (error (gettext "not over a modeline")))
+  (let (;;(y (event-y event))
 	(mouse-down t)
 	(window (locate-window-from-coordinates
 		 (event-screen event) (list (event-x event) (event-y event))))
 	(old-window (selected-window))
 	ny delta)
     (if (= (- (screen-height) 1) (nth 3 (window-edges window)))
-	(error "can't drag bottommost modeline"))
+	(error (gettext "can't drag bottommost modeline")))
     (while mouse-down
       (setq event (next-event event))
 ;      (and (motion-event-p event)
@@ -662,20 +684,20 @@ This should be bound to a mouse button in `mode-line-map'."
 		    (setq delta (- (window-height
 				    (next-vertical-window window))
 				   window-min-height))
-		    (if (< delta 0) (error "BLAT")))
+		    (if (< delta 0) (error (gettext "BLAT"))))
 		   ((and (< delta 0)
 			 (< (+ (window-height window) delta)
 			    window-min-height))
 		    (setq delta (- window-min-height
 				   (window-height window)))
-		    (if (> delta 0) (error "FOOP"))))
+		    (if (> delta 0) (error (gettext "FOOP")))))
 	     (if (= delta 0)
 		 nil
 	       (select-window window)
 	       (enlarge-window delta)
 	       (select-window old-window)
 	       (sit-for 0)
-	       (setq y ny)
+	       ;;(setq y ny)
 	       ))
 	    ((button-release-event-p event)
 	     (setq mouse-down nil))
@@ -704,8 +726,7 @@ This should be bound to a mouse button in `mode-line-map'."
     (if (eq window (minibuffer-window (event-screen event)))
 	(setq window (previous-window window)))
     (select-window window)
-    (popup-menu (nconc (list (car mode-line-menu)
-			     (format "Window Commands for %S:"
-				     (buffer-name (window-buffer window)))
-			     "---")
-		       (cdr mode-line-menu)))))
+    (let ((popup-menu-titles t))
+      (popup-menu (cons (format (gettext "Window Commands for %S:")
+				(buffer-name (window-buffer window)))
+			(cdr mode-line-menu))))))

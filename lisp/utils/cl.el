@@ -266,10 +266,15 @@ Keywords supported:  :test :test-not :key"
 
 (defvar cl-compiling-file nil)
 (defun cl-compiling-file ()
-  (or cl-compiling-file
-      (and (boundp 'outbuffer) (bufferp (symbol-value 'outbuffer))
-	   (equal (buffer-name (symbol-value 'outbuffer))
-		  " *Compiler Output*"))))
+  (or cl-compiling-file (boundp 'byte-compile-output-buffer)
+;      (and (boundp 'outbuffer) (bufferp (symbol-value 'outbuffer))
+;	   (equal (buffer-name (symbol-value 'outbuffer))
+;		  " *Compiler Output*"))
+      (and (boundp 'byte-compile-output-buffer)
+	   (bufferp (symbol-value 'byte-compile-output-buffer))
+	   (equal (buffer-name (symbol-value 'byte-compile-output-buffer))
+		  " *Compiler Output*"))
+      ))
 
 (defvar cl-proclaims-deferred nil)
 

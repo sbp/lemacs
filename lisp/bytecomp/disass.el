@@ -3,7 +3,7 @@
 ;;; Original version by Doug Cutting (doug@csli.stanford.edu)
 ;;; Substantially modified by Jamie Zawinski <jwz@lucid.com> for
 ;;; the new lapcode-based byte compiler.
-;;; Last modified  1-aug-93.
+;;; Last modified 30-dec-93.
 
 ;; This file is part of GNU Emacs.
 
@@ -28,9 +28,10 @@
 
 (defvar disassemble-column-1-indent 5 "*")
 (defvar disassemble-column-2-indent 10 "*")
-
 (defvar disassemble-recursive-indent 3 "*")
 
+
+;;;###autoload
 (defun disassemble (object &optional buffer indent interactive-p)
   "Print disassembled code for OBJECT in (optional) BUFFER.
 OBJECT can be a symbol defined as a function, or a function itself
@@ -56,16 +57,21 @@ redefine OBJECT if it is a symbol."
 (defun disassemble-internal (obj indent interactive-p)
   (let ((macro 'nil)
 	(name 'nil)
-	(doc 'nil)
 	args)
     (while (symbolp obj)
       (setq name obj
 	    obj (symbol-function obj)))
     (if (subrp obj)
 	(error "Can't disassemble #<subr %s>" name))
+    (if (eq (car-safe obj) 'autoload)
+	(progn
+	  (load (elt obj 1))
+	  (setq obj (symbol-function name))))
     (if (eq (car-safe obj) 'macro)	;handle macros
 	(setq macro t
 	      obj (cdr obj)))
+    (if (and (listp obj) (eq (car obj) 'byte-code))
+	(setq obj (list 'lambda nil obj)))	
     (if (and (listp obj) (not (eq (car obj) 'lambda)))
 	(error "not a function"))
     (if (consp obj)
@@ -82,8 +88,7 @@ redefine OBJECT if it is a symbol."
 	   (setq args (car obj))	;save arg list
 	   (setq obj (cdr obj)))
 	  (t
-           ;; byte-code-arglist
-	   (setq args (elt obj 0))))
+	   (setq args (compiled-function-arglist obj))))
     (if (zerop indent)			; not a nested function
 	(progn
 	  (indent-to indent)
@@ -93,24 +98,31 @@ redefine OBJECT if it is a symbol."
 			  (if name (format " %s" name) "")))))
     (let ((doc (if (consp obj)
 		   (and (stringp (car obj)) (car obj))
-		 (documentation obj))))
+		 (condition-case error
+		     (documentation obj)
+		   (error (format "%S" error))))))
       (if (and doc (stringp doc))
 	  (progn (and (consp obj) (setq obj (cdr obj)))
 		 (indent-to indent)
 		 (princ "  doc:  " (current-buffer))
-		 (if (string-match "\n" doc)
-		     (setq doc (concat (substring doc 0 (match-beginning 0))
-				       " ...")))
+		 (let ((frobbed nil))
+		   (if (string-match "\n" doc)
+		       (setq doc (substring doc 0 (match-beginning 0))
+			     frobbed t))
+		   (if (> (length doc) 70)
+		       (setq doc (substring doc 0 65) frobbed t))
+		   (if frobbed (setq doc (concat doc " ..."))))
 		 (insert doc "\n"))))
     (indent-to indent)
     (insert "  args: ")
     (prin1 args (current-buffer))
     (insert "\n")
-    (if (commandp obj)                  ; ie interactivep
+    (if (condition-case ()
+	    (commandp obj)                  ; ie interactivep
+	  (error nil))
 	(let ((interactive (if (consp obj)
 			       (elt (assq 'interactive obj) 1)
-			     ;; bytecode-interactive
-			     (elt obj 5))))
+			     (elt (compiled-function-interactive obj) 1))))
           (if (eq (car-safe (car-safe obj)) 'interactive)
               (setq obj (cdr obj)))
           (indent-to indent)

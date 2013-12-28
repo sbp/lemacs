@@ -68,7 +68,7 @@ Defined flags are the characters 1, 2, 3, 4, 5, 6, 7, 8, p, a, and b.
           (setq code i))
       (setq i (1+ i)))
     (or code 
-        (error "Invalid syntax description letter: %S" spec))
+        (error (gettext "Invalid syntax description letter: %S") spec))
     (setq i 2)
     (while (< i (length spec))
       (let ((ch (elt spec i)))
@@ -107,7 +107,7 @@ Defined flags are the characters 1, 2, 3, 4, 5, 6, 7, 8, p, a, and b.
                ;; ignore for compatibility
                )
               (t
-               (error "Invalid syntax description flag: %S" spec)))))
+               (error (gettext "Invalid syntax description flag: %S") spec)))))
     ;; default single char style is a if b has not been seen
     (if (not bflag)
         (cond ((= (elt spec 0) ?<)
@@ -186,7 +186,7 @@ Defined flags are the characters 1, 2, 3, 4, 5, 6, 7, 8, p, a, and b.
 
 (defun describe-syntax-code (code stream)
   (let ((codes " .w_()'\"$\\/<>")
-        (invalid "**invalid**") (empty "") ;constants
+        (invalid (gettext "**invalid**")) (empty "") ;constants
 	(standard-output (or stream standard-output))
         (in #'(lambda (string)
                 (princ ",\n\t\t\t\t ")
@@ -222,42 +222,44 @@ Defined flags are the characters 1, 2, 3, 4, 5, 6, 7, 8, p, a, and b.
 	(if end2b (write-char ?8))
 	(if prefix (write-char ?p))
 
-        (princ "\tmeaning: ")
-        (princ (aref #("whitespace" "punctuation" "word-constituent"
-                       "symbol-constituent" "open-paren" "close-paren"
-                       "expression-prefix" "string-quote" "paired-delimiter"
-                       "escape" "character-quote" "comment-begin"
-                       "comment-end")
+        (princ (gettext "\tmeaning: "))
+        (princ (aref #((gettext "whitespace") (gettext "punctuation")
+		       (gettext "word-constituent")
+		       (gettext "symbol-constituent") (gettext "open-paren")
+		       (gettext "close-paren") (gettext "expression-prefix")
+		       (gettext "string-quote") (gettext "paired-delimiter")
+                       (gettext "escape") (gettext "character-quote")
+		       (gettext "comment-begin") (gettext "comment-end"))
 		     (logand code 127)))
 
         (if (/= 0 match)
             (progn
-              (princ ", matches ")
+              (princ (gettext ", matches "))
 	      (princ (text-char-description match))))
 	(if start1
 	    (if single-char-p
-		(princ ", style A")
-              (funcall in "first character of comment-start sequence A")))
+		(princ (gettext ", style A"))
+              (funcall in (gettext "first character of comment-start sequence A"))))
 	(if start2
-	    (funcall in "second character of comment-start sequence A"))
+	    (funcall in (gettext "second character of comment-start sequence A")))
 	(if end1
 	    (if single-char-p
-		(princ ", style A")
-              (funcall in "first character of comment-end sequence A")))
+		(princ (gettext ", style A"))
+              (funcall in (gettext "first character of comment-end sequence A"))))
 	(if end2
-	    (funcall in "second character of comment-end sequence A"))
+	    (funcall in (gettext "second character of comment-end sequence A")))
 	(if start1b
 	    (if single-char-p
-		(princ ", style B")
-              (funcall in "first character of comment-start sequence B")))
+		(princ (gettext ", style B"))
+              (funcall in (gettext "first character of comment-start sequence B"))))
 	(if start2b
-	    (funcall in "second character of comment-start sequence B"))
+	    (funcall in (gettext "second character of comment-start sequence B")))
 	(if end1b
 	    (if single-char-p
-		(princ ", style B")
-              (funcall in "first character of comment-end sequence B")))
+		(princ (gettext ", style B"))
+              (funcall in (gettext "first character of comment-end sequence B"))))
 	(if end2b
-	    (funcall in "second character of comment-end sequence B"))
+	    (funcall in (gettext "second character of comment-end sequence B")))
 	(if prefix
-	    (funcall in "prefix character for `backward-prefix-chars'"))))
+	    (funcall in (gettext "prefix character for `backward-prefix-chars'")))))
     (terpri stream)))

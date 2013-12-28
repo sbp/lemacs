@@ -3,10 +3,12 @@
 ;;; Copyright (C) 1988, 1989, 1990, 1991, 1992 Free Software Foundation, Inc.
 
 ;; Author: Edward M. Reingold <reingold@cs.uiuc.edu>
-;; Keywords: calendar, Gregorian calendar, Julian calendar, Hebrew calendar,
-;;	Islamic calendar, ISO calendar, Julian day number, diary, holidays
+;; Keywords: calendar
+;; Human-Keywords: calendar, Gregorian calendar, Julian calendar, 
+;;	Hebrew calendar, Islamic calendar, ISO calendar, Julian day number,
+;;	diary, holidays
 
-(defconst calendar-version "Version 5, released August 10, 1992")
+(defconst calendar-version "Version 5.2, released October 20, 1993")
 
 ;; This file is part of GNU Emacs.
 
@@ -46,15 +48,16 @@
 ;; calendar, to the Islamic calendar, to the French Revolutionary calendar,
 ;; to the Mayan calendar, and to the astronomical (Julian) day number.
 ;; When floating point is available, times of sunrise/sunset can be displayed,
-;; as can the phases of the moon.  Appointment notication for diary entries
+;; as can the phases of the moon.  Appointment notification for diary entries
 ;; is available.
 
 ;; The following files are part of the calendar/diary code:
 
-;;       diary.el, diary-insert.el     Diary functions
+;;       diary.el, diary-ins.el        Diary functions
 ;;       holidays.el                   Holiday functions
 ;;       cal-french.el                 French Revolutionary calendar
 ;;       cal-mayan.el                  Mayan calendars
+;;       cal-dst.el                    Daylight savings time rules
 ;;       solar.el                      Sunrise/sunset, equinoxes/solstices
 ;;       lunar.el                      Phases of the moon
 ;;       appt.el                       Appointment notification
@@ -88,8 +91,8 @@
 ;; Software--Practice and Experience, Volume 20, Number 9 (September, 1990),
 ;; pages 899-928.  ``Calendrical Calculations, Part II: Three Historical
 ;; Calendars'' by E. M. Reingold,  N. Dershowitz, and S. M. Clamen,
-;; Report Number UIUCDCS-R-92-1743, Department of Computer Science,
-;; University of Illinois, April, 1992.
+;; Software--Practice and Experience, Volume 23, Number 4 (April, 1993),
+;; pages 383-404.
 
 ;; Hard copies of these two papers can be obtained by sending email to
 ;; reingold@cs.uiuc.edu with the SUBJECT "send-paper-cal" (no quotes) and
@@ -97,14 +100,19 @@
 
 ;;; Code:
 
-;;;###autoload
+;;;jwz: does this really need to be autoloaded?  I don't think so. ###autoload
+(defvar calendar-week-start-day 0
+  "*The day of the week on which a week in the calendar begins.
+0 means Sunday (default), 1 means Monday, and so on.")
+
+;;;jwz: does this really need to be autoloaded?  I don't think so. ###autoload
 (defvar view-diary-entries-initially nil
   "*If t, the diary entries for the current date will be displayed on entry.
 The diary is displayed in another window when the calendar is first displayed,
 if the current date is visible.  The number of days of diary entries displayed
 is governed by the variable `number-of-diary-entries'.")
 
-;;;###autoload
+;;;jwz: does this really need to be autoloaded?  I don't think so. ###autoload
 (defvar number-of-diary-entries 1
   "*Specifies how many days of diary entries are to be displayed initially.
 This variable affects the diary display when the command M-x diary is used,
@@ -120,64 +128,73 @@ Saturday.  This variable does not affect the diary display with the `d'
 command from the calendar; in that case, the prefix argument controls the
 number of days of diary entries displayed.")
 
-;;;###autoload
+;;;jwz: does this really need to be autoloaded?  I don't think so. ###autoload
 (defvar mark-diary-entries-in-calendar nil
   "*If t, dates with diary entries will be marked in the calendar window.
 The marking symbol is specified by the variable `diary-entry-marker'.")
 
-;;;###autoload
-(defvar diary-entry-marker "+"
+;;;jwz: does this really need to be autoloaded?  I don't think so. ###autoload
+(defvar diary-entry-marker (purecopy "+")
   "*The symbol used to mark dates that have diary entries.")
 
-;;;###autoload
+;;;jwz: does this really need to be autoloaded?  I don't think so. ###autoload
 (defvar view-calendar-holidays-initially nil
-  "*If t, the holidays for the current three month period will be displayed
-on entry.  The holidays are displayed in another window when the calendar is
-first displayed.")
+  "*If t, holidays for current three month period will be displayed on entry.
+The holidays are displayed in another window when the calendar is first
+displayed.")
 
-;;;###autoload
+;;;jwz: does this really need to be autoloaded?  I don't think so. ###autoload
 (defvar mark-holidays-in-calendar nil
   "*If t, dates of holidays will be marked in the calendar window.
 The marking symbol is specified by the variable `calendar-holiday-marker'.")
 
-;;;###autoload
-(defvar calendar-holiday-marker "*"
+;;;jwz: does this really need to be autoloaded?  I don't think so. ###autoload
+(defvar calendar-holiday-marker (purecopy "*")
   "*The symbol used to mark notable dates in the calendar.")
 
-;;;###autoload
+;;;jwz: does this really need to be autoloaded?  I don't think so. ###autoload
 (defvar all-hebrew-calendar-holidays nil
-  "*If nil, the holidays from the Hebrew calendar that are shown will
-include only those days of such major interest as to appear on secular
-calendars.  If t, the holidays shown in the calendar will include all
-special days that would be shown on a complete Hebrew calendar.")
+  "*If nil, show only major holidays from the Hebrew calendar.
 
-;;;###autoload
+If nil, the only holidays from the Hebrew calendar shown will be those days of
+such major interest as to appear on secular calendars.
+
+If t, the holidays shown in the calendar will include all special days that
+would be shown on a complete Hebrew calendar.")
+
+;;;jwz: does this really need to be autoloaded?  I don't think so. ###autoload
 (defvar all-christian-calendar-holidays nil
-  "*If nil, the holidays from the Christian calendar that are shown will
-include only those days of such major interest as to appear on secular
-calendars.  If t, the holidays shown in the calendar will include all
-special days that would be shown on a complete Christian calendar.")
+  "*If nil, show only major holidays from the Christian calendar.
 
-;;;###autoload
+If nil, the only holidays from the Christian calendar shown will be those days
+of such major interest as to appear on secular calendars.
+
+If t, the holidays shown in the calendar will include all special days that
+would be shown on a complete Christian calendar.")
+
+;;;jwz: does this really need to be autoloaded?  I don't think so. ###autoload
 (defvar all-islamic-calendar-holidays nil
-  "*If nil, the holidays from the Islamic calendar that are shown will
-include only those days of such major interest as to appear on secular
-calendars.  If t, the holidays shown in the calendar will include all
-special days that would be shown on a complete Islamic calendar.")
+  "*If nil, show only major holidays from the Islamic calendar.
 
-;;;###autoload
+If nil, the only holidays from the Islamic calendar shown will be those days
+of such major interest as to appear on secular calendars.
+
+If t, the holidays shown in the calendar will include all special days that
+would be shown on a complete Islamic calendar.")
+
+;;;jwz: does this really need to be autoloaded?  I don't think so. ###autoload
 (defvar calendar-load-hook nil
   "*List of functions to be called after the calendar is first loaded.
 This is the place to add key bindings to calendar-mode-map.")
 
-;;;###autoload
+;;;jwz: does this really need to be autoloaded?  I don't think so. ###autoload
 (defvar initial-calendar-window-hook nil
   "*List of functions to be called when the calendar window is first opened.
 The functions invoked are called after the calendar window is opened, but
 once opened is never called again.  Leaving the calendar with the `q' command
 and reentering it will cause these functions to be called again.")
 
-;;;###autoload
+;;;jwz: does this really need to be autoloaded?  I don't think so. ###autoload
 (defvar today-visible-calendar-hook nil
   "*List of functions called whenever the current date is visible.
 This can be used, for example, to replace today's date with asterisks; a
@@ -195,7 +212,7 @@ Other than the use of the provided functions, the changing of any
 characters in the calendar buffer by the hooks may cause the failure of the
 functions that move by days and weeks.")
 
-;;;###autoload
+;;;jwz: does this really need to be autoloaded?  I don't think so. ###autoload
 (defvar today-invisible-calendar-hook nil
   "*List of functions called whenever the current date is not visible.
 
@@ -207,8 +224,8 @@ Other than the use of the provided functions, the changing of any
 characters in the calendar buffer by the hooks may cause the failure of the
 functions that move by days and weeks.")
 
-;;;###autoload
-(defvar diary-file "~/diary"
+;;;jwz: does this really need to be autoloaded?  I don't think so. ###autoload
+(defvar diary-file (purecopy "~/diary")
   "*Name of the file in which one's personal diary of dates is kept.
 
 The file's entries are lines in any of the forms
@@ -303,43 +320,39 @@ for these functions for details.
 Diary files can contain directives to include the contents of other files; for
 details, see the documentation for the variable `list-diary-entries-hook'.")
 
-;;;###autoload
-(defvar diary-nonmarking-symbol "&"
-  "*The symbol used to indicate that a diary entry is not to be marked in the
-calendar window.")
+;;;jwz: does this really need to be autoloaded?  I don't think so. ###autoload
+(defvar diary-nonmarking-symbol (purecopy "&")
+  "*Symbol indicating that a diary entry is not to be marked in the calendar.")
 
-;;;###autoload
-(defvar hebrew-diary-entry-symbol "H"
-  "*The symbol used to indicate that a diary entry is according to the
-Hebrew calendar.")
+;;;jwz: does this really need to be autoloaded?  I don't think so. ###autoload
+(defvar hebrew-diary-entry-symbol (purecopy "H")
+  "*Symbol indicating a diary entry according to the Hebrew calendar.")
 
-;;;###autoload
-(defvar islamic-diary-entry-symbol "I"
-  "*The symbol used to indicate that a diary entry is according to the
-Islamic calendar.")
+;;;jwz: does this really need to be autoloaded?  I don't think so. ###autoload
+(defvar islamic-diary-entry-symbol (purecopy "I")
+  "*Symbol indicating a diary entry according to the Islamic calendar.")
 
-;;;###autoload
-(defvar diary-include-string "#include"
-  "*The string used to indicate the inclusion of another file of diary entries
-in diary-file.  See the documentation for the function
-`include-other-diary-files'.")
+;;;jwz: does this really need to be autoloaded?  I don't think so. ###autoload
+(defvar diary-include-string (purecopy "#include")
+  "*The string indicating inclusion of another file of diary entries.
+See the documentation for the function `include-other-diary-files'.")
 
-;;;###autoload
-(defvar sexp-diary-entry-symbol "%%"
+;;;jwz: does this really need to be autoloaded?  I don't think so. ###autoload
+(defvar sexp-diary-entry-symbol (purecopy "%%")
   "*The string used to indicate a sexp diary entry in diary-file.
 See the documentation for the function `list-sexp-diary-entries'.")
 
-;;;###autoload
+;;;jwz: does this really need to be autoloaded?  I don't think so. ###autoload
 (defvar abbreviated-calendar-year t
-  "*Interpret a two-digit year DD in a diary entry as being either 19DD or
-20DD, as appropriate, for the Gregorian calendar; similarly for the Hebrew and
-Islamic calendars.  If this variable is nil, years must be written in full.")
+  "*Interpret a two-digit year DD in a diary entry as either 19DD or 20DD.
+For the Gregorian calendar; similarly for the Hebrew and Islamic calendars.
+If this variable is nil, years must be written in full.")
 
-;;;###autoload
+;;;jwz: does this really need to be autoloaded?  I don't think so. ###autoload
 (defvar european-calendar-style nil
-  "*Use the European style of dates in the diary and in any displays.  If this
-variable is t, a date 1/2/1990 would be interpreted as February 1, 1990.
-The accepted European date styles are
+  "*Use the European style of dates in the diary and in any displays.
+If this variable is t, a date 1/2/1990 would be interpreted as February 1,
+1990.  The accepted European date styles are
 
             DAY/MONTH
             DAY/MONTH/YEAR
@@ -350,27 +363,28 @@ The accepted European date styles are
 Names can be capitalized or not, written in full, or abbreviated to three
 characters with or without a period.")
 
-;;;###autoload
+;;;jwz: does this really need to be autoloaded?  I don't think so. ###autoload
 (defvar american-date-diary-pattern
-  '((month "/" day "[^/0-9]")
-    (month "/" day "/" year "[^0-9]")
-    (monthname " *" day "[^,0-9]")
-    (monthname " *" day ", *" year "[^0-9]")
-    (dayname "\\W"))
+  (purecopy
+   '((month "/" day "[^/0-9]")
+     (month "/" day "/" year "[^0-9]")
+     (monthname " *" day "[^,0-9]")
+     (monthname " *" day ", *" year "[^0-9]")
+     (dayname "\\W")))
   "*List of pseudo-patterns describing the American patterns of date used.
-See the documentation of diary-date-forms for an explanantion.")
+See the documentation of diary-date-forms for an explanation.")
 
-;;;###autoload
+;;;jwz: does this really need to be autoloaded?  I don't think so. ###autoload
 (defvar european-date-diary-pattern
-  '((day "/" month "[^/0-9]")
-    (day "/" month "/" year "[^0-9]")
-    (backup day " *" monthname "\\W+\\<[^*0-9]")
-    (day " *" monthname " *" year "[^0-9]")
-    (dayname "\\W"))
+  (purecopy
+   '((day "/" month "[^/0-9]")
+     (day "/" month "/" year "[^0-9]")
+     (backup day " *" monthname "\\W+\\<[^*0-9]")
+     (day " *" monthname " *" year "[^0-9]")
+     (dayname "\\W")))
   "*List of pseudo-patterns describing the European patterns of date used.
-See the documentation of diary-date-forms for an explanantion.")
+See the documentation of diary-date-forms for an explanation.")
 
-;;;###autoload
 (defvar diary-date-forms
   (if european-calendar-style
       european-date-diary-pattern
@@ -398,31 +412,30 @@ directive causes the date recognizer to back up to the beginning of the
 current word of the diary entry, so in no case can the pattern match more than
 a portion of the first word of the diary entry.")
 
-;;;###autoload
+;;;jwz: does this really need to be autoloaded?  I don't think so. ###autoload
 (defvar european-calendar-display-form
-  '((if dayname (concat dayname ", ")) day " " monthname " " year)
-  "*The pseudo-pattern that governs the way a Gregorian date is formatted
-in the European style.  See the documentation of calendar-date-display-forms
-for an explanantion.")
+  (purecopy
+   '((if dayname (concat dayname ", ")) day " " monthname " " year))
+  "*Pseudo-pattern governing the way a date appears in the European style.
+See the documentation of calendar-date-display-form for an explanation.")
 
-;;;###autoload
+;;;jwz: does this really need to be autoloaded?  I don't think so. ###autoload
 (defvar american-calendar-display-form
-  '((if dayname (concat dayname ", ")) monthname " " day ", " year)
-  "*The pseudo-pattern that governs the way a Gregorian date is formatted
-in the American style.  See the documentation of calendar-date-display-forms
-for an explanantion.")
+  (purecopy
+   '((if dayname (concat dayname ", ")) monthname " " day ", " year))
+  "*Pseudo-pattern governing the way a date appears in the American style.
+See the documentation of calendar-date-display-form for an explanation.")
 
-;;;###autoload
 (defvar calendar-date-display-form
   (if european-calendar-style
       european-calendar-display-form
     american-calendar-display-form)
-  "*The pseudo-pattern that governs the way a Gregorian date is formatted
-as a string by the function `calendar-date-string'.  A pseudo-pattern is a
-list of expressions that can involve the keywords `month', `day', and
-`year', all numbers in string form, and `monthname' and `dayname', both
-alphabetic strings.  For example, the ISO standard would use the pseudo-
-pattern
+  "*Pseudo-pattern governing the way a date appears.
+
+Used by the function `calendar-date-string', a pseudo-pattern is a list of
+expressions that can involve the keywords `month', `day', and `year', all
+numbers in string form, and `monthname' and `dayname', both alphabetic
+strings.  For example, the ISO standard would use the pseudo- pattern
 
        '(year \"-\" month \"-\" day)
 
@@ -437,104 +450,6 @@ and
 would give the usual American style in fixed-length fields.
 
 See the documentation of the function `calendar-date-string'.")
-
-;;;###autoload
-(defvar calendar-time-display-form
-  '(12-hours ":" minutes am-pm
-    (if time-zone " (") time-zone (if time-zone ")"))
-  "*The pseudo-pattern that governs the way a time of day is formatted.
-
-A pseudo-pattern is a list of expressions that can involve the keywords
-`12-hours', `24-hours', and `minutes',  all numbers in string form,
-and `am-pm' and `time-zone',  both alphabetic strings.
-
-For example, the form
-
-  '(24-hours \":\" minutes
-    (if time-zone \" (\") time-zone (if time-zone \")\"))
-
-would give military-style times like `21:07 (UT)'.")
-
-;;;###autoload
-(defvar calendar-latitude nil
-  "*Latitude of `calendar-location-name' in degrees, + north, - south.
-For example, 40.7 for New York City.")
-
-;;;###autoload
-(defvar calendar-longitude nil
-  "*Longitude of `calendar-location-name' in degrees, + east, - west.
-For example, -74.0 for New York City.")
-
-;;;###autoload
-(defvar calendar-location-name
-  '(let ((float-output-format "%.1f"))
-     (format "%s%s, %s%s"
-	     (abs calendar-latitude)
-	     (if (> calendar-latitude 0) "N" "S")
-	     (abs calendar-longitude)
-	     (if (> calendar-longitude 0) "E" "W")))
-  "*An expression that evaluates to the name of the location at
-`calendar-longitude', calendar-latitude'.  Default value is just the latitude,
-longitude pair.")
-
-;;;###autoload
-(defvar calendar-time-zone (if (fboundp 'current-time-zone)
-			       (car (current-time-zone))
-			     nil)
-  "*Number of minutes difference between local standard time at
-`calendar-location-name' and Universal (Greenwich) Time.  For example, -300
-for New York City, -480 for Los Angeles.")
-
-;;;###autoload
-(defvar calendar-standard-time-zone-name
-  (if (fboundp 'current-time-zone)
-      (car (nthcdr 2 (current-time-zone)))
-    nil)
-  "*Abbreviated name of standard time zone at `calendar-location-name'.
-For example, \"EST\" in New York City, \"PST\" for Los Angeles.")
-
-;;;###autoload
-(defvar calendar-daylight-time-zone-name
-  (if (fboundp 'current-time-zone)
-      (car (nthcdr 3 (current-time-zone)))
-    nil)
-  "*Abbreviated name of daylight-savings time zone at `calendar-location-name'.
-For example, \"EDT\" in New York City, \"PDT\" for Los Angeles.")
-
-;;;###autoload
-(defvar calendar-daylight-savings-starts
-  '(calendar-nth-named-day 1 0 4 year)
-  "*A sexp in the variable `year' that gives the Gregorian date, in the form
-of a list (month day year), on which daylight savings time starts.  This is
-used to determine the starting date of daylight savings time for the holiday
-list and for correcting times of day in the solar and lunar calculations.  The
-default value is the American rule of the first Sunday in April.
-
-For example, if daylight savings time is mandated to start on October 1,
-you would set `calendar-daylight-savings-starts' to
-
-      '(10 1 year)
-
-For a more complex example, if daylight savings time begins on the first of
-Nisan on the Hebrew calendar, we would set `calendar-daylight-savings-starts'
-to
-
-      '(calendar-gregorian-from-absolute
-         (calendar-absolute-from-hebrew
-            (list 1 1 (+ year 3760))))
-
-because Nisan is the first month in the Hebrew calendar.")
-
-;;;###autoload
-(defvar calendar-daylight-savings-ends
-  '(calendar-nth-named-day -1 0 10 year)
-  "*An expression in the variable `year' that gives the Gregorian date, in the
-form of a list (month day year), on which daylight savings time ends.  This
-is used to determine the ending date of daylight savings time for the holiday
-list and for correcting times of day in the solar and lunar calculations.
-The default value is the American rule of the last Sunday in October.
-See the documentation for `calendar-daylight-savings-starts' for other
-examples.")
 
 (defun european-calendar ()
   "Set the interpretation and display of dates to the European style."
@@ -552,19 +467,18 @@ examples.")
   (setq diary-date-forms american-date-diary-pattern)
   (update-calendar-mode-line))
 
-;;;###autoload
+;;;jwz: does this really need to be autoloaded?  I don't think so. ###autoload
 (defvar print-diary-entries-hook 'lpr-buffer
-  "*List of functions to be called after a temporary buffer is prepared with
-the diary entries currently visible in the diary buffer.  The default just
-does the printing.  Other uses might include, for example, rearranging the
-lines into order by day and time, saving the buffer instead of deleting it, or
-changing the function used to do the printing.")
+  "*List of functions called after a temporary diary buffer is prepared.
+The buffer shows only the diary entries currently visible in the diary
+buffer.  The default just does the printing.  Other uses might include, for
+example, rearranging the lines into order by day and time, saving the buffer
+instead of deleting it, or changing the function used to do the printing.")
 
-;;;###autoload
+;;;jwz: does this really need to be autoloaded?  I don't think so. ###autoload
 (defvar list-diary-entries-hook nil
-  "*List of functions to be called after the diary file is culled for
-relevant entries. It is to be used for diary entries that are not found in
-the diary file.
+  "*List of functions called after diary file is culled for relevant entries.
+It is to be used for diary entries that are not found in the diary file.
 
 A function `include-other-diary-files' is provided for use as the value of
 this hook.  This function enables you to use shared diary files together
@@ -589,18 +503,24 @@ in your .emacs file to cause the fancy diary buffer to be displayed with
 diary entries from various included files, each day's entries sorted into
 lexicographic order.")
 
-;;;###autoload
-(defvar diary-display-hook 'simple-diary-display
+;;;jwz: does this really need to be autoloaded?  I don't think so. ###autoload
+(defvar diary-hook nil
+  "*List of functions called after the display of the diary.
+Can be used for appointment notification.")
+
+;;;jwz: does this really need to be autoloaded?  I don't think so. ###autoload
+(defvar diary-display-hook nil
   "*List of functions that handle the display of the diary.
+If nil (the default), `simple-diary-display' will be used.  Use `ignore' for no
+diary display.
 
 Ordinarily, this just displays the diary buffer (with holidays indicated in
 the mode line), if there are any relevant entries.  At the time these
 functions are called, the variable `diary-entries-list' is a list, in order
 by date, of all relevant diary entries in the form of ((MONTH DAY YEAR)
 STRING), where string is the diary entry for the given date.  This can be
-used, for example, to handle appointment notification, prepare a different
-buffer for display (perhaps combined with holidays), or produce hard copy
-output.
+used, for example, a different buffer for display (perhaps combined with
+holidays), or produce hard copy output.
 
 A function `fancy-diary-display' is provided as an alternative
 choice for this hook; this function prepares a special noneditable diary
@@ -611,14 +531,15 @@ diary buffer will not show days for which there are no diary entries, even
 if that day is a holiday; if you want such days to be shown in the fancy
 diary buffer, set the variable `diary-list-include-blanks' to t.")
 
-;;;###autoload
+;;;jwz: does this really need to be autoloaded?  I don't think so. ###autoload
 (defvar nongregorian-diary-listing-hook nil
-  "*List of functions to be called for the diary file and included files as
-they are processed for listing diary entries.  You can use any or all of
-`list-hebrew-diary-entries' and `list-islamic-diary-entries'.  The
-documentation for these functions describes the style of such diary entries.")
+  "*List of functions called for listing diary file and included files.
+As the files are processed for diary entries, these functions are used to cull
+relevant entries.  You can use either or both of `list-hebrew-diary-entries'
+and `list-islamic-diary-entries'.  The documentation for these functions
+describes the style of such diary entries.")
 
-;;;###autoload
+;;;jwz: does this really need to be autoloaded?  I don't think so. ###autoload
 (defvar mark-diary-entries-hook nil
   "*List of functions called after marking diary entries in the calendar.
 
@@ -633,195 +554,257 @@ variable `diary-include-string'.  When you use `mark-included-diary-files' as
 part of the mark-diary-entries-hook, you will probably also want to use the
 function `include-other-diary-files' as part of the list-diary-entries-hook.")
 
-;;;###autoload
+;;;jwz: does this really need to be autoloaded?  I don't think so. ###autoload
 (defvar nongregorian-diary-marking-hook nil
-  "*List of functions to be called as the diary file and included files are
-processed for marking diary entries.  You can use either or both of
-mark-hebrew-diary-entries and mark-islamic-diary-entries.  The documentation
-for these functions describes the style of such diary entries.")
+  "*List of functions called for marking diary file and included files.
+As the files are processed for diary entries, these functions are used to cull
+relevant entries.  You can use either or both of `mark-hebrew-diary-entries'
+and `mark-islamic-diary-entries'.  The documentation for these functions
+describes the style of such diary entries.")
 
-;;;###autoload
+;;;jwz: does this really need to be autoloaded?  I don't think so. ###autoload
 (defvar diary-list-include-blanks nil
-  "*If nil, do not include days with no diary entry in the list of diary
-entries.  Such days will then not be shown in the the fancy diary buffer,
-even if they are holidays.")
+  "*If nil, do not include days with no diary entry in the list of diary entries.
+Such days will then not be shown in the the fancy diary buffer, even if they
+are holidays.")
 
-;;;###autoload
+;;;jwz: does this really need to be autoloaded?  I don't think so. ###autoload
 (defvar holidays-in-diary-buffer t
-  "*If t, the holidays will be indicated in the mode line of the diary buffer
-(or in the fancy diary buffer next to the date).  This slows down the diary
-functions somewhat; setting it to nil will make the diary display faster.")
+  "*If t, the holidays will be indicated in the diary display.
+The holidays will be given in the mode line of the diary buffer, or in the
+fancy diary buffer next to the date.  This slows down the diary functions
+somewhat; setting it to nil will make the diary display faster.")
 
-;;;###autoload
+(defvar calendar-mark-ring nil)
+
+;;; jwz: don't autoload this, it makes `patch' choke on loaddefs.el.
+;;;don't ###autoload
 (defvar general-holidays
-  '((fixed 1 1 "New Year's Day")
-    (float 1 1 3 "Martin Luther King Day")
-    (fixed 2 2 "Ground Hog Day")
-    (fixed 2 14 "Valentine's Day")
-    (float 2 1 3 "President's Day")
-    (fixed 3 17 "St. Patrick's Day")
-    (fixed 4 1 "April Fool's Day")
-    (float 5 0 2 "Mother's Day")
-    (float 5 1 -1 "Memorial Day")
-    (fixed 6 14 "Flag Day")
-    (float 6 0 3 "Father's Day")
-    (fixed 7 4 "Independence Day")
-    (float 9 1 1 "Labor Day")
-    (float 10 1 2 "Columbus Day")
-    (fixed 10 31 "Halloween")
-    (fixed 11 11 "Veteran's Day")
-    (float 11 4 4 "Thanksgiving"))
-  "*General holidays.  Default value is for the United States.  See the
-documentation for `calendar-holidays' for details.")
+  (purecopy
+   '((holiday-fixed 1 1 "New Year's Day")
+     (holiday-float 1 1 3 "Martin Luther King Day")
+     (holiday-fixed 2 2 "Ground Hog Day")
+     (holiday-fixed 2 14 "Valentine's Day")
+     (holiday-float 2 1 3 "President's Day")
+     (holiday-fixed 3 17 "St. Patrick's Day")
+     (holiday-fixed 4 1 "April Fool's Day")
+     (holiday-float 5 0 2 "Mother's Day")
+     (holiday-float 5 1 -1 "Memorial Day")
+     (holiday-fixed 6 14 "Flag Day")
+     (holiday-float 6 0 3 "Father's Day")
+     (holiday-fixed 7 4 "Independence Day")
+     (holiday-float 9 1 1 "Labor Day")
+     (holiday-float 10 1 2 "Columbus Day")
+     (holiday-fixed 10 31 "Halloween")
+     (holiday-fixed 11 11 "Veteran's Day")
+     (holiday-float 11 4 4 "Thanksgiving")))
+  "*General holidays.  Default value is for the United States.
+See the documentation for `calendar-holidays' for details.")
 
-;;;###autoload
+;;;jwz: does this really need to be autoloaded?  I don't think so. ###autoload
 (defvar local-holidays nil
   "*Local holidays.
 See the documentation for `calendar-holidays' for details.")
 
-;;;###autoload
+;;;jwz: does this really need to be autoloaded?  I don't think so. ###autoload
 (defvar other-holidays nil
   "*User defined holidays.
 See the documentation for `calendar-holidays' for details.")
 
-;;;###autoload
+;;; jwz: don't autoload this, it makes `patch' choke on loaddefs.el.
+;;;don't ###autoload
+(defvar hebrew-holidays-1
+  (purecopy
+   '((holiday-rosh-hashanah-etc)
+     (if all-hebrew-calendar-holidays
+	 (holiday-julian
+	  11
+	  (let* ((m displayed-month)
+		 (y displayed-year)
+		 (year))
+	    (increment-calendar-month m y -1)
+	    (let ((year (extract-calendar-year
+			 (calendar-julian-from-absolute
+			  (calendar-absolute-from-gregorian
+			   (list m 1 y))))))
+	      (if (zerop (% (1+ year) 4))
+		  22
+		21))) "\"Tal Umatar\" (evening)")))))
+
+;;; jwz: don't autoload this, it makes `patch' choke on loaddefs.el.
+;;;don't ###autoload
+(defvar hebrew-holidays-2
+  '((if all-hebrew-calendar-holidays
+        (holiday-hanukkah)
+      (holiday-hebrew 9 25 "Hanukkah"))
+    (if all-hebrew-calendar-holidays
+      (holiday-hebrew
+       10
+       (let ((h-year (extract-calendar-year
+                      (calendar-hebrew-from-absolute
+                       (calendar-absolute-from-gregorian
+                        (list displayed-month 28 displayed-year))))))
+         (if (= (% (calendar-absolute-from-hebrew (list 10 10 h-year))
+                   7)
+                6)
+             11 10))
+       "Tzom Teveth"))
+    (if all-hebrew-calendar-holidays
+        (holiday-hebrew 11 15 "Tu B'Shevat"))))
+
+;;; jwz: don't autoload this, it makes `patch' choke on loaddefs.el.
+;;;don't ###autoload
+(defvar hebrew-holidays-3
+  (purecopy
+   '((if all-hebrew-calendar-holidays
+	 (holiday-hebrew
+	  11
+	  (let ((m displayed-month)
+		(y displayed-year))
+	    (increment-calendar-month m y 1)
+	    (let* ((h-year (extract-calendar-year
+			    (calendar-hebrew-from-absolute
+			     (calendar-absolute-from-gregorian
+			      (list m
+				    (calendar-last-day-of-month m y)
+				    y)))))
+		   (s-s
+		    (calendar-hebrew-from-absolute
+		     (if (=
+			  (% (calendar-absolute-from-hebrew
+			      (list 7 1 h-year))
+			     7)
+			  6)
+			 (calendar-dayname-on-or-before
+			  6 (calendar-absolute-from-hebrew
+			     (list 11 17 h-year)))
+		       (calendar-dayname-on-or-before
+			6 (calendar-absolute-from-hebrew
+			   (list 11 16 h-year))))))
+		   (day (extract-calendar-day s-s)))
+	      day))
+	  "Shabbat Shirah")))))
+
+;;; jwz: don't autoload this, it makes `patch' choke on loaddefs.el.
+;;;don't ###autoload
+(defvar hebrew-holidays-4
+  (purecopy
+   '((holiday-passover-etc)
+     (if (and all-hebrew-calendar-holidays
+	      (let* ((m displayed-month)
+		     (y displayed-year)
+		     (year))
+		(increment-calendar-month m y -1)
+		(let ((year (extract-calendar-year
+			     (calendar-julian-from-absolute
+			      (calendar-absolute-from-gregorian
+			       (list m 1 y))))))
+		  (= 21 (% year 28)))))
+	 (holiday-julian 3 26 "Kiddush HaHamah"))
+     (if all-hebrew-calendar-holidays
+	 (holiday-tisha-b-av-etc)))))
+
+;;; jwz: don't autoload this, it makes `patch' choke on loaddefs.el.
+;;;don't ###autoload
 (defvar hebrew-holidays
-  '((rosh-hashanah-etc)
-    (if all-hebrew-calendar-holidays
-        (julian 11
-                (let* ((m displayed-month)
-                       (y displayed-year)
-                       (year))
-                  (increment-calendar-month m y -1)
-                  (let ((year (extract-calendar-year
-                               (calendar-julian-from-absolute
-                                (calendar-absolute-from-gregorian
-                                 (list m 1 y))))))
-                    (if (zerop (% (1+ year) 4))
-                        22
-                      21))) "\"Tal Umatar\" (evening)"))
-    (if all-hebrew-calendar-holidays
-        (hanukkah)
-      (hebrew 9 25 "Hanukkah"))
-    (if all-hebrew-calendar-holidays
-      (hebrew 10
-              (let ((h-year (extract-calendar-year
-                             (calendar-hebrew-from-absolute
-                              (calendar-absolute-from-gregorian
-                               (list displayed-month 28 displayed-year))))))
-                (if (= (% (calendar-absolute-from-hebrew (list 10 10 h-year))
-                        7)
-                       6)
-                    11 10))
-              "Tzom Teveth"))
-    (if all-hebrew-calendar-holidays
-        (hebrew 11 15 "Tu B'Shevat"))
-    (if all-hebrew-calendar-holidays
-        (hebrew
-         11
-         (let ((m displayed-month)
-               (y displayed-year))
-           (increment-calendar-month m y 1)
-           (let* ((h-year (extract-calendar-year
-                           (calendar-hebrew-from-absolute
-                            (calendar-absolute-from-gregorian
-                             (list m
-                                   (calendar-last-day-of-month m y)
-                                   y)))))
-                  (s-s
-                   (calendar-hebrew-from-absolute
-                    (if (=
-                         (% (calendar-absolute-from-hebrew
-                             (list 7 1 h-year))
-                            7)
-                         6)
-                        (calendar-dayname-on-or-before
-                         6 (calendar-absolute-from-hebrew
-                            (list 11 17 h-year)))
-                      (calendar-dayname-on-or-before
-                       6 (calendar-absolute-from-hebrew
-                          (list 11 16 h-year))))))
-                  (day (extract-calendar-day s-s)))
-             day))
-         "Shabbat Shirah"))
-    (passover-etc)
-    (if (and all-hebrew-calendar-holidays
-             (let* ((m displayed-month)
-                    (y displayed-year)
-                    (year))
-               (increment-calendar-month m y -1)
-               (let ((year (extract-calendar-year
-                            (calendar-julian-from-absolute
-                             (calendar-absolute-from-gregorian
-                              (list m 1 y))))))
-                 (= 21 (% year 28)))))
-        (julian 3 26 "Kiddush HaHamah"))
-    (if all-hebrew-calendar-holidays
-        (tisha-b-av-etc)))
+  (purecopy
+   (append hebrew-holidays-1 hebrew-holidays-2
+	   hebrew-holidays-3 hebrew-holidays-4))
   "*Jewish holidays.
 See the documentation for `calendar-holidays' for details.")
 
-;;;###autoload
+;;; jwz: don't autoload this, it makes `patch' choke on loaddefs.el.
+;;;don't ###autoload
 (defvar christian-holidays
+  (purecopy
   '((if all-christian-calendar-holidays
-        (fixed 1 6 "Epiphany"))
-    (easter-etc)
+        (holiday-fixed 1 6 "Epiphany"))
+    (holiday-easter-etc)
     (if all-christian-calendar-holidays
-        (greek-orthodox-easter))
+        (holiday-greek-orthodox-easter))
     (if all-christian-calendar-holidays
-        (fixed 8 15 "Assumption"))
+        (holiday-fixed 8 15 "Assumption"))
     (if all-christian-calendar-holidays
-        (advent))
-    (fixed 12 25 "Christmas")
+        (holiday-advent))
+    (holiday-fixed 12 25 "Christmas")
     (if all-christian-calendar-holidays
-        (julian 12 25 "Eastern Orthodox Christmas")))
+        (holiday-julian 12 25 "Eastern Orthodox Christmas"))))
   "*Christian holidays.
 See the documentation for `calendar-holidays' for details.")
 
-;;;###autoload
+;;; jwz: don't autoload this, it makes `patch' choke on loaddefs.el.
+;;;don't ###autoload
 (defvar islamic-holidays
-  '((islamic 1 1 (format "Islamic New Year %d"
-                         (let ((m displayed-month)
-                               (y displayed-year))
-                           (increment-calendar-month m y 1)
-                           (extract-calendar-year
-                            (calendar-islamic-from-absolute
-                             (calendar-absolute-from-gregorian
-                              (list m (calendar-last-day-of-month m y) y)))))))
-    (if all-islamic-calendar-holidays
-        (islamic 1 10 "Ashura"))
-    (if all-islamic-calendar-holidays
-        (islamic 3 12 "Mulad-al-Nabi"))
-    (if all-islamic-calendar-holidays
-        (islamic 7 26 "Shab-e-Mi'raj"))
-    (if all-islamic-calendar-holidays
-        (islamic 8 15 "Shab-e-Bara't"))
-    (islamic 9 1 "Ramadan Begins")
-    (if all-islamic-calendar-holidays
-        (islamic 9 27 "Shab-e Qadr"))
-    (if all-islamic-calendar-holidays
-        (islamic 10 1 "Id-al-Fitr"))
-    (if all-islamic-calendar-holidays
-        (islamic 12 10 "Id-al-Adha")))
+  (purecopy
+   '((holiday-islamic
+      1 1
+      (format "Islamic New Year %d"
+	      (let ((m displayed-month)
+		    (y displayed-year))
+		(increment-calendar-month m y 1)
+		(extract-calendar-year
+		 (calendar-islamic-from-absolute
+		  (calendar-absolute-from-gregorian
+		   (list
+		    m (calendar-last-day-of-month m y) y)))))))
+     (if all-islamic-calendar-holidays
+	 (holiday-islamic 1 10 "Ashura"))
+     (if all-islamic-calendar-holidays
+	 (holiday-islamic 3 12 "Mulad-al-Nabi"))
+     (if all-islamic-calendar-holidays
+	 (holiday-islamic 7 26 "Shab-e-Mi'raj"))
+     (if all-islamic-calendar-holidays
+	 (holiday-islamic 8 15 "Shab-e-Bara't"))
+     (holiday-islamic 9 1 "Ramadan Begins")
+     (if all-islamic-calendar-holidays
+	 (holiday-islamic 9 27 "Shab-e Qadr"))
+     (if all-islamic-calendar-holidays
+	 (holiday-islamic 10 1 "Id-al-Fitr"))
+     (if all-islamic-calendar-holidays
+	 (holiday-islamic 12 10 "Id-al-Adha"))))
   "*Islamic holidays.
 See the documentation for `calendar-holidays' for details.")
 
-;;;###autoload
+;;; jwz: don't autoload this, it makes `patch' choke on loaddefs.el.
+;;;don't ###autoload
 (defvar solar-holidays
-  '((if (fboundp 'atan)
-	(solar-equinoxes-solstices))
-    (sexp (eval calendar-daylight-savings-starts)
-          "Daylight Savings Time Begins")
-    (sexp (eval calendar-daylight-savings-ends)
-          "Daylight Savings Time Ends"))
+  (purecopy
+   '((if (fboundp 'atan)
+	 (solar-equinoxes-solstices))
+     (if (progn
+	   (require 'cal-dst)
+	   t)
+	 (funcall
+	  'holiday-sexp
+	  calendar-daylight-savings-starts
+	  '(format "Daylight Savings Time Begins %s"
+		   (if (fboundp 'atan)
+		       (solar-time-string
+			(/ calendar-daylight-savings-starts-time
+			   (float 60))
+			date
+			'standard)
+		     ""))))
+     (funcall
+      'holiday-sexp
+      calendar-daylight-savings-ends
+      '(format "Daylight Savings Time Ends %s"
+	       (if (fboundp 'atan)
+		   (solar-time-string
+		    (/ (- calendar-daylight-savings-ends-time
+			  calendar-daylight-time-offset)
+		       (float 60))
+		    date
+		    'daylight)
+		 "")))))
   "*Sun-related holidays.
 See the documentation for `calendar-holidays' for details.")
 
-;;;###autoload
 (defvar calendar-holidays
-  (append general-holidays local-holidays other-holidays
-          christian-holidays hebrew-holidays islamic-holidays
-          solar-holidays)
+  (purecopy
+   (append general-holidays local-holidays other-holidays
+	   christian-holidays hebrew-holidays islamic-holidays
+	   solar-holidays))
   "*List of notable days for the command M-x holidays.
 
 Additional holidays are easy to add to the list, just put them in the list
@@ -832,64 +815,66 @@ eliminate unwanted categories of holidays.  The intention is that (in the US)
 `local-holidays' be set in site-init.el and `other-holidays' be set by the
 user.
 
-The possible holiday-forms are as follows:
+Entries on the list are expressions that return (possibly empty) lists of
+items of the form ((month day year) string) of a holiday in the in the
+three-month period centered around `displayed-month' of `displayed-year'.
+Several basic functions are provided for this purpose:
 
-    (fixed MONTH DAY STRING)   a fixed date on the Gregorian calendar
-    (float MONTH DAYNAME K STRING) the Kth DAYNAME in MONTH on the Gregorian
-                               calendar (0 for Sunday, etc.); K<0 means
-                               count back from the end of the month
-    (hebrew MONTH DAY STRING)  a fixed date on the Hebrew calendar
-    (islamic MONTH DAY STRING) a fixed date on the Islamic calendar
-    (julian MONTH DAY STRING)  a fixed date on the Julian calendar
-    (sexp SEXP STRING)         SEXP is a Gregorian-date-valued expression
+    (holiday-fixed MONTH DAY STRING) is a fixed date on the Gregorian calendar
+    (holiday-float MONTH DAYNAME K STRING &optional day) is the Kth DAYNAME in
+                               MONTH on the Gregorian calendar (0 for Sunday,
+                               etc.); K<0 means count back from the end of the
+                               month. An optional parameter DAY means the Kth
+                               DAYNAME after/before MONTH DAY.
+    (holiday-hebrew MONTH DAY STRING)  a fixed date on the Hebrew calendar
+    (holiday-islamic MONTH DAY STRING) a fixed date on the Islamic calendar
+    (holiday-julian MONTH DAY STRING)  a fixed date on the Julian calendar
+    (holiday-sexp SEXP STRING) SEXP is a Gregorian-date-valued expression
                                in the variable `year'; if it evaluates to
                                a visible date, that's the holiday; if it
-                               evaluates to nil, there's no holiday
-    (if BOOLEAN HOLIDAY-FORM &optional HOLIDAY-FORM) gives a choice between
-                               two holidays based on the value of BOOLEAN
-    (FUNCTION &optional ARGS)  dates requiring special computation; ARGS,
-                               if any, are passed in a list to the function
-                               `calendar-holiday-function-FUNCTION'
+                               evaluates to nil, there's no holiday.  STRING
+                               is an expression in the variable `date'.
 
 For example, to add Bastille Day, celebrated in France on July 14, add
 
-     (fixed 7 14 \"Bastille Day\")
+     (holiday-fixed 7 14 \"Bastille Day\")
 
 to the list.  To add Hurricane Supplication Day, celebrated in the Virgin
 Islands on the fourth Monday in August, add
 
-     (float 8 1 4 \"Hurricane Supplication Day\")
+     (holiday-float 8 1 4 \"Hurricane Supplication Day\")
 
 to the list (the last Monday would be specified with `-1' instead of `4').
 To add the last day of Hanukkah to the list, use
 
-     (hebrew 10 2 \"Last day of Hanukkah\")
+     (holiday-hebrew 10 2 \"Last day of Hanukkah\")
 
 since the Hebrew months are numbered with 1 starting from Nisan, while to
 add the Islamic feast celebrating Mohammed's birthday use
 
-     (islamic 3 12 \"Mohammed's Birthday\")
+     (holiday-islamic 3 12 \"Mohammed's Birthday\")
 
 since the Islamic months are numbered from 1 starting with Muharram.  To
 add Thomas Jefferson's birthday, April 2, 1743 (Julian), use
 
-     (julian 4 2 \"Jefferson's Birthday\")
+     (holiday-julian 4 2 \"Jefferson's Birthday\")
 
-To include a holiday conditionally, use the if or the sexp form.  For example,
-to include American presidential elections, which occur on the first Tuesday
-after the first Monday in November of years divisble by 4, add
+To include a holiday conditionally, use the sexp form or a conditional.  For
+example, to include American presidential elections, which occur on the first
+Tuesday after the first Monday in November of years divisible by 4, add
 
-     (sexp (if (zerop (% year 4))
-               (calendar-gregorian-from-absolute
-                  (1+ (calendar-dayname-on-or-before
-                        1 (+ 6 (calendar-absolute-from-gregorian
-                                 (list 11 1 year)))))))
-            \"US Presidential Election\")
+     (holiday-sexp
+       (if (zerop (% year 4))
+           (calendar-gregorian-from-absolute
+             (1+ (calendar-dayname-on-or-before
+                   1 (+ 6 (calendar-absolute-from-gregorian
+                            (list 11 1 year)))))))
+       \"US Presidential Election\")
 
 or
 
      (if (zerop (% displayed-year 4))
-         (fixed 11
+         (holiday-fixed 11
                 (extract-calendar-day
                  (calendar-gregorian-from-absolute
                   (1+ (calendar-dayname-on-or-before
@@ -901,18 +886,11 @@ to the list.  To include the phases of the moon, add
 
      (lunar-phases)
 
-to the holiday list, where `calendar-holiday-function-lunar-phases' is an
-Emacs-Lisp function that you've written to return a (possibly empty) list of
-the relevant VISIBLE dates with descriptive strings such as
+to the holiday list, where `lunar-phases' is an Emacs-Lisp function that
+you've written to return a (possibly empty) list of the relevant VISIBLE dates
+with descriptive strings such as
 
-     (((2 6 1989) \"New Moon\") ((2 12 1989) \"First Quarter Moon\") ... )
-
-The fixed, float, hebrew, islamic, julian, sexp, and if forms are implemented
-by the inclusion of the functions `calendar-holiday-function-fixed',
-`calendar-holiday-function-float', `calendar-holiday-function-hebrew',
-`calendar-holiday-function-islamic', `calendar-holiday-function-julian',
-`calendar-holiday-function-sexp', and `calendar-holiday-function-if',
-respectively.")
+     (((2 6 1989) \"New Moon\") ((2 12 1989) \"First Quarter Moon\") ... ).")
 
 (defconst calendar-buffer "*Calendar*"
   "Name of the buffer used for the calendar.")
@@ -924,8 +902,8 @@ respectively.")
   "Name of the buffer used for the optional fancy display of the diary.")
 
 (defmacro increment-calendar-month (mon yr n)
-  "Move the variables MON and YR to the month and year N months forward
-if N is positive or backward if N is negative."
+  "Move the variables MON and YR to the month and year by N months.
+Forward if N is positive or backward if N is negative."
   (` (let (( macro-y (+ (* (, yr) 12) (, mon) -1 (, n) )))
        (setq (, mon) (1+ (% macro-y 12) ))
        (setq (, yr) (/ macro-y 12)))))
@@ -937,8 +915,7 @@ if N is positive or backward if N is negative."
          (,@ body)))))
 
 (defmacro calendar-sum (index initial condition expression)
-  "For INDEX = INITIAL and successive integers, as long as CONDITION holds,
-sum EXPRESSION."
+  "For INDEX = INITIAL et seq, as long as CONDITION holds, sum EXPRESSION."
   (` (let (( (, index) (, initial))
              (sum 0))
        (while (, condition)
@@ -1001,10 +978,25 @@ sum EXPRESSION."
 
 (defmacro calendar-leap-year-p (year)
   "Returns t if YEAR is a Gregorian leap year."
-  (` (or
-        (and (=  (% (, year) 4) 0)
-             (/= (% (, year) 100) 0))
-        (= (% (, year) 400) 0))))
+  (` (and
+	(zerop (% (, year) 4))
+	(or (not (zerop (% (, year) 100)))
+	    (zerop (% (, year) 400))))))
+;;(defun calendar-leap-year-p (year)
+;;  "Returns t if YEAR is a Gregorian leap year."
+;;  (and
+;;    (zerop (% year 4))
+;;    (or ((not (zerop (% year 100))))
+;;	  (zerop (% year 400)))))
+;;
+;; The foregoing is a bit faster, but not as clear as the following:
+;;
+;;(defmacro calendar-leap-year-p (year)
+;;  "Returns t if YEAR is a Gregorian leap year."
+;;  (` (or
+;;        (and (=  (% (, year) 4) 0)
+;;             (/= (% (, year) 100) 0))
+;;        (= (% (, year) 400) 0))))
 ;;(defun calendar-leap-year-p (year)
 ;;  "Returns t if YEAR is a Gregorian leap year."
 ;;  (or
@@ -1015,13 +1007,13 @@ sum EXPRESSION."
 (defmacro calendar-last-day-of-month (month year)
   "The last day in MONTH during YEAR."
   (` (if (and
-            (, (macroexpand (` (calendar-leap-year-p (, year)))))
-            (= (, month) 2))
+            (= (, month) 2)
+            (, (macroexpand (` (calendar-leap-year-p (, year))))))
            29
          (aref [31 28 31 30 31 30 31 31 30 31 30 31] (1- (, month))))))
 ;;(defun calendar-last-day-of-month (month year)
 ;;  "The last day in MONTH during YEAR."
-;;  (if (and (calendar-leap-year-p year) (= month 2))
+;;  (if (and (= month 2) (calendar-leap-year-p year))
 ;;      29
 ;;    (aref [31 28 31 30 31 30 31 31 30 31 30 31] (1- month))))
 
@@ -1061,25 +1053,22 @@ while (calendar-day-number '(12 31 1980)) returns 366."
 (defmacro calendar-absolute-from-gregorian (date)
   "The number of days elapsed between the Gregorian date 12/31/1 BC and DATE.
 The Gregorian date Sunday, December 31, 1 BC is imaginary."
-  (` (let ((month (, (macroexpand (` (extract-calendar-month (, date))))))
-           (day (, (macroexpand (` (extract-calendar-day (, date))))))
-           (year  (, (macroexpand (` (extract-calendar-year (, date)))))))
+  (` (let ((prior-years
+	    (1- (, (macroexpand (` (extract-calendar-year (, date))))))))
        (+ (, (macroexpand (` (calendar-day-number (, date)))));; Days this year
-          (* 365 (1- year));;        + Days in prior years
-          (/ (1- year) 4);;          + Julian leap years
-          (- (/ (1- year) 100));;    - century years
-          (/ (1- year) 400)))));;     + Gregorian leap years
+          (* 365 prior-years);;        + Days in prior years
+          (/ prior-years 4);;          + Julian leap years
+          (- (/ prior-years 100));;    - century years
+          (/ prior-years 400)))));;    + Gregorian leap years
 ;;(defun calendar-absolute-from-gregorian (date)
 ;;  "The number of days elapsed between the Gregorian date 12/31/1 BC and DATE.
 ;;The Gregorian date Sunday, December 31, 1 BC is imaginary."
-;;  (let ((month (extract-calendar-month date))
-;;        (day (extract-calendar-day date))
-;;        (year (extract-calendar-year date)))
+;;  (let ((prior-years (1- (extract-calendar-year date))))
 ;;    (+ (calendar-day-number date);; Days this year
-;;       (* 365 (1- year));;        + Days in prior years
-;;       (/ (1- year) 4);;          + Julian leap years
-;;       (- (/ (1- year) 100));;    - century years
-;;       (/ (1- year) 400))));;     + Gregorian leap years
+;;       (* 365 prior-years);;        + Days in prior years
+;;       (/ prior-years 4);;          + Julian leap years
+;;       (- (/ prior-years 100));;    - century years
+;;       (/ prior-years 400))));;     + Gregorian leap years
 
 ;;;###autoload
 (defun calendar (&optional arg)
@@ -1236,60 +1225,61 @@ is created."
 Each entry in diary-file visible in the calendar window is marked."
   t)
 
-(autoload 'insert-diary-entry "diary-insert"
+(autoload 'insert-diary-entry "diary-ins"
   "Insert a diary entry for the date indicated by point."
   t)
 
-(autoload 'insert-weekly-diary-entry "diary-insert"
+(autoload 'insert-weekly-diary-entry "diary-ins"
   "Insert a weekly diary entry for the day of the week indicated by point."
   t)
 
-(autoload 'insert-monthly-diary-entry "diary-insert"
+
+(autoload 'insert-monthly-diary-entry "diary-ins"
   "Insert a monthly diary entry for the day of the month indicated by point."
   t)
 
-(autoload 'insert-yearly-diary-entry "diary-insert"
+(autoload 'insert-yearly-diary-entry "diary-ins"
   "Insert an annual diary entry for the day of the year indicated by point."
   t)
 
-(autoload 'insert-anniversary-diary-entry "diary-insert"
+(autoload 'insert-anniversary-diary-entry "diary-ins"
   "Insert an anniversary diary entry for the date indicated by point."
   t)
 
-(autoload 'insert-block-diary-entry "diary-insert"
+(autoload 'insert-block-diary-entry "diary-ins"
   "Insert a block diary entry for the dates indicated by point and mark."
   t)
 
-(autoload 'insert-cyclic-diary-entry "diary-insert"
+(autoload 'insert-cyclic-diary-entry "diary-ins"
   "Insert a cyclic diary entry starting at the date indicated by point."
   t)
 
-(autoload 'insert-hebrew-diary-entry "diary-insert"
+(autoload 'insert-hebrew-diary-entry "diary-ins"
   "Insert a diary entry for the Hebrew date corresponding to the date
 indicated by point."
   t)
 
-(autoload 'insert-monthly-hebrew-diary-entry "diary-insert"
+(autoload 'insert-monthly-hebrew-diary-entry "diary-ins"
   "Insert a monthly diary entry for the day of the Hebrew month corresponding
 to the date indicated by point."
   t)
 
-(autoload 'insert-yearly-hebrew-diary-entry "diary-insert"
+(autoload 'insert-yearly-hebrew-diary-entry "diary-ins"
   "Insert an annual diary entry for the day of the Hebrew year corresponding
 to the date indicated by point."
   t)
 
-(autoload 'insert-islamic-diary-entry "diary-insert"
+(autoload 'insert-islamic-diary-entry "diary-ins"
   "Insert a diary entry for the Islamic date corresponding to the date
 indicated by point."
   t)
 
-(autoload 'insert-monthly-islamic-diary-entry "diary-insert"
+(autoload 'insert-monthly-islamic-diary-entry "diary-ins"
   "Insert a monthly diary entry for the day of the Islamic month corresponding
 to the date indicated by point."
   t)
 
-(autoload 'insert-yearly-islamic-diary-entry "diary-insert"
+(autoload 'insert-yearly-islamic-diary-entry "diary-ins"
   "Insert an annual diary entry for the day of the Islamic year corresponding
 to the date indicated by point."
   t)
@@ -1359,25 +1349,34 @@ The calendar is inserted in the buffer starting at the line on which point
 is currently located, but indented INDENT spaces.  The indentation is done
 from the first character on the line and does not disturb the first INDENT
 characters on the line."
-  (let* ((first-day-of-month (calendar-day-of-week (list month 1 year)))
-         (first-saturday (- 7 first-day-of-month))
-         (last (calendar-last-day-of-month month year))
-         (heading (format "%s %d" (calendar-month-name month) year)))
-    (goto-char (point-min))
-    (calendar-insert-indented
-     heading (+ indent (/ (- 20 (length heading)) 2)) t)
-    (calendar-insert-indented " S  M Tu  W Th  F  S" indent t)
-    (calendar-insert-indented "" indent);; Move to appropriate spot on line
-    ;; Add blank days before the first of the month
-    (calendar-for-loop i from 1 to first-day-of-month do
-        (insert "   "))
-    ;; Put in the days of the month
-    (calendar-for-loop i from 1 to last do
-         (insert (format "%2d " i))
-         (and (= (% i 7) (% first-saturday 7))
-              (/= i last)
-              (calendar-insert-indented "" 0 t)    ;; Force onto following line
-              (calendar-insert-indented "" indent)))));; Go to proper spot
+  (let* ((blank-days;; at start of month
+          (calendar-mod
+           (- (calendar-day-of-week (list month 1 year))
+              calendar-week-start-day)
+           7))
+	 (last (calendar-last-day-of-month month year)))
+   (goto-char (point-min))
+   (calendar-insert-indented
+    (calendar-string-spread
+     (list "" (format "%s %d" (calendar-month-name month) year) "") ?  20)
+    indent t)
+   (calendar-insert-indented "" indent);; Go to proper spot
+   (calendar-for-loop i from 0 to 6 do
+      (insert (substring (aref calendar-day-name-array 
+                               (calendar-mod (+ calendar-week-start-day i) 7))
+                         0 2))
+      (insert " "))
+   (calendar-insert-indented "" 0 t);; Force onto following line
+   (calendar-insert-indented "" indent);; Go to proper spot
+   ;; Add blank days before the first of the month
+   (calendar-for-loop i from 1 to blank-days do (insert "   "))
+   ;; Put in the days of the month
+   (calendar-for-loop i from 1 to last do
+      (insert (format "%2d " i))
+      (and (zerop (calendar-mod (+ i blank-days) 7))
+           (/= i last)
+           (calendar-insert-indented "" 0 t)    ;; Force onto following line
+           (calendar-insert-indented "" indent)))));; Go to proper spot
 
 (defun calendar-insert-indented (string indent &optional newline)
   "Insert STRING at column INDENT.
@@ -1406,6 +1405,9 @@ the inserted text.  Value is always t."
     (generate-calendar-window displayed-month displayed-year)
     (calendar-cursor-to-visible-date cursor-date)))
 
+(defvar calendar-debug-sexp nil
+  "*Turn debugging on when evaluating a sexp in the diary or holiday list.")
+
 (defvar calendar-mode-map nil)
 (if calendar-mode-map
     nil
@@ -1424,15 +1426,19 @@ the inserted text.  Value is always t."
         (setq l (cdr l)))))
   (define-key calendar-mode-map "-"     'negative-argument)
   (define-key calendar-mode-map "\C-x>" 'scroll-calendar-right)
-  (define-key calendar-mode-map "\ev"   'scroll-calendar-right-three-months)
+  (define-key calendar-mode-map [prior] 'scroll-calendar-right-three-months)
   (define-key calendar-mode-map "\C-x<" 'scroll-calendar-left)
-  (define-key calendar-mode-map "\C-v"  'scroll-calendar-left-three-months)
+  (define-key calendar-mode-map [next]  'scroll-calendar-left-three-months)
   (define-key calendar-mode-map "\C-b"  'calendar-backward-day)
   (define-key calendar-mode-map "\C-p"  'calendar-backward-week)
   (define-key calendar-mode-map "\e{"   'calendar-backward-month)
   (define-key calendar-mode-map "\C-x[" 'calendar-backward-year)
   (define-key calendar-mode-map "\C-f"  'calendar-forward-day)
   (define-key calendar-mode-map "\C-n"  'calendar-forward-week)
+  (define-key calendar-mode-map [left]  'calendar-backward-day)
+  (define-key calendar-mode-map [up]    'calendar-backward-week)
+  (define-key calendar-mode-map [right] 'calendar-forward-day)
+  (define-key calendar-mode-map [down]  'calendar-forward-week)
   (define-key calendar-mode-map "\e}"   'calendar-forward-month)
   (define-key calendar-mode-map "\C-x]" 'calendar-forward-year)
   (define-key calendar-mode-map "\C-a"  'calendar-beginning-of-week)
@@ -1442,6 +1448,8 @@ the inserted text.  Value is always t."
   (define-key calendar-mode-map "\e<"   'calendar-beginning-of-year)
   (define-key calendar-mode-map "\e>"   'calendar-end-of-year)
   (define-key calendar-mode-map "\C-@"  'calendar-set-mark)
+  ;; Many people are used to typing C-SPC and getting C-@.
+;  (define-key calendar-mode-map [?\C-\ ] 'calendar-set-mark)
   (define-key calendar-mode-map "\C-x\C-x" 'calendar-exchange-point-and-mark)
   (define-key calendar-mode-map "\e=" 'calendar-count-days-region)
   (define-key calendar-mode-map "gd"  'calendar-goto-date)
@@ -1524,19 +1532,19 @@ the inserted text.  Value is always t."
 
 The commands for cursor movement are:\\<calendar-mode-map>
 
-       \\[calendar-forward-day]  one day forward           \\[calendar-backward-day]  one day backward
-       \\[calendar-forward-week]  one week forward          \\[calendar-backward-week]  one week backward
+       \\[calendar-forward-day]  one day forward         \\[calendar-backward-day]  one day backward
+       \\[calendar-forward-week]  one week forward        \\[calendar-backward-week]  one week backward
        \\[calendar-forward-month]  one month forward       \\[calendar-backward-month]  one month backward
-       \\[calendar-forward-year]  one year forward        \\[calendar-backward-year]  one year backward
-       \\[calendar-beginning-of-week]  beginning of week         \\[calendar-end-of-week]  end of week
+       \\[calendar-forward-year]  one year forward      \\[calendar-backward-year]  one year backward
+       \\[calendar-beginning-of-week]  beginning of week       \\[calendar-end-of-week]  end of week
        \\[calendar-beginning-of-month]  beginning of month      \\[calendar-end-of-month]  end of month
        \\[calendar-beginning-of-year]  beginning of year       \\[calendar-end-of-year]  end of year
 
        \\[calendar-goto-date]  go to date
 
-       \\[calendar-goto-julian-date]  go to Julian date         \\[calendar-goto-astro-day-number]  go to astronomical (Julian) day number
-       \\[calendar-goto-hebrew-date]  go to Hebrew date         \\[calendar-goto-islamic-date]  go to Islamic date
-       \\[calendar-goto-iso-date]  go to ISO date            \\[calendar-goto-french-date]  go to French Revolutionary date
+       \\[calendar-goto-julian-date]  go to Julian date       \\[calendar-goto-astro-day-number]  go to astronomical (Julian) day number
+       \\[calendar-goto-hebrew-date]  go to Hebrew date       \\[calendar-goto-islamic-date]  go to Islamic date
+       \\[calendar-goto-iso-date]  go to ISO date          \\[calendar-goto-french-date]  go to French Revolutionary date
 
        \\[calendar-goto-mayan-long-count-date]  go to Mayan Long Count date
        \\[calendar-next-haab-date]  go to next occurrence of Mayan Haab date
@@ -1556,9 +1564,9 @@ You can determine the number of days (inclusive) between the point and mark by
 
 The commands for calendar movement are:
 
-       \\[scroll-calendar-right]  scroll one month right   \\[scroll-calendar-left]  scroll one month left
+       \\[scroll-calendar-right]  scroll one month right \\[scroll-calendar-left]  scroll one month left
        \\[scroll-calendar-right-three-months]  scroll 3 months right    \\[scroll-calendar-left-three-months]  scroll 3 months left
-       \\[calendar-current-month]  display current month        \\[calendar-other-month]  display another month
+       \\[calendar-current-month]  display current month      \\[calendar-other-month]  display another month
 
 Whenever it makes sense, the above commands take prefix arguments that
 multiply their affect.  For convenience, the digit keys and the minus sign
@@ -1586,7 +1594,7 @@ The following commands control the diary:
        \\[print-diary-entries]  print diary entries
 
 Displaying the diary entries causes the diary entries from the diary-file
-(for the date indicated by the cursor in the calendar window) to be
+\(for the date indicated by the cursor in the calendar window) to be
 displayed in another window.  This function takes an integer argument that
 specifies the number of days of calendar entries to be displayed, starting
 with the date indicated by the cursor.
@@ -1658,7 +1666,7 @@ Revolutionary, and Mayan calendars can be determined by
        \\[calendar-print-french-date]  show equivalent date on the French Revolutionary calendar
        \\[calendar-print-mayan-date]  show equivalent date on the Mayan calendar
 
-The astromonical (Julian) day number of a date is found with
+The astronomical (Julian) day number of a date is found with
 
        \\[calendar-print-astro-day-number]  show equivalent astronomical (Julian) day number
 
@@ -1667,11 +1675,14 @@ To find the times of sunrise and sunset and lunar phases use
        \\[calendar-sunrise-sunset]  show times of sunrise and sunset
        \\[calendar-phases-of-moon]  show times of quarters of the moon
 
-The times given will be at latitude `solar-latitude', longitude
-`solar-longitude' in time zone `solar-time-zone'.  These variables, and the
-variables `solar-location-name', `solar-standard-time-zone-name',
-`solar-daylight-time-zone-name', `solar-daylight-savings-starts', and
-`solar-daylight-savings-ends', should be set for your location.
+The times given will be for location `calendar-location-name' at latitude
+`calendar-latitude', longitude `calendar-longitude'; set these variables for
+your location.  The following variables are also consulted, and you must set
+them if your system does not initialize them properly: `calendar-time-zone',
+`calendar-daylight-time-offset', `calendar-standard-time-zone-name',
+`calendar-daylight-time-zone-name', `calendar-daylight-savings-starts',
+`calendar-daylight-savings-ends', `calendar-daylight-savings-starts-time',
+`calendar-daylight-savings-ends-time'.
 
 To exit from the calendar use
 
@@ -1752,10 +1763,10 @@ The Gregorian calendar is assumed."
   (make-local-variable 'displayed-year));;  Year in middle of window.
 
 (defun calendar-string-spread (strings char length)
-  "A list of STRINGS is concatenated separated by copies of CHAR so that it
-fills LENGTH; there must be at least 2 strings.  The effect is like mapconcat
-but the separating pieces are as balanced as possible.  Each item of STRINGS
-is evaluated before concatenation so it can actually be an expression that
+  "Concatenate list of STRINGS separated with copies of CHAR to fill LENGTH
+There must be at least 2 strings.  The effect is like mapconcat but the
+separating pieces are as balanced as possible.  Each item of STRINGS is
+evaluated before concatenation so it can actually be an expression that
 evaluates to a string.  If LENGTH is too short, the STRINGS are just
 concatenated and the result truncated."
 ;; The algorithm is based on equation (3.25) on page 85 of Concrete
@@ -2000,20 +2011,26 @@ Moves forward if ARG is negative."
   (calendar-forward-day (* arg -7)))
 
 (defun calendar-beginning-of-week (arg)
-  "Move the cursor back ARG Sundays."
+  "Move the cursor back ARG calendar-week-start-day's."
   (interactive "p")
   (calendar-cursor-to-nearest-date)
   (let ((day (calendar-day-of-week (calendar-cursor-to-date))))
     (calendar-backward-day
-     (if (= day 0) (* 7 arg) (+ day (* 7 (1- arg)))))))
+     (if (= day calendar-week-start-day)
+         (* 7 arg)
+       (+ (calendar-mod (- day calendar-week-start-day) 7)
+          (* 7 (1- arg)))))))
 
 (defun calendar-end-of-week (arg)
-  "Move the cursor forward ARG Saturdays."
+  "Move the cursor forward ARG calendar-week-start-day+6's."
   (interactive "p")
   (calendar-cursor-to-nearest-date)
   (let ((day (calendar-day-of-week (calendar-cursor-to-date))))
     (calendar-forward-day
-     (if (= day 6) (* 7 arg) (+ (- 6 day) (* 7 (1- arg)))))))
+     (if (= day (calendar-mod (1- calendar-week-start-day) 7))
+         (* 7 arg)
+       (+ (- 6 (calendar-mod (- day calendar-week-start-day) 7))
+          (* 7 (1- arg)))))))
 
 (defun calendar-beginning-of-month (arg)
   "Move the cursor backward ARG month beginnings."
@@ -2083,41 +2100,86 @@ Moves forward if ARG is negative."
         (calendar-other-month 12 (- year (1- arg)))
         (calendar-cursor-to-visible-date (list 12 31 displayed-year))))))
 
+;; The following version of calendar-gregorian-from-absolute is preferred for
+;; reasons of clarity, BUT it's much slower than the version that follows it.
+
+;;(defun calendar-gregorian-from-absolute (date)
+;;  "Compute the list (month day year) corresponding to the absolute DATE.
+;;The absolute date is the number of days elapsed since the (imaginary)
+;;Gregorian date Sunday, December 31, 1 BC."
+;;  (let* ((approx (/ date 366));; Approximation from below.
+;;         (year                ;; Search forward from the approximation.
+;;          (+ approx
+;;             (calendar-sum y approx
+;;                 (>= date (calendar-absolute-from-gregorian (list 1 1 (1+ y))))
+;;                  1)))
+;;         (month         ;; Search forward from January.
+;;          (1+ (calendar-sum m 1
+;;                   (> date
+;;                      (calendar-absolute-from-gregorian
+;;                       (list m (calendar-last-day-of-month m year) year)))
+;;                   1)))
+;;         (day           ;; Calculate the day by subtraction.
+;;          (- date
+;;             (1- (calendar-absolute-from-gregorian (list month 1 year))))))
+;;    (list month day year)))
+
 (defun calendar-gregorian-from-absolute (date)
   "Compute the list (month day year) corresponding to the absolute DATE.
 The absolute date is the number of days elapsed since the (imaginary)
 Gregorian date Sunday, December 31, 1 BC."
-  (let* ((approx (/ date 366));; Approximation from below.
-         (year                ;; Search forward from the approximation.
-          (+ approx
-             (calendar-sum y approx
-                 (>= date (calendar-absolute-from-gregorian (list 1 1 (1+ y))))
-                  1)))
-         (month         ;; Search forward from January.
-          (1+ (calendar-sum m 1
-                   (> date
-                      (calendar-absolute-from-gregorian
-                       (list m (calendar-last-day-of-month m year) year)))
-                   1)))
-         (day           ;; Calculate the day by subtraction.
-          (- date
-             (1- (calendar-absolute-from-gregorian (list month 1 year))))))
-    (list month day year)))
+;; See the footnote on page 384 of ``Calendrical Calculations, Part II:
+;; Three Historical Calendars'' by E. M. Reingold,  N. Dershowitz, and S. M.
+;; Clamen, Software--Practice and Experience, Volume 23, Number 4
+;; (April, 1993), pages 383-404 for an explanation.
+  (let* ((d0 (1- date))
+         (n400 (/ d0 146097))
+         (d1 (% d0 146097))
+         (n100 (/ d1 36524))
+         (d2 (% d1 36524))
+         (n4 (/ d2 1461))
+         (d3 (% d2 1461))
+         (n1 (/ d3 365))
+         (day (1+ (% d3 365)))
+         (year (+ (* 400 n400) (* 100 n100) (* n4 4) n1)))
+    (if (or (= n100 4) (= n1 4))
+        (list 12 31 year)
+      (let ((year (1+ year))
+            (month 1))
+        (while (let ((mdays (calendar-last-day-of-month month year)))
+                 (and (< mdays day)
+                      (setq day (- day mdays))))
+          (setq month (1+ month)))
+        (list month day year)))))
+
+(defun calendar-mod (x y)
+  "Returns X % Y; value is *always* non-negative."
+  (let ((v (mod x y)))
+    (if (> 0 v)
+	(+ v y)
+      v)))
 
 (defun calendar-cursor-to-visible-date (date)
   "Move the cursor to DATE that is on the screen."
-    (let ((month (extract-calendar-month date))
-          (day (extract-calendar-day date))
-          (year (extract-calendar-year date)))
-      (goto-line (+ 3
-                    (/ (+ day -1
-                          (calendar-day-of-week (list month 1 year)))
-                       7)))
-      (move-to-column (+ 6
-                         (* 25
-                            (1+ (calendar-interval
-                                 displayed-month displayed-year month year)))
-                         (* 3 (calendar-day-of-week date))))))
+  (let* ((month (extract-calendar-month date))
+	 (day (extract-calendar-day date))
+	 (year (extract-calendar-year date))
+	 (first-of-month-weekday (calendar-day-of-week (list month 1 year))))
+    (goto-line (+ 3
+		  (/ (+ day  -1
+                        (calendar-mod
+                         (- (calendar-day-of-week (list month 1 year))
+                            calendar-week-start-day)
+                         7))
+                     7)))
+    (move-to-column (+ 6
+		       (* 25
+			  (1+ (calendar-interval
+			       displayed-month displayed-year month year)))
+		       (* 3 (calendar-mod
+                             (- (calendar-day-of-week date)
+                                calendar-week-start-day)
+                             7))))))
 
 (defun calendar-other-month (month year)
   "Display a three-month calendar centered around MONTH and YEAR."
@@ -2392,10 +2454,10 @@ is a string to insert in the minibuffer before reading."
   "Returns a string with the name of the day of the week of DATE."
   (aref calendar-day-name-array (calendar-day-of-week date)))
 
-(defconst calendar-day-name-array
+(defvar calendar-day-name-array
   ["Sunday" "Monday" "Tuesday" "Wednesday" "Thursday" "Friday" "Saturday"])
 
-(defconst calendar-month-name-array
+(defvar calendar-month-name-array
   ["January" "February" "March"     "April"   "May"      "June"
    "July"    "August"   "September" "October" "November" "December"])
 
@@ -2547,21 +2609,36 @@ absolute date d, applying it to d-1 gives the DAYNAME previous to absolute
 date d, and applying it to d+7 gives the DAYNAME following absolute date d."
   (- date (% (- date dayname) 7)))
 
-(defun calendar-nth-named-day (n dayname month year)
-  "Returns the date of the  Nth DAYNAME in MONTH, YEAR.
-A DAYNAME of 0 means Sunday, 1 means Monday, and so on.  If N<0, the
-date returned is the Nth DAYNAME from the end of MONTH, YEAR (that is, -1 is
-the last DAYNAME, -2 is the penultimate DAYNAME, and so on."
+(defun calendar-nth-named-absday (n dayname month year &optional day)
+  "The absolute date of Nth DAYNAME in MONTH, YEAR before/after optional DAY.
+A DAYNAME of 0 means Sunday, 1 means Monday, and so on.  If N<0,
+return the Nth DAYNAME before MONTH DAY, YEAR (inclusive).
+If N>0, return the Nth DAYNAME after MONTH DAY, YEAR (inclusive).
+
+If DAY is omitted, it defaults to 1 if N>0, and MONTH's last day otherwise."
+  (if (> n 0)
+      (+ (* 7 (1- n))
+	 (calendar-dayname-on-or-before
+	  dayname
+	  (+ 6 (calendar-absolute-from-gregorian
+		(list month (or day 1) year)))))
+    (+ (* 7 (1+ n))
+       (calendar-dayname-on-or-before
+	dayname
+	(calendar-absolute-from-gregorian
+	 (list month
+	       (or day (calendar-last-day-of-month month year))
+	       year))))))
+
+(defun calendar-nth-named-day (n dayname month year &optional day)
+  "The date of Nth DAYNAME in MONTH, YEAR before/after optional DAY.
+A DAYNAME of 0 means Sunday, 1 means Monday, and so on.  If N<0,
+return the Nth DAYNAME before MONTH DAY, YEAR (inclusive).
+If N>0, return the Nth DAYNAME after MONTH DAY, YEAR (inclusive).
+
+If DAY is omitted, it defaults to 1 if N>0, and MONTH's last day otherwise."
   (calendar-gregorian-from-absolute
-   (if (> n 0)
-       (+ (calendar-dayname-on-or-before
-           dayname (calendar-absolute-from-gregorian (list month 7 year)))
-          (* 7 (1- n)))
-     (+ (calendar-dayname-on-or-before
-         dayname
-         (calendar-absolute-from-gregorian
-          (list month (calendar-last-day-of-month month year) year)))
-        (* 7 (1+ n))))))
+   (calendar-nth-named-absday n dayname month year day)))
 
 (defun calendar-print-day-of-year ()
   "Show the day number in the year and the number of days remaining in the
@@ -2576,13 +2653,13 @@ year for the date under the cursor."
              day year days-remaining (if (= days-remaining 1) "" "s"))))
 
 (defun calendar-absolute-from-iso (date)
-  "The number of days elapsed between the Gregorian date 12/31/1 BC and
-DATE.  The `ISO year' corresponds approximately to the Gregorian year, but
+  "The number of days elapsed between the Gregorian date 12/31/1 BC and DATE.
+The `ISO year' corresponds approximately to the Gregorian year, but
 weeks start on Monday and end on Sunday.  The first week of the ISO year is
 the first such week in which at least 4 days are in a year.  The ISO
 commercial DATE has the form (week day year) in which week is in the range
 1..52 and day is in the range 0..6 (1 = Monday, 2 = Tuesday, ..., 0 =
-Sunday).  The The Gregorian date Sunday, December 31, 1 BC is imaginary."
+Sunday).  The Gregorian date Sunday, December 31, 1 BC is imaginary."
   (let* ((week (extract-calendar-month date))
          (day (extract-calendar-day date))
          (year (extract-calendar-year date)))
@@ -2612,8 +2689,7 @@ date Sunday, December 31, 1 BC."
      year)))
 
 (defun calendar-print-iso-date ()
-  "Show the equivalent date on the `ISO commercial calendar' for the date
-under the cursor."
+  "Show equivalent ISO date for the date under the cursor."
   (interactive)
   (let* ((greg-date
           (or (calendar-cursor-to-date)
@@ -2743,7 +2819,7 @@ Gregorian date Sunday, December 31, 1 BC."
                (1- (calendar-absolute-from-islamic (list month 1 year))))))
       (list month day year))))
 
-(defconst calendar-islamic-month-name-array
+(defvar calendar-islamic-month-name-array
   ["Muharram" "Safar" "Rabi I" "Rabi II" "Jumada I" "Jumada II"
    "Rajab" "Sha'ban" "Ramadan" "Shawwal" "Dhu al-Qada" "Dhu al-Hijjah"])
 
@@ -2802,8 +2878,7 @@ Gregorian date Sunday, December 31, 1 BC."
     30))
 
 (defun hebrew-calendar-elapsed-days (year)
-  "Number of days elapsed from the Sunday prior to the start of the Hebrew
-calendar to the mean conjunction of Tishri of Hebrew YEAR."
+  "Days from Sun. prior to start of Hebrew calendar to mean conjunction of Tishri of Hebrew YEAR."
   (let* ((months-elapsed
           (+ (* 235 (/ (1- year) 19));; Months in complete cycles so far.
              (* 12 (% (1- year) 19))      ;; Regular months in this cycle
@@ -2874,11 +2949,11 @@ Gregorian date Sunday, December 31, 1 BC."
     (hebrew-calendar-elapsed-days year);; Days in prior years.
     -1373429)))                        ;; Days elapsed before absolute date 1.
 
-(defconst calendar-hebrew-month-name-array-common-year
+(defvar calendar-hebrew-month-name-array-common-year
   ["Nisan" "Iyar" "Sivan" "Tammuz" "Av" "Elul" "Tishri"
    "Heshvan" "Kislev" "Teveth" "Shevat" "Adar"])
 
-(defconst calendar-hebrew-month-name-array-leap-year
+(defvar calendar-hebrew-month-name-array-leap-year
   ["Nisan" "Iyar" "Sivan" "Tammuz" "Av" "Elul" "Tishri"
    "Heshvan" "Kislev" "Teveth" "Shevat" "Adar I" "Adar II"])
 
@@ -2919,11 +2994,11 @@ Gregorian date Sunday, December 31, 1 BC."
      ((= death-month 13)
       (calendar-absolute-from-hebrew
        (list (hebrew-calendar-last-month-of-year year) death-day year)))
-     ;; If it's the 30th in Adar I and $year$ is not a leap year
+     ;; If it's the 30th in Adar I and year is not a leap year
      ;; (so Adar has only 29 days), use the last day in Shevat.
      ((and (= death-day 30)
            (= death-month 12)
-           (not (hebrew-calendar-leap-year-p death-year)))
+           (not (hebrew-calendar-leap-year-p year)))
       (calendar-absolute-from-hebrew (list 11 30 year)))
      ;; In all other cases, use the normal anniversary of the date of death.
      (t (calendar-absolute-from-hebrew
@@ -2936,9 +3011,9 @@ Gregorian date Sunday, December 31, 1 BC."
 
 ;;;###autoload
 (defun list-yahrzeit-dates (death-date start-year end-year)
-  "List of Yahrzeit dates for *Gregorian* DEATH-DATE from START-YEAR to
-END-YEAR.  When called interactively from the calendar window,
-the date of death is taken from the cursor position."
+  "List Yahrzeit dates for *Gregorian* DEATH-DATE from START-YEAR to END-YEAR.
+When called interactively from the calendar window, the date of death is taken
+from the cursor position."
   (interactive
    (let* ((death-date
            (if (equal (current-buffer) (get-buffer calendar-buffer))
@@ -3009,11 +3084,10 @@ the date of death is taken from the cursor position."
     (message "Computing yahrzeits...done")))
 
 (defun calendar-print-astro-day-number ()
-  "Show the astronomical (Julian) day number of afternoon on date
-shown by cursor."
+  "Show astronomical (Julian) day number of afternoon on date shown by cursor."
   (interactive)
   (message
-   "Astromonical (Julian) day number after noon Universal Time: %d"
+   "Astronomical (Julian) day number after noon UTC: %d"
    (+ 1721425
       (calendar-absolute-from-gregorian
        (or (calendar-cursor-to-date)
@@ -3023,7 +3097,7 @@ shown by cursor."
   "Move cursor to astronomical (Julian) DAYNUMBER.
 Echo astronomical (Julian) day number unless NOECHO is t."
   (interactive (list (calendar-read
-                      "Astromonical (Julian) day number (>1721425): "
+                      "Astronomical (Julian) day number (>1721425): "
                       '(lambda (x) (> x 1721425)))))
   (calendar-goto-date (calendar-gregorian-from-absolute (- daynumber 1721425)))
   (or noecho (calendar-print-astro-day-number)))

@@ -2605,13 +2605,12 @@ might make to the mode line or local keymap.  Leaves merge in fast mode."
 	 (extent (make-extent (marker-position before) (marker-position after)
 			      (current-buffer))))
     (set-extent-face extent 'emerge-highlight-face)
-    (if (fboundp 'set-extent-priority) ; this is a 19.4 function.
-	;; Assert that this extent is slightly more important than random other
-	;; extents that may have been inserted by things like font-lock-mode.
-	;; This way, any conflict between the display of a highlighting face
-	;; and the emerge face will be resolved in emerge's favor.
-	(set-extent-priority extent 1))
-    (set-extent-data extent 'emerge)))
+    ;; Assert that this extent is slightly more important than random other
+    ;; extents that may have been inserted by things like font-lock-mode.
+    ;; This way, any conflict between the display of a highlighting face
+    ;; and the emerge face will be resolved in emerge's favor.
+    (set-extent-priority extent 1)
+    (set-extent-property extent 'emerge t)))
 
 ;; Unselect a difference by removing the visual flags in the buffers.
 (defun emerge-unselect-difference (n)
@@ -2648,7 +2647,7 @@ might make to the mode line or local keymap.  Leaves merge in fast mode."
 
 (defun emerge-remove-flags-in-buffer-lucid (buffer before after)
   (map-extents (function (lambda (x y)
-			   (if (eq (extent-data x) 'emerge)
+			   (if (extent-property x 'emerge)
 			       (delete-extent x))))
                buffer (marker-position before) (marker-position after) nil))
 

@@ -1,5 +1,5 @@
 \input texinfo  @c -*-texinfo-*-
-@setfilename ../info/termcap
+@setfilename ../info/termcap.info
 @settitle The Termcap Library
 @ifinfo
 This file documents the termcap library of the GNU system.

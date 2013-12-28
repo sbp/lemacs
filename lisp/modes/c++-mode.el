@@ -486,6 +486,7 @@ this variable to nil defeats backscan limits.")
 ;; ======================================================================
 ;; c++-mode main entry point
 ;; ======================================================================
+;;;###autoload
 (defun c++-mode ()
   "Major mode for editing C++ code.  2.353
 To submit a problem report, enter `\\[c++-submit-bug-report]' from a
@@ -703,6 +704,7 @@ no args, if that value is non-nil."
    (memq c++-auto-hungry-initial-state '(auto-only   auto-hungry t))
    (memq c++-auto-hungry-initial-state '(hungry-only auto-hungry t))))
 
+;;;###autoload
 (defun c++-c-mode ()
   "Major mode for editing K&R and ANSI C code.  2.353
 This mode is based on c++-mode.  Documentation for this mode is

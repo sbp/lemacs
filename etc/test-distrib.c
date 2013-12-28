@@ -1,4 +1,11 @@
 #include <stdio.h>
+#if __STDC__
+# include <stdlib.h>
+# include <string.h>
+# ifndef _POSIX_SOURCE
+#  define _POSIX_SOURCE
+# endif
+#endif
 
 /* Break string in two parts to avoid buggy C compilers that ignore characters
    after nulls in strings.  */
@@ -32,13 +39,18 @@ cool_read (fd, buf, size)
     }
 }
 
-main ()
+main (argc, argv)
+     int argc;
+     char **argv;
 {
-  int fd = open ("testfile", 0);
+  char *file = (argc > 1 ? argv[1] : "testfile");
+  int fd = open (file, 0);
 
   if (fd < 0)
     {
-      perror ("opening `testfile'");
+      char buf [255];
+      sprintf (buf, "opening `%s'", file);
+      perror (buf);
       exit (2);
     }
   if (cool_read (fd, buf, sizeof string1) != sizeof string1 ||
@@ -46,9 +58,10 @@ main ()
       cool_read (fd, buf, sizeof string2) != sizeof string2 - 1 ||
       strncmp (buf, string2, sizeof string2 - 1))
     {
-      fprintf (stderr, "Data in file `testfile' has been damaged.\n\
+      fprintf (stderr, "Data in file `%s' has been damaged.\n\
 Most likely this means that many nonprinting characters\n\
-have been corrupted in the files of Emacs, and it will not work.\n");
+have been corrupted in the files of Emacs, and it will not work.\n",
+	       file);
       exit (2);
     }
   close (fd);

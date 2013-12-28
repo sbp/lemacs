@@ -8,11 +8,12 @@
 #include <stdio.h>
 #include <ctype.h>
 #if __STDC__
-#include <stdlib.h> /* for qsort() */
+#include <stdlib.h> /* for qsort() and malloc() */
+#else
+extern char *malloc ();
 #endif
 
-extern char *malloc ();
-char *xmalloc ();
+static void *xmalloc ();
 
 #define NUL	'\0'
 #define MARKER '\037'
@@ -40,7 +41,7 @@ struct docstr			/* Allocated thing for an entry. */
 
 /* Print error message.  `s1' is printf control string, `s2' is arg for it. */
 
-void
+static void
 error (s1, s2)
      char *s1, *s2;
 {
@@ -51,7 +52,7 @@ error (s1, s2)
 
 /* Print error message and exit.  */
 
-void
+static void
 fatal (s1, s2)
      char *s1, *s2;
 {
@@ -61,7 +62,7 @@ fatal (s1, s2)
 
 /* Like malloc but get fatal error if memory is exhausted.  */
 
-char *
+static void *
 xmalloc (size)
      int size;
 {

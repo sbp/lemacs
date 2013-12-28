@@ -194,8 +194,6 @@ Set by \\[tex-region], \\[tex-buffer], and \\[tex-file].")
 (defvar tex-shell-map nil
   "Keymap for the tex-shell.  A comint-mode-map with a few additions.")
 
-;(fset 'TeX-mode 'tex-mode) 		;in loaddefs.
-
 ;;; This would be a lot simpler if we just used a regexp search,
 ;;; but then it would be too slow.
 ;;;###autoload

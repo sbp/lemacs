@@ -520,8 +520,8 @@ ins_del_costs (screen,
 	       setup_string, cleanup_string,
 	       costvec, ncostvec, coefficient)
      struct screen *screen;
-     const char *one_line_string, *multi_string;
-     const char *setup_string, *cleanup_string;
+     CONST char *one_line_string, *multi_string;
+     CONST char *setup_string, *cleanup_string;
      int *costvec, *ncostvec;
      int coefficient;
 {
@@ -580,9 +580,9 @@ do_line_insertion_deletion_costs (screen,
 				  del_line_string, multi_del_string,
 				  setup_string, cleanup_string, coefficient)
      struct screen *screen;
-     const char *ins_line_string, *multi_ins_string;
-     const char *del_line_string, *multi_del_string;
-     const char *setup_string, *cleanup_string;
+     CONST char *ins_line_string, *multi_ins_string;
+     CONST char *del_line_string, *multi_del_string;
+     CONST char *setup_string, *cleanup_string;
      int coefficient;
 {
   if (SCREEN_INSERT_COST (screen) != 0)

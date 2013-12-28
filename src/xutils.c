@@ -18,6 +18,7 @@ along with GNU Emacs; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include "config.h"
+#include "intl.h"
 #include "lisp.h"
 #include "xterm.h"
 #include "xobjs.h"
@@ -30,9 +31,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 			  ((ch)->lbearing == 0))
 
 XCharStruct *
-x_char_info (font, ch)
-     XFontStruct *font;
-     unsigned ch;
+x_char_info (XFontStruct *font, unsigned int ch)
 {
   if (ch >= font->min_char_or_byte2 && ch <= font->max_char_or_byte2)
     {
@@ -71,10 +70,10 @@ x_read_mouse_position (s, x, y)
        	      &keys_and_buttons) == False)
     {
       UNBLOCK_INPUT;
-      error ("Pointer not on same screen as window.");
+      error (GETTEXT ("Pointer not on same screen as window."));
     }
   UNBLOCK_INPUT;
 
-  *x = (ix - ibw) / XFONT (SCREEN_DEFAULT_FONT (s))->width;
+  *x = (ix - ibw) / (int) XFONT (SCREEN_DEFAULT_FONT (s))->width;
   *y = (iy - ibw) / (s->display.x->text_height + x_interline_space);
 }

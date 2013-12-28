@@ -1,0 +1,733 @@
+This is Info file ../info/era.info, produced by Makeinfo-1.55 from the
+input file era.texinfo.
+
+   This file documents Era 0.88, the latest greatest implementation of
+GNU Emacs.
+
+
+File: era.info,  Node: More About Widgets,  Next: Widget Types,  Prev: Introduction to Xt Interface Functions,  Up: Xt Interface Functions
+
+More About Widgets
+==================
+
+   In E-Lisp, a widget is represented as an opaque object that can only
+be manipulated with a special set of functions.  Every widget has a set
+of named resources, some of which are defined by the widget's class and
+others of which are inherited from the widget's superclasses.
+Furthermore, every widget class has a "set-values" method, which is
+called when a resource is set, and a "get-values" method, which is
+called when the value of a resource is retrieved; thus, setting a
+resource or fetching its value can have arbitrary side effects,
+including setting other resources, causing changes visible on the
+screen, etc.
+
+   Every resource is typed, and can only hold values that are
+compatible with this type (*note Widget Types::.).  Furthermore, each
+resource has a set of access parameters, specifying what sort of
+operations can be done on the resource (specifically, specifying a
+value at widget creation, setting a widget's value later on, and
+retrieving a widget's value).  *Note Widget Access Parameters::.
+
+
+File: era.info,  Node: Widget Types,  Next: Widget Access Parameters,  Prev: More About Widgets,  Up: Xt Interface Functions
+
+Widget Types
+============
+
+   The type of data that a particular resource may contain is specified
+using a symbol, a cons, or the constant `nil'.  This type may be
+retrieved using the function `xt-resource-type' (*note Widget
+Functions::.).  Note that the value used to specify the type of the
+resource's data is different from the value of the resource itself.
+
+* Menu:
+
+* Simple Types::
+* Compound Types::
+* Untyped Data::
+
+
+File: era.info,  Node: Simple Types,  Next: Compound Types,  Prev: Widget Types,  Up: Widget Types
+
+Simple Types
+------------
+
+   A simple type is specified by a symbol, as follows:
+
+`'boolean'
+     One of the values `nil' or `t', equivalent to `0' and `1' (or any
+     other non-zero value) in C.
+
+`'cardinal'
+     A non-negative integer.
+
+`'dimension'
+     An integer, used to specify window sizes.
+
+`'event'
+     An object of type `Lisp_Event'.
+
+`'int'
+     An integer.
+
+`'pixel'
+     An object of type `Lisp_Pixel'.  See function `make-pixel'.
+
+`'pixmap'
+     An object of type `Lisp_Pixmap'.  See function `make-pixmap'.
+     Note that Lisp pixmaps encode the width, height, and depth of the
+     pixmap as well as its data, and thus there is no Lisp equivalent
+     for the C resources used to specify these values.
+
+`'position'
+     An integer, used to specify window positions.
+
+`'screen'
+     An object of type `Lisp_Screen', corresponding to an Emacs "screen"
+     or top-level X window.  The actual window passed into the C
+     resource is the window corresponding to the edit area of the
+     specified screen.
+
+`'time'
+     A non-negative integer specifying the elapsed time in milliseconds
+     since the server was started.
+
+`'unsigned-int'
+     A non-negative integer.
+
+
+File: era.info,  Node: Compound Types,  Next: Untyped Data,  Prev: Simple Types,  Up: Widget Types
+
+Compound Types
+--------------
+
+   A compound type is specified by a cons whose car is a symbol and
+whose cdr is some value (called the "quantifier") that refines the type,
+typically a list of allowable values.
+
+`'enum'
+     The quantifier is a list of allowable values; the value of the
+     resource must be one of these values.
+
+`'list'
+     The quantifier is a type; the value of the resource must be either
+     `nil' or a list of values of the specified type.
+
+`'resource-list'
+     The quantifier is a list of resource specifications.  Each resource
+     specification corresponds to one resource and is a list as follows:
+          `(resource-name type default-value &optional access)'
+
+`'set'
+     The quantifier is a list of allowable values; the value of the
+     resource must be either `nil' or a list of one or more of these
+     values.
+
+`'struct'
+     The quantifier is a list specifying the fields of a structure.
+     Each element of the list is either a (NAME . TYPE) pair or a
+     symbol specifying a structure type, which causes the elements of
+     that structure to be included in place as if each had been
+     specified in turn.  The value of the resource must be either an
+     association list of (NAME . VALUE) pairs or a vector of values,
+     each one in turn corresponding to the next field in the original
+     specification.
+
+
+File: era.info,  Node: Untyped Data,  Prev: Compound Types,  Up: Widget Types
+
+Untyped Data
+------------
+
+   A type of `nil' indicates that any data is allowed as the value of
+the resource.  This is typically used for client-specified data that
+will be passed as one of the arguments to a callback function.
+
+
+File: era.info,  Node: Widget Access Parameters,  Next: Widget Functions,  Prev: Widget Types,  Up: Xt Interface Functions
+
+Widget Access Parameters
+========================
+
+
+File: era.info,  Node: Widget Functions,  Next: Xt Interface Internal Information,  Prev: Widget Access Parameters,  Up: Xt Interface Functions
+
+Widget Functions
+================
+
+ - Function: xt-set-values WIDGET VALUES
+     Set the resources of WIDGET according to VALUES.  This is an
+     interface to XtSetValues().  (A "widget" is an Xt object that
+     encapsulates data and functions, and a "resource" is a named
+     element of data in a widget; see an Xt reference manual for more
+     information.)  VALUES is an alist of (SYMBOL .  VALUE) pairs,
+     where SYMBOL is the name of a valid resource for WIDGET, and VALUE
+     is a possible value for this resource.  An error occurs if an
+     invalid resource name or a value with an incorrect type is given,
+     or if a specified resource cannot be set with xt-set-values; in
+     such a case, no resources are set.  See also `xt-get-values',
+     `xt-widget-class', `xt-resource-list', `xt-resource-type', and
+     `xt-resource-access'.
+
+ - Function: xt-get-values WIDGET RESOURCES
+     Retrieve the values of RESOURCES from WIDGET.  This is an
+     interface to XtGetValues().  RESOURCES is a list of resource
+     names.  An alist of (SYMBOL . VALUE) pairs is returned, one for
+     each resource in RESOURCES.  An error occurs if any resource name
+     is invalid or if a specified resource cannot have its value
+     retrieved with xt-get-values.  See `xt-set-values' for more
+     information.
+
+ - Function: xt-widget-class WIDGET
+     Retrieve the class of WIDGET.  The class of a widget determines
+     the valid resources and methods for the widget.  See
+     `xt-set-values' for more information.
+
+ - Function: xt-resource-list WIDGET-OR-CLASS
+     Retrieve a list of the valid resources for WIDGET-OR-CLASS.
+     wIDGET-OR-CLASS is either a widget or the name of a widget class.
+
+ - Function: xt-resource-type WIDGET-OR-CLASS RESOURCE
+
+ - Function: xt-resource-access WIDGET-OR-CLASS RESOURCE
+
+
+File: era.info,  Node: Xt Interface Internal Information,  Prev: Widget Functions,  Up: Xt Interface Functions
+
+Xt Interface Internal Information
+=================================
+
+* Menu:
+
+* Introduction to Xt Interface Internal Information::
+* Xt Type File Functions::
+
+
+File: era.info,  Node: Introduction to Xt Interface Internal Information,  Next: Xt Type File Functions,  Prev: Xt Interface Internal Information,  Up: Xt Interface Internal Information
+
+Introduction to Xt Interface Internal Information
+-------------------------------------------------
+
+   Widgets are represented using a "Lisp_Widget" data type.
+!!!!!!!!!!!!!!!!!!!!  After that comes type-specific information: in
+this case just a pointer to the actual Widget structure.  Lisp_Opaque
+objects should also be used for such things as boxed ToolTalk ID's
+(which are currently represented as a cons, which is not opaque).
+
+   In order to specify the nature of the resources associated with each
+widget, a special "widget info" file is used.  This is actually just a
+.EL file giving commands that define widgets and types and such.  The
+result of executing this file is a number of C-language .h files that
+can be included at appropriate points in a .c file, so that everything
+can remain in C but can be automated.
+
+   In addition, numerous Lisp-to-C and C-to-Lisp conversion functions
+need to be written (these are C-language functions).  These are used to
+convert resource values when calling xt-get-values and xt-set-values
+and to convert callback structures and such.
+
+   Lisp callbacks are handled with a singl
+
+
+File: era.info,  Node: Xt Type File Functions,  Prev: Introduction to Xt Interface Internal Information,  Up: Xt Interface Internal Information
+
+Xt Type File Functions
+----------------------
+
+ - Function: type= TYPE-NAME TYPE-EQUIV
+     Specifies that TYPE-NAME is the same as the type specified in
+     TYPE-EQUIV.  This is typically used to equate a simple type with a
+     compound type.
+
+ - Function: typedef TYPE-NAME &rest PROPERTIES
+     Defines a simple type.  Optional arguments specify properties for
+     this type that are other than the default.  Current properties are:
+
+    `no-l2c'
+          There is no Lisp-to-C conversion function.
+
+    `no-c2l'
+          There is no C-to-Lisp conversion function.
+
+     Unless explicitly specified, it is assumed that there are
+     conversion functions named `C2L_' plus the type name and `L2C_'
+     plus the type name, for converting between a C type (of type
+     `XtArgVal') and a Lisp type (of type `Lisp_Object'). (Dashes in
+     the Lisp type name are converted to underscores in the equivalent
+     C type name.)
+
+ - Function: typedef-compound TYPE-NAME PROCESS-QUANT &rest PROPERTIES
+     Defines a compound type.  Properties and conversion functions are
+     like simple types (see `typedef'), with the exception that the
+     conversion functions both take a second argument of type
+     `XtPointer', specifying the quantifier that is associated with the
+     type (see *note Compound Types::.).  PROCESS-QUANT is a Lisp
+     function that converts the Lisp quantifier into a C quantifier
+     structure and returns the name of the C structure variable as a
+     string.
+
+ - Function: typedef-struct TYPE-NAME &rest LIST
+     Define an internal structure type.  This is not visible at the C
+     level and is used only to assist in overlapping structure types in
+     other definitions.  LIST is a list of field definitions, each of
+     which is either a list `(name type)', specifying the name of the
+     field and its type, or a symbol, specifying another internal
+     structure type whose fields are to be inserted in place in this
+     structure.
+
+ - Function: defwidget WIDGET-CLASS SUPER-CLASS RESOURCE-LIST &optional
+          SPECIAL-P
+     Define the characteristics of WIDGET-CLASS, which inherits
+     resources from its parent class SUPER-CLASS (possibly `nil').
+     rESOURCE-LIST is a list of resource specifications, each of which
+     specifies the properties of a resource as follows:
+          `(resource-name type default-value &optional access)'
+     ACCESS is either `nil' (which is equivalent to `'(c s g)') or a
+     list of one or more of the following symbols:
+    `c'
+          Resource can be set at creation time.
+
+    `s'
+          Resource can be set with xt-set-values.
+
+    `g'
+          Resource can be retrieved with xt-get-values.
+
+    `d'
+          The default value is "dynamic" (i.e. there is no fixed
+          default value).
+
+ - Function: defcb REASON CALLBACK-STRUCT
+
+
+File: era.info,  Node: Improved Pixmap Support,  Next: ToolTalk Support,  Prev: Xt Interface Functions,  Up: Top
+
+Improved Pixmap Support
+***********************
+
+* Menu:
+
+* Overview of Improved Pixmap Support::
+* New Pixmap Support Functions::
+
+
+File: era.info,  Node: Overview of Improved Pixmap Support,  Next: New Pixmap Support Functions,  Prev: Improved Pixmap Support,  Up: Improved Pixmap Support
+
+Overview of Improved Pixmap Support
+===================================
+
+   Emacs 19.8 adds a `pixmap' type, which directly supports pixmaps
+under X.  Under E-Lisp, a pixmap object contains the pixmap itself, its
+width, height, and depth, a mask, and a hotspot coordinate.  The mask
+and hotspot are used when the pixmap is used as a cursor or other
+pointing indicator.  The mask is a depth one bitmap of the same
+dimensions as the pixmap, specifying the actual shape of this pixmap
+within the rectangle defined by its dimensions.  A set bit in the mask
+specifies that the corresponding pixel in the pixmap is to be displayed,
+while a cleared bit specifies that the background should show through at
+that point.  The hotspot is the spot in the pixmap that is aligned with
+the logical pointer coordinate.
+
+   Support for the various pixmap elements is not complete under Emacs
+19.8.  Era adds the settor and accessor functions that were not
+previously provided.
+
+
+File: era.info,  Node: New Pixmap Support Functions,  Prev: Overview of Improved Pixmap Support,  Up: Improved Pixmap Support
+
+New Pixmap Support Functions
+============================
+
+ - Function: pixmap-hotspot-x PIXMAP
+     Return the X-coordinate of the pixmap's hotspot.  See
+     `set-pixmap-hotspot'.
+
+
+ - Function: set-pixmap-hotspot PIXMAP X Y
+     Set the pixmap's hotspot.  This is a point relative to the origin
+     of the pixmap.  When a pixmap is used as a cursor or similar
+     pointing indicator, the hotspot is the point on the pixmap that
+     sits over the location that the pointer points to.  This is, for
+     example, the tip of the arrow or the center of the crosshairs.
+
+ - Function: pixmap-hotspot-y PIXMAP
+     Return the Y-coordinate of the pixmap's hotspot.  See
+     `set-pixmap-hotspot'.
+
+
+ - Function: pixmap-width PIXMAP
+     Return the width of the pixmap, in pixels.
+
+ - Function: pixmap-height PIXMAP
+     Return the height of the pixmap, in pixels.
+
+ - Function: pixmap-depth PIXMAP
+     Return the depth of the pixmap.  This is 0 for a bitmap, or >= 1
+     for a pixmap.
+
+ - Function: set-pixmap-data PIXMAP DATA
+     Set the pixmap's data.  The data must be in the form of a list;
+     currently only the format `(width height data)' is supported.  See
+     `make-pixmap'.
+
+ - Function: set-pixmap-mask PIXMAP DATA
+     Set the pixmap's mask according to the specified data.  The data
+     must be in XY format and must be at least (width bits long, one
+     bit per pixel in the pixmap.  When the pixmap is used as a cursor
+     or similar pointing indicator, the mask indicates which pixels in
+     the pixmap's rectangular outline are to be taken from the pixmap
+     and which from the background.
+
+
+File: era.info,  Node: ToolTalk Support,  Next: Miscellaneous (for now),  Prev: Improved Pixmap Support,  Up: Top
+
+ToolTalk Support
+****************
+
+* Menu:
+
+* Emacs ToolTalk API Summary::
+* Sending Messages::
+* Receiving Messages::
+
+
+File: era.info,  Node: Emacs ToolTalk API Summary,  Next: Sending Messages,  Prev: ToolTalk Support,  Up: ToolTalk Support
+
+Emacs ToolTalk API Summary
+==========================
+
+   The Emacs Lisp interface to ToolTalk is similar, at least in spirit,
+to the standard C ToolTalk API.  Only the message and pattern parts of
+the API are supported at present; more of the API could be added if
+needed.  The Lisp interface departs from the C API in a few ways:
+
+   * ToolTalk is initialized automatically at Emacs startup-time.
+     Messages can only be sent other ToolTalk applications connected to
+     the same X11 server that emacs is running on.
+
+   * There are fewer entry points; polymorphic functions with keyword
+     arguments are used instead.
+
+   * The callback interface is simpler and marginally less functional.
+     A single callback may be associated with a message or a pattern;
+     the callback is specified with a Lisp symbol (the symbol should
+     have a function binding).
+
+   * The session attribute for messages and patterns is always
+     initialized to the default session.
+
+   * Anywhere a ToolTalk enum constant, e.g. `TT_SESSION', is valid, one
+     can substitute the corresponding symbol, e.g. `'TT_SESSION'.  This
+     simplifies building lists that represent messages and patterns.
+
+
+File: era.info,  Node: Sending Messages,  Next: Receiving Messages,  Prev: Emacs ToolTalk API Summary,  Up: ToolTalk Support
+
+Sending Messages
+================
+
+* Menu:
+
+* Example of Sending Messages::
+* Elisp Interface for Sending Messages::
+
+
+File: era.info,  Node: Example of Sending Messages,  Next: Elisp Interface for Sending Messages,  Prev: Sending Messages,  Up: Sending Messages
+
+Example of Sending Messages
+---------------------------
+
+   Here's a simple example that sends a query to another application
+and then displays its reply.  Both the query and the reply are stored
+in the first argument of the message.
+
+     (defun tooltalk-random-query-handler (msg)
+       (let ((state (get-tooltalk-message-attribute msg 'state)))
+         (cond
+           ((eq state 'TT_HANDLED)
+            (message (get-tooltalk-message-attribute msg arg_val 0)))
+           ((memq state '(TT_FAILED TT_REJECTED))
+            (message "Random query turns up nothing")))))
+     
+     (defvar random-query-message
+       '(   class TT_REQUEST
+            scope TT_SESSION
+          address TT_PROCEDURE
+               op "random-query"
+             args '((TT_INOUT "?" "string"))
+         callback tooltalk-random-query-handler))
+     
+     (let ((m (make-tooltalk-message random-query-message)))
+       (send-tooltalk-message m))
+
+
+File: era.info,  Node: Elisp Interface for Sending Messages,  Prev: Example of Sending Messages,  Up: Sending Messages
+
+Elisp Interface for Sending Messages
+------------------------------------
+
+ - Function: make-tooltalk-message ATTRIBUTES
+     Create a ToolTalk message and initialize its attributes.  The
+     value of ATTRIBUTES must be a list of alternating keyword/values,
+     where keywords are symbols that name valid message attributes.
+     For example:
+
+            (make-tooltalk-message
+              '(class TT_NOTICE
+                scope TT_SESSION
+                address TT_PROCEDURE
+                op "do-something"
+                args ("arg1" 12345 (TT_INOUT "arg3" "string"))))
+
+     Values must always be strings, integers, or symbols that represent
+     ToolTalk constants.  Attribute names are the same as those
+     supported by `set-tooltalk-message-attribute', plus `args'.
+
+     The value of `args' should be a list of message arguments where
+     each message argument has the following form:
+
+             `(mode [value [type]])' or just `value'
+
+     Where MODE is one of `TT_IN', `TT_OUT', or `TT_INOUT' and TYPE is
+     a string.  If TYPE isn't specified then `int' is used if VALUE is
+     a number; otherwise `string' is used.  If TYPE is `string' then
+     VALUE is converted to a string (if it isn't a string already) with
+     `prin1-to-string'.  If only a value is specified then MODE
+     defaults to `TT_IN'.  If MODE is `TT_OUT' then VALUE and TYPE
+     don't need to be specified.  You can find out more about the
+     semantics and uses of ToolTalk message arguments in chapter 4 of
+     the `ToolTalk Programmer's Guide'.
+
+
+ - Function: send-tooltalk-message MSG
+     Send the message on its way.  Once the message has been sent it's
+     almost always a good idea to get rid of it with
+     `destroy-tooltalk-message'.
+
+
+ - Function: return-tooltalk-message MSG &optional MODE
+     Send a reply to this message.  The second argument can be `reply',
+     `reject' or `fail'; the default is `reply'.  Before sending a
+     reply, all message arguments whose mode is `TT_INOUT' or `TT_OUT'
+     should have been filled in - see `set-tooltalk-message-attribute'.
+
+
+ - Function: get-tooltalk-message-attribute MSG ATTRIBUTE &optional ARGN
+     Returns the indicated ToolTalk message attribute.  Attributes are
+     identified by symbols with the same name (underscores and all) as
+     the suffix of the ToolTalk `tt_message_<attribute>' function that
+     extracts the value.  String attribute values are copied and
+     enumerated type values (except disposition) are converted to
+     symbols; e.g. `TT_HANDLER' is `'TT_HANDLER', `uid' and `gid' are
+     represented by fixnums (small integers), `opnum' is converted to a
+     string, and `disposition' is converted to a fixnum.  We convert
+     `opnum' (a C int) to a string (e.g. `123' => `"123"') because
+     there's no guarantee that opnums will fit within the range of
+     Emacs Lisp integers.
+
+     [TBD] Use the `plist' attribute instead of C API `user' attribute
+     for user-defined message data.  To retrieve the value of a message
+     property, specify the indicator for ARGN.  For example, to get the
+     value of a property called `rflag', use
+
+             (get-tooltalk-message-attribute msg 'plist 'rflag)
+
+     To get the value of a message argument use one of the `arg_val'
+     (strings), `arg_ival' (integers), or `arg_bval' (strings with
+     embedded nulls), attributes.  For example, to get the integer
+     value of the third argument:
+
+             (get-tooltalk-message-attribute msg 'arg_ival 2)
+
+     As you can see, argument numbers are zero-based.  The type of each
+     arguments can be retrieved with the `arg_type' attribute; however
+     ToolTalk doesn't define any semantics for the string value of
+     `arg_type'.  Conventionally `string' is used for strings and `int'
+     for 32 bit integers.  Note that Emacs Lisp stores the lengths of
+     strings explicitly (unlike C) so treating the value returned by
+     `arg_bval' like a string is fine.
+
+
+ - Function: set-tooltalk-message-attribute VALUE MSG ATTRIBUTE
+          &optional ARGN
+     Initialize one ToolTalk message attribute.
+
+     Attribute names and values are the same as for
+     `get-tooltalk-message-attribute'.  A property list is provided for
+     user data (instead of the `user' message attribute); see
+     `get-tooltalk-message-attribute'.
+
+     Callbacks are handled slightly differently than in the C ToolTalk
+     API.  The value of CALLBACK should be the name of a function of one
+     argument.  It will be called each time the state of the message
+     changes.  This is usually used to notice when the message's state
+     has changed to `TT_HANDLED' (or `TT_FAILED'), so that reply
+     argument values can be used.
+
+     If one of the argument attributes is specified as `arg_val',
+     `arg_ival', or `arg_bval', then ARGN must be the number of an
+     already created argument.  Arguments can be added to a message
+     with `add-tooltalk-message-arg'.
+
+
+ - Function: add-tooltalk-message-arg MSG MODE TYPE &optional VALUE
+     Append one new argument to the message.  MODE must be one of
+     `TT_IN', `TT_INOUT', or `TT_OUT', TYPE must be a string, and VALUE
+     can be a string or an integer.  ToolTalk doesn't define any
+     semantics for TYPE, so only the participants in the protocol
+     you're using need to agree what types mean (if anything).
+     Conventionally `string' is used for strings and `int' for 32 bit
+     integers.  Arguments can initialized by providing a value or with
+     `set-tooltalk-message-attribute'; the latter is neccessary if you
+     want to initialize the argument with a string that can contain
+     embedded nulls (use `arg_bval').
+
+
+ - Function: create-tooltalk-message
+     Create a new ToolTalk message.  The message's session attribute is
+     initialized to the default session.  Other attributes can be
+     intialized with `set-tooltalk-message-attribute'.
+     `make-tooltalk-message' is the preferred way to create and
+     initialize a message.
+
+
+ - Function: destroy-tooltalk-message MSG
+     Apply `tt_message_destroy' to the message.  It's not necessary to
+     destroy messages after they've been processed by a message or
+     pattern callback, the Lisp/ToolTalk callback machinery does this
+     for you.
+
+
+File: era.info,  Node: Receiving Messages,  Prev: Sending Messages,  Up: ToolTalk Support
+
+Receiving Messages
+==================
+
+* Menu:
+
+* Example of Receiving Messages::
+* Elisp Interface for Receiving Messages::
+
+
+File: era.info,  Node: Example of Receiving Messages,  Next: Elisp Interface for Receiving Messages,  Prev: Receiving Messages,  Up: Receiving Messages
+
+Example of Receiving Messages
+-----------------------------
+
+   Here's a simple example of a handler for a message that tells emacs
+to display a string in the mini-buffer area.  The message operation is
+called `emacs-display-string'.  Its first (0th) argument is the string
+to display.
+
+     (defun tooltalk-display-string-handler (msg)
+       (message (get-tooltalk-message-attribute msg 'arg_val 0)))
+     
+     (defvar display-string-pattern
+       '(category TT_HANDLE
+            scope TT_SESSION
+               op "emacs-display-string"
+         callback tooltalk-display-string-handler))
+     
+     (let ((p (make-tooltalk-pattern display-string-pattern)))
+       (register-tooltalk-pattern p))
+
+
+File: era.info,  Node: Elisp Interface for Receiving Messages,  Prev: Example of Receiving Messages,  Up: Receiving Messages
+
+Elisp Interface for Receiving Messages
+--------------------------------------
+
+ - Function: make-tooltalk-pattern ATTRIBUTES
+     Create a ToolTalk pattern and initialize its attributes.  The
+     value of attributes must be a list of alternating keyword/values,
+     where keywords are symbols that name valid pattern attributes or
+     lists of valid attributes.  For example:
+
+            (make-tooltalk-pattern
+              '(category TT_OBSERVE
+                   scope TT_SESSION
+                      op ("operation1" "operation2")
+                    args ("arg1" 12345 (TT_INOUT "arg3" "string"))))
+
+     Attribute names are the same as those supported by
+     `add-tooltalk-pattern-attribute', plus `'args'.
+
+     Values must always be strings, integers, or symbols that represent
+     ToolTalk constants or lists of same.  When a list of values is
+     provided all of the list elements are added to the attribute.  In
+     the example above, messages whose `op' attribute is `"operation1"'
+     or `"operation2"' would match the pattern.
+
+     The value of ARGS should be a list of pattern arguments where each
+     pattern argument has the following form:
+
+             `(mode [value [type]])' or just `value'
+
+     Where MODE is one of `TT_IN', `TT_OUT', or `TT_INOUT' and TYPE is
+     a string.  If TYPE isn't specified then `int' is used if VALUE is
+     a number; otherwise `string' is used.  If TYPE is `string' then
+     VALUE is converted to a string (if it isn't a string already) with
+     `prin1-to-string'.  If only a value is specified then MODE
+     defaults to `TT_IN'.  If MODE is `TT_OUT' then VALUE and TYPE
+     don't need to be specified.  You can find out more about the
+     semantics and uses of ToolTalk pattern arguments in chapter 3 of
+     the `ToolTalk Programmer's Guide'.
+
+
+ - Function: register-tooltalk-pattern PAT
+     Emacs will begin receiving messages that match this pattern.
+
+ - Function: unregister-tooltalk-pattern PAT
+     Emacs will stop receiving messages that match this pattern.
+
+ - Function: add-tooltalk-pattern-attribute VALUE PAT INDICATOR
+     Add one value to the indicated pattern attribute. The names of
+     attributes are the same as the ToolTalk accessors used to set them
+     less the `tooltalk_pattern_' prefix and the `_add' suffix.  For
+     example, the name of the attribute for the
+     `tt_pattern_disposition_add' attribute is `disposition'.  The
+     `category' attribute is handled specially, since a pattern can only
+     be a member of one category (`TT_OBSERVE' or `TT_HANDLE').
+
+     Callbacks are handled slightly differently than in the C ToolTalk
+     API.  The value of CALLBACK should be the name of a function of one
+     argument.  It will be called each time the pattern matches an
+     incoming message.
+
+ - Function: add-tooltalk-pattern-arg PAT MODE TYPE VALUE
+     Add one fully-specified argument to a ToolTalk pattern.  MODE must
+     be one of `TT_IN', `TT_INOUT', or `TT_OUT'.  TYPE must be a
+     string.  VALUE can be an integer, string or `nil'.  If VALUE is an
+     integer then an integer argument (`tt_pattern_iarg_add') is added;
+     otherwise a string argument is added.  At present there's no way
+     to add a binary data argument.
+
+
+ - Function: create-tooltalk-pattern
+     Create a new ToolTalk pattern and initialize its session attribute
+     to be the default session.
+
+ - Function: destroy-tooltalk-pattern PAT
+     Apply `tt_pattern_destroy' to the pattern.  This effectively
+     unregisters the pattern.
+
+ - Function: describe-tooltalk-message MSG &optional STREAM
+     Print the message's attributes and arguments to STREAM.  This is
+     often useful for debugging.
+
+
+File: era.info,  Node: Miscellaneous (for now),  Prev: ToolTalk Support,  Up: Top
+
+Miscellaneous (for now)
+***********************
+
+   There is now a variable and a function `era-version'.  These are the
+Era equivalent to `emacs-version'.  `emacs-version' will be removed at
+some future date as Era comes closer to completion.
+
+   To disable warnings about not being able to deduce different types
+of fonts whenever a screen is created, set `x-inhibit-font-complaints'
+to `'t'.  This will only disable the warnings for cloned screens, not
+the initially created screen.
+
+

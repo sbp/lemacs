@@ -1,11 +1,11 @@
 /* machine description file for U-station (Nihon Unisys, SS5E; Sumitomo Denkoh, U-Station E30).
-   Copyright (C) 1986 Free Software Foundation, Inc.
+   Copyright (C) 1986, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -148,6 +148,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define EXEC_PAGESIZE 1024
 #define PURESIZE 130000
 
-#undef SIGIO
+/* #undef SIGIO		use BROKEN_SIGIO instead of this kludge -- jwz */
+#define BROKEN_SIGIO
 #undef SIGTSTP
 #undef HAVE_TIMEVAL

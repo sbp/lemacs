@@ -1,6 +1,6 @@
 ;;; upd-copyr.el --- update the copyright notice in a GNU Emacs Lisp file
 
-;;; Copyright (C) 1991, 1992, 1993 Free Software Foundation, Inc.
+;;; Copyright (C) 1991, 1992, 1993, 1994 Free Software Foundation, Inc.
 
 ;; Author: Roland McGrath <roland@gnu.ai.mit.edu>
 ;; hacked on by Jamie Zawinski.
@@ -57,9 +57,11 @@ than adding to it."
     (save-restriction
       (widen)
       (goto-char (point-min))
-      ;; Handle abbreviated year lists like "1800, 01, 02, 03".
-      (if (re-search-forward (concat (substring current-year 0 2)
-				     "\\([0-9][0-9]\\(,\\s \\)+\\)*"
+      ;; Handle abbreviated year lists like "1800, 01, 02, 03"
+      ;; or "1900, '01, '02, '03".
+      (if (re-search-forward (concat "\\(" (substring current-year 0 2)
+				     "\\)?"
+				     "\\([0-9][0-9]\\(,\\s \\)+\\)*'?"
 				     (substring current-year 2))
 			     nil t)
 	  (or ask-upd
@@ -117,7 +119,9 @@ than adding to it."
 	      (if (save-excursion
 		    (end-of-line)
 		    (>= (current-column) fill-column))
-		  (insert "\n;;;"))
+		  (if (= (char-syntax ?\;) ?<)
+		      (insert "\n;;;")
+		    (insert "\n  ")))
 	      (message "Copyright updated to %s%s."
 		       (if replace "" "include ") current-year)
 	      (if replace-copying-with

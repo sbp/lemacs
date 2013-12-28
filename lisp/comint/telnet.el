@@ -1,6 +1,6 @@
 ;;; telnet.el --- run a telnet session from within an Emacs buffer
 
-;;; Copyright (C) 1985, 1988, 1992, 1993 Free Software Foundation, Inc.
+;;; Copyright (C) 1985, 1988, 1992, 1993, 1994 Free Software Foundation, Inc.
 
 ;; Author: William F. Schelter
 ;; Maintainer: FSF
@@ -52,7 +52,8 @@
 (defvar telnet-mode-map nil)
 (defvar telnet-new-line "\r")
 (make-variable-buffer-local 'telnet-new-line)
-(defvar telnet-prompt-pattern "^[^#$%>]*[#$%>] *")
+(defvar telnet-default-prompt-pattern "^[^#$%>]*[#$%>] *")
+(defvar telnet-prompt-pattern telnet-default-prompt-pattern)
 (defvar telnet-replace-c-g nil)
 (make-variable-buffer-local 'telnet-replace-c-g)
 (defvar telnet-remote-echoes t
@@ -112,14 +113,16 @@ rejecting one login and prompting for the again for a username and password.")
   "Tries to put correct initializations in.  Needs work."
   (let ((case-fold-search t))
     (cond ((string-match "unix" string)
-	   (setq telnet-prompt-pattern comint-prompt-regexp)
+	   (setq telnet-prompt-pattern shell-prompt-pattern)
 	   (setq telnet-new-line "\n"))
 	  ((string-match "tops-20" string) ;;maybe add telnet-replace-c-g
-	   (setq telnet-prompt-pattern  "[@>]*"))
+	   (setq telnet-prompt-pattern  "[@>] *"))
 	  ((string-match "its" string)
 	   (setq telnet-prompt-pattern  "^[^*>]*[*>] *"))
 	  ((string-match "explorer" string) ;;explorer telnet needs work
-	   (setq telnet-replace-c-g ?\n))))
+	   (setq telnet-replace-c-g ?\n))
+	  (t
+	   (setq telnet-prompt-pattern telnet-default-prompt-pattern))))
   (setq comint-prompt-regexp telnet-prompt-pattern))
 
 (defun telnet-initial-filter (proc string)
@@ -171,8 +174,6 @@ rejecting one login and prompting for the again for a username and password.")
 	    (subst-char-in-region last-insertion (point) ?\C-g
 				  telnet-replace-c-g t))
        (goto-char (+ (process-mark proc) delta))
-       (if (fboundp 'shell-hack-prompt-font) ; from shell-font.el
-	   (shell-hack-prompt-font last-insertion))
        ))))
 
 (defun telnet-send-input ()
@@ -195,13 +196,17 @@ rejecting one login and prompting for the again for a username and password.")
 	  (delete-region p1 (1+ p2))))))
 
 ;;;###autoload
-(defun telnet (host)
+(defun telnet (host &optional port)
   "Open a network login connection to host named HOST (a string).
+With a prefix argument, prompts for the port name or number as well.
 Communication with HOST is recorded in a buffer *HOST-telnet*.
 Normally input is edited in Emacs and sent a line at a time.
 See also `\\[rsh]'."
-  (interactive "sOpen telnet connection to host: ")
-  (let* ((name (concat host "-telnet"))
+  (interactive (list (read-string "Open telnet connection to host: ")
+		     (if current-prefix-arg
+			 (read-string "Port name or number: ")
+		       nil)))
+  (let* ((name (concat (if port (concat host "/" port) host) "-telnet"))
          (buffer (get-buffer (concat "*" name "*"))))
     (if (and buffer (get-buffer-process buffer))
 	(switch-to-buffer buffer)
@@ -211,10 +216,13 @@ See also `\\[rsh]'."
 	;; Don't send the `open' cmd till telnet is ready for it.
 	(accept-process-output (get-process name))
 	(erase-buffer)
-	(process-send-string name (concat "open " host "\n"))
-	(telnet-mode)
+	(process-send-string name (concat "open " host
+					  (if port (concat " " port) "")
+					  "\n"))
 	(setq comint-input-sender 'telnet-simple-send)
-	(setq telnet-count telnet-initial-count)))))
+	(setq telnet-count telnet-initial-count)
+	;; run last so that hooks can change things.
+	(telnet-mode)))))
 
 (defun telnet-mode ()
   "This mode is for using telnet (or rsh) from a buffer to another host.
@@ -244,13 +252,24 @@ See also `\\[telnet]'."
   (require 'shell)
   (let ((name (concat host "-rsh")))
     (switch-to-buffer (make-comint name "rsh" nil host))
-    (set-process-filter (get-process name) 'telnet-initial-filter)
-    (telnet-mode)
+    (setq telnet-count telnet-initial-count)
+    ;;
     ;; SunOS doesn't print "unix" in its rsh login banner, so let's get a
     ;; reasonable default here.  There do exist non-Unix machines which
     ;; speak the rsh protocol, but let's hope they print their OS name
     ;; when one connects.
+    ;;
     (telnet-check-software-type-initialize "unix")
-    (setq telnet-count telnet-initial-count)))
+    ;;
+    ;; I think we should use telnet-filter here instead of -initial-filter,
+    ;; because rsh generally doesn't prompt for a password, and gobbling the
+    ;; first line that contains "passw" is extremely antisocial.  More
+    ;; antisocial than echoing a password, and more likely than connecting
+    ;; to a non-Unix rsh host these days...
+    ;;
+    ;; (set-process-filter (get-process name) 'telnet-initial-filter)
+    (set-process-filter (get-process name) 'telnet-filter)
+    ;; run last so that hooks can change things.
+    (telnet-mode)))
 
 (provide 'telnet)

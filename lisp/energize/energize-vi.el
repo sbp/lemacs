@@ -666,7 +666,7 @@ this is taken from the envvironment variable $ENERGIZE_SPLIT_SCREENS_P."
 				  'multi)))))
 	    (cond ((member sp '("yes" "y" "true" "on" "1" ""))
 		   (setq sp t))
-		  ((member ms '("no" "n" "false" "off" "0"))
+		  ((member sp '("no" "n" "false" "off" "0"))
 		   (setq sp nil))
 		  (t
 		   (princ

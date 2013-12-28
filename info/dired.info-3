@@ -1,0 +1,593 @@
+This is Info file ../info/dired.info, produced by Makeinfo-1.55 from
+the input file dired.texinfo.
+
+   This file documents Tree Dired, the GNU Emacs Directory Browser, and
+most of the extra features available as an option.
+
+   Copyright (C) 1991, 1992 Free Software Foundation
+
+   Permission is granted to make and distribute verbatim copies of this
+manual provided the copyright notice and this permission notice are
+preserved on all copies.
+
+   Permission is granted to copy and distribute modified versions of
+this manual under the conditions for verbatim copying, provided also
+that the section entitled "GNU General Public License" is included
+exactly as in the original, and provided that the entire resulting
+derived work is distributed under the terms of a permission notice
+identical to this one.
+
+   Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that the section entitled "GNU General Public License"
+may be included in a translation approved by the author instead of in
+the original English.
+
+
+File: dired.info,  Node: Dired Mark Internals,  Prev: Tree Dired Internals,  Up: Dired Internals
+
+Dired Mark Internals
+====================
+
+   This is a short overview about how marking files and retrieving
+marked files in Dired works.
+
+   `ls' output is indented two spaces two make room for an optional
+marker character in front of each file line.  Marking simply replaces
+the first space with the marker character, usually `*' or, for
+deletions, `D'.  Indenting just by one would leave the markers adjacent
+to the permission bits.
+
+`dired-mark-if'
+     The macro `dired-mark-if' is used internally to mark files matching
+     certain criteria. It takes two arguments, the PREDICATE, a lisp
+     expression evaluating non-nil on file lines to be marked, and MSG,
+     a message to be displayed while scanning the buffer.  MSG may be
+     nil to suppress the message.
+
+`dired-mark-map'
+     To operate on the marked files, all internal Dired functions
+     ultimately call the macro `dired-mark-map'.  It takes two
+     arguments, BODY and ARG, plus an optional argument SHOW-PROGRESS:
+
+     Perform BODY with point somewhere on each marked line (inside a
+     `save-excursion') and return a list of BODY's results.  If no
+     marked file could be found, execute BODY on the current line.
+
+     If ARG is an integer, use the next ARG (or previous -ARG, if
+     ARG<0) files instead of the marked files.  In that case point is
+     dragged along.  This is so that commands on the next ARG (instead
+     of the marked) files can be chained easily.  Note that for
+     positive ARG point is left on the first file not operated upon, for
+     negative on the last file operated upon
+
+     If ARG is otherwise non-nil, use current file instead.
+
+     If optional third argument SHOW-PROGRESS evaluates to non-nil, we
+     redisplay the Dired buffer after each file is processed.  No
+     guarantee is made about the position on the marked line.  BODY
+     must ensure this itself if it depends on this.  Search starts at
+     the beginning of the buffer, thus the `car' of the list
+     corresponds to the line nearest to the buffer's bottom.  This is
+     also true for (positive and negative) integer values of ARG.  The
+     BODY should not be too long as it is expanded four times.
+
+A common case is to retrieve the names of all marked files:
+
+`dired-mark-get-files'
+     Return the marked files as list of strings.  The list is in the
+     same order as the buffer, that is, the car is the first marked
+     file.  Values returned are normally absolute pathnames.  Optional
+     argument LOCALP equal to `no-dir' means return the filename proper
+     only, with no directory information; any other non-nil value means
+     make them relative to default-directory.  Optional second argument
+     ARG forces use of other files.  If ARG is an integer, use the next
+     ARG files.  If ARG is otherwise non-nil, use the current file.
+
+
+File: dired.info,  Node: Dired Known Problems,  Next: Dired Variable Index,  Prev: Dired Internals,  Up: Top
+
+Known Problems with Dired
+*************************
+
+   There are some problems with Dired that are either not Dired's fault,
+hard to fix or not worth fixing.
+
+   * Renaming directories usually works fine (all affected Dired and
+     file buffers are updated), but moving a directory between different
+     filesystems (those on different hard disks or different
+     partitions) does not work: it creates a plain target file
+     containing the contents of the original directory (inodes and
+     filenames) or fails completely.
+
+     Unfortunately Emacs' builtin function `rename-file' does not give
+     you a clear error message like `cross-device link attempted', but
+     rather a spurious `(file-error "Removing old name" "not owner")',
+     at least in Emacs 18.55.
+
+     On some systems renaming a directory always fails (even within the
+     same filesystem) with the spurious `not owner' error.
+
+   * If `foo' is a symlink to a non-existing file, `(file-exists-p
+     "foo")' returns nil.  Thus, Dired will overwite such (strange)
+     kinds of symlinks without noticing.
+
+     Dired could test both `file-symlink-p' and `file-exists-p', but
+     this would slow down all file operations to catch a very rare case.
+
+   * Copying a directory does not work - it results in a zero-length
+     target file.
+
+     This comes from Emacs' `copy-file' function, not from Dired.
+
+     If you really want to copy a directory (recursively), use `!' and
+     your favorite shell command to do it (e.g. cp -R or cp -r).
+
+   * Initial spaces in a filename are not recognized.  If I could be
+     sure that all `ls' programs insert exactly one space between the
+     time and the filename, I could easily fix this.  But `ls' programs
+     tend to vary in their amount of white space, and even with one
+     `ls' program there is a difference between year and clocktime
+     formats
+            drwxr-xr-x 2 ab027    thp           512 Aug 13 1990  thp/
+            drwxr-xr-x 4 ab027    thp           512 Feb  3 21:59 ./
+     If your `ls' supports the `-b' switch and quotes spaces with that
+     switch, simply add `b' to your `dired-listing-switches'.  *Note
+     Listing Files in Dired::.
+
+     Spaces anywhere but at the beginning do work.
+
+   * In general, only commands that may have targets outside of the
+     current directory tree update other buffers (copy, move and link
+     commands).
+
+     Especially, deletions, (un)compress, chmod/chgrp/chown update only
+     the current buffer.
+
+   * Some compress programs make output even if all goes well.  Dired
+     takes output as a sign of trouble and assumes that the subprocess
+     failed.
+
+     Redefine function `dired-check-process-checker' suitably to look
+     closer at the generated output.  In Emacs 19, the exit status of
+     compress will be checked.
+
+   * Aliases like `rm -i' for `rm' or `ls -F' for `ls' can cause
+     problems in Dired's (and Emacs') shell command.  (Aliases for `ls'
+     only matter if you dired wildcards, because only then the shell is
+     used to run `ls'.)  Csh expands aliases only for interactive
+     shells, which is probably what you want.  In Bash, you can achieve
+     this by testing `PS1' in your `~/.bashrc':
+            # `.bashrc' file
+            # this test fails when invoked by rsh
+            if [ "${PS1-no}" != "no" ]       # is this an interactive shell?
+            then
+          	  . ~/.bash_alias          # if so, source aliases
+            fi
+
+   * Directory names starting with `-' (a minus) may lose when they are
+     to be created or removed.  If you care about this, and your rmdir
+     and mkdir understand about `--' meaning end of options, change
+     `emacs-19.el' accordingly.
+
+     In Emacs 19 the `make-directory' and `remove-directory' operations
+     will be builtin, not implemented with `rmdir' and `mkdir'
+     subprocesses.
+
+   * `dired-nstd.el': This is still buggy.  For example, after you've
+     compressed the last file it may not correctly return that file's
+     absolute pathname (`dired-current-directory' erronously returns nil
+     because of markers collapsed during redisplay), ultimately leading
+     to lisp errors.
+
+   * The regexp-using `%'-commands get into an endless loop if you
+     specify a regular expression that matches the empty string.
+
+   * Function `find-alternate-file' in Emacs 18.57 has a bug that causes
+     `C-x C-v RET' (which usually re-visits the current buffer) to fail
+     on Dired buffers.  This is fixed in the version in `emacs-19.el',
+     automatically loaded by Dired.
+
+   * It is not possible to resort the Dired buffer without reverting
+     it. That would be hard to implement (and slow to run) given that
+     ls date format would have to be parsed for `ls -t' sorting order.
+
+
+File: dired.info,  Node: Dired Variable Index,  Next: Dired Function Index,  Prev: Dired Known Problems,  Up: Top
+
+Dired Variable Index
+********************
+
+* Menu:
+
+* auto-mode-alist:                      Virtual Dired.
+* bibtex-unclean-extensions:            Advanced Dired Mark Commands.
+* default-directory:                    Tree Dired Internals.
+* default-directory-alist:              Multiple Dired Directories.
+* dired-actual-switches:                Listing Files in Dired.
+* dired-after-readin-hook:              Dired Hooks.
+* dired-auto-shell-command-alist:       Letting Dired Guess What Shell Command to Apply.
+* dired-auto-shell-command-alist-default: Letting Dired Guess What Shell Command to Apply.
+* dired-backup-if-overwrite:            Dired User Options.
+* dired-before-readin-hook:             Dired Hooks.
+* dired-cd-on-each:                     dired-cd.el.
+* dired-cd-on-each:                     dired-cd.el.
+* dired-cd-same-subdir:                 dired-cd.el.
+* dired-cd-same-subdir:                 dired-cd.el.
+* dired-chown-program:                  Changing File Attributes.
+* dired-chown-program:                  Dired Configuration.
+* dired-copy-preserve-time:             Dired User Options.
+* dired-copy-preserve-time:             Copy and Move Into a Directory.
+* dired-dangerous-shell-command:        Dired Minibuffer History.
+* dired-del-marker:                     Dired User Options.
+* dired-dwim-target:                    Dired User Options.
+* dired-dwim-target:                    Copy and Move Into a Directory.
+* dired-find-subdir:                    Tree Dired Extra Features.
+* dired-guess-have-gnutar:              Letting Dired Guess What Shell Command to Apply.
+* dired-keep-marker-copy:               Copy and Move Into a Directory.
+* dired-keep-marker-copy:               Dired User Options.
+* dired-keep-marker-hardlink:           Dired User Options.
+* dired-keep-marker-hardlink:           Copy and Move Into a Directory.
+* dired-keep-marker-move:               Copy and Move Into a Directory.
+* dired-keep-marker-move:               Dired User Options.
+* dired-keep-marker-symlink:            Dired User Options.
+* dired-keep-marker-symlink:            Copy and Move Into a Directory.
+* dired-kept-versions:                  Deleting Files With Dired.
+* dired-listing-switches:               Entering Dired.
+* dired-listing-switches:               Dired User Options.
+* dired-load-hook:                      Dired Hooks.
+* dired-local-variables-file:           Dired Local Variables.
+* dired-ls-F-marks-symlinks:            Dired Configuration.
+* dired-ls-program:                     Dired Configuration.
+* dired-ls-sorting-switches:            Listing Files in Dired.
+* dired-marked-files:                   Tree Dired Extra Features.
+* dired-marker-char:                    Dired User Options.
+* dired-mode-hook:                      Dired Hooks.
+* dired-no-confirm:                     Dired User Options.
+* dired-omit-extensions:                Omitting Files in Dired.
+* dired-omit-files:                     Omitting Files in Dired.
+* dired-omit-files-p:                   Omitting Files in Dired.
+* dired-omit-localp:                    Omitting Files in Dired.
+* dired-omit-marker-char:               Omitting Files in Dired.
+* dired-shrink-to-fit:                  Dired User Options.
+* dired-sort-by-date-regexp:            Listing Files in Dired.
+* dired-sort-by-name-regexp:            Listing Files in Dired.
+* dired-subdir-alist:                   Tree Dired Internals.
+* dired-subdir-alist:                   Tree Dired Internals.
+* dired-subdir-regexp:                  Tree Dired Internals.
+* dired-trans-enders:                   dired-trns.el.
+* dired-trans-re-ext:                   dired-trns.el.
+* dired-trans-starters:                 dired-trns.el.
+* dired-trivial-filenames:              Dired User Options.
+* dired-vm-read-only-folders:           Multiple Dired Directories.
+* latex-unclean-extensions:             Advanced Dired Mark Commands.
+* lpr-command:                          Printing the Marked Files.
+* lpr-switches:                         Printing the Marked Files.
+* patch-unclean-extensions:             Advanced Dired Mark Commands.
+* tex-unclean-extensions:               Advanced Dired Mark Commands.
+* texinfo-unclean-extensions:           Advanced Dired Mark Commands.
+* vm-folder-directory:                  Multiple Dired Directories.
+
+
+File: dired.info,  Node: Dired Function Index,  Next: Dired Key Index,  Prev: Dired Variable Index,  Up: Top
+
+Dired Function Index
+********************
+
+* Menu:
+
+* background:                           Multiple Dired Directories.
+* default-directory:                    Multiple Dired Directories.
+* Dired:                                Entering Dired.
+* dired-advertised-find-file:           Commands That Do Not Use Marks.
+* dired-backup-diff:                    Commands That Do Not Use Marks.
+* dired-backup-unflag:                  Deleting Files With Dired.
+* dired-backup-unflag:                  Marking Files in Dired.
+* dired-clean-directory:                Deleting Files With Dired.
+* dired-clean-patch:                    Advanced Dired Mark Commands.
+* dired-clean-tex:                      Advanced Dired Mark Commands.
+* dired-copy-filename-as-kill:          Tree Dired Extra Features.
+* dired-create-directory:               Commands That Do Not Use Marks.
+* dired-diff:                           Commands That Do Not Use Marks.
+* dired-do-background-shell-command:    Tree Dired Extra Features.
+* dired-do-byte-compile:                Loading and Byte-compiling Emacs Lisp Files.
+* dired-do-chgrp:                       Changing File Attributes.
+* dired-do-chmod:                       Changing File Attributes.
+* dired-do-chown:                       Changing File Attributes.
+* dired-do-compress:                    Compressing and Uncompressing.
+* dired-do-copy:                        Copy and Move Into a Directory.
+* dired-do-copy-regexp:                 Renaming and More With Regexps.
+* dired-do-delete:                      Deleting Files With Dired.
+* dired-do-deletions:                   Deleting Files With Dired.
+* dired-do-find-file:                   Advanced Dired Mark Commands.
+* dired-do-hardlink:                    Copy and Move Into a Directory.
+* dired-do-hardlink-regexp:             Renaming and More With Regexps.
+* dired-do-insert-subdir:               Inserting All Marked Subdirectories.
+* dired-do-kill:                        Listing Files in Dired.
+* dired-do-load:                        Loading and Byte-compiling Emacs Lisp Files.
+* dired-do-move:                        Copy and Move Into a Directory.
+* dired-do-print:                       Printing the Marked Files.
+* dired-do-redisplay:                   Listing Files in Dired.
+* dired-do-relsymlink:                  Making Relative Symbolic Links in Dired.
+* dired-do-relsymlink-regexp:           Making Relative Symbolic Links in Dired.
+* dired-do-shell-command:               Dired Shell Commands.
+* dired-do-symlink:                     Copy and Move Into a Directory.
+* dired-do-symlink-regexp:              Renaming and More With Regexps.
+* dired-do-toggle:                      Tree Dired Extra Features.
+* dired-do-uncompress:                  Compressing and Uncompressing.
+* dired-downcase:                       Other File Creating Commands.
+* dired-find-file-other-window:         Commands That Do Not Use Marks.
+* dired-flag-auto-save-files:           Deleting Files With Dired.
+* dired-flag-backup-files:              Deleting Files With Dired.
+* dired-flag-extension:                 Advanced Dired Mark Commands.
+* dired-flag-file-deleted:              Deleting Files With Dired.
+* dired-flag-regexp-files:              Deleting Files With Dired.
+* dired-goto-file:                      Tree Dired Extra Features.
+* dired-goto-subdir:                    Tree Dired Extra Features.
+* dired-hide-all:                       Hiding Directories in Dired.
+* dired-hide-subdir:                    Hiding Directories in Dired.
+* dired-jump-back:                      Multiple Dired Directories.
+* dired-jump-back-other-window:         Multiple Dired Directories.
+* dired-kill-line-or-subdir:            Listing Files in Dired.
+* dired-make-relative-symlink:          Making Relative Symbolic Links in Dired.
+* dired-make-symbolic-link:             Making Relative Symbolic Links in Dired.
+* dired-mark-directories:               Marking Files in Dired.
+* dired-mark-executables:               Marking Files in Dired.
+* dired-mark-extension:                 Advanced Dired Mark Commands.
+* dired-mark-files-regexp:              Marking Files in Dired.
+* dired-mark-get-files:                 Dired Mark Internals.
+* dired-mark-if:                        Dired Mark Internals.
+* dired-mark-map:                       Dired Mark Internals.
+* dired-mark-sexp:                      Advanced Dired Mark Commands.
+* dired-mark-subdir-or-file:            Marking Files in Dired.
+* dired-mark-symlinks:                  Marking Files in Dired.
+* dired-maybe-insert-subdir:            Subdirectories in Dired.
+* dired-maybe-insert-subdir:            Tree Dired Internals.
+* dired-next-dirline:                   Subdirectories in Dired.
+* dired-next-marked-file:               Marking Files in Dired.
+* dired-next-subdir:                    Subdirectories in Dired.
+* dired-omit-toggle:                    Omitting Files in Dired.
+* dired-other-window:                   Entering Dired.
+* dired-prev-dirline:                   Subdirectories in Dired.
+* dired-prev-marked-file:               Marking Files in Dired.
+* dired-prev-subdir:                    Subdirectories in Dired.
+* dired-rename-regexp:                  Renaming and More With Regexps.
+* dired-restore-marker-char:            Dynamic Dired Markers.
+* dired-rmail:                          Multiple Dired Directories.
+* dired-set-marker-char:                Dynamic Dired Markers.
+* dired-smart-background-shell-command: Multiple Dired Directories.
+* dired-smart-shell-command:            Multiple Dired Directories.
+* dired-sort-toggle-or-edit:            Listing Files in Dired.
+* dired-trans-define:                   dired-trns.el.
+* dired-tree-down:                      Subdirectories in Dired.
+* dired-tree-up:                        Subdirectories in Dired.
+* dired-undo:                           Listing Files in Dired.
+* dired-unflag-all-files:               Marking Files in Dired.
+* dired-unmark-subdir-or-file:          Marking Files in Dired.
+* dired-unmark-subdir-or-file:          Deleting Files With Dired.
+* dired-up-directory:                   Subdirectories in Dired.
+* dired-upcase:                         Other File Creating Commands.
+* dired-view-file:                      Commands That Do Not Use Marks.
+* dired-view-file:                      Subdirectories in Dired.
+* dired-virtual:                        Virtual Dired.
+* dired-virtual-mode:                   Virtual Dired.
+* dired-virtual-revert:                 Virtual Dired.
+* dired-vm:                             Multiple Dired Directories.
+* dired-why:                            Commands That Do Not Use Marks.
+* find-dired:                           find-dired.el.
+* find-file:                            Multiple Dired Directories.
+* find-file-other-window:               Multiple Dired Directories.
+* find-grep-dired:                      find-dired.el.
+* find-name-dired:                      find-dired.el.
+* find-this-file:                       Multiple Dired Directories.
+* find-this-file-other-window:          Multiple Dired Directories.
+* revert-buffer:                        Listing Files in Dired.
+* shell-command:                        Multiple Dired Directories.
+
+
+File: dired.info,  Node: Dired Key Index,  Next: Dired Concept Index,  Prev: Dired Function Index,  Up: Top
+
+Dired Key Index
+***************
+
+* Menu:
+
+* !:                                    Dired Minibuffer History.
+* !:                                    Dired Shell Commands.
+* #:                                    Deleting Files With Dired.
+* $:                                    Hiding Directories in Dired.
+* %c:                                   Renaming and More With Regexps.
+* %d:                                   Deleting Files With Dired.
+* %H:                                   Renaming and More With Regexps.
+* %l:                                   Other File Creating Commands.
+* %m:                                   Marking Files in Dired.
+* %r:                                   Renaming and More With Regexps.
+* %u:                                   Other File Creating Commands.
+* %Y:                                   Renaming and More With Regexps.
+* &:                                    Tree Dired Extra Features.
+* &:                                    Dired Minibuffer History.
+* (:                                    Dynamic Dired Markers.
+* (:                                    Dynamic Dired Markers.
+* ):                                    Dynamic Dired Markers.
+* *:                                    Marking Files in Dired.
+* +:                                    Commands That Do Not Use Marks.
+* ,:                                    Advanced Dired Mark Commands.
+* .:                                    Deleting Files With Dired.
+* /:                                    Marking Files in Dired.
+* <:                                    Subdirectories in Dired.
+* =:                                    Hiding Directories in Dired.
+* >:                                    Subdirectories in Dired.
+* @:                                    Marking Files in Dired.
+* DEL:                                  Deleting Files With Dired.
+* A:                                    Dynamic Dired Markers.
+* B:                                    Loading and Byte-compiling Emacs Lisp Files.
+* C:                                    Compressing and Uncompressing.
+* c:                                    Copy and Move Into a Directory.
+* C-m C-c:                              Advanced Dired Mark Commands.
+* C-m C-d:                              Advanced Dired Mark Commands.
+* C-x 4 C-f:                            Multiple Dired Directories.
+* C-x 4 d:                              Entering Dired.
+* C-x 4 j:                              Multiple Dired Directories.
+* C-x C-f:                              Multiple Dired Directories.
+* C-x d:                                Entering Dired.
+* C-x j:                                Multiple Dired Directories.
+* C-x u:                                Listing Files in Dired.
+* C-_:                                  Listing Files in Dired.
+* D:                                    Commands That Do Not Use Marks.
+* d:                                    Deleting Files With Dired.
+* DEL:                                  Marking Files in Dired.
+* F:                                    Advanced Dired Mark Commands.
+* f:                                    Commands That Do Not Use Marks.
+* g:                                    Listing Files in Dired.
+* g:                                    Virtual Dired.
+* G:                                    Changing File Attributes.
+* H:                                    Copy and Move Into a Directory.
+* i:                                    Tree Dired Internals.
+* i:                                    Subdirectories in Dired.
+* I:                                    Inserting All Marked Subdirectories.
+* k:                                    Listing Files in Dired.
+* L:                                    Loading and Byte-compiling Emacs Lisp Files.
+* l:                                    Listing Files in Dired.
+* M:                                    Changing File Attributes.
+* m:                                    Marking Files in Dired.
+* m:                                    Dynamic Dired Markers.
+* M-!:                                  Multiple Dired Directories.
+* M-&:                                  Multiple Dired Directories.
+* M-(:                                  Advanced Dired Mark Commands.
+* M-{:                                  Marking Files in Dired.
+* M-}:                                  Marking Files in Dired.
+* M-C-d:                                Subdirectories in Dired.
+* M-C-n:                                Subdirectories in Dired.
+* M-C-p:                                Subdirectories in Dired.
+* M-C-u:                                Subdirectories in Dired.
+* M-DEL:                                Marking Files in Dired.
+* M-G:                                  Tree Dired Extra Features.
+* M-g:                                  Tree Dired Extra Features.
+* M-k:                                  Listing Files in Dired.
+* M-M:                                  Advanced Dired Mark Commands.
+* M-n:                                  Dired Minibuffer History.
+* M-o:                                  Omitting Files in Dired.
+* M-p:                                  Dired Minibuffer History.
+* M-~:                                  Commands That Do Not Use Marks.
+* O:                                    Changing File Attributes.
+* o:                                    Commands That Do Not Use Marks.
+* P:                                    Printing the Marked Files.
+* r:                                    Copy and Move Into a Directory.
+* s:                                    Listing Files in Dired.
+* T:                                    Tree Dired Extra Features.
+* u:                                    Deleting Files With Dired.
+* U:                                    Compressing and Uncompressing.
+* u:                                    Marking Files in Dired.
+* v:                                    Subdirectories in Dired.
+* v:                                    Commands That Do Not Use Marks.
+* V:                                    Multiple Dired Directories.
+* W:                                    Commands That Do Not Use Marks.
+* w:                                    Tree Dired Extra Features.
+* W:                                    Mark-using Commands.
+* X:                                    Deleting Files With Dired.
+* x:                                    Deleting Files With Dired.
+* Y:                                    Copy and Move Into a Directory.
+* Z:                                    Dynamic Dired Markers.
+* ^:                                    Subdirectories in Dired.
+* ~:                                    Deleting Files With Dired.
+
+
+File: dired.info,  Node: Dired Concept Index,  Prev: Dired Key Index,  Up: Top
+
+Dired Concept Index
+*******************
+
+* Menu:
+
+* Background Dired shell commands:      Tree Dired Extra Features.
+* Basename of a file, how to use in Dired shell commands: dired-trns.el.
+* Case-changing Dired commands:         Other File Creating Commands.
+* Changing marker character in Dired:   Dynamic Dired Markers.
+* Compilation files, how to mark them:  Advanced Dired Mark Commands.
+* Corresponding files, how to mark them: Advanced Dired Mark Commands.
+* Creating a directory in Dired:        Commands That Do Not Use Marks.
+* Current file (in Dired):              Editing in Dired.
+* current file, how to run it:          Dired Shell Commands.
+* Default target in Dired:              Copy and Move Into a Directory.
+* Deletion (of files):                  Dired.
+* Diffing files in Dired:               Commands That Do Not Use Marks.
+* Directory, how to create one in Dired: Commands That Do Not Use Marks.
+* Dired:                                Dired.
+* Dired case-changing commands:         Other File Creating Commands.
+* Dired file marking internals:         Dired Mark Internals.
+* Dired listing switches:               Listing Files in Dired.
+* Dired regexp commands:                Renaming and More With Regexps.
+* Dired target commands:                Copy and Move Into a Directory.
+* Dynamic marker characters:            Dynamic Dired Markers.
+* Error logging in Dired:               Mark-using Commands.
+* Error logging in Dired:               Commands That Do Not Use Marks.
+* executing the current file:           Dired Shell Commands.
+* Expanded subdirectory:                Subdirectories in Dired.
+* Expanding subdirectories in Dired:    Subdirectories in Dired.
+* Extension of a file, how to use in Dired shell commands: dired-trns.el.
+* File line:                            Listing Files in Dired.
+* File marking internals in Dired:      Dired Mark Internals.
+* Find and Dired:                       find-dired.el.
+* Gmhist:                               Dired Minibuffer History.
+* Headerline:                           Listing Files in Dired.
+* Headerline:                           Subdirectories in Dired.
+* Hiding in Dired:                      Hiding Directories in Dired.
+* History of Minibuffer input:          Dired Minibuffer History.
+* How to make omitting the default in Dired: Omitting Files in Dired.
+* In-situ subdirectory:                 Subdirectories in Dired.
+* Input to Dired shell commands:        Tree Dired Extra Features.
+* Inserted subdirectory:                Subdirectories in Dired.
+* Inserting subdirectories in same Dired buffer: Subdirectories in Dired.
+* Interactive Dired shell commands:     Tree Dired Extra Features.
+* Internal of Dired file marking:       Dired Mark Internals.
+* Internals of Tree Dired:              Tree Dired Internals.
+* Lisp expression, marking files with in Dired: Advanced Dired Mark Commands.
+* List of files, how to mark them:      Advanced Dired Mark Commands.
+* List of files, how to mark them:      Advanced Dired Mark Commands.
+* Local Variables for Dired Directories: Dired Local Variables.
+* ls listings, how to peruse them in Dired: Virtual Dired.
+* Mark file by lisp expression:         Advanced Dired Mark Commands.
+* Mark-using commands:                  Editing in Dired.
+* Mark-using commands:                  Mark-using Commands.
+* Mark-using commands, use of prefix argument as repeat count: Mark-using Commands.
+* Marker character, how to replace it:  Advanced Dired Mark Commands.
+* Marker characters in Dired, changing them: Dynamic Dired Markers.
+* Marking a list of files from a buffer: Advanced Dired Mark Commands.
+* Marking compilation files:            Advanced Dired Mark Commands.
+* Marking files (in Dired):             Editing in Dired.
+* Marking files in Dired, internals of: Dired Mark Internals.
+* Marking RCS controlled files:         Advanced Dired Mark Commands.
+* Minibuffer History:                   Dired Minibuffer History.
+* Multiple Dired directories:           Multiple Dired Directories.
+* Non-file line:                        Listing Files in Dired.
+* Numeric argument to Dired's mark-using commands: Mark-using Commands.
+* Omitting additional files:            Omitting Files in Dired.
+* Omitting Files in Dired:              Omitting Files in Dired.
+* Omitting RCS files in Dired:          Omitting Files in Dired.
+* Omitting tib files in Dired:          Omitting Files in Dired.
+* Overwriting of files in Dired:        Copy and Move Into a Directory.
+* Perusing ls listings:                 Virtual Dired.
+* Prefix argument to Dired's mark-using commands: Mark-using Commands.
+* Prefix argument via digit keys:       Mark-using Commands.
+* RCS controlled files, how to mark them: Advanced Dired Mark Commands.
+* RCS files, how to omit them in Dired: Omitting Files in Dired.
+* Refreshing a Dired listing:           Listing Files in Dired.
+* Regexp commands in Dired:             Renaming and More With Regexps.
+* Repeat count for Dired's mark-using commands: Mark-using Commands.
+* Replacing one marker character with another: Advanced Dired Mark Commands.
+* running the current file:             Dired Shell Commands.
+* Shell commands (in Dired):            Dired Shell Commands.
+* Simultaneous visiting of several files: Advanced Dired Mark Commands.
+* Stack of marker characters in Dired:  Dynamic Dired Markers.
+* Target commands in Dired:             Copy and Move Into a Directory.
+* Target default in Dired:              Copy and Move Into a Directory.
+* Tib files, how to omit them in Dired: Omitting Files in Dired.
+* Transformer:                          dired-trns.el.
+* Tree Dired Internals:                 Tree Dired Internals.
+* Virtual Dired:                        Virtual Dired.
+* Visiting several files at once:       Advanced Dired Mark Commands.
+* Why something went wrong in Dired:    Mark-using Commands.
+* Why something went wrong in Dired:    Commands That Do Not Use Marks.
+* Working directory:                    Multiple Dired Directories.
+
+

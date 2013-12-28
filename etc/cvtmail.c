@@ -1,9 +1,9 @@
-/* Copyright (C) 1985 Free Software Foundation
+/* Copyright (C) 1985, 1993 Free Software Foundation
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -37,13 +37,16 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include <stdio.h>
 #include <string.h>
 
+#if __STDC__
+#include <stdlib.h>
+#endif
 
 extern char *getenv ();
-char *xmalloc ();
-char *xrealloc ();
-void skip_to_lf ();
-void fatal ();
-void error ();
+static void *xmalloc ();
+static void *xrealloc ();
+static void skip_to_lf ();
+static void fatal ();
+static void error ();
 
 int
 main (argc, argv)
@@ -109,7 +112,7 @@ main (argc, argv)
   return 0;
 }
 
-void
+static void
 skip_to_lf (stream)
      FILE *stream;
 {
@@ -118,7 +121,7 @@ skip_to_lf (stream)
     ;
 }
 
-char *
+static void *
 xmalloc (size)
      int size;
 {
@@ -128,7 +131,7 @@ xmalloc (size)
   return result;
 }
 
-char *
+static void *
 xrealloc (ptr, size)
      char *ptr;
      int size;
@@ -141,7 +144,7 @@ xrealloc (ptr, size)
 
 /* Print error message and exit.  */
 
-void
+static void
 fatal (s1, s2)
      char *s1, *s2;
 {
@@ -149,7 +152,7 @@ fatal (s1, s2)
   exit (1);
 }
 
-void
+static void
 error (s1, s2)
      char *s1, *s2;
 {

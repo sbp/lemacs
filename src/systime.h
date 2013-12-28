@@ -1,5 +1,5 @@
 /* systime.h - System-dependent definitions for time manipulations.
-   Copyright (C) 1992, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1992, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -29,6 +29,11 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #else
 #include <time.h>
 #endif
+#endif
+
+/* lemacs addition by Greg.Onufer@eng.sun.com */
+#ifdef HAVE_UTIMBUF
+# include <utime.h>
 #endif
 
 #ifdef HAVE_TZNAME
@@ -89,7 +94,10 @@ extern long timezone;
 #define EMACS_SET_SECS(time, seconds)	    ((time).tv_sec  = (seconds))
 #define EMACS_SET_USECS(time, microseconds) ((time).tv_usec = (microseconds))
 
+#ifndef IRIX5 /* by Daniel Rich <drich@lerc.nasa.gov> for lemacs */
 extern int gettimeofday ();
+#endif
+
 #define EMACS_GET_TIME(time)					\
 {								\
   struct timezone dummy;					\
@@ -137,6 +145,21 @@ extern int gettimeofday ();
 
 #ifdef USE_UTIME
 
+/* lemacs addition by Greg.Onufer@eng.sun.com for Solaris 2.3.
+   Presumably other SVR4-derived systems have the same interface.
+ */
+# ifdef HAVE_UTIMBUF
+
+#define EMACS_SET_UTIMES(path, atime, mtime)			\
+  {								\
+    struct utimbuf tv;						\
+    tv.actime = EMACS_SECS (atime);				\
+    tv.modtime = EMACS_SECS (mtime);				\
+    utime ((path), &tv);					\
+  }
+
+# else /* !HAVE_UTIMBUF */
+
 #define EMACS_SET_UTIMES(path, atime, mtime)			\
   {								\
     time_t tv[2];						\
@@ -144,6 +167,8 @@ extern int gettimeofday ();
     tv[1] = EMACS_SECS (mtime);					\
     utime ((path), tv);						\
   }
+
+# endif /* !HAVE_UTIMBUF */
 
 #else /* ! defined (USE_UTIME) */
 

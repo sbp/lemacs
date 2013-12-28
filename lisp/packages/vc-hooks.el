@@ -35,8 +35,8 @@ The first pair corresponding to a given back end is used as a template
 when creating new masters.")
 
 (defvar vc-make-backup-files nil
-  "*If non-nil, backups of registered files are made according to
-the make-backup-files variable.  Otherwise, prevents backups being made.")
+  "*If non-nil, backups of registered files are made as with other files.
+If nil (the default), for files covered by version control don't get backups.")
 
 (defvar vc-rcs-status t
   "*If non-nil, revision and locks on RCS working file displayed in modeline.
@@ -71,8 +71,16 @@ Otherwise, not displayed.")
 ;;; actual version-control code starts here
 
 (defun vc-registered (file)
-  (let ((handler (and (fboundp 'find-file-name-handler)
-		      (find-file-name-handler file))))
+  (let (handler handlers)
+    (if (boundp 'file-name-handler-alist)
+	(save-match-data
+	  (setq handlers file-name-handler-alist)
+	  (while (and (consp handlers) (null handler))
+	    (if (and (consp (car handlers))
+		     (stringp (car (car handlers)))
+		     (string-match (car (car handlers)) file))
+		(setq handler (cdr (car handlers))))
+	    (setq handlers (cdr handlers)))))
     (if handler
 	(funcall handler 'vc-registered file)
       ;; Search for a master corresponding to the given file
@@ -135,11 +143,18 @@ The value is set in the current buffer, which should be the buffer
 visiting FILE."
   (interactive (list buffer-file-name nil))
   (let ((vc-type (vc-backend-deduce file)))
-    (if vc-type
-        (setq vc-mode
-              (concat " " (or label (symbol-name vc-type))
-		      (if (and vc-rcs-status (eq vc-type 'RCS))
-                          (vc-rcs-status file)))))
+    (setq vc-mode
+	  (and vc-type
+	       (concat " " (or label (symbol-name vc-type))
+		       (if (and vc-rcs-status (eq vc-type 'RCS))
+			   (vc-rcs-status file)))))
+    ;; Even root shouldn't modify a registered file without locking it first.
+    (and vc-type
+	 (not buffer-read-only)
+	 (zerop (user-uid))
+	 (require 'vc)
+	 (not (string-equal (user-login-name) (vc-locking-user file)))
+	 (setq buffer-read-only t))
     ;; force update of mode line
     (set-buffer-modified-p (buffer-modified-p))
     vc-type))
@@ -192,13 +207,9 @@ visiting FILE."
           (while
 	      (not (or found
 		       (let ((s (buffer-size)))
-			 (goto-char (point-max))
-			 (zerop (car (cdr (condition-case e
-					      (insert-file-contents
-					       master nil s (+ s 8192))
-					    (wrong-number-of-arguments
-					     (insert-file-contents master nil)
-					     (if (= s 0) '(1 1) '(0 0))))))))))
+			 (goto-char (1+ s))
+			 (zerop (car (cdr (insert-file-contents
+					   master nil s (+ s 8192))))))))
 	    (beginning-of-line)
 	    (setq found (re-search-forward "^locks\\([^;]*\\);" nil t)))
 
@@ -213,7 +224,7 @@ visiting FILE."
 			(narrow-to-region (match-beginning 1) (match-end 1))
 			(goto-char (point-min))
 			(while (re-search-forward lock-pattern nil t)
-			  (replace-match (if (eobp) "" "-") t t))
+			  (replace-match (if (eobp) "" ":") t t))
 			(buffer-string)))
 		     (status
 		      (if (not (string-equal locks ""))
@@ -239,9 +250,7 @@ visiting FILE."
 	(make-local-variable 'make-backup-files)
 	(setq make-backup-files nil))))
 
-(or (memq 'vc-find-file-hook find-file-hooks)
-    (setq find-file-hooks
-	  (cons 'vc-find-file-hook find-file-hooks)))
+(add-hook 'find-file-hooks 'vc-find-file-hook)
 
 ;;; more hooks, this time for file-not-found
 (defun vc-file-not-found-hook ()
@@ -252,9 +261,7 @@ Returns t if checkout was successful, nil otherwise."
 	(require 'vc)
 	(not (vc-error-occurred (vc-checkout buffer-file-name))))))
 
-(or (memq 'vc-file-not-found-hook find-file-not-found-hooks)
-    (setq find-file-not-found-hooks
-	  (cons 'vc-file-not-found-hook find-file-not-found-hooks)))
+(add-hook 'find-file-not-found-hooks 'vc-file-not-found-hook)
 
 ;;; Now arrange for bindings and autoloading of the main package.
 ;;; Bindings for this have to go in the global map, as we'll often
@@ -264,6 +271,7 @@ Returns t if checkout was successful, nil otherwise."
 (if (not (keymapp vc-prefix-map))
     (progn
       (setq vc-prefix-map (make-sparse-keymap))
+      (set-keymap-name vc-prefix-map 'vc-prefix-map)
       (define-key global-map "\C-xv" vc-prefix-map)
       (define-key vc-prefix-map "a" 'vc-update-change-log)
       (define-key vc-prefix-map "c" 'vc-cancel-version)
@@ -276,6 +284,7 @@ Returns t if checkout was successful, nil otherwise."
       (define-key vc-prefix-map "u" 'vc-revert-buffer)
       (define-key vc-prefix-map "v" 'vc-next-action)
       (define-key vc-prefix-map "=" 'vc-diff)
+      (define-key vc-prefix-map "~" 'vc-version-other-window)
       ))
 
 (provide 'vc-hooks)

@@ -1,6 +1,6 @@
 ;;; sendmail.el --- mail sending commands for Emacs.
 
-;; Copyright (C) 1985, 1986, 1992, 1993 Free Software Foundation, Inc.
+;; Copyright (C) 1985, 1986, 1992, 1993, 1994 Free Software Foundation, Inc.
 
 ;; Maintainer: FSF
 ;; Keywords: mail
@@ -30,34 +30,87 @@
 ;;; Code:
 
 ;;;###autoload
-;(defvar mail-self-blind nil "\
-;Non-nil means insert BCC to self in messages to be sent.
-;This is done when the message is initialized,
-;so you can remove or alter the BCC field to override the default.")
+(defvar mail-self-blind nil "\
+Non-nil means insert BCC to self in messages to be sent.
+This is done when the message is initialized,
+so you can remove or alter the BCC field to override the default.")
 
 ;;;###autoload
-;(defvar mail-interactive nil "\
-;Non-nil means when sending a message wait for and display errors.
-;nil means let mailer mail back a message to report errors.")
+(defvar mail-interactive nil "\
+Non-nil means when sending a message wait for and display errors.
+nil means let mailer mail back a message to report errors.")
+
+;;; lemacs change: moved rmail-ignored-headers here from rmail.el so that
+;;; the value of mail-yank-ignored-headers can default from it.  Both of
+;;; these end up in loaddefs.el, but "sendmail" comes before "rmail", so...
+;;;
+;;;###autoload
+(defvar rmail-ignored-headers 
+  (purecopy
+   (concat
+    "^\\("
+    (mapconcat
+     'identity
+     '(;; RFC822
+       "Sender:" "References:" "Return-Path:" "Received:"
+       "[^: \t\n]*Message-ID:" "Errors-To:"
+       ;; RFC977 (NNTP)
+       "Path:" "Expires:" "Xref:" "Lines:" "Approved:" "Distribution:"
+       ;; SYSV mail:
+       "Content-Length:"
+       ;; MIME:
+       "Mime-Version:" "Content-Type:" "Content-Transfer-Encoding:"
+       ;; X400
+       "X400-Received:" "X400-Originator:" "X400-Mts-Identifier:"
+       "X400-Content-Type:" "Content-Identifier:"
+       ;; RMAIL and /usr/ucb/mail:
+       "Status:" "Summary-Line:"
+       ;; Supercite:
+       "X-Attribution:"
+       ;; Other random junk occasionally seen:
+       "Via:" "Sent-Via:" "Mail-From:" "Origin:" "Comments:" "Originator:"
+       "NF-ID:" "NF-From:" "Posting-Version:" "Posted:" "Posted-Date:"
+       "Date-Received:" "Relay-Version:" "Article-I\\.D\\.:" "NNTP-Version:"
+       "NNTP-Posting-Host:" "X-Mailer:" "X-Newsreader:" "News-Software:"
+       "X-Received:" "X-References:"
+       "Remailed-"
+       )
+     "\\|")
+    "\\)"))
+  "*Gubbish header fields one would rather not see.")
+
 
 ;;;###autoload
+(defvar mail-yank-ignored-headers
+  (purecopy
+   (concat rmail-ignored-headers "\\|"
+	   "^\\("
+	   (mapconcat 'identity
+		      '(;; RFC822
+			"Resent-To:" "Resent-By:" "Resent-CC:"
+			"To:" "Subject:" "In-Reply-To:"
+			)
+		      "\\|")
+	   "\\)"))
+  "Delete these headers from old message when it's inserted in a reply.")
+;; minimalist FSF version
 ;(defvar mail-yank-ignored-headers "^via:\\|^mail-from:\\|^origin:\\|^status:\\|^remailed\\|^received:\\|^message-id:\\|^summary-line:\\|^to:\\|^subject:\\|^in-reply-to:\\|^return-path:" "\
 ;Delete these headers from old message when it's inserted in a reply.")
 
 ;; Useful to set in site-init.el
 ;;;###autoload
-;(defvar send-mail-function 'sendmail-send-it "\
-;Function to call to send the current buffer as mail.
-;The headers are be delimited by a line which is `mail-header-separator'.")
+(defvar send-mail-function 'sendmail-send-it "\
+Function to call to send the current buffer as mail.
+The headers are be delimited by a line which is `mail-header-separator'.")
 
 ;;;###autoload
-;(defvar mail-header-separator "--text follows this line--" "\
-;*Line used to separate headers from text in messages being composed.")
+(defvar mail-header-separator (purecopy "--text follows this line--") "\
+*Line used to separate headers from text in messages being composed.")
 
 ;;;###autoload
-;(defvar mail-archive-file-name nil "\
-;*Name of file to write all outgoing messages in, or nil for none.
-;Do not use an rmail file here!  Instead, use its inbox file.")
+(defvar mail-archive-file-name nil "\
+*Name of file to write all outgoing messages in, or nil for none.
+Do not use an rmail file here!  Instead, use its inbox file.")
 
 (defvar mail-default-reply-to nil
   "*Address to insert as default Reply-to field of outgoing messages.")
@@ -186,8 +239,7 @@ so you can edit or delete these lines.")
            (insert mail-signature)
            (setq mail-signature-inserted t)))
     (goto-char (point-max))
-    (or (bolp) (newline))
-    )
+    (or (bolp) (newline)))
   (if to (goto-char to))
   (or to subject in-reply-to
       (set-buffer-modified-p nil))
@@ -230,6 +282,9 @@ Button3  Popup menu with the above commands."
 				   paragraph-separate))
   (run-hooks 'text-mode-hook 'mail-mode-hook))
 
+
+;;; Set up keymap.
+
 (if mail-mode-map
     nil
   (setq mail-mode-map (make-sparse-keymap))
@@ -238,22 +293,22 @@ Button3  Popup menu with the above commands."
   (define-key mail-mode-map "\C-c?" 'describe-mode)
   (define-key mail-mode-map "\C-c\C-f\C-t" 'mail-to)
   (define-key mail-mode-map "\C-c\C-f\C-b" 'mail-bcc)
-  ;;(define-key mail-mode-map "\C-c\C-f\C-f" 'mail-fcc)
+  (define-key mail-mode-map "\C-c\C-f\C-f" 'mail-fcc)
   (define-key mail-mode-map "\C-c\C-f\C-c" 'mail-cc)
   (define-key mail-mode-map "\C-c\C-f\C-s" 'mail-subject)
   (define-key mail-mode-map "\C-c\C-t" 'mail-text)
   (define-key mail-mode-map "\C-c\C-y" 'mail-yank-original)
   (define-key mail-mode-map "\C-c\C-q" 'mail-fill-yanked-message)
   (define-key mail-mode-map "\C-c\C-w" 'mail-signature)
-  ;;(define-key mail-mode-map "\C-c\C-v" 'mail-sent-via)
+  ;;CRAP!!(define-key mail-mode-map "\C-c\C-v" 'mail-sent-via)CRAP!
   (define-key mail-mode-map "\C-c\C-c" 'mail-send-and-exit)
   (define-key mail-mode-map "\C-c\C-s" 'mail-send)
   (define-key mail-mode-map 'button3   'mail-mode-menu))
-
+
 ;;; mail-mode popup menu
 
 (defvar mail-mode-menu
-  '("Mail Mode"
+  '("Sendmail Commands"
     "Sending Mail:"
     "----"
     ["Send and Exit"		mail-send-and-exit		t]
@@ -303,7 +358,8 @@ Button3  Popup menu with the above commands."
 						  "\n") nil t)
 			  (not (looking-at "[ \t\n]*\\'"))))))
     )
-  (popup-menu 'mail-mode-menu))
+  (let ((popup-menu-titles nil))
+    (popup-menu 'mail-mode-menu)))
 
 
 (defun mail-send-and-exit (arg)
@@ -323,14 +379,19 @@ Prefix arg means don't delete this window."
   "Bury this mail buffer."
   (let ((newbuf (other-buffer (current-buffer))))
     (bury-buffer (current-buffer))
-    (if (and (not arg)
-             (not (one-window-p))
-             (save-excursion
-               (set-buffer (window-buffer (next-window (selected-window)
-                                                       'not)))
-               (eq major-mode 'rmail-mode)))
-        (delete-window)
-	(switch-to-buffer newbuf))))
+    (cond ;;((and (fboundp 'frame-parameters)
+          ;;      (cdr (assq 'dedicated (frame-parameters)))
+          ;;      (not (null (delq (selected-frame) (visible-frame-list)))))
+          ;; (delete-frame (selected-frame)))
+          ((and (not arg)
+                (not (one-window-p))
+                (save-excursion
+                  (set-buffer (window-buffer (next-window (selected-window)
+                                                          'not)))
+                  (eq major-mode 'rmail-mode)))
+           (delete-window))
+          (t
+           (switch-to-buffer newbuf)))))
 
 (defun mail-send ()
   "Send the message in the current buffer.
@@ -408,30 +469,33 @@ back to the user from the mailer."
 	    (replace-match "\n"))
 	  (let ((case-fold-search t))
 	    (goto-char (point-min))
-	    (if (re-search-forward "^Sender:" delimline t)
-		(error "Sender may not be specified."))
+;; This is incorrect, RFC822 allows this.  -jwz
+;;	    (if (re-search-forward "^Sender:" delimline t)
+;;		(error "Sender may not be specified."))
 	    ;; Find and handle any FCC fields.
 	    (goto-char (point-min))
 	    (if (re-search-forward "^FCC:" delimline t)
 		(mail-do-fcc delimline))
-	    ;; If the From is different than current user, insert Sender.
-	    (goto-char (point-min))
-	    (and (re-search-forward "^From:"  delimline t)
-		 (progn
-		   (require 'mail-utils)
-		   (not (string-equal
-			 (mail-strip-quoted-names
-			  (save-restriction
-			    (narrow-to-region (point-min) delimline)
-			    (mail-fetch-field "From")))
-			 (user-login-name))))
-		 (progn
-		   (forward-line 1)
-		   (insert "Sender: " (user-login-name) "\n")))
-	    ;; "S:" is an abbreviation for "Subject:".
-	    (goto-char (point-min))
-	    (if (re-search-forward "^S:" delimline t)
-		(replace-match "Subject:"))
+;;; Apparently this causes a duplicate Sender.
+;	    ;; If the From is different than current user, insert Sender.
+;	    (goto-char (point-min))
+;	    (and (re-search-forward "^From:"  delimline t)
+;		 (progn
+;		   (require 'mail-utils)
+;		   (not (string-equal
+;			 (mail-strip-quoted-names
+;			  (save-restriction
+;			    (narrow-to-region (point-min) delimline)
+;			    (mail-fetch-field "From")))
+;			 (user-login-name))))
+;		 (progn
+;		   (forward-line 1)
+;		   (insert "Sender: " (user-login-name) "\n")))
+;;; RMS garbage.  "S:" means "S:"
+;	    ;; "S:" is an abbreviation for "Subject:".
+;	    (goto-char (point-min))
+;	    (if (re-search-forward "^S:" delimline t)
+;		(replace-match "Subject:"))
 	    ;; Don't send out a blank subject line
 	    (goto-char (point-min))
 	    (if (re-search-forward "^Subject:[ \t]*\n" delimline t)
@@ -804,11 +868,35 @@ and don't delete any header fields."
 
 (defun mail-do-fcc-vm-internal (buffer)
   (or (eq major-mode 'vm-mode) (error "this only works in vm-mode"))
-  (let ((buffer-read-only nil))
+  (let ((buffer-read-only nil)
+	(foreign-folder-p (not (eq vm-folder-type 'From_))))
+
+    (if foreign-folder-p
+	;; `buffer' has already been prepared with a "From " line which
+	;; has a sensible user-id and date in it, but if we're FCCing to
+	;; a VM folder that isn't in From_ format, we must discard that
+	;; and let VM do whatever voodoo it needs to do.  (Actually we
+	;; could do this all the time, but then all FCCed messages would
+	;; have "From VM ..." envelopes, which is less attractive.)
+	(save-excursion
+	  (set-buffer buffer)
+	  (goto-char (point-min))
+	  (skip-chars-forward "\n")
+	  (forward-line)
+	  (delete-region (point-min) (point))))
+
+    ;; Largely copied from #'vm-save-message in vm-save.el
     (vm-save-restriction
      (widen)
      (goto-char (point-max))
+     (if foreign-folder-p
+	 (vm-write-string (current-buffer)
+			  (vm-leading-message-separator vm-folder-type)))
      (insert-buffer-substring buffer)
+     (if foreign-folder-p
+	 (vm-write-string (current-buffer)
+			  (vm-trailing-message-separator vm-folder-type)))
+
      (vm-increment vm-messages-not-on-disk)
      (vm-set-buffer-modified-p t)
      (vm-clear-modification-flag-undos)
@@ -892,6 +980,8 @@ The seventh argument ACTIONS is a list of actions to take
 	  ;; Go there and initialize it.
 	  (switch-to-buffer buffer)
 	  (erase-buffer)
+	  ;; put mail auto-save files in home dir instead of
+	  ;; scattering them around the file system.
           (setq default-directory (expand-file-name "~/"))
           (auto-save-mode auto-save-default)
           (mail-mode)
@@ -904,7 +994,10 @@ The seventh argument ACTIONS is a list of actions to take
 (defun mail-recover ()
   "Reread contents of current buffer from its last auto-save file."
   (interactive)
-  (let ((file-name (make-auto-save-file-name)))
+  (let ((file-name (let ((default-directory (expand-file-name "~/")))
+		     ;; put mail auto-save files in home dir instead of
+		     ;; scattering them around the file system.
+		     (make-auto-save-file-name))))
     (cond ((save-window-excursion
 	     (if (not (eq system-type 'vax-vms))
 		 (with-output-to-temp-buffer "*Directory*"
@@ -923,6 +1016,14 @@ The seventh argument ACTIONS is a list of actions to take
   (let ((pop-up-windows t))
     (pop-to-buffer "*mail*"))
   (mail noerase to subject in-reply-to cc replybuffer sendactions))
+
+;;;;###autoload
+;(defun mail-other-frame (&optional noerase to subject in-reply-to cc replybuffer sendactions)
+;  "Like `mail' command, but display mail buffer in another frame."
+;  (interactive "P")
+;  (let ((pop-up-frames t))
+;    (pop-to-buffer "*mail*"))
+;  (mail noerase to subject in-reply-to cc replybuffer sendactions))
 
 ;;; Do not add anything but external entries on this page.
 

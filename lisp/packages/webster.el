@@ -175,7 +175,7 @@ definitions as crossreferences.)")
 (defun webster-fontify (start end face &optional highlight)
   (let ((e (make-extent start end (current-buffer))))
     (set-extent-face e face)
-    (if highlight (set-extent-attribute e 'highlight))))
+    (if highlight (set-extent-property e 'highlight t))))
 
 
 (defun webster-reformat (end)
@@ -366,6 +366,7 @@ completion table."
     (if (= (char-after (- (point) 1)) char2)
 	(delete-char -1))))
 
+;;;###autoload
 (defun webster (arg)
 "Look up a word in the Webster's dictionary.
 Open a network login connection to a webster host if necessary.
@@ -382,6 +383,7 @@ Communication with host is recorded in a buffer *webster*."
   (if (equal "" arg) (setq arg (current-word)))
   (webster-send-request "DEFINE" arg))
 
+;;;###autoload
 (defun webster-endings (arg)
 "Look up endings for a word in the Webster's dictionary.
 Open a network login connection to a webster host if necessary.
@@ -393,6 +395,7 @@ Communication with host is recorded in a buffer *webster*."
   (if (equal "" arg) (setq arg (current-word)))
   (webster-send-request "ENDINGS" arg))
 
+;;;###autoload
 (defun webster-spell (arg)
 "Look spelling for a word in the Webster's dictionary.
 Open a network login connection to a webster host if necessary.

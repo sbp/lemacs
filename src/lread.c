@@ -1,5 +1,5 @@
 /* Lisp parsing and input streams.
-   Copyright (C) 1985, 1986, 1987, 1988, 1989, 1992, 1993
+   Copyright (C) 1985, 1986, 1987, 1988, 1989, 1992, 1993, 1994
    Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
@@ -20,6 +20,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include "config.h"
 #include "lisp.h"
+#include "intl.h"
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -49,6 +50,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 Lisp_Object Qread_char, Qstandard_input;
 Lisp_Object Qvariable_documentation;
+Lisp_Object Qvariable_domain;	/* I18N3 */
 Lisp_Object Vvalues, Vstandard_input, Vafter_load_alist;
 Lisp_Object Qcurrent_load_list;
 Lisp_Object Qload;
@@ -107,7 +109,8 @@ static void
 print_input_stream (Lisp_Object obj, Lisp_Object printcharfun, int escapeflag)
 {
   char buf[30];
-  sprintf (buf, "#<input-stream 0x%x>", XINPUTSTREAM (obj)->header.uid); 
+  sprintf (buf, GETTEXT ("#<input-stream 0x%x>"),
+	   XINPUTSTREAM (obj)->header.uid); 
   write_string_1 (buf, -1, printcharfun);
 }
 
@@ -136,7 +139,11 @@ readchar (readcharfun)
 
       if (BUF_PT (inbuffer) >= BUF_ZV (inbuffer))
 	return -1;
+#ifdef I18N4
+      c = *BUF_CHAR_ADDRESS (inbuffer, BUF_PT (inbuffer));
+#else
       c = *(unsigned char *) BUF_CHAR_ADDRESS (inbuffer, BUF_PT (inbuffer));
+#endif
       SET_BUF_PT (inbuffer, BUF_PT (inbuffer) + 1);
 
       return c;
@@ -149,7 +156,11 @@ readchar (readcharfun)
 
       if (mpos > BUF_ZV (inbuffer) - 1)
 	return -1;
+#ifdef I18N4
+      c = *BUF_CHAR_ADDRESS (inbuffer, mpos);
+#else
       c = *(unsigned char *) BUF_CHAR_ADDRESS (inbuffer, mpos);
+#endif
       if (mpos != BUF_GPT (inbuffer))
 	XMARKER (readcharfun)->bufpos++;
       else
@@ -193,7 +204,7 @@ unreadchar (readcharfun, c)
     {
       struct buffer *b = XBUFFER (readcharfun);
       if (b == current_buffer)
-	SET_PT (point - 1);
+	SET_PT (PT - 1);
       else
 	SET_BUF_PT (b, BUF_PT (b) - 1);
     }
@@ -256,6 +267,18 @@ load_unwind (stream)  /* used as unwind-protect function in load */
   return Qnil;
 }
 
+#ifdef I18N3
+Lisp_Object Vfile_domain;
+
+Lisp_Object
+restore_file_domain (Lisp_Object val)
+{
+  Vfile_domain = val;
+  return Qnil;
+}
+#endif /* I18N3 */
+
+
 DEFUN ("load", Fload, Sload, 1, 4, 0,
   "Execute a file of Lisp code named FILE.\n\
 First try FILE with `.elc' appended, then try with `.el',\n\
@@ -307,7 +330,8 @@ Return t if file exists.")
 	{
 	  if (NILP (missing_ok))
 	    signal_error (Qfile_error,
-			  list2 (build_string ("Cannot open load file"), str));
+			  list2 (build_string
+				 (GETTEXT ("Cannot open load file")), str));
 	  else
 	    {
 	      UNGCPRO;
@@ -359,24 +383,25 @@ Return t if file exists.")
   if (stream == 0)
     {
       emacs_close (fd);
-      error ("Failure to create stdio stream for %s", XSTRING (str)->data);
+      error (GETTEXT ("Failure to create stdio stream for %s"),
+	     XSTRING (str)->data);
     }
 
   if (!NILP (newer))
     {
-      message ("Loading %s...  (file %s is newer)",
+      message (GETTEXT ("Loading %s...  (file %s is newer)"),
 	       XSTRING (str)->data, XSTRING (newer)->data);
       nomessage = Qnil; /* we printed the first one, so print "done" too */
     }
   else if (source_only)
     {
-      message ("Loading %s...  (file %s.elc does not exist)",
+      message (GETTEXT ("Loading %s...  (file %s.elc does not exist)"),
 	       XSTRING (str)->data,
 	       XSTRING (Ffile_name_nondirectory (str))->data);
       nomessage = Qnil;
     }
   else if (NILP (nomessage))
-    message ("Loading %s...", XSTRING (str)->data);
+    message (GETTEXT ("Loading %s..."), XSTRING (str)->data);
 
   {
     /* Lisp_Object's must be malloc'ed, not stack-allocated */
@@ -389,6 +414,12 @@ Return t if file exists.")
 
     record_unwind_protect (load_unwind, lispstream);
     load_in_progress++;
+
+#ifdef I18N3
+    record_unwind_protect (restore_file_domain, Vfile_domain);
+    Vfile_domain = Qnil; /* set it to nil; a call to #'domain will set it. */
+#endif
+
     readevalloop (lispstream, str, Feval, 0);
     unbind_to (speccount, Qnil);
   }
@@ -405,10 +436,10 @@ Return t if file exists.")
   if (noninteractive || !NILP (nomessage))
     ;
   else if (!NILP (newer))
-    message ("Loading %s...done  (file %s is newer)",
+    message (GETTEXT ("Loading %s...done  (file %s is newer)"),
 	     XSTRING (str)->data, XSTRING (newer)->data);
   else
-    message ("Loading %s...done", XSTRING (str)->data);
+    message (GETTEXT ("Loading %s...done"), XSTRING (str)->data);
 
   UNGCPRO;
   return Qt;
@@ -454,7 +485,7 @@ MODE (0|1|2|4 = exists|executable|writeable|readable), default readable.")
 int
 locate_file (path, str, suffix, storeptr, mode)
      Lisp_Object path, str;
-     const char *suffix;
+     CONST char *suffix;
      Lisp_Object *storeptr;
      int mode;
 {
@@ -477,7 +508,7 @@ locate_file (path, str, suffix, storeptr, mode)
 
   for (; !NILP (path); path = Fcdr (path))
     {
-      const char *nsuffix;
+      CONST char *nsuffix;
 
       filename = Fexpand_file_name (str, Fcar (path));
       if (NILP (Ffile_name_absolute_p (filename)))
@@ -703,7 +734,7 @@ nil means discard it; anything else is stream for print.")
 
   buf = Fget_buffer (bufname);
   if (NILP (buf))
-    error ("No such buffer.");
+    error (GETTEXT ("No such buffer."));
 
   if (NILP (printflag))
     tem = Qsymbolp;             /* >>>> #@[]*&$#*[& SI:NULL-STREAM */
@@ -773,7 +804,7 @@ STREAM or the value of `standard-input' may be:\n\
   if (EQ (readcharfun, Qread_char))
   {
     Lisp_Object val = call1 (Qread_from_minibuffer, 
-                             build_string ("Lisp expression: "));
+                             build_string (GETTEXT ("Lisp expression: ")));
     return (Fcar (Fread_from_string (val, Qnil, Qnil)));
   }
 #endif
@@ -886,7 +917,7 @@ read_escape (readcharfun)
     case 'M':
       c = readchar (readcharfun);
       if (c != '-')
-	error ("Invalid escape character syntax");
+	error (GETTEXT ("Invalid escape character syntax"));
       c = readchar (readcharfun);
       if (c == '\\')
 	c = read_escape (readcharfun);
@@ -895,7 +926,7 @@ read_escape (readcharfun)
     case 'C':
       c = readchar (readcharfun);
       if (c != '-')
-	error ("Invalid escape character syntax");
+	error (GETTEXT ("Invalid escape character syntax"));
     case '^':
       c = readchar (readcharfun);
       if (c == '\\')
@@ -1043,7 +1074,7 @@ read_atom (register Lisp_Object readcharfun,
 		    {
 		      if (*p < '0' || *p > '7')
 			return Fsignal (Qinvalid_read_syntax,
-					list1 (build_string ("non-octal digit")));
+					list1 (build_string (GETTEXT ("non-octal digit"))));
 		      number = (number << 3) + *p++ - '0';
 		    }
 		}
@@ -1152,14 +1183,16 @@ read1 (Lisp_Object readcharfun)
 	unreadchar (readcharfun, c);
 
 	if (! isdigit (c))
-#endif
-	  {
-	    return (Fcons (Qunbound, make_number ('.')));
-	  }
+	  return (Fcons (Qunbound, make_number ('.')));
+
 	/* Note that read_atom will loop
 	   at least once, assuring that we will not try to UNREAD
            two characters in a row.  */
         return (read_atom (readcharfun, '.', 0));
+
+#else  /* ! LISP_FLOAT_TYPE */
+	return (Fcons (Qunbound, make_number ('.')));
+#endif /* ! LISP_FLOAT_TYPE */
       }
 
     case '#':
@@ -1279,7 +1312,7 @@ read1 (Lisp_Object readcharfun)
 #define EXP_INT 16
 
 int
-isfloat_string (register const char *cp)
+isfloat_string (register CONST char *cp)
 {
   register state;
   
@@ -1349,10 +1382,10 @@ sequence_reader (Lisp_Object readcharfun,
       unreadchar (readcharfun, ch);
     if (ch == ']')
       signal_error (Qinvalid_read_syntax,
-                    list1 (build_string ("\"]\" in a list")));
+                    list1 (build_string (GETTEXT ("\"]\" in a list"))));
     else if (ch == ')')
       signal_error (Qinvalid_read_syntax,
-                    list1 (build_string ("\")\" in a vector")));
+                    list1 (build_string (GETTEXT ("\")\" in a vector"))));
     state = ((conser) (readcharfun, state, len));
   }
 }
@@ -1383,11 +1416,11 @@ read_list_conser (Lisp_Object readcharfun, void *state, int len)
     ch = XINT (elt);
     if (ch != '.')
       signal_error (Qerror,
-                    list2 (build_string ("BUG! Internal reader error %o"),
-                           elt));
+                    list2 (build_string
+			   (GETTEXT ("BUG! Internal reader error %o")), elt));
     else if (!s->allow_dotted_lists)
       signal_error (Qinvalid_read_syntax,
-                    list1 (build_string ("\".\" in a vector")));
+                    list1 (build_string (GETTEXT ("\".\" in a vector"))));
     else
     {
       if (!NILP (s->tail))
@@ -1403,7 +1436,7 @@ read_list_conser (Lisp_Object readcharfun, void *state, int len)
         goto done;
       }
       signal_error (Qinvalid_read_syntax,
-                    list1 (build_string (". in wrong context")));
+                    list1 (build_string (GETTEXT (". in wrong context"))));
     }
   }
 
@@ -1493,16 +1526,16 @@ read_bytecode (Lisp_Object readcharfun, int terminator)
   /* Accept compiled functions at read-time so that we don't 
      have to build them at load-time. */
   Lisp_Object stuff;
-  Lisp_Object make_byte_code_args[COMPILED_INTERACTIVE + 1];
+  Lisp_Object make_byte_code_args[COMPILED_DOMAIN + 1];
   struct gcpro gcpro1;
   int len;
   int iii;
 
   stuff = read_list (readcharfun, terminator, 0);
   len = XINT (Flength (stuff));
-  if (len < COMPILED_STACK_DEPTH + 1 || len > COMPILED_INTERACTIVE + 1)
+  if (len < COMPILED_STACK_DEPTH + 1 || len > COMPILED_DOMAIN + 1)
     return Fsignal (Qinvalid_read_syntax,
-                    list1 (build_string ("#[...] used with wrong number of elements")));
+                    list1 (build_string (GETTEXT ("#[...] used with wrong number of elements"))));
 
   for (iii = 0; CONSP (stuff); iii++)
   {
@@ -1538,7 +1571,7 @@ init_lread ()
           {
 	    dirfile = Fdirectory_file_name (dirfile);
             if (access (XSTRING (dirfile)->data, 0) < 0)
-              printf ("Warning: lisp library (%s) does not exist.\n",
+              printf (GETTEXT ("Warning: lisp library (%s) does not exist.\n"),
                       XSTRING (Fcar (normal_path))->data);
           }
       }
@@ -1642,4 +1675,8 @@ or variables, and cons cells `(provide . FEATURE)' and `(require . FEATURE)'.");
 
   read_buffer_size = 100;
   read_buffer = (char *) xmalloc (read_buffer_size);
+
+#ifdef I18N3
+  Vfile_domain = Qnil;
+#endif
 }

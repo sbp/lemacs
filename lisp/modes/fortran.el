@@ -465,12 +465,14 @@ With non-nil ARG, uncomments the region."
   "Typing ;\\[help-command] or ;? lists all the Fortran abbrevs. 
 Any other key combination is executed normally."
   (interactive)
-  (let (c)
+  (let (e c)
     (insert last-command-char)
-    (if (or (eq (setq c (read-event)) ??)    ;insert char if not equal to `?'
-	    (eq c help-char))
+    (setq e (next-command-event)
+	  c (event-to-character e))
+    ;; insert char if not equal to `?'
+    (if (or (= c ??) (eq c help-char))
 	(fortran-abbrev-help)
-      (setq unread-command-events (list c)))))
+      (setq unread-command-event e))))
 
 (defun fortran-abbrev-help ()
   "List the currently defined abbrevs in Fortran mode."
@@ -513,8 +515,8 @@ See also `fortran-window-create-momentarily'."
   (condition-case error
       (progn
 	(let ((window-min-width 2))
-	  (if (< (window-width) (frame-width))
-	      (enlarge-window-horizontally (- (frame-width)
+	  (if (< (window-width) (screen-width))
+	      (enlarge-window-horizontally (- (screen-width)
 					      (window-width) 1)))
 	  (split-window-horizontally 73)
 	  (other-window 1)
@@ -533,9 +535,9 @@ See also `fortran-window-create'."
       (save-window-excursion
 	(if (not (equal (fortran-window-create) 'error))
 	    (progn (message "Type SPC to continue editing.")
-		   (let ((char (read-event)))
-		     (or (equal char (string-to-char " "))
-			 (setq unread-command-events (list char)))))))
+		   (let ((char (next-command-event)))
+		     (or (equal (event-to-character char) ? )
+			 (setq unread-command-event char))))))
     (fortran-window-create)))
 
 (defun fortran-split-line ()

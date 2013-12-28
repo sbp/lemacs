@@ -4,7 +4,7 @@
 ;;; Original design by Skef Wholey <skef@cs.cmu.edu>;
 ;;; ported to Emacs-Lisp by Jamie Zawinski <jwz@lucid.com>, 5-mar-91.
 ;;;
-(defconst conx-version "1.5,  6-apr-93.")
+(defconst conx-version "1.6, 30-dec-93.")
 ;;;
 ;;; Run this compiled.  It will be an order of magnitude faster.
 ;;;
@@ -190,6 +190,7 @@
 	  (if (memq (setq p (following-char)) '(?\, ?\. ?\! ?\? ?\;))
 	      (conx-punx p)))))))
 
+;;;###autoload
 (defun conx-buffer ()
   "Absorb the text in the current buffer into the tree."
   (interactive)
@@ -212,6 +213,7 @@
 	(setq conx-files (nconc conx-files (list buffer-file-name))))
     (message "%s words, %d unique" n (- conx-words-vector-fp i))))
 
+;;;###autoload
 (defun conx-region (p m)
   "Absorb the text in the current region into the tree."
   (interactive "r")
@@ -273,6 +275,8 @@
 
 
 (defun conx-sentence ()
+  (or (> conx-words-vector-fp 0)
+      (error "no conx data is loaded; see `conx-buffer'."))
   (let* ((word (aref conx-words-vector (conx-rand conx-words-vector-fp)))
 	 (first-p t)
 	 (p (point))
@@ -321,6 +325,7 @@
 	  (insert "  "))))
   nil)
 
+;;;###autoload
 (defun conx ()
   "Generate some random sentences in the *conx* buffer."
   (interactive)
@@ -353,6 +358,20 @@
 			       (not (eq 'lambda (car gnus-Select-article-hook))))
 			  gnus-Select-article-hook
 			  (cons gnus-Select-article-hook nil))))))
+
+(defun psychoanalyze-conx ()
+  "Mr. Random goes to the analyst."
+  (interactive)
+  (doctor)				; start the psychotherapy
+  (message "")
+  (switch-to-buffer "*doctor*")
+  (sit-for 0)
+  (while (not (input-pending-p))
+    (conx-sentence)
+    (if (= (random 2) 0)
+	(conx-sentence))
+    (sit-for 0)
+    (doctor-ret-or-read 1)))
 
 
 ;;; Saving the database
@@ -402,6 +421,7 @@ You can re-load this database with the \\[conx-load] command."
 	(save-buffer)))
     (and b (kill-buffer b)))))
 
+;;;###autoload
 (defun conx-load (file)
   "Load in a CONX database written by the \\[conx-save] command.
 This clears the database currently in memory."
@@ -761,3 +781,4 @@ will overflow static limits in most K&R preprocessors."
 		    (insert "\n")))))
 	    conx-words-hashtable)
   (sort-numeric-fields -1 (point-min) (point-max)))
+

@@ -1,5 +1,6 @@
 /* Random utility Lisp functions.
-   Copyright (C) 1985, 1986, 1987, 1992, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1987, 1992, 1993, 1994
+   Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -26,6 +27,8 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define vector *****
 
 #include "lisp.h"
+#include "intl.h"
+
 #include "commands.h"
 
 #include "buffer.h"
@@ -56,8 +59,14 @@ DEFUN ("identity", Fidentity, Sidentity, 1, 1, 0,
   return arg;
 }
 
+
+/* Under linux with gcc -O, these are macros.  Do not declare. */
+#ifndef	random
 extern long random ();
+#endif
+#ifndef srandom
 extern void srandom ();
+#endif
 
 DEFUN ("random", Frandom, Srandom, 0, 1, 0,
   "Return a pseudo-random number.\n\
@@ -97,31 +106,24 @@ length_with_bytecode_hack (Lisp_Object seq)
     return (XFASTINT (Flength (seq)));
   else
   {
-#ifndef LRECORD_BYTECODE
-    return (vector_length (XVECTOR (seq)));
-#else
     struct Lisp_Bytecode *b = XBYTECODE (seq);
     int docp = b->flags.documentationp;
     int intp = b->flags.interactivep;
+    int domainp = b->flags.domainp;
     int lesser = min (COMPILED_INTERACTIVE, COMPILED_DOC_STRING);
 
-    if (!intp && !docp)
-      return (lesser + 1);
-    else if (((lesser == COMPILED_DOC_STRING) ? intp : docp))
-      return (max (COMPILED_INTERACTIVE, COMPILED_DOC_STRING) + 1);
-    else if (intp)
+    if (intp)
       return (COMPILED_INTERACTIVE + 1);
+    else if (domainp)
+      return (COMPILED_DOMAIN + 1);
     else
       return (COMPILED_DOC_STRING + 1);
   }
-#endif /* LRECORD_BYTECODE */
 }
 
 
-
 DEFUN ("length", Flength, Slength, 1, 1, 0,
-  "Return the length of vector, list or string SEQUENCE.\n\
-A byte-code function object is also allowed.")
+  "Return the length of vector, list or string SEQUENCE.")
   (obj)
      register Lisp_Object obj;
 {
@@ -152,10 +154,7 @@ A byte-code function object is also allowed.")
    *  so that bytecomp.el (which uses "(append bytcode nil)"
    *  "works". */
   else if (COMPILED (obj))
-#ifndef LRECORD_BYTECODE
-    return (make_number (vector_length (XVECTOR (obj))));
-#else
-#endif /* LRECORD_BYTECODE */
+    ...
 #endif /* 0 */
   else
     {
@@ -187,17 +186,22 @@ Symbols are also allowed; their print names are used instead.")
   return Qt;
 }
 
+
+/* I18N2: Changes to doc string */
 DEFUN ("string-lessp", Fstring_lessp, Sstring_lessp, 2, 2, 0,
   "T if first arg string is less than second in lexicographic order.\n\
-Case is significant.\n\
+Ordering is determined by the locale.\n\
+Case is significant for the default C locale.\n\
 Symbols are also allowed; their print names are used instead.")
   (s1, s2)
      Lisp_Object s1, s2;
 {
   register int i;
   register unsigned char *p1, *p2;
+#ifndef I18N2
   register int end;
   int len2;
+#endif
 
   if (SYMBOLP (s1))
     XSET (s1, Lisp_String, XSYMBOL (s1)->name);
@@ -208,10 +212,17 @@ Symbols are also allowed; their print names are used instead.")
 
   p1 = XSTRING (s1)->data;
   p2 = XSTRING (s2)->data;
+#ifndef I18N2
   end = string_length (XSTRING (s1));
   len2 = string_length (XSTRING (s2));
   if (end > len2)
     end = len2;
+#endif
+
+#ifdef I18N2
+  /* Compare strings using collation order of locale. */
+  return strcoll ((char *) p1, (char *) p2) < 0 ? Qt : Qnil;
+#else /* not I18N2 */
 
   for (i = 0; i < end; i++)
     {
@@ -219,6 +230,7 @@ Symbols are also allowed; their print names are used instead.")
 	return p1[i] < p2[i] ? Qt : Qnil;
     }
   return ((i < len2) ? Qt : Qnil);
+#endif /* not I18N2 */
 }
 
 static Lisp_Object concat (int nargs, Lisp_Object *args,
@@ -547,12 +559,14 @@ Second arg VECP causes vectors to be copied, too.  Strings are not copied.")
 DEFUN ("substring", Fsubstring, Ssubstring, 2, 3, 0,
   "Return a substring of STRING, starting at index FROM and ending before TO.\n\
 TO may be nil or omitted; then the substring runs to the end of STRING.\n\
-If FROM or TO is negative, it counts from the end.")
+If FROM or TO is negative, it counts from the end.\n\
+Relevant parts of the string-extent-data are copied in the new string.")
   (string, from, to)
      Lisp_Object string;
      register Lisp_Object from, to;
 {
   int len;
+  Lisp_Object val;
 
   CHECK_STRING (string, 0);
   CHECK_FIXNUM (from, 1);
@@ -570,8 +584,14 @@ If FROM or TO is negative, it counts from the end.")
         && XINT (to) <= len))
     args_out_of_range_3 (string, from, to);
 
-  return make_string ((char *) XSTRING (string)->data + XINT (from),
-		      XINT (to) - XINT (from));
+  val = make_string ((char *) XSTRING (string)->data + XINT (from),
+		     XINT (to) - XINT (from));
+  /* Copy any applicable extent information into the new string: */
+  if (!NILP (XSTRING (string)->dup_list))
+    XSTRING(val)->dup_list = shift_replicas (XSTRING (string)->dup_list,
+					     - XINT (from),
+					     XSTRING (val)->size);
+  return val;
 }
 
 DEFUN ("nthcdr", Fnthcdr, Snthcdr, 2, 2, 0,
@@ -613,7 +633,13 @@ DEFUN ("elt", Felt, Selt, 2, 2, 0,
       if (CONSP (tem))
 	return (XCONS (tem)->car);
       else
+#if 1
+	/* This is The Way It Has Always Been. */
 	return Qnil;
+#else
+        /* This is The Way Mly Says It Should Be. */
+        args_out_of_range (seq, n);
+#endif
     }
   else if (STRINGP (seq)
            || VECTORP (seq))
@@ -626,14 +652,9 @@ DEFUN ("elt", Felt, Selt, 2, 2, 0,
         lose:
           args_out_of_range (seq, n);
         }
-#ifndef LRECORD_BYTECODE
-      if (idx >= vector_length (XVECTOR (seq))) goto lose;
-      return (XVECTOR (seq)->contents[idx]);
-#else /* LRECORD_BYTECODE */
+      /* Utter perversity */
       {
         struct Lisp_Bytecode *b = XBYTECODE (seq);
-        int docp = b->flags.documentationp;
-        int intp = b->flags.interactivep;
         switch (idx)
           {
           case COMPILED_ARGLIST:
@@ -645,30 +666,19 @@ DEFUN ("elt", Felt, Selt, 2, 2, 0,
           case COMPILED_STACK_DEPTH:
             return (make_number (b->maxdepth));
           case COMPILED_DOC_STRING:
-            {
-              if (!docp) 
-                return Qnil;
-              if (!intp)
-                return (b->doc_and_interactive);
-              else
-                return (XCONS (b->doc_and_interactive)->car);
-            }
+	    return (bytecode_documentation (b));
+          case COMPILED_DOMAIN:
+	    return (bytecode_domain (b));
           case COMPILED_INTERACTIVE:
-            {
-              if (!intp)
-		/* if we return nil, can't tell interactive with no args
-		   from noninteractive. */
-                goto lose;
-              if (!docp)
-                return (b->doc_and_interactive);
-              else
-                return (XCONS (b->doc_and_interactive)->cdr);
-            }
+	    if (b->flags.interactivep)
+	      return (bytecode_interactive (b));
+	    /* if we return nil, can't tell interactive with no args
+	       from noninteractive. */
+	    goto lose;
           default:
             goto lose;
           }
       }
-#endif /* LRECORD_BYTECODE */
     }
   else
     {
@@ -1019,7 +1029,7 @@ run_hook_with_args (Lisp_Object hook_var, int nargs, ...)
   Lisp_Object rest;
   int i;
   va_list vargs;
-  va_start (vargs, hook_var);
+  va_start (vargs, nargs);
 
   if (NILP (Fboundp (hook_var)))
     rest = Qnil;
@@ -1027,6 +1037,7 @@ run_hook_with_args (Lisp_Object hook_var, int nargs, ...)
     rest = Fsymbol_value (hook_var);
   if (NILP (rest))
     {
+      /* Discard C's excuse for &rest */
       for (i = 0; i < nargs; i++)
         (void) va_arg (vargs, Lisp_Object);
       va_end (vargs);
@@ -1046,7 +1057,7 @@ run_hook_with_args (Lisp_Object hook_var, int nargs, ...)
       GCPRO2 (rest, *funcall_args);
       gcpro2.nvars = nargs + 1;
 
-      if (SYMBOLP (rest) || EQ (Qlambda, Fcar_safe (rest)))
+      if (!CONSP (rest) || EQ (Qlambda, XCONS (rest)->car))
         Ffuncall (nargs + 1, funcall_args);
       else
         {
@@ -1164,21 +1175,39 @@ list_merge (Lisp_Object org_l1, Lisp_Object org_l2,
 }
 
 
+DEFUN ("getf", Fgetf, Sgetf, 2, 3, 0,
+  "Search PROPLIST for property PROPNAME; return its value or DEFAULT.\n\
+PROPLIST is a list of the sort returned by `symbol-plist'.")
+     (plist, prop, defalt)           /* Cant spel in C */
+     Lisp_Object plist, prop, defalt;
+{
+  register Lisp_Object tail;
+  for (tail = plist; !NILP (tail); tail = Fcdr (Fcdr (tail)))
+    {
+      if (EQ (prop, Fcar (tail)))
+	return Fcar (Fcdr (tail));
+      QUIT;
+    }
+  return defalt;
+}
+
 DEFUN ("get", Fget, Sget, 2, 3, 0,
   "Return the value of SYMBOL's PROPNAME property.\n\
 This is the last VALUE stored with `(put SYMBOL PROPNAME VALUE)'.\n\
 If there is no such property, return optional third arg DEFAULT\n\
   (which defaults to `nil'.)")
-  (sym, prop, defalt)           /* Cant spel in C */
-     Lisp_Object sym, defalt;
-     register Lisp_Object prop;
+     (sym, prop, defalt)           /* Cant spel in C */
+     Lisp_Object sym, prop, defalt;
 {
-  register Lisp_Object tail;
-  for (tail = Fsymbol_plist (sym); !NILP (tail); tail = Fcdr (Fcdr (tail)))
-    if (EQ (prop, Fcar (tail)))
-      return Fcar (Fcdr (tail));
-
-  return defalt;
+  Lisp_Object val;
+  /* Various places in emacs call Fget() and expect it not to quit, so if
+     the user puts a circular list in a symbol's plist, they get what they
+     deserve. */
+  Lisp_Object oiq = Vinhibit_quit;
+  Vinhibit_quit = Qt;
+  val = Fgetf (Fsymbol_plist (sym), prop, defalt);
+  Vinhibit_quit = oiq;
+  return val;
 }
 
 DEFUN ("put", Fput, Sput, 3, 3, 0,
@@ -1246,6 +1275,7 @@ DEFUN ("remprop", Fremprop, Sremprop, 2, 2, 0,
 }
 
 
+#if 0 /* this is unused, and the name conflicts with NeXT header files */
 /* Same as the Common Lisp function GETF.  Never errors,
    returns nil when there is no match. */
 Lisp_Object
@@ -1273,28 +1303,18 @@ getf (plist, indicator)
     }
   return Qnil;
 }
+#endif /* 0 */
 
 int
 internal_equal (Lisp_Object o1, Lisp_Object o2, int depth)
 {
   if (depth > 200)
-    error ("Stack overflow in equal");
+    error (GETTEXT ("Stack overflow in equal"));
  do_cdr:
   QUIT;
   if (EQ (o1, o2))
     return (1);
-#ifdef LISP_FLOAT_TYPE
-  /* #### once LRECORD_FLOAT is the only choice, this should go away. */
-  else if (NUMBERP (o1) && NUMBERP (o2))
-    {
-      if (FIXNUMP (o1) && FIXNUMP (o2))
-	return (0);
-      else if (extract_float (o1) == extract_float (o2))
-	return (1);
-      else
-	return (0);
-    }
-#endif
+  /* Note that (equal 20 20.0) should be nil */
   else if (XTYPE (o1) != XTYPE (o2)) 
     return (0);
   else if (CONSP (o1))
@@ -1333,7 +1353,7 @@ internal_equal (Lisp_Object o1, Lisp_Object o2, int depth)
     }
   else if (LRECORDP (o1))
     {
-      const struct lrecord_implementation
+      CONST struct lrecord_implementation
 	*imp1 = XRECORD_LHEADER (o1)->implementation,
 	*imp2 = XRECORD_LHEADER (o2)->implementation;
       if (imp1 != imp2)
@@ -1343,25 +1363,6 @@ internal_equal (Lisp_Object o1, Lisp_Object o2, int depth)
       else
 	return ((imp1->equal) (o1, o2, depth));
     }
-
-#ifndef LRECORD_BYTECODE
-  else if (COMPILEDP (o1))
-    {
-      int index;
-      int len = vector_length (XVECTOR (o1));
-      if (len != vector_length (XVECTOR (o2)))
-	return (0);
-      for (index = 0; index < len; index++)
-	{
-	  Lisp_Object v, v1, v2;
-	  v1 = XVECTOR (o1)->contents [index];
-	  v2 = XVECTOR (o2)->contents [index];
-	  if (!internal_equal (v1, v2, depth + 1))
-            return (0);
-	}
-      return (1);
-    }
-#endif /* !LRECORD_BYTECODE */
 
   return (0);
 }
@@ -1595,9 +1596,9 @@ as setgid kmem (assuming that /dev/kmem is in the group kmem.)")
   Lisp_Object ret;
 
   if (loads == -2)
-    error ("load-average not implemented for this operating system.");
+    error (GETTEXT("load-average not implemented for this operating system."));
   else if (loads < 0)
-    error ("could not get load-average; check permissions.");
+    error (GETTEXT ("could not get load-average; check permissions."));
 
   ret = Qnil;
   while (loads > 0)
@@ -1666,7 +1667,7 @@ If FILENAME is omitted, the printname of FEATURE is used as the file name.")
 
       tem = Fmemq (feature, Vfeatures);
       if (NILP (tem))
-	error ("Required feature %s was not provided",
+	error (GETTEXT ("Required feature %s was not provided"),
 	       XSYMBOL (feature)->name->data );
 
       /* Once loading finishes, don't undo it.  */
@@ -1703,9 +1704,9 @@ The sound file must be in the Sun/NeXT U-LAW format."
   file = Fexpand_file_name (file, Qnil);
   if (NILP (Ffile_readable_p (file)))
     if (NILP (Ffile_exists_p (file)))
-      error ("file does not exist.");
+      error (GETTEXT ("file does not exist."));
     else
-      error ("file is unreadable.");
+      error (GETTEXT ("file is unreadable."));
 
   /* The sound code doesn't like getting SIGIO interrupts.  Unix sucks! */
   if (interrupt_input) unrequest_sigio ();
@@ -1835,6 +1836,7 @@ Used by `featurep' and `require', and altered by `provide'.");
   defsubr (&Snreverse);
   defsubr (&Sreverse);
   defsubr (&Ssort);
+  defsubr (&Sgetf);
   defsubr (&Sget);
   defsubr (&Sput);
   defsubr (&Sremprop);
@@ -1898,4 +1900,8 @@ the C kernel of emacs uses.");
   not_on_console = 0;	/* set by X startup code */
 #endif
   beep_hook = 0	;	/* set by X startup code */
+
+#if defined(USE_SOUND) && defined(hp9000s800)
+  syms_of_hpplay ();
+#endif
 }

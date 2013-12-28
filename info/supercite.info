@@ -1,0 +1,66 @@
+This is Info file ../info/supercite.info, produced by Makeinfo-1.55
+from the input file supercite.texinfo.
+
+   This document describes the Supercite Version 3.1 package for citing
+and attributing the replies for various GNU Emacs mail and news reading
+subsystems.
+
+   Copyright (C) 1993 Barry A. Warsaw
+
+   Permission is granted to make and distribute verbatim copies of this
+manual provided the copyright notice and this permission notice are
+preserved on all copies.
+
+
+Indirect:
+supercite.info-1: 470
+supercite.info-2: 48650
+supercite.info-3: 98406
+
+Tag Table:
+(Indirect)
+Node: Top470
+Node: Introduction1182
+Node: Usage Overview3166
+Node: What Supercite Does Not Do4335
+Node: What Supercite Does5475
+Node: Citations8312
+Node: Citation Elements10613
+Node: Recognizing Citations12502
+Node: Information Keys and the Info Alist14559
+Node: Reference Headers17162
+Node: The Built-in Header Rewrite Functions18739
+Node: Electric References21196
+Node: Getting Connected24077
+Node: Emacs 19 MUAs27607
+Node: Emacs 18 MUAs28849
+Node: MH-E with any Emacsen30217
+Node: VM with any Emacsen31988
+Node: GNEWS with any Emacsen33062
+Node: Overloading for Non-conforming MUAs33796
+Node: Replying and Yanking37058
+Node: Reply Buffer Initialization37405
+Node: Filling Cited Text44300
+Node: Selecting an Attribution47781
+Node: Attribution Preferences48650
+Node: Anonymous Attributions52573
+Node: Author Names55621
+Node: Configuring the Citation Engine58116
+Node: Using Regi59853
+Node: Frames You Can Customize63734
+Node: Post-yank Formatting Commands66271
+Node: Citing Commands67428
+Node: Insertion Commands70160
+Node: Variable Toggling Shortcuts71107
+Node: Mail Field Commands73473
+Node: Miscellaneous Commands75850
+Node: Hints to MUA Authors77126
+Node: Version 3 Changes81185
+Node: Thanks and History83894
+Node: The Supercite Mailing List85502
+Node: Concept Index86842
+Node: Command Index92923
+Node: Key Index98406
+Node: Variable Index100440
+
+End Tag Table

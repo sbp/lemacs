@@ -47,6 +47,7 @@
 Makes them run 2 or 3 times slower.  Set this non-nil if you have a fast
 machine.")
 
+;;;###autoload
 (defun apropos (regexp &optional do-all pred)
   "Show all symbols whose names contain matches for REGEXP.
 If optional argument DO-ALL is non-nil, does more (time-consuming) work such as
@@ -87,6 +88,7 @@ documentation found."
       (setq p (cdr p)))
     list))
 
+;;;###autoload
 (defun super-apropos (regexp &optional do-all)
   "Show symbols whose names/documentation contain matches for REGEXP.
 If optional argument DO-ALL is non-nil, does more (time-consuming) work such as

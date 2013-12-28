@@ -278,8 +278,9 @@
 
 (defun string-ify (list)
   (mapconcat
-   '(lambda (x)
-      (format "%s" x))
+   'symbol-name
+;   '(lambda (x)
+;      (format "%s" x))
    list
    " "))
 
@@ -288,7 +289,9 @@
 	 nil)
 	((memq (nth 1 list)
 	       '(\? \. \, s\! \! s \'s \-loving))
-	 (cons (intern (format "%s%s" (nth 0 list) (nth 1 list)))
+	 (cons (intern (concat (symbol-name (nth 0 list))
+			       (symbol-name (nth 1 list))))
+	       ;;(intern (format "%s%s" (nth 0 list) (nth 1 list)))
 	       (append-suffixes-hack (nthcdr 2 list))))
 	(t (cons (nth 0 list)
 		 (append-suffixes-hack (nthcdr 1 list))))))

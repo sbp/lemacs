@@ -700,7 +700,7 @@ selects that one."
     nil
   (let ((old-fn (if (and (fboundp 'display-time-filter-18-55) ; reportmail.el
 			 (fboundp 'display-time-filter-18-57))
-		    (if (and (featurep 'timer)  ; Lucid GNU Emacs reportmail.el
+		    (if (and (featurep 'itimer)  ; Lucid Emacs reportmail.el
 			     (fboundp 'display-time-timer-function))
 			'display-time-timer-function
 		      ;; older reportmail, or no timer.el.
@@ -708,8 +708,8 @@ selects that one."
 			  'display-time-filter-18-55
 			'display-time-filter-18-57))
 		  ;; othewise, time.el
-		  (if (and (featurep 'timer)
-			   (fboundp 'display-time-function)) ; Lucid GNU Emacs
+		  (if (and (featurep 'itimer)
+			   (fboundp 'display-time-function)) ; Lucid Emacs
 		      'display-time-function
 		    'display-time-filter))))
     ;; we're about to redefine it...

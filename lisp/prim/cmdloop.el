@@ -1,5 +1,5 @@
 ;;; cmdloop.el
-;; Copyright (C) 1992, 1993 Free Software Foundation, Inc.
+;; Copyright (C) 1992, 1993, 1994 Free Software Foundation, Inc.
  
 ;; This file is part of GNU Emacs.
  
@@ -33,14 +33,14 @@
   (interactive)
   (if (> (recursion-depth) 0)
       (throw 'exit nil))
-  (error "No recursive edit is in progress"))
+  (error (gettext "No recursive edit is in progress")))
 
 (defun abort-recursive-edit ()
   "Abort the command that requested this recursive edit or minibuffer input."
   (interactive)
   (if (> (recursion-depth) 0)
       (throw 'exit t))
-  (error "No recursive edit is in progress"))
+  (error (gettext "No recursive edit is in progress")))
 
 (defun keyboard-quit ()
   "Signal a `quit' condition."
@@ -86,7 +86,7 @@
 
     (if (noninteractive)
         (progn
-          (message "Emacs exiting.")
+          (message (gettext "Emacs exiting."))
           (kill-emacs -1)))
     t))
 
@@ -141,42 +141,48 @@
                                   (t
                                    (setq tail (cdr tail)))))
                           ;; Default method
-                          (function (lambda (error-object stream)
+                          #'(lambda (error-object stream)
                               (let ((type (car error-object))
                                     (tail (cdr error-object))
                                     (first t))
                                 (if (eq type 'error)
                                     (progn (princ (car tail) stream)
                                            (setq tail (cdr tail)))
-                                    (princ (or (get type 'error-message) type)
-					   stream))
+				  (princ (or (gettext (get type 'error-message)) type)
+					 stream))
                                 (while tail
                                   (princ (if first ": " ", ") stream)
                                   (prin1 (car tail) stream)
                                   (setq tail (cdr tail)
-                                        first nil)))))))))
-               (function (lambda (error-object stream)
-                   (princ "Peculiar error " stream)
-                   (prin1 error-object stream))))
+                                        first nil))))))))
+	       #'(lambda (error-object stream)
+                   (princ (gettext "Peculiar error ") stream)
+                   (prin1 error-object stream)))
            error-object stream))
 
 (put 'file-error 'display-error
-     (function (lambda (error-object stream)
+     #'(lambda (error-object stream)
          (let ((tail (cdr error-object))
                (first t))
            (princ (car tail) stream)
            (while (setq tail (cdr tail))
              (princ (if first ": " ", ") stream)
              (princ (car tail) stream)
-             (setq first nil))))))
+             (setq first nil)))))
 
 (put 'undefined-keystroke-sequence 'display-error
-     (function (lambda (error-object stream)
+     #'(lambda (error-object stream)
          (princ (key-description (car (cdr error-object))) stream)
-         (princ " not defined." stream) ; doo dah, doo dah.
-         )))
+         (princ (gettext " not defined.") stream) ; doo dah, doo dah.
+         ))
 
 
+(defvar teach-extended-commands-p nil
+  "*If true, then `\\[execute-extended-command]' will teach you keybindings.
+Any time you execute a command with \\[execute-extended-command] which has a\
+ shorter keybinding,
+you will be shown the alternate binding before the command executes.")
+
 (defun execute-extended-command (prefix-arg)
   (interactive "P")
   ;; Note:  This doesn't hack "this-command-keys"
@@ -196,6 +202,20 @@
                                (format "%d M-x " (car prefix-arg)))
                               (t
                                "M-x ")))))
+
+  (if (and teach-extended-commands-p (interactive-p))
+      (let ((keys (where-is-internal this-command (current-local-map))))
+	(if keys
+	    (progn
+	      (message "M-x %s (bound to key%s: %s)"
+		       this-command
+		       (if (cdr keys) "s" "")
+		       (mapconcat 'key-description
+				  (sort keys #'(lambda (x y)
+						 (< (length x) (length y))))
+				  ", "))
+	      (sit-for 2)))))
+
   (command-execute this-command t))
 
 
@@ -265,7 +285,8 @@ Also accepts Space to mean yes, or Delete to mean no."
                (ding nil 'y-or-n-p)
                (discard-input)
                (if (eq p prompt)
-                   (setq p (concat "Please answer y or n.  " prompt)))))))
+                   (setq p (concat (gettext "Please answer y or n.  ")
+				   prompt)))))))
     p))
 
 (defun yes-or-no-p-minibuf (prompt)
@@ -274,24 +295,24 @@ Takes one argument, which is the string to display to ask the question.
 It should end in a space; `yes-or-no-p' adds `(yes or no) ' to it.
 The user must confirm the answer with RET,
 and can edit it until it has been confirmed."
-  (let ((p (concat prompt "(yes or no) "))
+  (let ((p (concat prompt (gettext "(yes or no) ")))
 	(ans ""))
     (while (stringp ans)
       (setq ans (downcase (read-string p nil t))) ;no history
-      (cond ((string-equal ans "yes")
+      (cond ((string-equal ans (gettext "yes"))
              (setq ans 't))
-            ((string-equal ans "no")
+            ((string-equal ans (gettext "no"))
              (setq ans 'nil))
             (t
              (ding nil 'yes-or-no-p)
              (discard-input)
-             (message "Please answer yes or no.")
+             (message (gettext "Please answer yes or no."))
              (sleep-for 2))))
     ans))
 
 ;; these may be redefined later, but make the original def easily encapsulable
-(fset 'yes-or-no-p 'yes-or-no-p-minibuf)
-(fset 'y-or-n-p 'y-or-n-p-minibuf)
+(define-function 'yes-or-no-p 'yes-or-no-p-minibuf)
+(define-function 'y-or-n-p 'y-or-n-p-minibuf)
 
 
 (defun read-char ()
@@ -306,7 +327,7 @@ to be using: consider using the `next-command-event' function instead."
 	       ;; and read the next one.
 	       (if (button-release-event-p event)
 		   (event-to-character (next-command-event event)))
-	       (error "Key read has no ASCII equivalent %S" event))
+	       (error (gettext "Key read has no ASCII equivalent %S") event))
       ;; this is not necessary, but is marginally more efficient than GC.
       (deallocate-event event))))
 
@@ -319,11 +340,12 @@ Optional argument PROMPT specifies a string to use to prompt the user."
     (while (< count 3)
       (let ((inhibit-quit (zerop count))
 	    (help-form nil))
-	(and prompt (message "%s-" prompt))
+	(and prompt (message (gettext "%s-") prompt))
 	(setq event (next-command-event)
 	      char (or (event-to-character event nil nil t)
-		       (error "key read cannot be inserted in a buffer: %S"
-			      event)))
+		       (error
+			(gettext "key read cannot be inserted in a buffer: %S")
+			event)))
 	(if inhibit-quit (setq quit-flag nil)))
       (cond ((null char))
 	    ((and (<= ?0 char) (<= char ?7))
@@ -374,7 +396,7 @@ If MESSAGE is nil, instructions to type EXIT-CHAR are displayed there."
 		(progn
 		  (goto-char pos)
 		  (recenter 0))))
-	  (message (or message "Type %s to continue editing.")
+	  (message (or message (gettext "Type %s to continue editing."))
 		   (single-key-description exit-char))
 	  (let ((event (next-command-event)))
 	    (or (eq (event-to-character event) exit-char)

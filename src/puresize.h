@@ -25,11 +25,16 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    this default.
  */
 
+/* Can decrease when building .elc's in ymakefile fixed */
+#if defined (SPARCWORKS) || defined (TOOLTALK)
+#define PURESIZE 900000
+#endif
+
 #ifndef PURESIZE
 # ifdef ENERGIZE
-#  define PURESIZE 570000
+#  define PURESIZE 630000
 # else
-#  define PURESIZE 290000
+#  define PURESIZE 335000
 # endif
 #endif
 

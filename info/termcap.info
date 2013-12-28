@@ -1,0 +1,77 @@
+This is Info file ../info/termcap.info, produced by Makeinfo-1.55 from
+the input file termcap.texinfo.
+
+   This file documents the termcap library of the GNU system.
+
+   Copyright (C) 1988 Free Software Foundation, Inc.
+
+   Permission is granted to make and distribute verbatim copies of this
+manual provided the copyright notice and this permission notice are
+preserved on all copies.
+
+   Permission is granted to copy and distribute modified versions of
+this manual under the conditions for verbatim copying, provided that
+the entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+
+   Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that this permission notice may be stated in a
+translation approved by the Foundation.
+
+
+Indirect:
+termcap.info-1: 881
+termcap.info-2: 49143
+termcap.info-3: 92454
+
+Tag Table:
+(Indirect)
+Node: Top881
+Node: Introduction1526
+Node: Library3253
+Node: Preparation4270
+Node: Find5469
+Node: Interrogate9017
+Node: Initialize14325
+Node: Padding15965
+Node: Why Pad16626
+Node: Describe Padding18270
+Node: Output Padding19743
+Node: Parameters23358
+Node: Encode Parameters25017
+Node: Using Parameters31120
+Node: tparam31709
+Node: tgoto33774
+Node: Data Base36329
+Node: Format37207
+Node: Capability Format39298
+Node: Naming42347
+Node: Inheriting46916
+Node: Capabilities49143
+Node: Basic51983
+Node: Screen Size55817
+Node: Cursor Motion57557
+Node: Wrapping67214
+Node: Scrolling70039
+Node: Windows75059
+Node: Clearing75793
+Node: Insdel Line77557
+Node: Insdel Char82469
+Node: Standout92454
+Node: Underlining101512
+Node: Cursor Visibility103931
+Node: Bell104679
+Node: Keypad105228
+Node: Meta Key109949
+Node: Initialization110903
+Node: Pad Specs113267
+Node: Status Line115320
+Node: Half-Line117204
+Node: Printer118006
+Node: Summary119685
+Node: Var Index129891
+Node: Cap Index130604
+Node: Index137662
+
+End Tag Table

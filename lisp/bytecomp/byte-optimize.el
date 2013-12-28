@@ -2,7 +2,7 @@
 ;;; The optimization passes of the emacs-lisp byte compiler.
 
 ;; By Jamie Zawinski <jwz@lucid.com> and Hallvard Furuseth <hbf@ulrik.uio.no>.
-;; last modified 27-jun-93.
+;; last modified 18-dec-93.
 
 ;; This file is part of GNU Emacs.
 
@@ -720,6 +720,22 @@ assumes that the function is nonassociative, like - or /."
 (put '/   'byte-optimizer 'byte-optimize-divide)
 (put 'max 'byte-optimizer 'byte-optimize-associative-math)
 (put 'min 'byte-optimizer 'byte-optimize-associative-math)
+
+;; It's not safe to make these optimizations, because it might cause us to
+;; emit literal integer constants in a .elc file which were too large to be
+;; read into a differently-configured emacs (for example, this might cause
+;; code which was trying to compute most-positive-fixnum at run-time to
+;; malfunction.)
+;;
+;; We could make these optimizations (and a few more) if we introduced the
+;; assumption that the minimum most-positive-fixnum was 24 bits (or whatever),
+;; and only did these optimizations if the resultant value was below that.
+;;
+;(put 'logior 'byte-optimizer 'byte-optimize-plus)
+;(put 'logxor 'byte-optimizer 'byte-optimize-plus)
+;(put 'lognot 'byte-optimizer 'byte-optimize-plus)
+;(put 'ash    'byte-optimizer 'byte-optimize-plus)
+;(put 'lsh    'byte-optimizer 'byte-optimize-plus)
 
 (put '=   'byte-optimizer 'byte-optimize-binary-predicate)
 (put 'eq  'byte-optimizer 'byte-optimize-binary-predicate)

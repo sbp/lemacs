@@ -1,6 +1,6 @@
 ;;; lpr.el --- print Emacs buffer on line printer.
 
-;; Copyright (C) 1985, 1988, 1992 Free Software Foundation, Inc.
+;; Copyright (C) 1985, 1988, 1992, 1993 Free Software Foundation, Inc.
 
 ;; Maintainer: FSF
 ;; Keywords: unix
@@ -31,8 +31,8 @@
 ;;; Code:
 
 ;;;###autoload
-;(defvar lpr-switches nil
-;  "*List of strings to pass as extra switch args to lpr when it is invoked.")
+(defvar lpr-switches nil
+  "*List of strings to pass as extra switch args to lpr when it is invoked.")
 
 ;;;###autoload
 (defvar lpr-command
@@ -80,7 +80,7 @@ See definition of `print-region-1' for calling conventions.")
       (message "Spooling...")
       (if (/= tab-width 8)
 	  (progn
-	    (print-region-new-buffer start end)
+	    (print-region-new-buffer) ; see below (start end)
 	    (setq tab-width width)
 	    (save-excursion
 	      (goto-char end)
@@ -89,7 +89,7 @@ See definition of `print-region-1' for calling conventions.")
       (if page-headers
 	  (if (eq system-type 'usg-unix-v)
 	      (progn
-		(print-region-new-buffer start end)
+		(print-region-new-buffer) ; see below (start end)
 		(call-process-region start end "pr" t t nil))
 	    ;; On BSD, use an option to get page headers.
 	    (setq switches (and (equal lpr-command "lpr")
@@ -109,7 +109,8 @@ See definition of `print-region-1' for calling conventions.")
 ;; into a new buffer, makes that buffer current,
 ;; and sets start and end to the buffer bounds.
 ;; start and end are used free.
-(defun print-region-new-buffer (start end)
+;; (hey you loser if you want them to be used free, they can't be args.)
+(defun print-region-new-buffer () ;(start end)
   (or (string= (buffer-name) " *spool temp*")
       (let ((oldbuf (current-buffer)))
 	(set-buffer (get-buffer-create " *spool temp*"))

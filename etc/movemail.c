@@ -48,12 +48,11 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
  *
  */
 
-#if __STDC__
 #include <stdlib.h>
 #include <unistd.h>
 #include <time.h> /* for time() */
 #include <stdio.h> /* for printf() */
-#endif
+#include <string.h> /* strcpy() */
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -65,6 +64,9 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #ifdef USG
 #include <fcntl.h>
 #include <unistd.h>
+#if defined (sun)
+#include <stdlib.h>
+#endif /* sun */
 #ifndef F_OK
 #define F_OK 0
 #define X_OK 1
@@ -87,16 +89,16 @@ extern int lk_open (), lk_close ();
 #undef write
 #undef close
 
-char *concat ();
-void *xmalloc ();
+static char *concat ();
+static void *xmalloc ();
 #ifndef errno
 extern int errno;
 #endif
 
-void error ();
-void fatal ();
-void pfatal_with_name ();
-void pfatal_and_delete ();
+static void error ();
+static void fatal ();
+static void pfatal_with_name ();
+static void pfatal_and_delete ();
 
 extern int sys_nerr;
 extern char *sys_errlist[];
@@ -324,7 +326,7 @@ main (argc, argv)
 
 /* Print error message and exit.  */
 
-void
+static void
 fatal (s1, s2)
      char *s1, *s2;
 {
@@ -336,7 +338,7 @@ fatal (s1, s2)
 
 /* Print error message.  `s1' is printf control string, `s2' is arg for it. */
 
-void
+static void
 error (s1, s2, s3)
      char *s1, *s2, *s3;
 {
@@ -345,7 +347,7 @@ error (s1, s2, s3)
   printf ("\n");
 }
 
-void
+static void
 pfatal_with_name (name)
      char *name;
 {
@@ -358,7 +360,7 @@ pfatal_with_name (name)
   fatal (s, name);
 }
 
-void
+static void
 pfatal_and_delete (name)
      char *name;
 {
@@ -375,7 +377,7 @@ pfatal_and_delete (name)
 
 /* Return a newly-allocated string whose contents concatenate those of s1, s2, s3.  */
 
-char *
+static char *
 concat (s1, s2, s3)
      char *s1, *s2, *s3;
 {
@@ -392,11 +394,11 @@ concat (s1, s2, s3)
 
 /* Like malloc but get fatal error if memory is exhausted.  */
 
-void *
+static void *
 xmalloc (size)
      unsigned int size;
 {
-  void *result = malloc (size);
+  void *result = (void *) malloc (size);
   if (!result)
     fatal ("virtual memory exhausted", 0);
   return result;

@@ -19,6 +19,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 
 #include "config.h"
+#include "intl.h"
 
 #include <stdio.h>	/* for printf and stderr */
 #include <sys/types.h>
@@ -77,11 +78,11 @@ get_doc_string (long filepos)
 
   fd = emacs_open (name, O_RDONLY, 0);
   if (fd < 0)
-    error ("Cannot open doc string file \"%s\"", name);
+    error (GETTEXT ("Cannot open doc string file \"%s\""), name);
   if (0 > lseek (fd, filepos, 0))
     {
       emacs_close (fd);
-      error ("Position %ld out of range in doc string file \"%s\"",
+      error (GETTEXT ("Position %ld out of range in doc string file \"%s\""),
 	     filepos, name);
     }
   p = buf;
@@ -127,18 +128,10 @@ string is passed through `substitute-command-keys'.")
   else if (COMPILEDP (fun))
     {
       Lisp_Object tem;
-#ifndef LRECORD_BYTECODE
-      if (vector_length (XVECTOR (fun)) <= COMPILED_DOC_STRING)
-	return Qnil;
-      tem = XVECTOR (fun)->contents[COMPILED_DOC_STRING];
-#else
       struct Lisp_Bytecode *b = XBYTECODE (fun);
       if (! (b->flags.documentationp))
         return (Qnil);
-      tem = b->doc_and_interactive;
-      if (b->flags.interactivep)
-        tem = Fcar (tem);
-#endif /* LRECORD_BYTECODE */
+      tem = bytecode_documentation (b);
       if (STRINGP (tem))
 	doc = tem;
       else if (FIXNUMP (tem) && XINT (tem) >= 0)
@@ -147,9 +140,9 @@ string is passed through `substitute-command-keys'.")
         return (Qnil);
     }
   else if (KEYMAPP (fun))
-    return build_string ("Prefix command (definition is a keymap of subcommands).");
+    return build_string (GETTEXT ("Prefix command (definition is a keymap of subcommands)."));
   else if (STRINGP (fun) || VECTORP (fun))
-    return build_string ("Keyboard macro.");
+    return build_string (GETTEXT ("Keyboard macro."));
   else if (!CONSP (fun))
     return Fsignal (Qinvalid_function, list1 (fun));
   else
@@ -180,13 +173,22 @@ string is passed through `substitute-command-keys'.")
   }
 
   if (NILP (raw))
-  {
-    struct gcpro gcpro1;
+    {
+      struct gcpro gcpro1;
+#ifdef I18N3
+      Lisp_Object domain = Qnil;
+      if (COMPILEDP (fun))
+	domain = Fcompiled_function_domain (fun);
+      if (NILP (domain))
+	doc = Fgettext (doc);
+      else
+	doc = Fdgettext (domain, doc);
+#endif
 
-    GCPRO1 (doc);
-    doc = Fsubstitute_command_keys (doc);
-    UNGCPRO;
-  }
+      GCPRO1 (doc);
+      doc = Fsubstitute_command_keys (doc);
+      UNGCPRO;
+    }
   return (doc);
 }
 
@@ -201,24 +203,37 @@ translation.")
      Lisp_Object sym, prop, raw;
 {
   register Lisp_Object doc;
+#ifdef I18N3
+  register Lisp_Object domain;
+#endif
 
   doc = Fget (sym, prop, Qnil);
   if (FIXNUMP (doc))
     doc = get_doc_string ((long) ((XINT (doc) > 0)
                                   ? XINT (doc) : 
                                   - XINT (doc)));
+#ifdef I18N3
+  if (!NILP (doc))
+    {
+      domain = Fget (sym, Qvariable_domain, Qnil);
+      if (NILP (domain))
+	doc = Fgettext (doc);
+      else
+	doc = Fdgettext (domain, doc);
+    }
+#endif    
   if (NILP (raw) && STRINGP (doc))
     doc = Fsubstitute_command_keys (doc);
   return (doc);
 }
 
 static void
-weird_doc (Lisp_Object sym, const char *weirdness, const char *type, int pos)
+weird_doc (Lisp_Object sym, CONST char *weirdness, CONST char *type, int pos)
 {
 #ifdef ENERGIZE /* hide kludgery... */
-  if (!strcmp (weirdness, "duplicate")) return;
+  if (!strcmp (weirdness, GETTEXT ("duplicate"))) return;
 #endif
-  message ("Note: Strange doc (%s) for %s %s @ %d",
+  message (GETTEXT ("Note: Strange doc (%s) for %s %s @ %d"),
            weirdness, type, XSYMBOL (sym)->name->data, pos);
 }
 
@@ -244,7 +259,7 @@ when doc strings are referred to in the dumped Emacs.")
 
 #ifndef CANNOT_DUMP
   if (!purify_flag)
-    error ("Snarf-documentation can only be called in an undumped Emacs");
+    error (GETTEXT ("Snarf-documentation can only be called in an undumped Emacs"));
 #endif
 
   CHECK_STRING (filename, 0);
@@ -279,7 +294,7 @@ when doc strings are referred to in the dumped Emacs.")
 
   fd = emacs_open (name, O_RDONLY, 0);
   if (fd < 0)
-    report_file_error ("Opening doc string file",
+    report_file_error (GETTEXT ("Opening doc string file"),
 		       Fcons (build_string (name), Qnil));
   Vdoc_file_name = filename;
   filled = 0;
@@ -312,7 +327,8 @@ when doc strings are referred to in the dumped Emacs.")
 		  Lisp_Object old = Fget (sym, Qvariable_documentation, Qzero);
                   if (!EQ (old, Qzero))
 		    {
-		      weird_doc (sym, "duplicate", "variable", pos);
+		      weird_doc (sym, GETTEXT ("duplicate"),
+				 GETTEXT ("variable"), pos);
 		      /* In the case of duplicate doc file entries, always
 			 take the later one.  But if the doc is not an int
 			 (a string, say) leave it alone. */
@@ -336,7 +352,8 @@ when doc strings are referred to in the dumped Emacs.")
                   if (EQ (fun, Qunbound))
                   {
                     /* May have been #if'ed out or something */
-                    weird_doc (sym, "not fboundp", "function", pos);
+                    weird_doc (sym, GETTEXT ("not fboundp"),
+			       GETTEXT ("function"), pos);
                     goto weird;
                   }
 		  else if (SUBRP (fun))
@@ -344,7 +361,8 @@ when doc strings are referred to in the dumped Emacs.")
                     /* Lisp_Subrs have a slot for it.  */
                     if (XSUBR (fun)->doc)
 		      {
-			weird_doc (sym, "duplicate", "subr", pos);
+			weird_doc (sym, GETTEXT ("duplicate"),
+				   GETTEXT ("subr"), pos);
 			goto weird;
 		      }
 		    XSUBR (fun)->doc = (char *) (- XINT (offset));
@@ -362,9 +380,10 @@ when doc strings are referred to in the dumped Emacs.")
 			      Lisp_Object old = XCONS (tem)->car;
 			      if (!EQ (old, Qzero))
 				{
-				  weird_doc (sym, "duplicate",
+				  weird_doc (sym, GETTEXT ("duplicate"),
 					     (EQ (tem, Qlambda)
-					      ? "lambda" : "autoload"),
+					      ? GETTEXT ("lambda")
+					      : GETTEXT ("autoload")),
 					     pos);
 				  /* In the case of duplicate doc file entries,
 				     always take the later one.  But if the doc
@@ -382,81 +401,50 @@ when doc strings are referred to in the dumped Emacs.")
 		  else if (COMPILEDP (fun))
 		    {
                       /* Bytecode objects sometimes have slots for it.  */
+                      struct Lisp_Bytecode *b = XBYTECODE (fun);
+
 		      /* This bytecode object must have a slot for the
-			 docstring, since we've found a docstring for it.  */
-		      /* unless there were multiple definitions of it, and
+			 docstring, since we've found a docstring for it.
+		         Unless there were multiple definitions of it, and
 			 the latter one didn't have any doc, which is a legal
 			 if slightly bogus situation, so don't blow up. */
-#ifndef LRECORD_BYTECODE
-		      Lisp_Object old;
-		      if (vector_length (XVECTOR (fun)) <= COMPILED_DOC_STRING)
-			{
-			  weird_doc (sym, "no doc slot", "bytecode", pos);
-			  goto weird;
-			}
-		      else if ((old = XVECTOR (fun)->contents
-				[COMPILED_DOC_STRING]),
-			       !EQ (old, Qzero))
-			{
-			  weird_doc (sym, "duplicate", "bytecode", pos);
-			  /* In the case of duplicate doc file entries, always
-			     take the later one.  But if the doc is not an int
-			     (a string, say) leave it alone. */
-			  if (!FIXNUMP (old))
-			    goto weird;
-			}
-                      XVECTOR (fun)->contents[COMPILED_DOC_STRING] = offset;
-#else
-                      struct Lisp_Bytecode *b = XBYTECODE (fun);
 
                       if (! (b->flags.documentationp))
 			{
-			  weird_doc (sym, "no doc slot", "bytecode", pos);
+			  weird_doc (sym, GETTEXT ("no doc slot"),
+				     GETTEXT ("bytecode"), pos);
 			  goto weird;
 			}
-		      else if (! (b->flags.interactivep))
+		      else
 			{
-			  Lisp_Object old = b->doc_and_interactive;
+			  Lisp_Object old = bytecode_documentation (b);
 			  if (!EQ (old, Qzero))
 			    {
-			      weird_doc (sym, "duplicate", "bytecode", pos);
-			    /* In the case of duplicate doc file entries,
-			       always take the later one.  But if the doc is
-			       not an int (a string, say) leave it alone. */
-			      if (!FIXNUMP (old))
-				goto weird;
-			    }
-			  b->doc_and_interactive = offset;
-			}
-                      else
-			{
-			  Lisp_Object old = XCONS (b->doc_and_interactive)->car;
-			  if (!EQ (old, Qzero))
-			    {
-			      weird_doc (sym, "duplicate", "bytecode", pos);
+			      weird_doc (sym, GETTEXT ("duplicate"),
+					 GETTEXT ("bytecode"), pos);
 			      /* In the case of duplicate doc file entries,
 				 always take the later one.  But if the doc is
 				 not an int (a string, say) leave it alone. */
 			      if (!FIXNUMP (old))
 				goto weird;
 			    }
-                          XCONS (b->doc_and_interactive)->car = offset;
-                      }
-#endif /* LRECORD_BYTECODE */
+			  set_bytecode_documentation (b, offset);
+			}
                     }
                   else
                     {
                       /* Otherwise the function is undefined or
                          otherwise weird.   Ignore it. */
                     weird_function:
-                      weird_doc (sym, "weird function", "function", pos);
+                      weird_doc (sym, GETTEXT ("weird function"),
+				 GETTEXT ("function"), pos);
                       goto weird;
                     }
                 }
 	      else
                 {
                 /* lose: */
-                  error ("DOC file invalid at position %d", pos);
+                  error (GETTEXT ("DOC file invalid at position %d"), pos);
                 weird:
                   /* goto lose */;
                 }
@@ -518,29 +506,20 @@ verify_doc_mapper (Lisp_Object sym, Lisp_Object closure)
 	}
       else if (COMPILEDP (fun))
 	{
-#ifndef LRECORD_BYTECODE
-	  doc = -1;
-	  if (vector_length (XVECTOR (fun)) > COMPILED_DOC_STRING &&
-	      FIXNUMP (XVECTOR (fun)->contents[COMPILED_DOC_STRING]))
-	    doc = XFASTINT (XVECTOR (fun)->contents[COMPILED_DOC_STRING]);
-#else /* LRECORD_BYTECODE */
           struct Lisp_Bytecode *b = XBYTECODE (fun);
           if (! (b->flags.documentationp))
             doc = -1;
           else
             {
-              Lisp_Object tem = b->doc_and_interactive;
-              if (b->flags.interactivep)
-                tem = Fcar (tem);
+              Lisp_Object tem = bytecode_documentation (b);
               if (FIXNUMP (tem))
                 doc = XINT (tem);
             }
-#endif /* LRECORD_BYTECODE */
 	}
 
       if (doc == 0 && !kludgily_ignore_lost_doc_p (sym))
 	{
-	  fprintf (stderr, "Warning: doc lost for function %s.\n",
+	  fprintf (stderr, GETTEXT ("Warning: doc lost for function %s.\n"),
 		   (char *) XSYMBOL (sym)->name->data);
 	  XCONS (closure)->cdr = Qt;
 	}
@@ -550,7 +529,7 @@ verify_doc_mapper (Lisp_Object sym, Lisp_Object closure)
       Lisp_Object doc = Fget (sym, Qvariable_documentation, Qnil);
       if (FIXNUMP (doc) && XFASTINT (doc) == 0)
 	{
-	  fprintf (stderr, "Warning: doc lost for variable %s.\n",
+	  fprintf (stderr, GETTEXT ("Warning: doc lost for variable %s.\n"),
 		   (char *) XSYMBOL (sym)->name->data);
 	  XCONS (closure)->cdr = Qt;
 	}
@@ -568,9 +547,9 @@ Writes to stderr if not.")
   GCPRO1 (closure);
   map_obarray (Vobarray, verify_doc_mapper, closure);
   if (!NILP (Fcdr (closure)))
-    fprintf (stderr, "\n\
+    fprintf (stderr, GETTEXT ("\n\
 This is usually because some files were preloaded by loaddefs.el or\n\
-site-load.el, but were not passed to make-docfile by ymakefile.\n\n");
+site-load.el, but were not passed to make-docfile by ymakefile.\n\n"));
   UNGCPRO;
   return (NILP (Fcdr (closure)) ? Qt : Qnil);
 }
@@ -725,10 +704,16 @@ thus, \\=\\=\\=\\= puts \\=\\= into the output, and \\=\\=\\=\\[ puts \\=\\[ int
 
 	    if (NILP (tem))
 	      {
-		name = Fsymbol_name (name);
-		insert_string ("\nUses keymap \"");
-		insert_from_string (name, -1);
-		insert_string ("\", which is not currently defined.\n");
+		char buf[255], *b = buf;
+		*b++ = '\n';
+		sprintf (b, GETTEXT (
+		"Uses keymap \"%s\", which is not currently defined."),
+			 (char *) XSTRING (Fsymbol_name (name))->data);
+		b += strlen (b);
+		*b++ = '\n';
+		*b++ = 0;
+		insert_string (buf);
+
 		if (start[-1] == '<') keymap = Qnil;
 	      }
 	    else if (start[-1] == '<')

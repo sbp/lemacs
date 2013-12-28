@@ -1,5 +1,5 @@
 ;;; VM folder related functions
-;;; Copyright (C) 1989, 1990, 1991 Kyle E. Jones
+;;; Copyright (C) 1989, 1990, 1991, 1993 Kyle E. Jones
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -31,6 +31,32 @@
 	(vm-copy-local-variables vm-summary-buffer
 				 'vm-ml-highest-message-number))))
 
+(defun vm-set-numbering-redo-start-point (start-point)
+  (if (and (consp start-point) (consp vm-numbering-redo-start-point))
+      (let ((mp vm-message-list))
+	(while (not (or (eq mp start-point)
+			(eq mp vm-numbering-redo-start-point)))
+	  (setq mp (cdr mp)))
+	(if (null mp)
+	    (error "Something is wrong in vm-set-numbering-redo-start-point"))
+	(if (eq mp start-point)
+	    (setq vm-numbering-redo-start-point start-point)))
+    (setq vm-numbering-redo-start-point start-point)))
+
+(defun vm-set-numbering-redo-end-point (end-point)
+  (cond ((eq end-point t)
+	 (setq vm-numbering-redo-end-point t))
+	((and (consp end-point)
+	      (> (string-to-int
+		  (vm-number-of
+		   (car end-point)))
+		 (string-to-int
+		  (vm-number-of
+		   (car vm-numbering-redo-end-point)))))
+	 (setq vm-numbering-redo-end-point end-point))
+	((null end-point)
+	 (setq vm-numbering-redo-end-point end-point))))
+
 (defun vm-do-needed-renumbering ()
   (if vm-numbering-redo-start-point
       (progn
@@ -41,197 +67,403 @@
 	      vm-numbering-redo-end-point nil))))
 
 (defun vm-reverse-link-messages ()
-  (let ((mp vm-message-list) prev)
+  (let ((mp vm-message-list)
+	(prev nil))
     (while mp
       (vm-set-reverse-link-of (car mp) prev)
       (setq prev mp mp (cdr mp)))))
 
-(defun vm-match-visible-header (alist)
-  (catch 'match
-    (while alist
-      (if (looking-at (car (car alist)))
-	  (throw 'match (car alist)))
-      (setq alist (cdr alist)))
-    nil))
+;; used by header ordering code
+;; alist looks like this (("From") ("To"))
+;; this function returns the alist element whose car matches the
+;; header starting at point
+;; the header ordering code typically uses the cdr of the element
+;; returned to hold headers to be output later.
+(defun vm-match-ordered-header (alist)
+  (let ((case-fold-search t))
+    (catch 'match
+      (while alist
+	(if (looking-at (car (car alist)))
+	    (throw 'match (car alist)))
+	(setq alist (cdr alist)))
+      nil)))
 
-(defun vm-get-folder-type ()
-  (save-excursion
-    (save-restriction
-      (widen)
-      (goto-char (point-min))
-      (skip-chars-forward "\n")
-      (cond ((looking-at "From ") 'From_)
-	    ((looking-at "\001\001\001\001\n") 'mmdf)))))
+;; match a header and init a vector containing the start and end
+;; points of the match segments.  Vector looks like this
+;;
+;; [ header-start header-end
+;;   header-name-start header-name-end
+;;   header-contents-start header-contents-end ]
+;;
+;; Elements are integers.
+;; There are functions to access and use this info.
+(defun vm-match-header (&optional header-name)
+  (let ((case-fold-search t)
+	(header-name-regexp "\\([^ \t\n:]+\\):"))
+    (if (if header-name
+	    (and (looking-at header-name) (looking-at header-name-regexp))
+	  (looking-at header-name-regexp))
+	(save-excursion
+	  (aset vm-matched-header-vector 0 (point))
+	  (aset vm-matched-header-vector 2 (point))
+	  (aset vm-matched-header-vector 3 (match-end 1))
+	  (goto-char (match-end 0))
+	  ;; skip leading whitespace
+	  (skip-chars-forward " \t")
+	  (aset vm-matched-header-vector 4 (point))
+	  (forward-line 1)
+	  (while (looking-at "[ \t]")
+	    (forward-line 1))
+	  ;; drop the trailing newline
+	  (aset vm-matched-header-vector 1 (point))
+	  (aset vm-matched-header-vector 5 (1- (point)))))))
+
+(defun vm-matched-header ()
+  (buffer-substring (aref vm-matched-header-vector 0)
+		    (aref vm-matched-header-vector 1)))
+
+(defun vm-matched-header-name ()
+  (buffer-substring (aref vm-matched-header-vector 2)
+		    (aref vm-matched-header-vector 3)))
+
+(defun vm-matched-header-contents ()
+  (buffer-substring (aref vm-matched-header-vector 4)
+		    (aref vm-matched-header-vector 5)))
+
+(defun vm-matched-header-start ()
+  (aref vm-matched-header-vector 0))
+
+(defun vm-matched-header-end ()
+  (aref vm-matched-header-vector 1))
+
+;; return folder type
+;;  nil if folder has no type (empty)
+;; 'unknown if the type is not known to VM
+(defun vm-get-folder-type (&optional file)
+  (let ((temp-buffer nil)
+	b
+	(case-fold-search nil))
+    (unwind-protect
+	(save-excursion
+	  (if file
+	      (progn
+		(setq b (get-file-buffer file))
+		(if b
+		    (set-buffer b)
+		  (setq temp-buffer (generate-new-buffer "*vm-work*"))
+		  (set-buffer temp-buffer)
+		  (if (file-readable-p file)
+		      (if (or (vm-fsf-emacs-19-p) (vm-lucid-emacs-p))
+			  (insert-file-contents file nil 0 80)
+			(call-process "sed" file temp-buffer nil "1q"))))))
+	  (save-excursion
+	    (save-restriction
+	      (widen)
+	      (goto-char (point-min))
+	      ;; i've seen folders that start with a blank line
+	      (skip-chars-forward "\n")
+	      (cond ((zerop (buffer-size)) nil)
+		    ((looking-at "From ") 'From_)
+		    ((looking-at "\001\001\001\001\n") 'mmdf)
+		    (t 'unknown)))))
+      (and temp-buffer (kill-buffer temp-buffer)))))
+
+(defun vm-convert-folder-type (old-type new-type)
+  (let ((vm-folder-type old-type)
+	start)
+    (goto-char (point-min))
+    (while (vm-find-leading-message-separator)
+      (setq start (point))
+      (vm-skip-past-leading-message-separator)
+      (delete-region start (point))
+      (insert (vm-leading-message-separator new-type))
+      (vm-find-trailing-message-separator)
+      (setq start (point))
+      (vm-skip-past-trailing-message-separator)
+      (delete-region start (point))
+      (insert (vm-trailing-message-separator)))))
+
+(defun vm-compatible-folder-p (file)
+  (let ((type (vm-get-folder-type file)))
+    (or (not (and vm-folder-type type))
+	(eq vm-folder-type type))))
+
+(defun vm-leading-message-separator (&optional folder-type)
+  (let ((type (or folder-type vm-folder-type)))
+    (cond ((eq folder-type 'From_)
+	   (concat "From VM " (current-time-string) "\n"))
+	  ((eq folder-type 'mmdf)
+	   "\001\001\001\001\n"))))
+
+(defun vm-trailing-message-separator (&optional folder-type)
+  (let ((type (or folder-type vm-folder-type)))
+    (cond ((eq folder-type 'From_) "\n")
+	  ((eq folder-type 'mmdf) "\001\001\001\001\n"))))
+
+;; returns non-nil if the separator is found
+(defun vm-find-leading-message-separator ()
+  (cond
+   ((eq vm-folder-type 'From_)
+    (let ((reg1 "^From ")
+	  (case-fold-search nil))
+      (catch 'done
+	(while (re-search-forward reg1 nil 'no-error)
+	  (goto-char (match-beginning 0))
+	  (if (or (bobp) (equal (char-after (- (point) 2)) ?\n))
+	      (throw 'done t)
+	    (forward-char 1)))
+	nil )))
+   ((eq vm-folder-type 'mmdf)
+    (let ((reg1 "^\001\001\001\001")
+	  (case-fold-search nil))
+      (if (re-search-forward reg1 nil 'no-error)
+	  (progn
+	    (goto-char (match-beginning 0))
+	    t )
+	nil )))))
+
+(defun vm-find-trailing-message-separator ()
+  (cond
+   ((eq vm-folder-type 'From_)
+    (vm-find-leading-message-separator)
+    (forward-char -1))
+   ((eq vm-folder-type 'mmdf)
+    (vm-find-leading-message-separator))))
+
+(defun vm-skip-past-leading-message-separator ()
+  (cond
+   ((eq vm-folder-type 'From_)
+    (let ((reg1 "^>From ")
+	  (case-fold-search nil))
+      (forward-line 1)
+      (while (looking-at reg1)
+	(forward-line 1))))
+   ((eq vm-folder-type 'mmdf)
+    (forward-char 5))))
+
+(defun vm-skip-past-trailing-message-separator ()
+  (cond
+   ((eq vm-folder-type 'From_)
+    (forward-char 1))
+   ((eq vm-folder-type 'mmdf)
+    (forward-char 5))))
 
 ;; Build a chain of message structures.
 ;; Find the start and end of each message and fill in the relevant
 ;; fields in the message structures.
-
-(defun vm-build-message-list (&optional rebuild-markers)
-  ;; sanity check
-  (if rebuild-markers
-      (setq rebuild-markers vm-message-list))
+;; vm-text-of and vm-vheaders-of field don't get filled until they are needed
+(defun vm-build-message-list ()
+  (setq vm-folder-type (vm-get-folder-type))
   (save-excursion
-    (vm-build-visible-header-alist)
-    (let (tail-cons message prev-message case-fold-search list marker
-	  start-regexp sep-pattern trailer-length
-	  separator-string)
-      (if (eq vm-folder-type 'mmdf)
-	  (setq start-regexp "^\001\001\001\001\n"
-		separator-string "\n\001\001\001\001\n\001\001\001\001"
-		trailer-length 6)
-	(setq start-regexp "^From "
-	      separator-string "\n\nFrom "
-	      trailer-length 2))
-      (if (and vm-message-list (not rebuild-markers))
+    (let ((tail-cons nil)
+	  (n 0)
+	  ;; Just for yucks, make the update interval vary.
+	  (modulus (+ (% (vm-abs (random)) 11) 25))
+	  message)
+      (if vm-message-list
+	  ;; there are already messages, therefore we're supposed
+	  ;; to add to this list.
 	  (let ((mp vm-message-list)
 		(end (point-min)))
+	    ;; first we have to find physical end of the folder
+	    ;; prior to the new messages that just came in.
 	    (while mp
 	      (if (< end (vm-end-of (car mp)))
 		  (setq end (vm-end-of (car mp))))
+	      (if (not (consp (cdr mp)))
+		  (setq tail-cons mp))
 	      (setq mp (cdr mp)))
-	    ;; move back past trailer so separator-string will match below
-	    (goto-char (- end trailer-length))
-	    (setq tail-cons (vm-last vm-message-list)))
-	(if rebuild-markers
-	    (setq list vm-message-list))
-	(goto-char (point-min))
-	(re-search-forward start-regexp nil 0)
-	(goto-char (or (match-beginning 0) (point)))
-	(if (looking-at start-regexp)
-	    (if rebuild-markers
-		(progn
-		  (setq message (car list)
-			prev-message message
-			tail-cons list
-			list (cdr list))
-		  (vm-set-start-of message (vm-marker (match-beginning 0)))
-		  (vm-set-vheaders-of message nil)
-		  (vm-set-text-of message nil))
-	      (setq message (vm-make-message) prev-message message)
-	      (vm-set-reverse-link-of message nil)
-	      (vm-set-start-of message (vm-marker (match-beginning 0)))
-	      (setq vm-message-list (list message)
-		    tail-cons vm-message-list))))
-      (while (and (or (null rebuild-markers) list)
-		  (search-forward separator-string nil t))
-	(setq marker (vm-marker (+ trailer-length (match-beginning 0)))
-	      message (or (car list) (vm-make-message)))
-	(vm-set-start-of message marker)
-	(if prev-message
-	    (vm-set-end-of prev-message marker))
-	(cond (list
-	       (vm-set-vheaders-of message nil)
-	       (vm-set-text-of message nil)
-	       (setq tail-cons list
-		     list (cdr list)
-		     prev-message message))
-	      (tail-cons
-	       (setcdr tail-cons (list message))
-	       (vm-set-reverse-link-of message tail-cons)
-	       (setq tail-cons (cdr tail-cons)
-		     prev-message message))
-	      (t
-	       (vm-set-reverse-link-of message nil)
-	       (setq vm-message-list (list message)
-		     tail-cons vm-message-list
-		     prev-message message))))
-      (if prev-message
-	  (vm-set-end-of prev-message (vm-marker (point-max))))
-      ;; If there are still some messages whose markers have not been
-      ;; fixed up there is a serious problem.
-      ;; The message list will need to be rebuilt from scratch.
-      ;; Force this to happen.
-      (and rebuild-markers list (setq vm-message-list nil)))))
+	    (goto-char end))
+	;; there are no messages so we're building the whole list.
+	;; start from the beginnig of the folder.
+	(goto-char (point-min)))
+      ;; parse the messages, set the markers that specify where
+      ;; things are.
+      (while (vm-find-leading-message-separator)
+	(setq message (vm-make-message))
+	(vm-set-message-type-of message vm-folder-type)
+	(vm-set-start-of message (vm-marker (point)))
+	(vm-skip-past-leading-message-separator)
+	(vm-set-headers-of message (vm-marker (point)))
+	(vm-find-trailing-message-separator)
+	(vm-set-text-end-of message (vm-marker (point)))
+	(vm-skip-past-trailing-message-separator)
+	(vm-set-end-of message (vm-marker (point)))
+	(vm-set-reverse-link-of message tail-cons)
+	(if (null tail-cons)
+	    (setq vm-message-list (list message)
+		  tail-cons vm-message-list)
+	  (setcdr tail-cons (list message))
+	  (setq tail-cons (cdr tail-cons)))
+	(vm-increment n)
+	(if (zerop (% n modulus))
+	    (message "Parsing messages... %d" n)))
+      (if (>= n modulus)
+	  (message "Parsing messages... done")))))
 
-(defun vm-build-visible-header-alist ()
-  (let ((header-alist (cons nil nil))
-	(vheaders vm-visible-headers)
+(defun vm-build-header-order-alist (vheaders)
+  (let ((order-alist (cons nil nil))
 	list)
-    (setq list header-alist)
+    (setq list order-alist)
     (while vheaders
       (setcdr list (cons (cons (car vheaders) nil) nil))
       (setq list (cdr list) vheaders (cdr vheaders)))
-    (setq vm-visible-header-alist (cdr header-alist))))
+    (cdr order-alist)))
 
-;; Group the headers that the user wants to see at the end of the headers
-;; section so we can narrow to them.  The vheaders field of the
-;; message struct is set.  This function is called on demand whenever
-;; a vheaders field is discovered to be nil for a particular message.
+;; Reorder the headers in a message.
+;;
+;; If a message struct is passed into this function, then we're
+;; operating on a message in a folder buffer.  Headers are
+;; grouped so that the headers that the user wants to see are at
+;; the end of the headers section so we can narrow to them.  This
+;; is done according to the preferences specified in
+;; vm-visible-header and vm-invisible-header-regexp.  The
+;; vheaders field of the message struct is also set.  This
+;; function is called on demand whenever a vheaders field is
+;; discovered to be nil for a particular message.
+;;
+;; If the message argument is nil, then we are operating on a
+;; freestanding message that is not part of a folder buffer.  The
+;; keep-list and discard-regexp parameters are used in this case.
+;; Headers not matched by the keep list or matched by the discard
+;; list are stripped form the message.  The remaining headers
+;; are ordered according to the order of the keep list.
 
-(defun vm-reorder-message-headers (message)
+(defun vm-reorder-message-headers (message keep-list discard-regexp)
   (save-excursion
-    ;; if there is a cached regexp that points to the ordered headers
-    ;; then use it and avoid a lot of work.
-    (if (and (vm-vheaders-regexp-of message)
-	     (progn (goto-char (vm-start-of message))
-		    (re-search-forward (vm-vheaders-regexp-of message)
-				       (vm-text-of message) t)))
-	(vm-set-vheaders-of message (vm-marker (match-beginning 0)))
-      ;; oh well, we gotta do it the hard way.
-      ;;
-      ;; vm-visible-header-alist is an assoc list version of
-      ;; vm-visible-headers.  When a matching header is found,
-      ;; the header is stuffed into its corresponding assoc cell
-      ;; and the header text is deleted from the buffer.  After all
-      ;; the visible headers have been collected, they are inserted
-      ;; into the buffer in a clump at the end of the header section.
-      (vm-save-restriction
-       (let ((header-alist vm-visible-header-alist)
-	     list buffer-read-only match-end-0 extras
-	     (inhibit-quit t)
-	     ;; This prevents file locking from occuring.  Disabling
-	     ;; locking can speed things noticably if the lock directory
-	     ;; is on a slow device.  We don't need locking here because
-	     ;; in a mail context reordering headers is harmless.
-	     (buffer-file-name nil)
-	     (old-buffer-modified-p (buffer-modified-p)))
-	 (goto-char (vm-start-of message))
-	 (forward-line)
-	 (while (and (not (= (following-char) ?\n))
-		     (looking-at vm-generic-header-regexp))
-	   (setq match-end-0 (match-end 0)
-		 list (vm-match-visible-header header-alist))
-	   (if (or (null list)
-		   (and vm-invisible-header-regexp
-			(looking-at vm-invisible-header-regexp)))
-	       (goto-char match-end-0)
-	     (if list
-		 (if (cdr list)
-		     (setcdr list 
-			     (concat
-			      (cdr list)
-			      (buffer-substring (point) match-end-0)))
-		   (setcdr list (buffer-substring (point) match-end-0)))
-	       (setq extras
-		     (cons (buffer-substring (point) match-end-0) extras)))
-	     (delete-region (point) match-end-0)))
-	 (vm-set-vheaders-of message (point-marker))
-	 (save-excursion
-	   ;; now dump out the visible headers
-	   ;; the vm-visible-headers go first
-	   (setq list header-alist)
-	   (while list
-	     (if (cdr (car list))
+    (if message
+	(progn
+	  (set-buffer (marker-buffer (vm-start-of message)))
+	  (setq keep-list vm-visible-headers
+		discard-regexp vm-invisible-header-regexp)))
+    (save-excursion
+      (save-restriction
+	(widen)
+	;; if there is a cached regexp that points to the already
+	;; ordered headers then use it and avoid a lot of work.
+	(if (and message (vm-vheaders-regexp-of message))
+	    (save-excursion
+	      (goto-char (vm-headers-of message))
+	      (let ((case-fold-search t))
+		(re-search-forward (vm-vheaders-regexp-of message)
+				   (vm-text-of message) t))
+	      (vm-set-vheaders-of message (vm-marker (match-beginning 0))))
+	  ;; oh well, we gotta do it the hard way.
+	  ;;
+	  ;; header-alist will contain an assoc list version of
+	  ;; keep-list.  For messages associated with a folder
+	  ;; buffer:  when a matching header is found, the header
+	  ;; is stuffed into its corresponding assoc cell and the
+	  ;; header text is deleted from the buffer.  After all
+	  ;; the visible headers have been collected, they are
+	  ;; inserted into the buffer in a clump at the end of
+	  ;; the header section.  Unmatched headers are skipped over.
+	  ;;
+	  ;; For free standing messages, unmatched headers are
+	  ;; stripped from the message.
+	  (vm-save-restriction
+	   (let ((header-alist (vm-build-header-order-alist keep-list))
+		 (buffer-read-only nil)
+		 (work-buffer nil)
+		 (extras nil)
+		 list end-of-header vheader-offset
+		 (folder-buffer (current-buffer))
+		 ;; This prevents file locking from occuring.  Disabling
+		 ;; locking can speed things noticeably if the lock directory
+		 ;; is on a slow device.  We don't need locking here because
+		 ;; in a mail context reordering headers is harmless.
+		 (buffer-file-name nil)
+		 (case-fold-search t)
+		 (old-buffer-modified-p (buffer-modified-p)))
+	     (unwind-protect
 		 (progn
-		   (insert (cdr (car list)))
-		   (setcdr (car list) nil)))
-	     (setq list (cdr list)))
-	   ;; now the headers that were not explicitly ignored, if any.
-	   (if extras
-	       (progn
-		 (setq extras (nreverse extras))
-		 (while extras
-		   (insert (car extras))
-		   (setq extras (cdr extras)))))
-	   (set-buffer-modified-p old-buffer-modified-p))
-	 ;; cache a regular expression that can be used to find the start of
-	 ;; the reordered header the next time this folder is visited.
-	 (if (looking-at vm-generic-header-regexp)
-	     (vm-set-vheaders-regexp-of
-	      message
-	      (concat "^" (buffer-substring (match-beginning 1) (match-end 1))
-		      ":"))))))))
+		   (if message
+		       (progn
+			 (setq work-buffer (generate-new-buffer "*vm-work*"))
+			 (set-buffer work-buffer)
+			 (insert-buffer-substring
+			  folder-buffer 
+			  (vm-headers-of message)
+			  (vm-text-of message))
+			 (goto-char (point-min))))
+		   (while (and (not (= (following-char) ?\n))
+			       (vm-match-header))
+		     (setq end-of-header (vm-matched-header-end)
+			   list (vm-match-ordered-header header-alist))
+		     ;; don't display/keep this header if
+		     ;;  keep-list not matched
+		     ;;  and discard-regexp is nil
+		     ;;       or
+		     ;;  discard-regexp is matched
+		     (if (or (and (null list) (null discard-regexp))
+			     (and discard-regexp (looking-at discard-regexp)))
+			 ;; skip the unwanted header if doing
+			 ;; work for a folder buffer otherwise
+			 ;; discard the header.
+			 (if message
+			     (goto-char end-of-header)
+			   (delete-region (point) end-of-header))
+		       ;; got a match
+		       ;; stuff the header into the cdr of the
+		       ;; returned alist element
+		       (if list
+			   (if (cdr list)
+			       (setcdr list 
+				       (concat
+					(cdr list)
+					(buffer-substring (point)
+							  end-of-header)))
+			     (setcdr list (buffer-substring (point)
+							    end-of-header)))
+			 (setq extras
+			       (cons (buffer-substring (point) end-of-header)
+				     extras)))
+		       (delete-region (point) end-of-header)))
+		   ;; remember the offset of where the visible
+		   ;; header start so we can initialize the
+		   ;; vm-vheaders-of field later.
+		   (if message
+		       (setq vheader-offset (1- (point))))
+		   ;; now dump out the headers we saved.
+		   ;; the keep-list headers go first.
+		   (setq list header-alist)
+		   (while list
+		     (if (cdr (car list))
+			 (progn
+			   (insert (cdr (car list)))
+			   (setcdr (car list) nil)))
+		     (setq list (cdr list)))
+		   ;; now the headers that were not explicitly
+		   ;; undesirable, if any.
+		   (if extras
+		       (progn
+			 (setq extras (nreverse extras))
+			 (while extras
+			   (insert (car extras))
+			   (setq extras (cdr extras)))))
+		   ;; update the folder buffer if we're supposed to.
+		   ;; lock out interrupts.
+		   (if message
+		       (let ((inhibit-quit t))
+			 (set-buffer (marker-buffer (vm-start-of message)))
+			 (goto-char (vm-headers-of message))
+			 (insert-buffer-substring work-buffer)
+			 (delete-region (point) (vm-text-of message))
+			 (set-buffer-modified-p old-buffer-modified-p))))
+	       (and work-buffer (kill-buffer work-buffer)))
+	     (if message
+		 (progn
+		   (vm-set-vheaders-of message
+				       (vm-marker (+ (vm-headers-of message)
+						     vheader-offset)))
+		   ;; cache a regular expression that can be used to
+		   ;; find the start of the reordered header the next
+		   ;; time this folder is visited.
+		   (goto-char (vm-vheaders-of message))
+		   (if (vm-match-header)
+		       (vm-set-vheaders-regexp-of
+			message
+			(concat "^" (vm-matched-header-name) ":"))))))))))))
 
 ;; Reads the message attributes and cached header information from the
 ;; header portion of the each message, if our X-VM- attributes header is
@@ -249,12 +481,15 @@
 ;;
 ;; Supports version 4 format of attribute storage, for backward compatibility.
 
-(defun vm-read-attributes ()
+(defun vm-read-attributes (message-list)
   (save-excursion
-    (let ((mp vm-message-list)
+    (let ((mp (or message-list vm-message-list))
 	  (vm-new-count 0)
 	  (vm-unread-count 0)
+	  (vm-deleted-count 0)
 	  (vm-total-count 0)
+	  (modulus (+ (% (vm-abs (random)) 11) 25))
+	  (case-fold-search t)
 	  data)
       (while mp
 	(vm-increment vm-total-count)
@@ -297,32 +532,73 @@
 				  (vm-extend-vector
 				   (car (cdr data))
 				   vm-cache-vector-length))))))
-	    (vm-set-attributes-of (car mp) (car data))
-	    (vm-set-cache-of (car mp) (car (cdr data))))
+	    (vm-set-cache-of (car mp) (car (cdr data)))
+	    (vm-set-attributes-of (car mp) (car data)))
 	   ((and vm-berkeley-mail-compatibility
 		 (re-search-forward vm-berkeley-mail-status-header-regexp
 				    (vm-text-of (car mp)) t))
+	    (vm-set-cache-of (car mp) (make-vector vm-cache-vector-length
+						   nil))
 	    (goto-char (match-beginning 1))
 	    (vm-set-attributes-of
 	     (car mp)
 	     (make-vector vm-attributes-vector-length nil))
-	    (vm-set-unread-flag (car mp) (not (looking-at ".*R.*")) t)
-	    (vm-set-cache-of (car mp) (make-vector vm-cache-vector-length
-						   nil)))
+	    (vm-set-unread-flag (car mp) (not (looking-at ".*R.*")) t))
 	   (t
+	    (vm-set-cache-of (car mp) (make-vector vm-cache-vector-length
+						   nil))
 	    (vm-set-attributes-of
 	     (car mp)
 	     (make-vector vm-attributes-vector-length nil))
-	    (vm-set-new-flag (car mp) t t)
-	    (vm-set-cache-of (car mp) (make-vector vm-cache-vector-length
-						   nil)))))
-	(cond ((vm-deleted-flag (car mp))) ; don't count deleted messages
+	    (vm-set-new-flag (car mp) t t))))
+	(cond ((vm-deleted-flag (car mp))
+	       (vm-increment vm-deleted-count))
 	      ((vm-new-flag (car mp))
 	       (vm-increment vm-new-count))
 	      ((vm-unread-flag (car mp))
 	       (vm-increment vm-unread-count)))
+	(if (zerop (% vm-total-count modulus))
+	    (message "Reading attributes... %d" vm-total-count))
 	(setq mp (cdr mp)))
-      (setq vm-totals (list vm-total-count vm-new-count vm-unread-count)))))
+      (if (>= vm-total-count modulus)
+	  (message "Reading attributes... done"))
+      (if (null message-list)
+	  (setq vm-totals (list vm-modification-counter
+				vm-total-count
+				vm-new-count
+				vm-unread-count
+				vm-deleted-count))))))
+
+(defun vm-emit-totals-blurb ()
+  (save-excursion
+    (vm-select-folder-buffer)
+    (if (not (equal (nth 0 vm-totals) vm-modification-counter))
+	(let ((mp vm-message-list)
+	      (vm-new-count 0)
+	      (vm-unread-count 0)
+	      (vm-deleted-count 0)
+	      (vm-total-count 0))
+	  (while mp
+	    (vm-increment vm-total-count)
+	    (cond ((vm-deleted-flag (car mp))
+		   (vm-increment vm-deleted-count))
+		  ((vm-new-flag (car mp))
+		   (vm-increment vm-new-count))
+		  ((vm-unread-flag (car mp))
+		   (vm-increment vm-unread-count)))
+	    (setq mp (cdr mp)))
+	  (setq vm-totals (list vm-modification-counter
+				vm-total-count
+				vm-new-count
+				vm-unread-count
+				vm-deleted-count))))
+    (if (equal (nth 1 vm-totals) 0)
+	(message "No messages.")
+      (message "%d message%s, %d new, %d unread, %d deleted"
+	       (nth 1 vm-totals) (if (= (nth 1 vm-totals) 1) "" "s")
+	       (nth 2 vm-totals)
+	       (nth 3 vm-totals)
+	       (nth 4 vm-totals)))))
 
 (defun vm-convert-v4-attributes (data)
   (list (apply 'vector
@@ -336,65 +612,65 @@
 ;; Returns non-nil if successful, nil otherwise.
 (defun vm-gobble-bookmark ()
   (let ((old-buffer-modified-p (buffer-modified-p))
-	buffer-read-only n
+	n
+	(case-fold-search t)
+	(buffer-read-only nil)
 	;; This prevents file locking from occuring.  Disabling
-	;; locking can speed things noticably if the lock
+	;; locking can speed things noticeably if the lock
 	;; directory is on a slow device.  We don't need locking
 	;; here because the user shouldn't care about VM removing
 	;; its own status headers.
-	(buffer-file-name nil)
-	(inhibit-quit t))
+	(buffer-file-name nil))
     (save-excursion
       (vm-save-restriction
        (let (lim)
 	 (widen)
 	 (goto-char (point-min))
-	 (forward-line)
 	 (search-forward "\n\n" nil t)
 	 (setq lim (point))
 	 (goto-char (point-min))
-	 (forward-line)
 	 (if (re-search-forward vm-bookmark-header-regexp lim t)
 	     (progn
-	       (setq n (string-to-int
-			(buffer-substring (match-beginning 1) (match-end 1))))
-	       (delete-region (match-beginning 0) (match-end 0))))))
+	       (setq n (read (current-buffer)))
+	       (goto-char (match-beginning 0))
+	       (vm-match-header vm-bookmark-header)
+	       (delete-region (vm-matched-header-start)
+			      (vm-matched-header-end)))))))
     (set-buffer-modified-p old-buffer-modified-p)
-    (if (null n)
-	nil
-      (condition-case ()
-	  (vm-goto-message n)
-	(error nil))
-      t ))))
+    (if n
+	(vm-record-and-change-message-pointer vm-message-pointer
+					      (nthcdr (1- n) vm-message-list)))
+    t ))
 
 (defun vm-check-header-variables ()
   (save-excursion
     (vm-save-restriction
-     (let (lim)
+     (let ((case-fold-search t)
+	   lim)
        (widen)
        (goto-char (point-min))
-       (forward-line)
        (search-forward "\n\n" nil t)
        (setq lim (point))
        (goto-char (point-min))
-       (forward-line)
        (if (re-search-forward vm-vheader-header-regexp lim t)
 	   (let ((old-buffer-modified-p (buffer-modified-p))
 		 ;; This prevents file locking from occuring.  Disabling
-		 ;; locking can speed things noticably if the lock
+		 ;; locking can speed things noticeably if the lock
 		 ;; directory is on a slow device.  We don't need locking
 		 ;; here because the user shouldn't care about VM removing
 		 ;; its own status headers.
 		 (buffer-file-name nil)
-		 buffer-read-only vis invis got
-		 (inhibit-quit t))
-	     (goto-char (match-beginning 1))
+		 (buffer-read-only nil)
+		 vis invis got)
 	     (condition-case ()
 		 (setq vis (read (current-buffer))
 		       invis (read (current-buffer))
 		       got t)
 	       (error nil))
-	     (delete-region (match-beginning 0) (match-end 0))
+	     (goto-char (match-beginning 0))
+	     (vm-match-header vm-vheader-header)
+	     (delete-region (vm-matched-header-start)
+			    (vm-matched-header-end))
 	     ;; if the variables don't match the values stored when this
 	     ;; folder was saved, then we have to discard any cached
 	     ;; vheader info so the user will see the right headers.
@@ -412,42 +688,50 @@
 ;; message order.
 (defun vm-gobble-message-order ()
   (let ((old-buffer-modified-p (buffer-modified-p))
-	buffer-read-only lim v order
+	(case-fold-search t)
+	(buffer-read-only nil)
+	lim v order
 	;; This prevents file locking from occuring.  Disabling
-	;; locking can speed things noticably if the lock
+	;; locking can speed things noticeably if the lock
 	;; directory is on a slow device.  We don't need locking
 	;; here because the user shouldn't care about VM removing
 	;; its own status headers.
 	(buffer-file-name nil)
 	(mp vm-message-list)
-	(list-length (length vm-message-list)) 
-	(inhibit-quit t))
+	(list-length (length vm-message-list)))
     (save-excursion
       (vm-save-restriction
        (widen)
        (goto-char (point-min))
-       (forward-line)
        (search-forward "\n\n" nil t)
        (setq lim (point))
        (goto-char (point-min))
-       (forward-line)
        (if (re-search-forward vm-message-order-header-regexp lim t)
 	   (progn
 	     (message "Reordering messages...")
-	     (goto-char (match-beginning 1))
 	     (setq order (read (current-buffer))
 		   v (make-vector (max list-length (length order)) nil))
-	     (delete-region (match-beginning 0) (match-end 0))
+	     (goto-char (match-beginning 0))
+	     ;; have to do the delete this way because the length of the
+	     ;; message order header sometimes makes Emacs'
+	     ;; regexp matcher overflow.  vm-match-header uses
+	     ;; simple patterns iteratively to match long headers
+	     ;; and thereby avoids the problem.
+	     (vm-match-header vm-message-order-header)
+	     (delete-region (vm-matched-header-start) (vm-matched-header-end))
 	     (while (and order mp)
 	       (aset v (1- (car order)) (car mp))
 	       (setq order (cdr order) mp (cdr mp)))
-	     (setq vm-message-list (delq nil (append v mp))
-		   vm-message-order-changed t
-		   vm-message-order-stuffed nil
-		   vm-numbering-redo-start-point t
-		   vm-message-pointer (memq (car vm-message-pointer)
-					    vm-message-list))
-	     (vm-reverse-link-messages)))))
+	     ;; lock out interrupts while the mesage list is in
+	     ;; an inconsistent state.
+	     (let ((inhibit-quit t))
+	       (setq vm-message-list (delq nil (append v mp))
+		     vm-message-order-changed t
+		     vm-message-order-stuffed nil
+		     vm-message-pointer (memq (car vm-message-pointer)
+					      vm-message-list))
+	       (vm-set-numbering-redo-start-point t)
+	       (vm-reverse-link-messages))))))
     (set-buffer-modified-p old-buffer-modified-p)))
 
 ;; Stuff the message attributes back into the message as headers.
@@ -456,54 +740,59 @@
     (vm-save-restriction
      (widen)
      (let ((old-buffer-modified-p (buffer-modified-p))
-	   attributes cache buffer-read-only
+	   attributes cache
+	   (case-fold-search t)
+	   (buffer-read-only nil)
+	   opoint
 	   ;; This prevents file locking from occuring.  Disabling
-	   ;; locking can speed things noticably if the lock
+	   ;; locking can speed things noticeably if the lock
 	   ;; directory is on a slow device.  We don't need locking
 	   ;; here because the user shouldn't care about VM stuffing
 	   ;; its own status headers.
 	   (buffer-file-name nil)
-	   (delflag (vm-deleted-flag m))
-	   (inhibit-quit t))
+	   (delflag (vm-deleted-flag m)))
        (setq attributes (vm-attributes-of m)
 	     cache (vm-cache-of m))
        (and delflag suppress-delete
-	    (vm-set-deleted-flag-in-vector attributes nil))
-       (goto-char (vm-start-of m))
-       (forward-line)
+	    (vm-set-deleted-flag-in-vector (setq attributes (copy-sequence attributes)) nil))
+       (goto-char (vm-headers-of m))
        (if (re-search-forward vm-attributes-header-regexp
 			      (vm-text-of m) t)
 	   (delete-region (match-beginning 0) (match-end 0)))
-       (insert-before-markers vm-attributes-header " ("
-			      (let ((print-escape-newlines t))
-				(prin1-to-string attributes))
-			      "\n\t"
-			      (let ((print-escape-newlines t))
-				(prin1-to-string cache))
-			      ")\n")
-       (vm-set-modflag-of m nil)
+       (setq opoint (point))
+       (insert-before-markers
+	vm-attributes-header " ("
+	(let ((print-escape-newlines t))
+	  (prin1-to-string attributes))
+	"\n\t"
+	(let ((print-escape-newlines t))
+	  (prin1-to-string cache))
+	")\n")
+       ;; If headers and vheaders markers are clumped fix headers
+       ;; marker.
+       (if (= (vm-headers-of m) (vm-vheaders-of m))
+	   (set-marker (vm-headers-of m) opoint))
        (cond (vm-berkeley-mail-compatibility
-	      (goto-char (vm-start-of m))
-	      (forward-line)
+	      (goto-char (vm-headers-of m))
 	      (if (re-search-forward vm-berkeley-mail-status-header-regexp
 				     (vm-text-of m) t)
 		  (delete-region (match-beginning 0) (match-end 0)))
 	      (cond ((not (vm-new-flag m))
-		     (insert-before-markers
+		     (insert
 		      vm-berkeley-mail-status-header
 		      (if (vm-unread-flag m) "" "R")
 		      "O\n")))))
-       (and delflag suppress-delete
-	    (vm-set-deleted-flag-in-vector attributes t))
+       (vm-set-modflag-of m nil)
        (set-buffer-modified-p old-buffer-modified-p)))))
 
 (defun vm-stuff-virtual-attributes (message)
-  (let ((virtual (eq message (vm-real-message-of message)))
-	(mirror (eq (vm-attributes-of message)
-		    (vm-attributes-of (vm-real-message-of message)))))
-    (if (or (not virtual) (and virtual mirror))
+  (let ((virtual (vm-virtual-message-p message)))
+    (if (or (not virtual) (and virtual (vm-virtual-messages-of message)))
 	(save-excursion
-	  (set-buffer (marker-buffer (vm-start-of message)))
+	  (set-buffer
+	   (marker-buffer
+	    (vm-start-of
+	     (vm-real-message-of message))))
 	  (vm-stuff-attributes message)))))
 
 ;; Insert a bookmark into the first message in the folder.
@@ -513,25 +802,35 @@
 	(vm-save-restriction
 	 (widen)
 	 (let ((old-buffer-modified-p (buffer-modified-p))
+	       (case-fold-search t)
 	       ;; This prevents file locking from occuring.  Disabling
-	       ;; locking can speed things noticably if the lock
+	       ;; locking can speed things noticeably if the lock
 	       ;; directory is on a slow device.  We don't need locking
 	       ;; here because the user shouldn't care about VM stuffing
 	       ;; its own status headers.
 	       (buffer-file-name nil)
-	       buffer-read-only lim
-	       (inhibit-quit t))
+	       (buffer-read-only nil)
+	       lim)
 	   (goto-char (point-min))
-	   (forward-line)
 	   (search-forward "\n\n" nil t)
 	   (setq lim (point))
 	   (goto-char (point-min))
-	   (forward-line)
+	   (vm-skip-past-leading-message-separator)
 	   (if (re-search-forward vm-bookmark-header-regexp lim t)
-	       (delete-region (match-beginning 0) (match-end 0)))
-	   (insert-before-markers vm-bookmark-header " "
-				  (vm-number-of (car vm-message-pointer))
-				  "\n")
+	       (progn (goto-char (match-beginning 0))
+		      (if (vm-match-header vm-bookmark-header)
+			  (delete-region (vm-matched-header-start)
+					 (vm-matched-header-end)))))
+	   ;; To insert or to insert-before-markers, that is the question.
+	   ;;
+	   ;; If we insert-before-markers we push a header behind
+	   ;; vm-headers-of, which is clearly undesirable.  So we
+	   ;; just insert.  This will cause the bookmark header
+	   ;; to be visible if there are no non-visible headers,
+	   ;; oh well, no way around this.
+	   (insert vm-bookmark-header " "
+		   (vm-number-of (car vm-message-pointer))
+		   "\n")
 	   (set-buffer-modified-p old-buffer-modified-p))))))
 
 ;; stuff the current values of the header variables for future messages.
@@ -541,27 +840,36 @@
 	(vm-save-restriction
 	 (widen)
 	 (let ((old-buffer-modified-p (buffer-modified-p))
+	       (case-fold-search t)
 	       (print-escape-newlines t)
-	       buffer-read-only lim
+	       lim
+	       (buffer-read-only nil)
 	       ;; This prevents file locking from occuring.  Disabling
-	       ;; locking can speed things noticably if the lock
+	       ;; locking can speed things noticeably if the lock
 	       ;; directory is on a slow device.  We don't need locking
 	       ;; here because the user shouldn't care about VM stuffing
 	       ;; its own status headers.
-	       (buffer-file-name nil)
-	       (inhibit-quit t))
+	       (buffer-file-name nil))
 	   (goto-char (point-min))
-	   (forward-line)
 	   (search-forward "\n\n" nil t)
 	   (setq lim (point))
 	   (goto-char (point-min))
-	   (forward-line)
+	   (vm-skip-past-leading-message-separator)
 	   (if (re-search-forward vm-vheader-header-regexp lim t)
-	       (delete-region (match-beginning 0) (match-end 0)))
-	   (insert-before-markers vm-vheader-header " "
-				  (prin1-to-string vm-visible-headers) " "
-				  (prin1-to-string vm-invisible-header-regexp)
-				  "\n")
+	       (progn (goto-char (match-beginning 0))
+		      (if (vm-match-header vm-vheader-header)
+			  (delete-region (vm-matched-header-start)
+					 (vm-matched-header-end)))))
+	   ;; To insert or to insert-before-markers, that is the question.
+	   ;;
+	   ;; If we insert-before-markers we push a header behind
+	   ;; vm-headers-of, which is clearly undesirable.  So we
+	   ;; just insert.  This header will be visible if there
+	   ;; are no non-visible headers, oh well, no way around this.
+	   (insert vm-vheader-header " "
+		   (prin1-to-string vm-visible-headers) " "
+		   (prin1-to-string vm-invisible-header-regexp)
+		   "\n")
 	   (set-buffer-modified-p old-buffer-modified-p))))))
 
 ;; Insert a header into the first message of the folder that lists
@@ -572,38 +880,47 @@
 	(vm-save-restriction
 	 (widen)
 	 (let ((old-buffer-modified-p (buffer-modified-p))
+	       (case-fold-search t)
 	       ;; This prevents file locking from occuring.  Disabling
-	       ;; locking can speed things noticably if the lock
+	       ;; locking can speed things noticeably if the lock
 	       ;; directory is on a slow device.  We don't need locking
 	       ;; here because the user shouldn't care about VM stuffing
 	       ;; its own status headers.
 	       (buffer-file-name nil)
-	       buffer-read-only lim n
-	       (mp (copy-sequence vm-message-list))
-	       (inhibit-quit t))
+	       lim n
+	       (buffer-read-only nil)
+	       (mp (copy-sequence vm-message-list)))
 	   (setq mp
 		 (sort mp
 		       (function
 			(lambda (p q)
 			  (< (vm-start-of p) (vm-start-of q))))))
 	   (goto-char (point-min))
-	   (forward-line)
 	   (search-forward "\n\n" nil t)
 	   (setq lim (point))
 	   (goto-char (point-min))
-	   (forward-line)
+	   (vm-skip-past-leading-message-separator)
 	   (if (re-search-forward vm-message-order-header-regexp lim t)
-	       (delete-region (match-beginning 0) (match-end 0)))
-	   (insert-before-markers vm-message-order-header "\n\t(")
+	       (progn (goto-char (match-beginning 0))
+		      (if (vm-match-header vm-message-order-header)
+			  (delete-region (vm-matched-header-start)
+					 (vm-matched-header-end)))))
+	   ;; To insert or to insert-before-markers, that is the question.
+	   ;;
+	   ;; If we insert-before-markers we push a header behind
+	   ;; vm-headers-of, which is clearly undesirable.  So we
+	   ;; just insert.  This header will be visible if there
+	   ;; are no non-visible headers, oh well, no way around this.
+	   (insert vm-message-order-header "\n\t(")
 	   (setq n 0)
 	   (while mp
-	     (insert-before-markers (vm-number-of (car mp)))
+	     (insert (vm-number-of (car mp)))
 	     (setq n (1+ n) mp (cdr mp))
-	     (and mp (insert-before-markers
+	     (and mp (insert
 		      (if (zerop (% n 15))
 			  "\n\t "
 			" "))))
-	   (insert-before-markers ")\n")
+	   (insert ")\n")
 	   (setq vm-message-order-stuffed t)
 	   (set-buffer-modified-p old-buffer-modified-p))))))
 
@@ -616,42 +933,11 @@
 	    (vm-set-unread-flag (car mp) t)))
       (setq mp (cdr mp)))))
 
-(defun vm-highlight-headers (message window)
-  (and vm-highlighted-header-regexp window
-       (<= (window-start window) (vm-text-of message))
-       (save-excursion
-	 ;; As of v18.52, this call to save-window-excursion is needed!
-	 ;; Somehow window point can get fouled in here, and drag the
-	 ;; buffer point along with it.  This problem only manifests
-	 ;; itself when operating VM from the summary buffer, subsequent
-	 ;; to using vm-beginning-of-message or vm-end-of-message.
-	 ;; After running a next or previous message command, point
-	 ;; somehow ends up at the end of the message.
-	 (save-window-excursion
-	   (goto-char (window-start window))
-	   (while (re-search-forward vm-highlighted-header-regexp
-				     (vm-text-of message) t)
-	     (save-restriction
-	       (goto-char (match-beginning 0))
-	       (if (looking-at vm-generic-header-regexp)
-		   (progn
-		     (goto-char (match-beginning 2))
-		     (narrow-to-region (point-min) (point))
-		     (sit-for 0)
-		     (setq inverse-video t)
-		     (goto-char (point-min))
-		     (widen)
-		     (narrow-to-region (point) (match-end 2))
-		     (sit-for 0)
-		     (setq inverse-video nil)
-		     (goto-char (match-end 0)))
-		 (goto-char (match-end 0)))))))))
-
 (defun vm-unread-message (&optional count)
   "Set the `unread' attribute for the current message.  If the message is
-already new or unread, then it left unchanged.
+already new or unread, then it is left unchanged.
 
-Numeric prefix argument N mans to unread the current message plus the
+Numeric prefix argument N means to unread the current message plus the
 next N-1 messages.  A negative N means unread the current message and
 the previous N-1 messages.
 
@@ -683,11 +969,9 @@ all marked messages are affected, other messages are ignored."
   (if (not (memq major-mode '(vm-mode vm-virtual-mode)))
       (error "%s must be invoked from a VM buffer." this-command))
   (vm-check-for-killed-summary)
-  (vm-error-if-referenced-virtually)
-  (if (eq major-mode 'vm-virtual-mode)
-      (vm-virtual-quit)
+  (let ((virtual (eq major-mode 'vm-virtual-mode)))
     (cond
-     ((and no-change (buffer-modified-p)
+     ((and (not virtual) no-change (buffer-modified-p)
 	   (not (zerop vm-messages-not-on-disk))
 	   ;; Folder may have been saved with C-x C-s and attributes may have
 	   ;; been changed after that; in that case vm-messages-not-on-disk
@@ -703,63 +987,89 @@ all marked messages are affected, other messages are ignored."
 	      vm-messages-not-on-disk
 	      (if (= 1 vm-messages-not-on-disk) "" "s")))))
       (error "Aborted"))
-     ((and no-change (buffer-modified-p) vm-confirm-quit
+     ((and (not virtual)
+	   no-change (buffer-modified-p) vm-confirm-quit
 	   (not (y-or-n-p "There are unsaved changes, quit anyway? ")))
       (error "Aborted"))
      ((and (eq vm-confirm-quit t)
 	   (not (y-or-n-p "Do you really want to quit? ")))
       (error "Aborted")))
+    (vm-virtual-quit)
+    (if (and (not no-change) (not virtual))
+	(progn
+	  ;; this could take a while, so give the user some feedback
+	  (message "Quitting...")
+	  (or vm-folder-read-only (eq major-mode 'vm-virtual-mode)
+	      (vm-change-all-new-to-unread))))
+    (if (and (buffer-modified-p) (not no-change) (not virtual))
+	(vm-save-folder t))
     (message "")
-    (let ((inhibit-quit t))
-      (if (not no-change)
+    (let ((summary-buffer vm-summary-buffer)
+	  (mail-buffer (current-buffer)))
+      (if summary-buffer
 	  (progn
-	    ;; this could take a while, so give the user some feedback
-	    (message "Quitting...")
-	    (or vm-folder-read-only (vm-change-all-new-to-unread))
-	    (if (not (buffer-modified-p))
-		(message ""))))
-      (if (and (buffer-modified-p) (not no-change))
-	  (vm-save-folder t))
-      (let ((summary-buffer vm-summary-buffer)
-	    (mail-buffer (current-buffer)))
-	(if summary-buffer
+	    (if (eq vm-mutable-windows t)
+		(delete-windows-on vm-summary-buffer))
+	    (kill-buffer summary-buffer)))
+      (set-buffer mail-buffer)
+      (set-buffer-modified-p nil)
+      (kill-buffer (current-buffer)))
+    (vm-update-summary-and-mode-line)))
+
+(defun vm-start-itimers-if-needed ()
+  (if (or (integerp vm-flush-interval)
+	  (integerp vm-auto-get-new-mail))
+      (progn
+	(if (null
+	     (condition-case data
+		 (progn (require 'itimer) t)
+	       (error nil)))
+	    (setq vm-flush-interval t
+		  vm-auto-get-new-mail t)
+	  (and (integerp vm-flush-interval) (not (get-itimer "vm-flush"))
+	       (start-itimer "vm-flush" 'vm-flush-itimer-function
+			     vm-flush-interval nil))
+	  (and (integerp vm-auto-get-new-mail) (not (get-itimer "vm-get-mail"))
+	       (start-itimer "vm-get-mail" 'vm-get-mail-itimer-function
+			     vm-auto-get-new-mail nil))))))
+
+;; support for numeric vm-auto-get-new-mail
+(defun vm-get-mail-itimer-function ()
+  (if (integerp vm-auto-get-new-mail)
+      (set-itimer-restart current-itimer vm-auto-get-new-mail))
+  (let ((b-list (buffer-list)))
+    (while (and (not (input-pending-p)) b-list)
+      (save-excursion
+	(set-buffer (car b-list))
+	(if (and (eq major-mode 'vm-mode)
+		 (not (and (not (buffer-modified-p))
+			   (file-newer-than-file-p
+			    (make-auto-save-file-name)
+			    buffer-file-name)))
+		 (not vm-block-new-mail)
+		 (vm-get-spooled-mail))
 	    (progn
-	      (if (eq vm-mutable-windows t)
-		  (delete-windows-on vm-summary-buffer))
-	      (kill-buffer summary-buffer)))
-	(set-buffer mail-buffer)
-	(set-buffer-modified-p nil)
-	(kill-buffer (current-buffer))))))
-
-;; in support of timer based checkpointing.
-(defun vm-checkpoint-prologue-hook ()
-  (if (eq vm-checkpoint-modification-counter vm-modification-counter)
-      nil
-    (let ((mp vm-message-list))
-      (while mp
-	(if (vm-modflag-of (car mp))
-	    (vm-stuff-attributes (car mp)))
-	(setq mp (cdr mp))))
-    (setq vm-checkpoint-modification-counter
-	  vm-modification-counter)
-    t ))
-
-(defun vm-checkpoint-epilogue-hook ()
-  (set-file-modes buffer-auto-save-file-name 384))
+	      (vm-assimilate-new-messages)
+	      (if (vm-thoughtfully-select-message)
+		  (vm-preview-current-message)
+		(vm-update-summary-and-mode-line)))))
+      (setq b-list (cdr b-list)))))
 
 ;; support for numeric vm-flush-interval
-(defun vm-flush-timer-function ()
-  (set-timer-restart current-timer vm-flush-interval)
+(defun vm-flush-itimer-function ()
+  (if (integerp vm-flush-interval)
+      (set-itimer-restart current-itimer vm-flush-interval))
   ;; if no vm-mode buffers are found, we might as well shut down the
-  ;; flush timer.
+  ;; flush itimer.
   (if (not (vm-flush-cached-data))
-      (set-timer-restart current-timer nil)))
+      (set-itimer-restart current-itimer nil)))
 
 ;; flush cached data in all vm-mode buffers.
 ;; returns non-nil if any vm-mode buffers were found.
 (defun vm-flush-cached-data ()
   (save-excursion
-    (let ((buf-list (buffer-list)) found-one)
+    (let ((buf-list (buffer-list))
+	  (found-one nil))
       (while (and buf-list (not (input-pending-p)))
 	(set-buffer (car buf-list))
 	(cond ((eq major-mode 'vm-mode)
@@ -775,7 +1085,7 @@ all marked messages are affected, other messages are ignored."
 			  (setq vm-flushed-modification-counter
 				vm-modification-counter))))))
 	(setq buf-list (cdr buf-list)))
-      ;; we may not have checked them all so return non-nil so
+      ;; if we haven't checked them all return non-nil so
       ;; the flusher won't give up trying.
       (or buf-list found-one) )))
 
@@ -787,8 +1097,7 @@ all marked messages are affected, other messages are ignored."
     ;; the stuff routines clean up after themselves, but should remain
     ;; as a safeguard against the time when other stuff is added here.
     (vm-save-restriction
-     (let ((inhibit-quit t)
-	   (mp vm-message-list)
+     (let ((mp vm-message-list)
 	   (buffer-read-only))
 	(while mp
 	  (if (vm-modflag-of (car mp))
@@ -802,16 +1111,6 @@ all marked messages are affected, other messages are ignored."
 	      (and vm-retain-message-order
 		   vm-message-order-changed
 		   (vm-stuff-message-order))))
-	;; We can't be sure the write is going to succeed, so we can't set
-	;; this variable to nil.  We can't leave it set to t either since
-	;; the user will be confused, since she thought the folder was saved.
-	;; The solution, set vm-buffer-modified-p to a value that indicates
-	;; uncertainty.
-	(setq vm-buffer-modified-p "--??-")
-	(if vm-summary-buffer
-	    (save-excursion
-	      (set-buffer vm-summary-buffer)
-	      (setq vm-buffer-modified-p "--??-")))
 	nil ))))
 
 (defun vm-save-buffer (prefix)
@@ -820,7 +1119,6 @@ all marked messages are affected, other messages are ignored."
   (vm-error-if-virtual-folder)
   (save-buffer prefix)
   (setq vm-block-new-mail nil
-	vm-buffer-modified-p nil
 	vm-message-order-changed nil)
   (vm-update-summary-and-mode-line))
 
@@ -830,7 +1128,6 @@ all marked messages are affected, other messages are ignored."
   (vm-error-if-virtual-folder)
   (call-interactively 'write-file)
   (setq vm-block-new-mail nil
-	vm-buffer-modified-p nil
 	vm-message-order-changed nil)
   (vm-update-summary-and-mode-line))
 
@@ -839,11 +1136,10 @@ all marked messages are affected, other messages are ignored."
 Prefix args are handled the same for the command save-buffer."
   (interactive (list nil current-prefix-arg))
   (vm-select-folder-buffer)
-  (vm-sanity-check-modification-flag)
   (vm-check-for-killed-summary)
   (vm-error-if-virtual-folder)
   (if (buffer-modified-p)
-      (let ((inhibit-quit t) mp)
+      (let (mp)
 	(message "Expunging...")
 	;; may get error if folder is emptied by the expunge.
 	(condition-case ()
@@ -877,12 +1173,26 @@ Prefix args are handled the same for the command save-buffer."
 		 (progn
 		   (delete-file buffer-file-name)
 		   (message "%s removed" buffer-file-name))
+	       ;; no can do, oh well.
 	       (error nil)))
 	(if (not quitting)
-	    (if vm-message-pointer
+	    (if (null vm-message-pointer)
 		(vm-update-summary-and-mode-line)
-	      (vm-next-message))))
+	      (vm-preview-current-message))))
     (message "No changes need to be saved")))
+
+(defun vm-handle-file-recovery-or-reversion (recovery)
+  (if (and vm-summary-buffer (buffer-name vm-summary-buffer))
+      (kill-buffer vm-summary-buffer))
+  (setq vm-message-list nil
+	vm-message-pointer nil
+	vm-summary-buffer nil)
+  ;; If this is a recovery, we can't allow the user to get new
+  ;; mail until a real save is performed.  Until then the buffer
+  ;; and the disk don't match.
+  (if recovery
+      (setq vm-block-new-mail t))
+  (vm buffer-file-name))
 
 ;; detect if a recover-file is being performed
 ;; and handle things properly.
@@ -891,17 +1201,7 @@ Prefix args are handled the same for the command save-buffer."
 	   (eq major-mode 'vm-mode)
 	   vm-message-list
 	   (= (vm-end-of (car vm-message-list)) 1))
-      (progn
-	(if (and vm-summary-buffer (bufferp vm-summary-buffer))
-	    (kill-buffer vm-summary-buffer))
-	(setq vm-message-list nil
-	      vm-message-pointer nil
-	      vm-summary-buffer nil)
-	;; We can't allow the user to get new mail until a real
-	;; save is performed.  Until then the buffer and the disk
-	;; don't match.
-	(setq vm-block-new-mail t)
-	(vm buffer-file-name))))
+      (vm-handle-file-recovery-or-reversion t)))
 
 ;; detect if a revert-buffer is being performed
 ;; and handle things properly.
@@ -910,24 +1210,7 @@ Prefix args are handled the same for the command save-buffer."
 	   (eq major-mode 'vm-mode)
 	   vm-message-list
 	   (= (vm-end-of (car vm-message-list)) 1))
-      (progn
-	(save-excursion
-	  ;; save-excursion required to restore current buffer
-	  ;; due to a bug in kill-buffer (really replace-buffer-in-windows)
-	  (if (and vm-summary-buffer (bufferp vm-summary-buffer))
-	      (kill-buffer vm-summary-buffer)))
-	(setq vm-summary-buffer nil)
-	(vm-build-message-list t)
-	(if (null vm-message-list)
-	    (progn
-	      (message "Partial revert failed; disk version of folder has too few messages...")
-	      (sleep-for 3)
-	      (message "Assuming file changed completely; rebuilding message list...")
-	      (sleep-for 1)
-	      (setq vm-message-pointer nil)
-	      (vm buffer-file-name))
-	  (vm-assimilate-new-messages)
-	  (vm-preview-current-message)))))
+      (vm-handle-file-recovery-or-reversion nil)))
 
 (defun vm-visit-folder (folder &optional read-only)
   "Visit a mail file.
@@ -946,18 +1229,20 @@ visited folder."
      (vm-session-initialization)
      (vm-select-folder-buffer)
      (let ((default-directory (if vm-folder-directory
-		    (expand-file-name vm-folder-directory)
-		  default-directory)))
+				  (expand-file-name vm-folder-directory)
+				default-directory))
+	   (default (or vm-last-visit-folder vm-last-save-folder)))
        (list (read-file-name
 	      (format "Visit%s folder:%s "
 		      (if current-prefix-arg " read only" "")
-		      (if vm-last-save-folder
-			  (format " (default %s)" vm-last-save-folder)
+		      (if default
+			  (format " (default %s)" default)
 			""))
-	      default-directory vm-last-save-folder t) current-prefix-arg))))
+	      default-directory default nil) current-prefix-arg))))
   (vm-session-initialization)
   (vm-select-folder-buffer)
   (vm-check-for-killed-summary)
+  (setq vm-last-visit-folder folder)
   (vm folder read-only))
 
 (defun vm-help ()
@@ -975,27 +1260,67 @@ visited folder."
       (message "SPC and b scroll, (d)elete, (s)ave, (n)ext, (r)eply   (? gives more help)"))
      (t (describe-mode)))))
 
-(defun vm-move-mail (source destination)
-  (let ((status
-	 (call-process vm-movemail-program nil nil nil
-		       (expand-file-name source)
-		       (expand-file-name destination))))
-    (if (not (= 0 status))
-	(error "vm: %s exited with code %s" vm-movemail-program status))
-    status))
+(defun vm-spool-move-mail (source destination)
+  (let (status error-buffer)
+    (setq error-buffer
+	  (get-buffer-create
+	   (format "*output of %s %s %s*"
+		   vm-movemail-program source destination)))
+    (save-excursion
+      (set-buffer error-buffer)
+      (erase-buffer))
+    (setq status
+	  (call-process vm-movemail-program nil	error-buffer t
+			source destination))
+    (save-excursion
+      (set-buffer error-buffer)
+      (if (and (numberp status) (not (= 0 status)))
+	  (insert (format "\n%s exited with code %s\n"
+			  vm-movemail-program status)))
+      (if (> (buffer-size) 0)
+	  (progn
+	    (vm-display-buffer error-buffer)
+	    (error "Failed getting new mail from %s" source))
+	;; nag, nag, nag.
+	(kill-buffer error-buffer))
+      t )))
 
-(defun vm-gobble-crash-box ()
+(defun vm-gobble-crash-box (crash-box)
   (save-excursion
     (vm-save-restriction
      (widen)
-     (let ((opoint-max (point-max)) crash-buf buffer-read-only
+     (let ((opoint-max (point-max)) crash-buf
+	   (buffer-read-only nil)
+	   (inbox-buffer-file buffer-file-name)
+	   (inbox-folder-type vm-folder-type)
+	   got-mail crash-folder-type
 	   (old-buffer-modified-p (buffer-modified-p))
            ;; crash box could contain a letter bomb...
 	   ;; force user notification of file variables for v18 Emacses
 	   ;; enable-local-variables == nil disables them for newer Emacses
 	   (inhibit-local-variables t)
 	   (enable-local-variables nil))
-       (setq crash-buf (find-file-noselect vm-crash-box))
+       (setq crash-buf (find-file-noselect crash-box))
+       (save-excursion
+	 (set-buffer crash-buf)
+	 (setq crash-folder-type (vm-get-folder-type))
+	 (if (and crash-folder-type vm-check-folder-types)
+	     (cond ((null inbox-folder-type)
+		    (if vm-default-folder-type
+			(if (not (eq vm-default-folder-type crash-folder-type))
+			    (if vm-convert-folder-types
+				(vm-convert-folder-type crash-folder-type
+							vm-default-folder-type)
+			      (error "crash box %s mismatches vm-default-folder-type: %s, %s"
+				     crash-box crash-folder-type
+				     vm-default-folder-type)))))
+		   ((not (eq inbox-folder-type crash-folder-type))
+		    (if vm-convert-folder-types
+			(vm-convert-folder-type crash-folder-type
+						inbox-folder-type)
+		      (error "crash box %s mismatches %s's folder type: %s, %s"
+			     crash-box inbox-buffer-file
+			     crash-folder-type inbox-folder-type))))))
        (goto-char (point-max))
        (insert-buffer-substring crash-buf
 				1 (1+ (save-excursion
@@ -1003,76 +1328,77 @@ visited folder."
 					(widen)
 					(buffer-size))))
        (write-region opoint-max (point-max) buffer-file-name t t)
+       (vm-increment vm-modification-counter)
+       (setq got-mail (/= opoint-max (point-max)))
        ;; make sure primary inbox is private.  384 = octal 600
        (condition-case () (set-file-modes buffer-file-name 384) (error nil))
        (set-buffer-modified-p old-buffer-modified-p)
        (kill-buffer crash-buf)
-       (condition-case () (delete-file vm-crash-box)
-	 (error nil))))))
-
-(defun vm-compatible-folder-p (file)
-  (while (not (string= file (setq file (expand-file-name file)))))
-  (let (buffer (type vm-folder-type) newtype)
-    (if (zerop (buffer-size))
-	t
-      (if (null (setq buffer (get-file-buffer file)))
-	  (if (not (file-exists-p file))
-	      t
-	    (save-excursion
-	      (unwind-protect
-		  (progn
-		    (setq buffer (generate-new-buffer " *vm work*"))
-		    (call-process "sed" file buffer nil "-n" "1p")
-		    (save-excursion
-		      (set-buffer buffer)
-		      (setq newtype (vm-get-folder-type))
-		      (or (null newtype) (eq type (vm-get-folder-type)))))
-		(and buffer (kill-buffer buffer)))))
-	(save-excursion
-	  (set-buffer buffer)
-	  (setq newtype (vm-get-folder-type))
-	  (or (null newtype) (eq type (vm-get-folder-type))))))))
-
-(defun vm-check-for-spooled-mail ()
-  (let ((spool-files
-	 (append (or vm-spool-files
-		     (list (concat vm-spool-directory (user-login-name))))
-		 (list vm-crash-box)))
-	(new-mail nil))
-    (while spool-files
-      (if (and (not (equal 0 (nth 7 (file-attributes (car spool-files)))))
-	       (file-readable-p (car spool-files))
-	       (vm-compatible-folder-p (car spool-files)))
-	  (setq spool-files nil
-		new-mail t)
-	(setq spool-files (cdr spool-files))))
-    new-mail ))
+       (condition-case () (delete-file crash-box)
+	 (error nil))
+       got-mail ))))
 
 (defun vm-get-spooled-mail ()
   (if vm-block-new-mail
       (error "Can't get new mail until you save this folder."))
-  (let ((spool-files (or vm-spool-files
-			 (list (concat vm-spool-directory (user-login-name)))))
-	(inhibit-quit t)
-	(got-mail))
-    (if (file-exists-p vm-crash-box)
-	(progn
-	  (message "Recovering messages from crash box...")
-	  (vm-gobble-crash-box)
-	  (message "Recovering messages from crash box... done")
-	  (setq got-mail t)))
-    (while spool-files
-      (if (and (not (equal 0 (nth 7 (file-attributes (car spool-files)))))
-	       (file-readable-p (car spool-files))
-	       (vm-compatible-folder-p (car spool-files)))
+  (let ((triples nil)
+	crash in maildrop popdrop
+	(got-mail nil))
+    (cond ((null (vm-spool-files))
+	   (setq triples (list
+			  (list vm-primary-inbox
+				(concat vm-spool-directory (user-login-name))
+				vm-crash-box))))
+	  ((stringp (car (vm-spool-files)))
+	   (setq triples
+		 (mapcar (function
+			  (lambda (s) (list vm-primary-inbox s vm-crash-box)))
+			 (vm-spool-files))))
+	  ((consp (car (vm-spool-files)))
+	   (setq triples (vm-spool-files))))
+    (while triples
+      (setq in (nth 0 (car triples))
+	    maildrop (nth 1 (car triples))
+	    crash (nth 2 (car triples)))
+      (if (eq (get-file-buffer buffer-file-name)
+	      (get-file-buffer in))
 	  (progn
-	    (message "Getting new mail from %s..." (car spool-files))
-	    (vm-move-mail (car spool-files) vm-crash-box)
-	    (vm-gobble-crash-box)
-	    (message "Getting new mail from %s... done" (car spool-files))
-	    (setq got-mail t)))
-      (setq spool-files (cdr spool-files)))
+	    (if (file-exists-p crash)
+		(progn
+		  (message "Recovering messages from %s..." crash)
+		  (setq got-mail (or (vm-gobble-crash-box crash) got-mail))
+		  (message "Recovering messages from %s... done" crash)))
+	    (setq popdrop (and vm-recognize-pop-maildrops
+			       (string-match vm-recognize-pop-maildrops
+					     maildrop)
+			       ;; maildrop with password clipped
+			       (vm-safe-popdrop-string maildrop)))
+	    (if (or popdrop
+		    (and (not (equal 0 (nth 7 (file-attributes maildrop))))
+			 (file-readable-p maildrop)))
+		(progn
+		  (setq crash (expand-file-name crash))
+		  (if (not popdrop)
+		      (setq maildrop (expand-file-name maildrop)))
+		  (if (if popdrop
+			  (vm-pop-move-mail maildrop crash)
+			(vm-spool-move-mail maildrop crash))
+		      (if (vm-gobble-crash-box crash)		      
+			  (progn
+			    (setq got-mail t)
+			    (message "Got mail from %s."
+				     (or popdrop maildrop)))))))))
+      (setq triples (cdr triples)))
+    (if got-mail
+	(run-hooks 'vm-retrieved-spooled-mail-hook))
     got-mail ))
+
+(defun vm-safe-popdrop-string (drop)
+  (or (and (string-match "^\\([^:]+\\):[^:]+:[^:]+:\\([^:]+\\):[^:]+" drop)
+	   (concat (substring drop (match-beginning 2) (match-end 2))
+		   "@"
+		   (substring drop (match-beginning 1) (match-end 1))))
+      "???"))
 
 (defun vm-get-new-mail (&optional arg)
   "Move any new mail that has arrived in the system mailbox into the
@@ -1081,86 +1407,111 @@ the primary inbox.
 
 Prefix arg means to gather mail from a user specified folder, instead of
 the usual spool file(s).  The file name will be read from the minibuffer.
-Unlike when getting mail from a spool file, in this case the folder is left
+Unlike when getting mail from a spool file, the source file is left
 undisturbed after its messages have been copied."
   (interactive "P")
   (vm-select-folder-buffer)
   (vm-check-for-killed-summary)
   (vm-error-if-virtual-folder)
   (vm-error-if-folder-read-only)
-  (if (and (null arg) (not vm-primary-inbox-p)
-	   (vm-check-for-spooled-mail))
-      (progn
-	(switch-to-buffer (or (get-file-buffer vm-primary-inbox)
-			      (find-file-noselect vm-primary-inbox)))
-	(if (not (eq major-mode 'vm-mode))
-	    (vm-mode))))
-  (if (null arg)
-      (if (not (and (vm-get-spooled-mail) (vm-assimilate-new-messages)))
- 	  (progn
- 	    (message "No new mail.")
-	    ;; don't let this message stay up forever...
- 	    (sit-for 4)
- 	    (message ""))
-	(vm-deferred-message (vm-emit-totals-blurb))
-	(or (vm-thoughtfully-select-message)
-	    (vm-update-summary-and-mode-line)))
-    (let (folder mcount buffer-read-only)
-      (setq folder (read-file-name "Gather mail from folder: "
-				   vm-folder-directory t))
-      (if (not (vm-compatible-folder-p folder))
-	  (error "Folder %s is not the same format as this folder." folder))
-      (save-excursion
-	(vm-save-restriction
-	 (widen)
-	 (goto-char (point-max))
-	 (insert-file-contents folder)))
-      (if (null vm-totals)
-	  (vm-read-attributes))
-      (setq mcount (car vm-totals))
-      (if (vm-assimilate-new-messages)
-	  (progn
-	    (vm-deferred-message (vm-emit-totals-blurb))
-	    (vm-update-summary-and-mode-line)
-	    ;; The gathered messages are actually still on disk
-	    ;; unless the user deletes the folder himself.
-	    ;; However, users may not understand what happened if
-	    ;; the messages go away after a "quit, no save".
-	    (setq vm-messages-not-on-disk
-		  (+ vm-messages-not-on-disk (- (car vm-totals) mcount))))
-	(message "No messages gathered.")))))
-
-(defun vm-emit-totals-blurb ()
-  (save-excursion
-    (vm-select-folder-buffer)
-    (if (null vm-totals)
-	(vm-read-attributes))
-    (message "%d message%s, %d new, %d unread."
-	     (car vm-totals) (if (= (car vm-totals) 1) "" "s") 
-	     (car (cdr vm-totals))
-	     (car (cdr (cdr vm-totals))))))
+  (cond ((null arg)
+	 (if (not (eq major-mode 'vm-mode))
+	     (vm-mode))
+	 (if (consp (car (vm-spool-files)))
+	     (message "Checking for new mail for %s..." buffer-file-name)
+	   (message "Checking for new mail..."))
+	 (let (new-messages)
+	   (if (and (vm-get-spooled-mail)
+		    (setq new-messages (vm-assimilate-new-messages)))
+	       (progn
+		 (if vm-arrived-message-hook
+		     (while new-messages
+		       (vm-run-message-hook (car new-messages)
+					    'vm-arrived-message-hook)
+		       (setq new-messages (cdr new-messages))))
+		 (if (vm-thoughtfully-select-message)
+		     (vm-preview-current-message)
+		   (vm-update-summary-and-mode-line))
+		 (vm-emit-totals-blurb)
+		 (or (vm-set-window-configuration 'mail-arrived)
+		     (progn
+		       (if (not (or (get-buffer-window (current-buffer))
+				    (and vm-summary-buffer
+					 (get-buffer-window
+					  vm-summary-buffer))))
+			   (progn
+			     (if vm-startup-with-summary
+				 (switch-to-buffer vm-summary-buffer)
+			       (switch-to-buffer (current-buffer)))
+			     (if (eq vm-mutable-windows t)
+				 (delete-other-windows)))))))
+	     (if (consp (car (vm-spool-files)))
+		 (message "No new mail for %s" buffer-file-name)
+	       (message "No new mail."))
+	     (sit-for 4)
+	     (message ""))))
+	(t
+	 (let ((buffer-read-only nil)
+	       folder mcount new-messages)
+	   (setq folder (read-file-name "Gather mail from folder: "
+					vm-folder-directory t))
+	   (if (and vm-check-folder-types
+		    (not (vm-compatible-folder-p folder)))
+	       (error "Folder %s is not the same format as this folder."
+		      folder))
+	   (save-excursion
+	     (vm-save-restriction
+	      (widen)
+	      (goto-char (point-max))
+	      (insert-file-contents folder)))
+	   (setq mcount (length vm-message-list))
+	   (if (setq new-messages (vm-assimilate-new-messages))
+	       (progn
+		 (if vm-arrived-message-hook
+		     (while new-messages
+		       (vm-run-message-hook (car new-messages)
+					    'vm-arrived-message-hook)
+		       (setq new-messages (cdr new-messages))))
+		 ;; say this NOW, before the non-previewers read
+		 ;; a message, alter the new message count and
+		 ;; confuse themselves.
+		 (vm-emit-totals-blurb)
+		 (if (vm-thoughtfully-select-message)
+		     (vm-preview-current-message)
+		   (vm-update-summary-and-mode-line))
+		 ;; The gathered messages are actually still on disk
+		 ;; unless the user deletes the folder himself.
+		 ;; However, users may not understand what happened if
+		 ;; the messages go away after a "quit, no save".
+		 (setq vm-messages-not-on-disk
+		       (+ vm-messages-not-on-disk
+			  (- (length vm-message-list)
+			     mcount))))
+	     (message "No messages gathered."))))))
 
 ;; returns non-nil if there were any new messages
 (defun vm-assimilate-new-messages ()
   (let ((tail-cons (vm-last vm-message-list))
-	(new-messages-p (null vm-message-list)))
+	b-list new-messages)
     (save-excursion
       (vm-save-restriction
        (widen)
-       (setq vm-folder-type (vm-get-folder-type))
        (vm-build-message-list)
-       (vm-read-attributes)
-       (setq new-messages-p (or new-messages-p (cdr tail-cons))
-	     vm-numbering-redo-start-point new-messages-p
-	     vm-summary-redo-start-point new-messages-p)
-       (cond ((and vm-current-grouping new-messages-p)
-	      (condition-case data
-		  (vm-group-messages vm-current-grouping)
-		;; presumably an unsupported grouping
-		(error (message (car (cdr data)))
-		       (sleep-for 2))))))
-      (setq vm-need-summary-pointer-update t)
-      new-messages-p )))
+       (vm-read-attributes tail-cons))
+      (setq new-messages (or (cdr tail-cons) vm-message-list))
+      (vm-set-numbering-redo-start-point new-messages)
+      (vm-set-summary-redo-start-point new-messages))
+    (if (and tail-cons new-messages vm-virtual-buffers)
+	(save-excursion
+	  (setq b-list vm-virtual-buffers)
+	  (while b-list
+	    ;; buffer might be dead
+	    (if (null (buffer-name (car b-list)))
+		()
+	      (set-buffer (car b-list))
+	      (vm-build-virtual-message-list new-messages))
+	    (setq b-list (cdr b-list)))))
+    new-messages ))
 
 ;; return a list of all marked messages or the messages indicated by a
 ;; prefix argument.
@@ -1168,7 +1519,7 @@ undisturbed after its messages have been copied."
   (let (mlist)
     (if (eq last-command 'vm-next-command-uses-marks)
 	(setq mlist (vm-marked-messages))
-      (let* ((direction (if (< prefix 0) 'backward 'forward))
+      (let ((direction (if (< prefix 0) 'backward 'forward))
 	     (count (vm-abs prefix))
 	     (vm-message-pointer vm-message-pointer))
 	(if (not (eq vm-circular-folders t))
@@ -1191,25 +1542,27 @@ undisturbed after its messages have been copied."
 	  (setq lines (cdr lines)))))
   (message ""))
 
-(defun vm-load-rc (&optional interactive)
+(defun vm-load-init-file (&optional interactive)
   (interactive "p")
-  (if (or (not vm-rc-loaded) interactive)
-      (load "~/.vm" (not interactive) (not interactive) t))
-  (setq vm-rc-loaded t))
+  (if (or (not vm-init-file-loaded) interactive)
+      (load vm-init-file (not interactive) (not interactive) t))
+  (setq vm-init-file-loaded t))
 
 (defun vm-session-initialization ()
   ;; If this is the first time VM has been run in this Emacs session,
   ;; do some necessary preparations.
-  (if (or (not (boundp 'vm-session-beginning)) vm-session-beginning)
+  (if (or (not (boundp 'vm-session-beginning))
+	  vm-session-beginning)
       (progn
 	(random t)
-	(vm-load-rc)
+	(vm-load-init-file)
 	(if vm-window-configuration-file
 	    (if (condition-case () (progn (require 'tapestry) t))
 		(vm-load-window-configurations vm-window-configuration-file)
-	      (message "can't support window configurations without the tapestry package... sorry.")
-	      (setq vm-window-configuration-file nil)
-	      (sleep-for 2)))
+	      (setq vm-window-configuration-file nil)))
+	(require 'sets)
+	(setq vm-buffers-needing-display-update (sets-make-set))
+	(setq vm-messages-needing-summary-update (vm-make-message-set))
 	(setq vm-session-beginning nil))))
 
 (defun vm (&optional folder read-only)
@@ -1238,37 +1591,46 @@ See the documentation for vm-mode for more information."
   ;; set inhibit-local-variables non-nil to protect
   ;; against letter bombs.
   ;; set enable-local-variables to nil for newer Emacses
-  (let ((inhibit-local-variables t)
-	(enable-local-variables nil)
-	(full-startup (not (bufferp folder)))
-	mail-buffer already-existed)
-    (setq mail-buffer
-	  (if (bufferp folder)
-	      (setq already-existed folder)
-	    (let ((file (or folder (expand-file-name vm-primary-inbox))))
-	      (if (file-directory-p file)
-		  ;; MH code perhaps... ?
-		  (error "%s is a directory" file)
-		(or (setq already-existed (get-file-buffer file))
-		    (let ((default-directory
-			    (or (and vm-folder-directory
-				     (expand-file-name vm-folder-directory))
-				default-directory)))
-		      (find-file-noselect file)))))))
-    (set-buffer mail-buffer)
-    (setq vm-folder-read-only read-only)
-    (vm-sanity-check-modification-flag)
-    (vm-check-for-killed-summary)
-    ;; If the buffer's not modified then we know that there can be no
-    ;; messages in the folder that are not on disk.
-    (or (buffer-modified-p) (setq vm-messages-not-on-disk 0))
-    (let ((first-time (not (eq major-mode 'vm-mode)))
-	  (auto-save-newer (and buffer-file-name
-				(file-newer-than-file-p
-				 (make-auto-save-file-name)
-				 buffer-file-name)))
-	  (inhibit-quit t)
-	  blurb)
+  (catch 'done
+    (let ((inhibit-local-variables t)
+	  (enable-local-variables nil)
+	  (full-startup (not (bufferp folder)))
+	  folder-buffer summary-buffer already-existed first-time
+	  preserve-auto-save-file)
+      (setq folder-buffer
+	    (if (bufferp folder)
+		(setq already-existed folder)
+	      (let ((file (or folder (expand-file-name vm-primary-inbox))))
+		(if (file-directory-p file)
+		    ;; MH code perhaps... ?
+		    (error "%s is a directory" file)
+		  (or (setq already-existed (get-file-buffer file))
+		      (let ((default-directory
+			      (or (and vm-folder-directory
+				       (expand-file-name vm-folder-directory))
+				  default-directory)))
+			(message "Reading %s..." file)
+			(prog1 (find-file-noselect file)
+			  (message "Reading %s... done" file))))))))
+      (set-buffer folder-buffer)
+      (vm-check-for-killed-summary)
+      ;; If the buffer's not modified then we know that there can be no
+      ;; messages in the folder that are not on disk.
+      (or (buffer-modified-p) (setq vm-messages-not-on-disk 0))
+      (setq first-time (not (eq major-mode 'vm-mode))
+	    preserve-auto-save-file (and buffer-file-name
+					  (not (buffer-modified-p))
+					  (file-newer-than-file-p
+					   (make-auto-save-file-name)
+					   buffer-file-name)))
+      ;; Force the folder to be read only if if the auto
+      ;; save file contains information the user might not
+      ;; want overwritten, i.e. recover-file might be
+      ;; desired.  What we want to avoid is an auto-save.
+      ;; Making the folder read only will keep it
+      ;; subsequent actions from modifying the buffer in a
+      ;; way that triggers an auto save.
+      (setq vm-folder-read-only (or preserve-auto-save-file read-only))
       ;; If this is not a VM mode buffer then some initialization
       ;; needs to be done 
       (if first-time
@@ -1277,90 +1639,89 @@ See the documentation for vm-mode for more information."
 	    (abbrev-mode 0)
 	    (auto-fill-mode 0)
 	    (vm-mode-internal)))
-      (if (or (and vm-primary-inbox-p
-		   ;; We demand full-startup and first-time here
-		   ;; to make sure that vm-mode being in the
-		   ;; auto-mode-alist doesn't cause an auto
-		   ;; save file to be ignored.  Otherwise an auto
-		   ;; save file might be ignored on an "M-x vm"
-		   ;; if vm-mode were in in the auto-folder-alist.
-		   full-startup
-		   first-time
-		   (not vm-folder-read-only)
-		   (not auto-save-newer)
-		   (vm-get-spooled-mail))
-	      first-time
-	      ;; If the message list is empty, take a second look: the
-	      ;; buffer may have been encrypted the first time around.
-	      ;; This is a concession to users who use crypt.el and put
-	      ;; vm-mode into auto-mode-alist.
-	      (null vm-message-list))
+      (vm-assimilate-new-messages)
+      (if first-time
+	  (progn
+	    (vm-check-header-variables)
+	    (vm-gobble-message-order)
+	    (vm-gobble-bookmark)
+	    (vm-start-itimers-if-needed)))
+
+      ;; say this NOW, before the non-previewers read a message,
+      ;; alter the new message count and confuse themselves.
+      (if full-startup
+	  (vm-emit-totals-blurb))
+
+      (vm-thoughtfully-select-message)
+      (if vm-message-list
+	  (vm-preview-current-message)
+	(vm-update-summary-and-mode-line))
+      (if full-startup
 	  (save-excursion
-	    (save-window-excursion
-	      (save-restriction
-		(delete-windows-on (current-buffer))
-		(set-buffer mail-buffer)
-		(and vm-summary-buffer (delete-windows-on vm-summary-buffer))
-		(set-buffer mail-buffer)
-		(vm-assimilate-new-messages)
-		;; Can't allow a folder-empty error here because execution
-		;; would abort before the code below.
-		(if (null vm-message-list)
-		    (and full-startup (message "Folder is empty."))
-		  (if first-time
-		      (progn
-			(vm-check-header-variables)
-			(vm-gobble-message-order)
-			(vm-gobble-bookmark)))
-		  (setq blurb (vm-emit-totals-blurb))
-		  (vm-thoughtfully-select-message))))))
-      (and full-startup (not blurb)
-	   (setq blurb (vm-emit-totals-blurb)))
-      (if (and full-startup vm-message-list vm-startup-with-summary)
+	    (if vm-startup-with-summary
+		(progn (vm-summarize nil)
+		       (setq summary-buffer vm-summary-buffer)))
+	    (if (not (vm-set-window-configuration 'startup))
+		(progn
+		  (if (eq vm-mutable-windows t)
+		      (delete-other-windows))
+		  (cond ((eq vm-startup-with-summary nil)
+			 (switch-to-buffer folder-buffer))
+			((eq vm-startup-with-summary t)
+			 (switch-to-buffer summary-buffer))
+			;; vm-startup-with-summary is not nil and not t
+			;; so we know we have to display folder and summary.
+			;; now we need to find out how.
+			((eq vm-mutable-windows t)
+			 (split-window-vertically)
+			 (switch-to-buffer summary-buffer)
+			 (select-window (next-window))
+			 (switch-to-buffer folder-buffer)
+			 (vm-proportion-windows))
+			((eq vm-mutable-windows nil)
+			 ;; can't display both, pick one.
+			 (switch-to-buffer summary-buffer))
+			(t
+			 (switch-to-buffer summary-buffer)
+			 (select-window (next-window))
+			 (switch-to-buffer folder-buffer)))))))
+      ;; Warn user about auto save file, if appropriate.
+      (if (and full-startup preserve-auto-save-file)
+	  (message 
+	   (substitute-command-keys
+	    "Auto save file is newer; consider \\[recover-file].  Folder is read only.")))
+      ;; if we're not doing a full startup or if doing more would
+      ;; trash the auto save file that we need to preserve,
+      ;; stop here.
+      (if (or (not full-startup) preserve-auto-save-file)
+	  (throw 'done t))
+      (if (and vm-auto-get-new-mail (not vm-block-new-mail))
 	  (progn
-	    (vm-summarize)
-	    (message blurb)))
-      (if vm-mutable-windows
-	  (if (not (vm-set-window-configuration 'startup))
-	      (let ((pop-up-windows (and pop-up-windows
-					 (eq vm-mutable-windows t))))
-		(switch-to-buffer (current-buffer))
-		(and vm-summary-buffer (display-buffer vm-summary-buffer))
-		(if (and (eq vm-startup-with-summary t)
-			 (eq vm-mutable-windows t)
-			 vm-summary-buffer)
-		    (progn
-		      (select-window (get-buffer-window vm-summary-buffer))
-		      (delete-other-windows)))
-		(if (eq vm-mutable-windows t)
-		    (vm-proportion-windows))))
-	(switch-to-buffer (current-buffer)))
-      (set-buffer mail-buffer)
-      (and vm-message-list (vm-preview-current-message))
-      (if (and (numberp vm-flush-interval)
-	       (condition-case data
-		   (progn (require 'timer) t)
-		 (error
-		  (message "can't support numeric vm-flush-interval without interval timers... sorry.")
-		  (sleep-for 2)
-		  nil ))
-	       (not (get-timer "vm-flush")))
-	  (start-timer "vm-flush" 'vm-flush-timer-function vm-flush-interval nil))
-      (if (and (not already-existed) auto-save-newer)
-	  (progn
-	    (discard-input)
-	    (if vm-primary-inbox-p
-		(message "Not checking for new mail... auto save file is newer; consider M-x recover-file")
-	      (message "Auto save file is newer; consider M-x recover-file"))
-	    (sit-for 3)))
+	    (message "Checking for new mail for %s..." buffer-file-name)
+	    (if (vm-get-spooled-mail)
+		(progn
+		  (vm-assimilate-new-messages)
+		  (if (vm-thoughtfully-select-message)
+		      (vm-preview-current-message)
+		    (vm-update-summary-and-mode-line))))
+	    (message "")))
+
+      (run-hooks 'vm-visit-folder-hook)
+
       ;; Display copyright and copying info unless
       ;; user says no.
-      (if (and full-startup
-	       (not (or vm-inhibit-startup-message vm-startup-message-displayed)))
+      (if (not (or vm-inhibit-startup-message vm-startup-message-displayed))
 	  (progn
 	    (vm-display-startup-message)
 	    (if (not (input-pending-p))
-		(message blurb)))))))
+		(vm-emit-totals-blurb)))))))
+
+(defun vm-toggle-read-only ()
+  (interactive)
+  (vm-select-folder-buffer)
+  (setq vm-folder-read-only (not vm-folder-read-only))
+  (message "Folder is now %s"
+	   (if vm-folder-read-only "read-only" "modifiable")))
 
 (defun vm-mode ()
   "Major mode for reading mail.
@@ -1404,7 +1765,7 @@ Commands:
    * - burst a digest into individual messages, and append and assimilate these
        message into the current folder.
 
-   G - group messages according to some criteria
+   G - sort messages by various keys
 
    g - get any new mail that has arrived in the system mailbox
        (new mail is appended to the disk and buffer copies of the
@@ -1427,8 +1788,8 @@ Commands:
 
        M M - mark the current message
        M U - unmark the current message
-       M m - mark all messsages
-       M u - unmark all messsages
+       M m - mark all messages
+       M u - unmark all messages
        M ? - help for the mark commands
 
  W S - save the current window configuration to a name
@@ -1455,8 +1816,11 @@ Variables:
    vm-auto-center-summary
    vm-auto-folder-alist
    vm-auto-folder-case-fold-search
+   vm-auto-get-new-mail
    vm-auto-next-message
    vm-berkeley-mail-compatibility
+   vm-check-folder-types
+   vm-convert-folder-types
    vm-circular-folders
    vm-confirm-new-folders
    vm-confirm-quit
@@ -1465,14 +1829,17 @@ Variables:
    vm-delete-after-bursting
    vm-delete-after-saving
    vm-delete-empty-folders
+   vm-digest-burst-type
    vm-digest-center-preamble
    vm-digest-preamble-format
+   vm-digest-send-type
    vm-folder-directory
    vm-folder-read-only
    vm-follow-summary-cursor
+   vm-forwarded-headers
+   vm-forwarding-digest-type
    vm-forwarding-subject-format
    vm-gargle-uucp
-   vm-group-by
    vm-highlighted-header-regexp
    vm-honor-page-delimiters
    vm-in-reply-to-format
@@ -1480,20 +1847,31 @@ Variables:
    vm-included-text-prefix
    vm-inhibit-startup-message
    vm-invisible-header-regexp
+   vm-jump-to-new-messages
+   vm-jump-to-unread-messages
    vm-keep-sent-messages
    vm-mail-header-from
+   vm-mail-mode-hook
    vm-mail-window-percentage
-   vm-mode-hooks
+   vm-mode-hook
    vm-move-after-deleting
    vm-move-after-undeleting
    vm-mutable-windows
    vm-preview-lines
    vm-preview-read-messages
    vm-primary-inbox
-   vm-retain-message-order
+   vm-recognize-pop-maildrops
    vm-reply-ignored-addresses
    vm-reply-subject-prefix
-   vm-rfc934-forwarding
+   vm-resend-bounced-headers
+   vm-resend-bounced-discard-header-regexp
+   vm-resend-headers
+   vm-resend-discard-header-regexp
+   vm-retain-message-order
+   vm-rfc1153-digest-discard-header-regexp
+   vm-rfc1153-digest-headers
+   vm-rfc934-digest-discard-header-regexp
+   vm-rfc934-digest-headers
    vm-search-using-regexps
    vm-skip-deleted-messages
    vm-skip-read-messages
@@ -1501,11 +1879,13 @@ Variables:
    vm-startup-with-summary
    vm-strip-reply-headers
    vm-summary-format
+   vm-unforwarded-header-regexp
    vm-virtual-folder-alist
    vm-virtual-mirror
    vm-visible-headers
    vm-visit-when-saving
-   vm-window-configuration-file"
+   vm-window-configuration-file
+"
   (interactive)
   (vm (current-buffer)))
 
@@ -1513,20 +1893,17 @@ Variables:
 (defun vm-mode-internal ()
   (widen)
   (setq
-   case-fold-search t
-   checkpoint-direct-conversion-hooks '(vm-checkpoint-prologue-hook)
-   checkpoint-epilogue-hooks '(vm-checkpoint-epilogue-hook)
+;   case-fold-search t
    major-mode 'vm-mode
    mode-line-format vm-mode-line-format
    mode-name "VM"
    buffer-read-only t
    vm-message-list nil
    vm-message-pointer nil
-   vm-current-grouping vm-group-by
-   vm-folder-type (vm-get-folder-type)
-   vm-primary-inbox-p (equal buffer-file-name
-			     (expand-file-name vm-primary-inbox)))
+   vm-folder-type (vm-get-folder-type))
   (use-local-map vm-mode-map)
+  (run-hooks 'vm-mode-hook)
+  ;; compatibility
   (run-hooks 'vm-mode-hooks))
 
 (put 'vm-mode 'mode-class 'special)

@@ -1253,6 +1253,7 @@ in insert mode.")
 
 ;; Startup & Shutdown
 
+;;;###autoload
 (defun evi ()
   "Start vi emulation in this buffer."
   (interactive)

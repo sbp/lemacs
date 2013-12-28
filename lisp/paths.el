@@ -103,19 +103,24 @@ Will use `gnus-startup-file'-SERVER instead if exists.")
 
 (defconst rmail-spool-directory
   (purecopy
-   (if (memq system-type '(dgux-unix hpux usg-unix-v unisoft-unix rtu
-				     irix silicon-graphics-unix))
-       "/usr/mail/"
-     "/usr/spool/mail/"))
+   (cond
+    ((memq system-type '(dgux-unix hpux usg-unix-v unisoft-unix rtu
+			 irix silicon-graphics-unix))
+     "/usr/mail/")
+    ((memq system-type '(netbsd))
+     "/var/mail/")
+    (t
+     "/usr/spool/mail/")))
   "Name of directory used by system mailer for delivering new mail.
 Its name should end with a slash.")
 
 (defconst sendmail-program
-  (purecopy (if (file-exists-p "/usr/lib/sendmail")
-		"/usr/lib/sendmail"
-	      (if (file-exists-p "/usr/ucblib/sendmail")
-		  "/usr/ucblib/sendmail"
-		"fakemail")))		;In ../etc, to interface to /bin/mail.
+  (purecopy
+   (cond
+    ((file-exists-p "/usr/lib/sendmail") "/usr/lib/sendmail")
+    ((file-exists-p "/usr/sbin/sendmail") "/usr/sbin/sendmail")
+    ((file-exists-p "/usr/ucblib/sendmail") "/usr/ucblib/sendmail")
+    (t "fakemail")))		;In ../etc, to interface to /bin/mail.
   "Program used to send messages.")
 
 (defconst term-file-prefix
@@ -149,6 +154,13 @@ the terminal-initialization file to be loaded.")
    ;;
    ;; For best results, automounter junk should go near the front of this
    ;; list, and other user translations should come after it.
+   ;;
+   ;; You may need to change this if you're not running the Sun automounter,
+   ;; if you're not running in the default configuration.  Because the
+   ;; designers (and I use that term loosely) of the automounters failed to
+   ;; provide any uniform way of disambiguating a pathname, emacs needs to
+   ;; have knowledge about exactly how the automounter mangles pathnames
+   ;; (and this knowledge is basically impossible to derive at run-time.)
    ;;
    (cons (purecopy "\\`/tmp_mnt/net/") (purecopy "/net/"))
    ))

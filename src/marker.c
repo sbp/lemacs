@@ -19,6 +19,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 
 #include "config.h"
+#include "intl.h"
 #include "lisp.h"
 #include "buffer.h"
 
@@ -53,11 +54,11 @@ static void
 print_marker (Lisp_Object obj, Lisp_Object printcharfun, int escapeflag)
 {
   if (print_readably)
-    error ("printing unreadable object #<marker>");
+    error (GETTEXT ("printing unreadable object #<marker>"));
       
-  write_string_1 ("#<marker ", -1, printcharfun);
+  write_string_1 (GETTEXT ("#<marker "), -1, printcharfun);
   if (!(XMARKER (obj)->buffer))
-    write_string_1 ("in no buffer", -1, printcharfun);
+    write_string_1 (GETTEXT ("in no buffer"), -1, printcharfun);
   else
     {
       char buf[20];
@@ -155,7 +156,8 @@ set_marker_internal (marker, pos, buffer, restricted_p)
       (MARKERP (pos) && !XMARKER (pos)->buffer))
     {
       if (point_p)
-	marker_error (marker, "can't make point-marker point nowhere");
+	marker_error (marker,
+		      GETTEXT ("can't make point-marker point nowhere"));
       if (XMARKER (marker)->buffer)
 	unchain_marker (marker);
       return marker;
@@ -172,7 +174,8 @@ set_marker_internal (marker, pos, buffer, restricted_p)
       if (EQ (b->name, Qnil))
 	{
 	  if (point_p)
-	    marker_error (marker, "can't move point-marker in a killed buffer");
+	    marker_error (marker, GETTEXT
+			  ("can't move point-marker in a killed buffer"));
 	  if (XMARKER (marker)->buffer)
 	    unchain_marker (marker);
 	  return marker;
@@ -207,7 +210,8 @@ set_marker_internal (marker, pos, buffer, restricted_p)
 	  unbind_to (count, Qnil);
 	}
 #else  /* It's not a feature, so it must be a bug */
-      marker_error (marker, "DEBUG: attempt to move point via point-marker");
+      marker_error (marker,
+		    GETTEXT ("DEBUG: attempt to move point via point-marker"));
 #endif
     }
   else
@@ -219,7 +223,7 @@ set_marker_internal (marker, pos, buffer, restricted_p)
   if (m->buffer != b)
     {
       if (point_p)
-	marker_error (marker, "can't change buffer of point-marker");
+	marker_error (marker, GETTEXT ("can't change buffer of point-marker"));
       if (m->buffer != 0)
 	unchain_marker (marker);
       marker_next (m) = b->markers;
@@ -313,7 +317,7 @@ marker_position (marker)
   register int i = m->bufpos;
 
   if (!buf)
-    error ("Marker does not point anywhere");
+    error (GETTEXT ("Marker does not point anywhere"));
 
   if (i > BUF_GPT (buf) + BUF_GAP_SIZE (buf))
     i -= BUF_GAP_SIZE (buf);

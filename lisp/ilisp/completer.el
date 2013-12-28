@@ -138,7 +138,9 @@ string that matches the pattern will be used.")
     (sit-for 2)
     (delete-region point end)
     (if (and quit-flag 
-	     (not (eq 'lucid-19 ilisp-emacs-version-id)))
+	     ;;(not (eq 'lucid-19 ilisp-emacs-version-id))
+	     (not (string-match "Lucid" emacs-version))
+	     )
 	(setq quit-flag nil
 	      unread-command-char 7))))
 
@@ -570,13 +572,17 @@ each possible completion and should return a string."
       (with-output-to-temp-buffer " *Completions*"
 	(if (cdr choices) 
 	    (display-completion-list
-	     (if display
-		 (let ((new))
-		   (while choices
-		     (setq new (cons (funcall display (car choices)) new)
-			   choices (cdr choices)))
-		   (setq choices new))
-		 choices)))
+	     (sort
+	      (if display
+		  (let ((new))
+		    (while choices
+		      (setq new (cons (funcall display (car choices)) new)
+			    choices (cdr choices)))
+		    (setq choices new))
+		choices)
+	      (function (lambda (x y)
+			  (string-lessp (or (car-safe x) x)
+					(or (car-safe y) y)))))))
 	(if match
 	    (save-excursion
 	      (set-buffer " *Completions*")
@@ -982,7 +988,11 @@ negative prefix, the last completion will be undone."
 			 (setq list (cdr list)))
 		       (setq list (nreverse new))))
 		 (with-output-to-temp-buffer "*Help*"
-		   (display-completion-list list)))
+		   (display-completion-list
+		    (sort list (function (lambda (x y)
+					   (string-lessp
+					    (or (car-safe x) x)
+					    (or (car-safe y) y))))))))
 	       (message "Making completion list...%s" "done"))))))
 
 ;;;%Hooks

@@ -1,5 +1,6 @@
 ;; Process Emacs shell arguments
 ;; Copyright (C) 1985, 1986, 1990, 1992, 1993 Free Software Foundation, Inc.
+;; Copyright (c) 23 Sep 1993 Sun Microsystems, Inc.  All Rights Reserved.
 
 ;; This file is part of GNU Emacs.
 
@@ -16,6 +17,16 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with GNU Emacs; see the file COPYING.  If not, write to
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+
+;; Modifications:
+;;
+;; aaron.endelman@sun.com 9/23/93
+;; Added -sparcworks switch; only exists if sparcworks is a feature.
+;; Complete the ToolTalk initialization, if needed.
+;; Separated off the tail end of command-line-1, now called
+;; parse-command-line, in order to handle sparcworks 'yielding' protocol.
+;; Added code to handle the 'yielding' case.
+;; Added startup-message-timeout variable.  Normally 120 [seconds].
 
 (defun command-line-do-help (arg)
   "Print this message and exit."
@@ -73,10 +84,28 @@ These options are processed only if they appear before all other options:
                         This option must be first in the list.
   -nw                   Inhibit the use of any window-system-specific
                         display code: use the current tty.
-  -no-init-file         Do not load an init file (~/.emacs).
+  -no-site-file         Do not load the site-specific init file (site-run.el).
+  -no-init-file         Do not load the user-specific init file (~/.emacs).
   -q                    Same as -no-init-file.
   -user <user>          Load user's init file instead of your own.
-  -u <user>             Same as -user.
+  -u <user>             Same as -user.")
+
+    (if (featurep 'sparcworks)
+	(progn
+	  (princ "
+  -sparcworks on|off	Connect to the SPARCworks manager 
+			and set up GUI for SPARCworks.")
+	  (if sparcworks-enabled
+	      (princ "
+			(default on)")
+	      (princ "
+			(default off)"))
+
+	  (princ "
+  -proworks on|off	Same as -sparcworks.
+  -sunpro on|off	Same as -sparcworks.")))
+
+    (princ "
 
 Anything else is considered a file name, and is placed into a buffer for
 editing.
@@ -105,6 +134,9 @@ Use this feature when you have directories which you normally refer to
 via absolute symbolic links.  Make TO the name of the link, and FROM
 the name it is linked to.")
 
+(defvar abbreviated-home-dir nil
+  "The user's homedir abbreviated according to `directory-abbrev-alist'.")
+
 (defun abbreviate-file-name (filename &optional hack-homedir)
   "Return a version of FILENAME shortened using `directory-abbrev-alist'.
 See \\[describe-variable] directory-abbrev-alist RET for more information.
@@ -116,19 +148,44 @@ If optional argument HACK-HOMEDIR is non-nil, then This also substitutes
 	  (setq filename
 		(concat (cdr (car tail)) (substring filename (match-end 0)))))
       (setq tail (cdr tail))))
-  (if (and hack-homedir
-	   (let ((hd (expand-file-name "~")))
-	     (if (string-match "/\\'" hd) ;lose trailing /
-		 (setq hd (substring hd 0 (match-beginning 0))))
-	     (and (< 0 (length hd)) ;homedir is root
-		  (string-match (concat "\\`" (regexp-quote hd)) filename))))
-      (setq filename (concat "~" (substring filename (match-end 0)))))
+  (if hack-homedir
+      (progn
+	;; Compute and save the abbreviated homedir name.
+	;; We defer computing this until the first time it's needed, to
+	;; give time for directory-abbrev-alist to be set properly.
+	;; We include a slash at the end, to avoid spurious matches
+	;; such as `/usr/foobar' when the home dir is `/usr/foo'.
+	(or abbreviated-home-dir
+	    (setq abbreviated-home-dir
+		  (let ((abbreviated-home-dir "$foo"))
+		    (concat "\\`" (regexp-quote (abbreviate-file-name
+						 (expand-file-name "~")))
+			    "\\(/\\|\\'\\)"))))
+	(if (string-match abbreviated-home-dir filename)
+	    (setq filename
+		  (concat "~"
+			  ;; If abbreviated-home-dir ends with a slash,
+			  ;; don't remove the corresponding slash from
+			  ;; filename.  On MS-DOS and OS/2, you can have
+			  ;; home directories like "g:/", in which it is
+			  ;; important not to remove the slash.  And what
+			  ;; about poor root on Unix systems?
+			  (if (eq ?/ (aref abbreviated-home-dir
+					   (1- (length abbreviated-home-dir))))
+			      "/"
+			    "")
+			  (substring filename
+				     (match-beginning 1) (match-end 1))
+			  (substring filename (match-end 0)))))))
   filename)
 
 
 (setq top-level '(normal-top-level))
 
 (defvar command-line-processed nil "t once command line has been processed")
+
+(defvar startup-message-timeout 120
+  "How long to keep the startup message visible.")
 
 (defconst inhibit-startup-message nil
   "*Non-nil inhibits the initial startup messages.
@@ -275,7 +332,7 @@ Thus, the run-time load order is:
 	(princ (format "\n$EMACSLOADPATH is %s" (getenv "EMACSLOADPATH"))
 	       stream))
     (princ (format "\nload-path is %S" load-path) stream)
-    (princ (format "\nexec-directory is %S\n" exec-directory) stream)
+    (princ (format "\nexec-directory is %S" exec-directory) stream)
     (princ (format "\ndata-directory is %S\n\n" data-directory) stream)
     (backtrace stream t))
   (kill-emacs 33))
@@ -333,6 +390,11 @@ Thus, the run-time load order is:
 	       (setq command-line-args-left (cdr command-line-args-left)
 		     init-file-user (car command-line-args-left)
 		     command-line-args-left (cdr command-line-args-left)))
+	      ((or (string-equal argi "-sparcworks")
+		   (string-equal argi "-proworks")
+		   (string-equal argi "-sunpro"))
+	       ;; processed earlier
+	       (setq command-line-args-left (cddr command-line-args-left)))
               ((string-equal argi "-debug-init")
                (setq init-file-debug t
                      command-line-args-left (cdr command-line-args-left)))
@@ -414,6 +476,8 @@ This probably means that this emacs is picking up an old (v18) lisp directory.
     ;; can't cope with is therefore your own problem.  (And we don't need
     ;; to kill emacs for it.)
     ;;
+
+    ;;; Load init files.
     (load-init-file)
     
     ;; If *scratch* exists and init file didn't change its mode, initialize it.
@@ -448,7 +512,12 @@ This probably means that this emacs is picking up an old (v18) lisp directory.
        (sit-for 1)))
     ;; Don't let the hook be run twice.
     (setq term-setup-hook nil)
-    
+
+     ;; complete tt startup if needed
+    (if (not noninteractive)
+	(if (fboundp 'complete-sparcworks-tooltalk-init)
+	    (complete-sparcworks-tooltalk-init)))
+
     ;; now process the rest of the command line, including user options.
     (command-line-1)
     
@@ -458,6 +527,10 @@ This probably means that this emacs is picking up an old (v18) lisp directory.
 ;;; Load user's init file and default ones.
 (defun load-init-file ()
   (run-hooks 'before-init-hook)
+
+  ;; Sites should not disable this.  Only individuals should disable
+  ;; the startup message.
+  (setq inhibit-startup-message nil)
 
   ;; Run the site-start library if it exists.  The point of this file is
   ;; that it is run before .emacs.  There is no point in doing this after
@@ -501,9 +574,11 @@ This probably means that this emacs is picking up an old (v18) lisp directory.
 		  (not (input-pending-p)))
 	     (unwind-protect
 		 (progn
-		   (insert (emacs-version) "
+		   (insert (emacs-version)
+			   "
 Copyright (C) 1990 Free Software Foundation, Inc.
 Copyright (C) 1990-1993 Lucid, Inc.
+Copyright (C) 1993 Sun Microsystems, Inc.
 
 This version of Emacs is a part of Lucid's Energize Programming System,
 a C/C++ development environment.  Send mail to lucid-info@lucid.com for
@@ -520,58 +595,88 @@ You may give out copies of Emacs; type \\[describe-copying] to see the condition
 Type \\[describe-distribution] for information on getting the latest version."))
 		   (fontify-copyleft)
 		   (set-buffer-modified-p nil)
-		   (sit-for 120))
+		   (sit-for startup-message-timeout))
 	       (save-excursion
 		 ;; In case the Emacs server has already selected
 		 ;; another buffer, erase the one our message is in.
 		 (set-buffer (get-buffer "*scratch*"))
 		 (erase-buffer)
 		 (set-buffer-modified-p nil)))))
-    (let ((dir default-directory)
-	  (file-count 0)
-	  first-file-buffer
-	  (line nil))
-      (while command-line-args-left
-	(let ((argi (car command-line-args-left))
-	      tem)
-	  (setq command-line-args-left (cdr command-line-args-left))
-	  (or (cond (line 
-                     nil)
-                    ((setq tem (or (assoc argi command-switch-alist)
-                                   (and (string-match "\\`--" argi)
-                                        (assoc (substring argi 1)
-                                               command-switch-alist))))
-                     (funcall (cdr tem) argi)
-                     t)
-                    ((string-match "\\`\\+[0-9]+\\'" argi)
-                     (setq line (string-to-int argi))
-                     t)
-                    ((or (equal argi "-") (equal argi "--"))
-                     ;; "- file" means don't treat "file" as a switch
-                     ;;  ("+0 file" has the same effect; "-" added
-                     ;;   for unixoidiality.)
-		     ;; This is worthless; the `unixoid' way is "./file". -jwz
-                     (setq line 0))
-                    (t
-                     nil))
-              (progn
-                (setq file-count (1+ file-count))
-                (setq argi (expand-file-name argi dir))
-                (if (= file-count 1)
-                    (setq first-file-buffer (progn (find-file argi)
-                                                   (current-buffer)))
-		  (if noninteractive
-		      (find-file argi)
-                    (find-file-other-window argi)))
-                (goto-line (or line 0))
-		(setq line nil)))))
-      ;; If 3 or more files visited, and not all visible,
-      ;; show user what they all are.
-      (if (and (not noninteractive)
-	       (> file-count 2))
-	  (or (get-buffer-window first-file-buffer)
-	      (progn (other-window 1)
-		     (buffer-menu nil)))))))
+    (parse-command-line)))
+
+;;; Separated from above so we can call it later if another editor
+;;; tries to start up but yields via the SPARCworks yielding protocol.
+;;; If that happens, the remaining editor gets a callback invoked
+;;; that imbeds the command line from the yielding editor.  So we
+;;; process the yielding editor's command line.
+(defun parse-command-line ()
+  (let ((dir default-directory)
+	(file-count 0)
+	first-file-buffer
+	(line nil))
+    (while command-line-args-left
+      (let ((argi (car command-line-args-left))
+	    tem)
+	(setq command-line-args-left (cdr command-line-args-left))
+	(or (cond (line 
+		   nil)
+		  ((setq tem (or (assoc argi command-switch-alist)
+				 (and (string-match "\\`--" argi)
+				      (assoc (substring argi 1)
+					     command-switch-alist))))
+		   (funcall (cdr tem) argi)
+		   t)
+		  ((string-match "\\`\\+[0-9]+\\'" argi)
+		   (setq line (string-to-int argi))
+		   t)
+		  ((or (equal argi "-") (equal argi "--"))
+		   ;; "- file" means don't treat "file" as a switch
+		   ;;  ("+0 file" has the same effect; "-" added
+		   ;;   for unixoidiality.)
+		   ;; This is worthless; the `unixoid' way is "./file". -jwz
+		   (setq line 0))
+		  (t
+		   nil))
+	    (progn
+	      (setq file-count (1+ file-count))
+	      (setq argi (expand-file-name argi dir))
+	      (if (= file-count 1)
+		  (setq first-file-buffer (progn (find-file argi)
+						 (current-buffer)))
+		(if noninteractive
+		    (find-file argi)
+		  (find-file-other-window argi)))
+	      (goto-line (or line 0))
+	      (setq line nil)))))
+    ;; If 3 or more files visited, and not all visible,
+    ;; show user what they all are.
+    (if (and (not noninteractive)
+	     (> file-count 2))
+	(or (get-buffer-window first-file-buffer)
+	    (progn (other-window 1)
+		   (buffer-menu nil))))))
+
+(defvar yielding-args-to-ignore-alist '(("-q" . 0)
+					("-no-init-file" . 0)
+					("-user" . 1)
+					("-u" . 1)
+					("-nw" . 0))
+  "List of args to NOT pass onto running emacs before exiting.  SPARCworks only.")
+
+;;; Lop off the switches that make no sense to pass onto a running emacs.
+(defun yielding-parse-command-line ()
+  (let ((args command-line-args-left)
+	(new-args nil))
+    (while args
+      (let ((argi (car args))
+	    tem)
+	(setq args (cdr args))
+	(cond ((setq tem (assoc argi yielding-args-to-ignore-alist))
+	       (setq args (nthcdr (cdr tem) args)))
+	      (t
+	       (setq new-args (cons argi new-args))))))
+    (setq command-line-args-left (nreverse new-args)))
+  (parse-command-line))
 
 
 (defun find-emacs-root-internal (path)
@@ -732,33 +837,6 @@ Type \\[describe-distribution] for information on getting the latest version."))
 	(princ (buffer-string) 'external-debugging-output)
 	(erase-buffer)
 	t)))))
-
-
-;;>>> Pathetic variable name.  And undocumented to boot!
-(defvar cdlist nil)
-
-(defun initialize-cdlist ()
-  (let ((cdpath (getenv "CDPATH"))
-	buf here end l)
-    (if cdpath
-	(save-excursion 
-	  (setq buf (get-buffer-create "** cdpath-decode **"))
-	  (set-buffer buf)
-	  (erase-buffer)
-	  (insert cdpath)
-	  (insert ?:)
-	  (goto-char (point-min))
-	  (setq here (point)
-		end (point-max))
-	  (while (< (point) (point-max))
-	    (re-search-forward ":" end 33)
-	    (setq l (cons (directory-file-name
-			   (buffer-substring here (1- (point)))) l)
-		  here (point)))
-          (kill-buffer (current-buffer))
-	  (nreverse l))
-      nil)))
-
 
 (defun fontify-copyleft ()
   (and window-system (fboundp 'set-extent-face)

@@ -1,5 +1,5 @@
 ;;; Editing VM messages
-;;; Copyright (C) 1990, 1991 Kyle E. Jones
+;;; Copyright (C) 1990, 1991, 1993 Kyle E. Jones
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -24,39 +24,41 @@ controlled by the variable `vm-edit-message-mode'.
 Use C-c ESC when you have finished editing the message.  The message
 will be inserted into its folder replacing the old version of the
 message.  If you don't want your edited version of the message to
-replace the original, use C-c C-]."
+replace the original, use C-c C-] and the edit will be aborted."
   (interactive "P")
   (vm-follow-summary-cursor)
   (vm-select-folder-buffer)
   (vm-check-for-killed-summary)
   (vm-error-if-folder-read-only)
   (vm-error-if-folder-empty)
+  (if (and (vm-virtual-message-p (car vm-message-pointer))
+	   (null (vm-virtual-messages-of (car vm-message-pointer))))
+      (error "Can't edit unmirrored virtual messages."))
   (if prefix-argument
       (if (vm-edited-flag (car vm-message-pointer))
 	  (progn
 	    (vm-set-edited-flag (car vm-message-pointer) nil)
-	    (vm-mark-for-display-update (car vm-message-pointer))
+	    (vm-mark-for-summary-update (car vm-message-pointer))
 	    (if (eq vm-flush-interval t)
 		(vm-stuff-virtual-attributes (car vm-message-pointer))
 	      (vm-set-modflag-of (car vm-message-pointer) t))
-	    (vm-set-buffer-modified-p t (vm-current-message-buffer))
 	    (vm-update-summary-and-mode-line))
 	(message "Message has not been edited."))
     (let ((mp vm-message-pointer)
 	  (edit-buf (vm-edit-buffer-of (car vm-message-pointer)))
-	  (folder-buffer (current-buffer))
-	  (inhibit-quit t))
+	  (folder-buffer (current-buffer)))
       (if (not (and edit-buf (buffer-name edit-buf)))
 	  (progn
 	    (vm-save-restriction
 	      (widen)
-	      (setq edit-buf (generate-new-buffer "*VM message edit*"))
+	      (setq edit-buf
+		    (generate-new-buffer
+		     (format "edit of %s subj %s"
+			     (vm-su-message-id (car vm-message-pointer))
+			     (vm-su-subject (car vm-message-pointer)))))
 	      (vm-set-edit-buffer-of (car mp) edit-buf)
 	      (copy-to-buffer edit-buf
-			      (save-excursion
-				(goto-char (vm-start-of (car mp)))
-				(forward-line 1)
-				(point))
+			      (vm-headers-of (car mp))
 			      (vm-text-end-of (car mp))))
 	    (if (get-buffer-window edit-buf)
 		(select-window (get-buffer-window edit-buf))
@@ -65,83 +67,23 @@ replace the original, use C-c C-]."
 	    (goto-char (point-min))
 	    (search-forward "\n\n" (point-max) t)
 	    (funcall (or vm-edit-message-mode 'text-mode))
-	    (setq vm-message-pointer mp
+	    (use-local-map vm-edit-message-map)
+	    ;; (list (car mp)) because a different message may
+	    ;; stuffed into a cons linked into the folder's
+	    ;; message list.
+	    (setq vm-message-pointer (list (car mp))
 		  vm-mail-buffer folder-buffer)
-	    (cond
-	     ((vm-fsf-emacs-19-p)
-	      (use-local-map (append vm-edit-message-mode-map
-				     (or (current-local-map)
-					 (make-sparse-keymap)))))
-	     ((vm-lucid-emacs-p)
-	      (let ((m (copy-keymap vm-edit-message-mode-map)))
-		(set-keymap-parent m (current-local-map))
-		(use-local-map m)))
-	     (t (use-local-map (copy-keymap (or (current-local-map)
-						(make-sparse-keymap))))
-		(vm-overlay-keymap vm-edit-message-mode-map
-				   (current-local-map))))
-	    (message "Type C-c ESC to end edit, C-c C-] to abort with no change."))
-	(switch-to-buffer edit-buf)))))
+	    (run-hooks 'vm-edit-message-hook)
+	    (message 
+	     (substitute-command-keys
+	      "Type \\[vm-edit-message-end] to end edit, \\[vm-edit-message-abort] to abort with no change."))))
+      (or (vm-set-window-configuration 'editing-message)
+	  (switch-to-buffer edit-buf)))))
 
-(defun vm-overlay-keymap (src-map dest-map)
-  (let ((old-local-map (current-local-map)))
-    (unwind-protect
-	(progn
-	  (use-local-map dest-map)
-	  (cond
-	   ((vectorp src-map)
-	    (let ((i (1- (length src-map))) src-b dest-b)
-	      (while (>= i 0)
-		(setq src-b (aref src-map i))
-		(cond
-		 ((null src-b))
-		 ((keymapp src-b)
-		  (setq dest-b (local-key-binding (char-to-string i)))
-		  (if (not (keymapp dest-b))
-		      (define-key dest-map (char-to-string i)
-			(setq dest-b (make-sparse-keymap))))
-		  (vm-overlay-keymap src-b dest-b))
-		 (t
-		  (define-key dest-map (char-to-string i) src-b)))
-		(vm-decrement i))))
-	   ((consp src-map)
-	    (let (src-b dest-b)
-	      (setq src-map (cdr src-map))
-	      (while src-map
-		(setq src-b (cdr (car src-map)))
-		(cond
-		 ((null src-b))
-		 ((keymapp src-b)
-		  (setq dest-b (local-key-binding
-				(char-to-string (car (car src-map)))))
-		  (if (not (keymapp dest-b))
-		      (define-key dest-map (char-to-string (car (car src-map)))
-			(setq dest-b (make-sparse-keymap))))
-		  (vm-overlay-keymap src-b dest-b))
-		 (t
-		  (define-key dest-map (char-to-string (car (car src-map)))
-		    src-b)))
-		(setq src-map (cdr src-map)))))
-	   ((fboundp 'map-keymap)
-	    (let (src-b dest-b)
-	      (map-keymap
-	       (function
-		(lambda (key src-b)
-		  (cond ((keymapp src-b)
-			 (setq dest-b (local-key-binding (vector key)))
-			 (if (not (keymapp dest-b))
-			     (define-key dest-map key
-			       (setq dest-b (make-sparse-keymap))))
-			 (vm-overlay-keymap src-b dest-b))
-			(t
-			 (define-key dest-map key src-b)))))
-	       src-map)))))
-      (use-local-map old-local-map))))
-				
 (defun vm-discard-cached-data (&optional count)
   "Discard cached information about the current message.
-When VM digs information from the headers of a message, it stores it
-iunternally for future reference.  This command causes VM to forget this
+When VM gathers information from the headers of a message, it stores it
+internally for future reference.  This command causes VM to forget this
 information, and VM will be forced to search the headers of the message
 again for these data.  VM will also have to decide again which headers
 should be displayed and which should not.  Therefore this command is
@@ -160,19 +102,17 @@ data is discarded only from the marked messages in the current folder."
   (vm-select-folder-buffer)
   (vm-check-for-killed-summary)
   (vm-error-if-folder-empty)
-  ;; Do this in case the user is using this command because the
-  ;; variables that control visible headers have been altered.
-  (vm-build-visible-header-alist)
-  (let ((mlist (vm-select-marked-or-prefixed-messages count)))
+  (let ((mlist (vm-select-marked-or-prefixed-messages count)) m)
     (while mlist
-      (vm-set-cache-of (car mlist)
+      (setq m (vm-real-message-of (car mlist)))
+      (vm-set-cache-of m
 		       (make-vector
-			(length (vm-cache-of (car mlist)))
+			(length (vm-cache-of m))
 			nil ))
-      (vm-set-vheaders-of (car mlist) nil)
-      (vm-set-vheaders-regexp-of (car mlist) nil)
-      (vm-set-text-of (car mlist) nil)
-      (vm-mark-for-display-update (car mlist))
+      (vm-set-vheaders-of m nil)
+      (vm-set-vheaders-regexp-of m nil)
+      (vm-set-text-of m nil)
+      (vm-mark-for-summary-update m)
       (setq mlist (cdr mlist))))
   (vm-update-summary-and-mode-line))
 
@@ -187,32 +127,34 @@ to the message's folder."
   (let ((edit-buf (current-buffer))
 	(mp vm-message-pointer))
     (if (buffer-modified-p)
-	(let ((inhibit-quit t))
+	(progn
 	  (widen)
 	  (save-excursion
-	    (set-buffer (marker-buffer (vm-start-of (car mp))))
-	    (if (not (memq (car mp) vm-message-list))
+	    (set-buffer (marker-buffer (vm-start-of (vm-real-message-of (car mp)))))
+	    (if (not (memq (vm-real-message-of (car mp)) vm-message-list))
 		(error "The original copy of this message has been expunged."))
 	    (vm-save-restriction
 	     (widen)
-	     (goto-char (vm-start-of (car mp)))
-	     (forward-line 1)
+	     (goto-char (vm-headers-of (vm-real-message-of (car mp))))
 	     (let ((vm-message-pointer mp)
-		   vm-next-command-uses-marks
-		   buffer-read-only)
+		   opoint
+		   (buffer-read-only nil))
+	       (setq opoint (point))
 	       (insert-buffer-substring edit-buf)
 	       (and (/= (preceding-char) ?\n) (insert ?\n))
-	       (delete-region (point) (vm-text-end-of (car mp)))
+	       (delete-region (point) (vm-text-end-of (vm-real-message-of (car mp))))
+	       ;; vm-message-pointer is set above so that the
+	       ;; correct message gets its cache flushed
 	       (vm-discard-cached-data))
 	     (vm-set-edited-flag (car mp) t)
-	     (vm-mark-for-display-update (car mp))
+	     (vm-mark-for-summary-update (car mp))
 	     (if (eq vm-flush-interval t)
 		 (vm-stuff-virtual-attributes (car mp))
 	       (vm-set-modflag-of (car mp) t))
 	     (vm-set-buffer-modified-p t)
 	     (vm-clear-modification-flag-undos)
 	     (vm-set-edit-buffer-of (car mp) nil))
-	    (if (eq mp vm-message-pointer)
+	    (if (eq (car mp) (car vm-message-pointer))
 		(vm-preview-current-message)
 	      (vm-update-summary-and-mode-line))))
       (message "No change."))
@@ -224,7 +166,7 @@ to the message's folder."
   (interactive)
   (if (null vm-message-pointer)
       (error "This is not a VM message edit buffer."))
-  (if (null (buffer-name (marker-buffer (vm-end-of (car vm-message-pointer)))))
+  (if (null (buffer-name (marker-buffer (vm-start-of (vm-real-message-of (car vm-message-pointer))))))
       (error "The folder buffer for this message has been killed."))
   (vm-set-edit-buffer-of (car vm-message-pointer) nil)
   (set-buffer-modified-p nil)

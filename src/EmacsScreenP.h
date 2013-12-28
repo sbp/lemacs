@@ -1,7 +1,7 @@
 #ifndef _EmacsScreenP_h
 #define _EmacsScreenP_h
 
-#include <X11/IntrinsicP.h>
+#include "xintrinsicp.h"
 #include <X11/CoreP.h>
 #include "EmacsScreen.h"
 
@@ -23,7 +23,11 @@ typedef struct {
   int		internal_border_width;	/* internal borders */
   int		interline;		/* skips between lines */
 
+#ifdef I18N4
+  XFontSet	font;			/* font set */
+#else
   XFontStruct*	font;			/* font */
+#endif
   Pixel		foreground_pixel;	/* foreground */
 
   Pixel		cursor_color;		/* text cursor color */
@@ -31,6 +35,8 @@ typedef struct {
 
   Boolean	visual_bell;		/* flash instead of beep */
   int		bell_volume;		/* how loud is beep */
+
+  Boolean	menubar_p;		/* initially show a menubar? */
 
   /* private state */
 

@@ -2,7 +2,7 @@
 
 ;; Runtime support for the new optimizing byte compiler.  
 ;; By Jamie Zawinski <jwz@lucid.com>.
-;; Last Modified: 16-jun-93.
+;; Last Modified: 23-dec-93.
 ;;
 ;; The code in this file should always be loaded, because it defines things 
 ;; like "defsubst" which should work interpreted as well.  The code in 
@@ -166,9 +166,9 @@ The result of the body appears to the compiler as a quoted constant."
 
 (put 'byte-compiler-options 'lisp-indent-hook 0)
 (defmacro byte-compiler-options (&rest args)
-  "Set some compilation-parameters for this file.  This will affect only the
-file in which it appears; this does nothing when evaluated, and when loaded
-from a .el file.
+  "Set some compilation-parameters for this file.  
+This will affect only the file in which it appears; this does nothing when
+evaluated, and when loaded from a .el file.
 
 Each argument to this macro must be a list of a key and a value.
 
@@ -177,14 +177,28 @@ Each argument to this macro must be a list of a key and a value.
   verbose	  t, nil		byte-compile-verbose
   optimize	  t, nil, source, byte	byte-compile-optimize
   warnings	  list of warnings	byte-compile-warnings
-		      Legal elements: (callargs redefine free-vars unresolved)
   file-format	  emacs18, emacs19	byte-compile-emacs18-compatibility
   new-bytecodes	  t, nil		byte-compile-generate-emacs19-bytecodes
 
-For example, this might appear at the top of a source file:
+The value specificed with the `warnings' option must be a list, containing
+some subset of the following flags:
+
+  free-vars	references to variables not in the current lexical scope.
+  unused-vars	references to non-global variables bound but not referenced.
+  unresolved	calls to unknown functions.
+  callargs	lambda calls with args that don't match the definition.
+  redefine	function cell redefined from a macro to a lambda or vice
+		versa, or redefined to take a different number of arguments.
+
+If the first element if the list is `+' or `-' then the specified elements 
+are added to or removed from the current set of warnings, instead of the
+entire set of warnings being overwritten.
+
+For example, something like this might appear at the top of a source file:
 
     (byte-compiler-options
       (optimize t)
-      (warnings (- free-vars))		; Don't warn about free variables
+      (warnings (- callargs))		; Don't warn about arglist mismatch
+      (warnings (+ unused-vars))	; Do warn about unused bindings
       (file-format emacs19))"
   nil)

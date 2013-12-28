@@ -1,5 +1,5 @@
-Info file cl.info, produced by Makeinfo, -*- Text -*- from input file
-cl.texinfo.
+This is Info file ../info/cl.info, produced by Makeinfo-1.55 from the
+input file cl.texinfo.
 
    This file documents the GNU Emacs Common Lisp emulation package.
 
@@ -18,9 +18,9 @@ identical to this one.
 
    Permission is granted to copy and distribute translations of this
 manual into another language, under the above conditions for modified
-versions, except that the section entitled "GNU General Public
-License" may be included in a translation approved by the author
-instead of in the original English.
+versions, except that the section entitled "GNU General Public License"
+may be included in a translation approved by the author instead of in
+the original English.
 
 
 File: cl.info,  Node: Function Index,  Next: Variable Index,  Prev: Porting Common Lisp,  Up: Top

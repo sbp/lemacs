@@ -1,5 +1,5 @@
 /* The portable interface to event_streams.
-   Copyright (C) 1991, 1992, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1991, 1992, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -28,6 +28,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
  */
 
 #include "config.h"
+#include "intl.h"
 
 #include <stdio.h>              /* for "graceful exit" kludge */
 
@@ -220,7 +221,8 @@ execute_help_form (struct command_builder *command_builder,
 
   tem0 = Feval (Vhelp_form);
   if (STRINGP (tem0))
-    internal_with_output_to_temp_buffer ("*Help*", print_help, tem0, Qnil);
+    internal_with_output_to_temp_buffer (GETTEXT ("*Help*"),
+					 print_help, tem0, Qnil);
 
   Fnext_command_event (event);
 
@@ -343,6 +345,16 @@ Lisp_Object function, object;
  */
 int num_input_chars;
 
+void
+lose_without_x ()
+{
+  fputs (GETTEXT ("\n\n\
+emacs: this version of emacs only works under X for now;\n\
+check that your $DISPLAY environment variable is properly set.\n"),
+	 stderr);
+  Fkill_emacs (make_number (69));
+}
+
 static void
 next_event_internal (Lisp_Object target_event, int allow_queued)
 {
@@ -374,14 +386,7 @@ next_event_internal (Lisp_Object target_event, int allow_queued)
 	 to run in tty-mode for some reason.  This is the latest time we
 	 can make this check, because we're about to deref event_stream.
        */
-      if (! event_stream)
-	{
-	  fputs ("\n\n\
-This version of emacs only runs under X Windows (for now).\n\
-Check that your $DISPLAY environment variable is properly set.\n",
-		 stderr);
-	  Fkill_emacs (make_number (69));
-	}
+      if (! event_stream) lose_without_x ();
 
       /* The command_event_queue was empty.  Wait for an event. */
       event = Fallocate_event ();
@@ -422,7 +427,7 @@ new event object will be created.")
     CHECK_EVENT (event, 0);
 
   if (XEVENT (event)->event_type == dead_event)
-    error ("next-event called with a deallocated event!");
+    error (GETTEXT ("next-event called with a deallocated event!"));
 
   if (!NILP (prompt))
     {
@@ -520,7 +525,7 @@ new event object will be created.")
       if (XEVENT (Vlast_input_event)->event_type == dead_event)
 	{
 	  Vlast_input_event = Fallocate_event ();
-	  error ("Someone deallocated last-input-event!");
+	  error (GETTEXT ("Someone deallocated last-input-event!"));
 	}
       if (! EQ (event, Vlast_input_event))
 	Fcopy_event (event, Vlast_input_event);
@@ -720,77 +725,53 @@ Also cancel any kbd macro being defined.")
 }
 
 
+static unsigned long lisp_number_to_milliseconds (Lisp_Object secs,
+						  int allow_0);
+
+/* #### Is (accept-process-output nil 3) supposed to be like (sleep-for 3)?
+ */
+
 DEFUN ("accept-process-output", Faccept_process_output, Saccept_process_output,
-  0, 1 /* >>> 3 */, 0,
+       0, 3, 0,
   "Allow any pending output from subprocesses to be read by Emacs.\n\
 It is read into the process' buffers or given to their filter functions.\n\
 Non-nil arg PROCESS means do not return until some output has been received\n\
-from PROCESS.")
-  (proc)
-#if 0 /* >>> NYI */
-"Non-nil second arg TIMEOUT and third arg TIMEOUT-MSECS are number of\n\
-seconds and microseconds to wait; return after that much time whether\n\
-or not there is input.\n\
-Return non-nil iff we received any output before the timeout expired."
-  (proc, timeout, timeout_msecs)
-#endif
-     register Lisp_Object proc /*, timeout, timeout_msecs */;
+ from PROCESS.\n\
+If the second arg is non-nil, it is the maximum number of seconds to wait:\n\
+ this function will return after that much time even if no input has arrived\n\
+ from PROCESS.  This argument may be a float, meaning wait some fractional\n\
+ part of a second.\n\
+If the third arg is non-nil, it is a number of microseconds that is added\n\
+ to the first arg.  (This exists only for compatibility.)\n\
+Return non-nil ifn we received any output before the timeout expired.")
+     (proc, timeout_secs, timeout_msecs)
+     register Lisp_Object proc, timeout_secs, timeout_msecs;
 {
-  Lisp_Object event;
   struct gcpro gcpro1;
-#if 0 /* >>> NYI */
-  int seconds;
-  int useconds;
-#endif
+  Lisp_Object event = Qnil;
+  int timeout_id = 0;
+  Lisp_Object result = Qnil;
 
   if (!NILP (proc))
     CHECK_PROCESS (proc, 0);
 
-#if 0 /* >>> NYI */
-  if (! NILP (timeout_msecs))
+  GCPRO1 (event);
+
+  if (!NILP (proc) && (!NILP (timeout_secs) || !NILP (timeout_msecs)))
     {
-      CHECK_NUMBER (timeout_msecs, 2);
-      useconds = XINT (timeout_msecs);
-      if (XTYPE (timeout) != Lisp_Int)
-	XSET (timeout, Lisp_Int, 0);
-
-      {
-	int carry = useconds / 1000000;
-
-	XSETINT (timeout, XINT (timeout) + carry);
-	useconds -= carry * 1000000;
-
-	/* I think this clause is necessary because C doesn't
-	   guarantee a particular rounding direction for negative
-	   integers.  */
-	if (useconds < 0)
-	  {
-	    XSETINT (timeout, XINT (timeout) - 1);
-	    useconds += 1000000;
-	  }
-      }
+      unsigned long msecs = 0;
+      if (!NILP (timeout_secs))
+	msecs = lisp_number_to_milliseconds (timeout_secs, 1);
+      if (!NILP (timeout_msecs))
+	{
+	  CHECK_NATNUM (timeout_msecs, 0);
+	  msecs += XINT (timeout_msecs);
+	}
+      if (msecs)
+	timeout_id = event_stream->generate_wakeup_cb (msecs, 0, Qnil, Qnil);
     }
-  else
-    useconds = 0;
-
-  if (! NILP (timeout))
-    {
-      CHECK_NUMBER (timeout, 1);
-      seconds = XINT (timeout);
-      if (seconds <= 0)
-	seconds = -1;
-    }
-  else
-    {
-      if (NILP (proc))
-	seconds = -1;
-      else
-	seconds = 0;
-    }
-#endif /* NYI timeout */
 
   event = Fallocate_event ();
-  GCPRO1 (event);
 
   while (!NILP (proc) ||
 	 /* Calling detect_input_pending() is the wrong thing here, because
@@ -817,7 +798,13 @@ Return non-nil iff we received any output before the timeout expired."
 	case process_event:
 	  {
 	    if (EQ (XEVENT (event)->event.process.process, proc))
-	      proc = Qnil;
+	      {
+		proc = Qnil;
+		/* RMS's version always returns nil when proc is nil,
+		   and only returns t if input ever arrived on proc. */
+		result = Qt;
+	      }
+
 	    Fdispatch_event (event);
 
 	    /* We must call status_notify here to allow the
@@ -835,6 +822,16 @@ Return non-nil iff we received any output before the timeout expired."
 	    break;
 	  }
 	case timeout_event:
+	  {
+	    if (XEVENT (event)->event.timeout.id_number == timeout_id)
+	      {
+		timeout_id = 0;
+		proc = Qnil;  /* we're done */
+	      }
+	    else	      /* a timeout that wasn't one we're waiting for */
+	      Fdispatch_event (event);
+	    break;
+	  }
 	case pointer_motion_event:
 	case magic_event:
 	  Fdispatch_event (event);
@@ -843,9 +840,14 @@ Return non-nil iff we received any output before the timeout expired."
 	  enqueue_command_event (Fcopy_event (event, Qnil));
 	}
     }
+
+  /* If our timeout has not been signalled yet, disable it. */
+  if (timeout_id)
+    event_stream->disable_wakeup_cb (timeout_id);
+
   Fdeallocate_event (event);
   UNGCPRO;
-  return Qnil;
+  return result;
 }
 
 
@@ -867,14 +869,15 @@ lisp_number_to_milliseconds (Lisp_Object secs, int allow_0)
 #endif
   msecs = 1000 * fsecs;
   if (fsecs < 0)
-    signal_error (Qerror, list2 (build_string ("timeout is negative"),
+    signal_error (Qerror, list2 (build_string (GETTEXT("timeout is negative")),
 				 secs));
   if (!allow_0 && fsecs == 0)
-    signal_error (Qerror, list2 (build_string ("timeout is non-positive"),
+    signal_error (Qerror, list2 (build_string
+				 (GETTEXT ("timeout is non-positive")),
 				 secs));
   if (fsecs >= (((unsigned int) 0xFFFFFFFF) / 1000))
-    signal_error (Qerror, list2 (build_string (
-             "timeout would exceed 32 bits when represented in milliseconds"),
+    signal_error (Qerror, list2 (build_string (GETTEXT (
+             "timeout would exceed 32 bits when represented in milliseconds")),
 			    secs));
   return msecs;
 }
@@ -1089,7 +1092,7 @@ is a race condition.  That's why the RESIGNAL argument exists.")
 			  lisp_number_to_milliseconds (resignal, 0));
   int id;
   Lisp_Object lid;
-  if (noninteractive) error ("can't add timeouts in batch mode");
+  if (noninteractive) error (GETTEXT ("can't add timeouts in batch mode"));
   if (! event_stream) abort ();
   id = event_stream->generate_wakeup_cb (msecs, msecs2, function, object);
   lid = make_number (id);
@@ -1105,7 +1108,7 @@ will cause that timeout to not be signalled if it hasn't been already.")
      Lisp_Object id;
 {
   CHECK_FIXNUM (id, 0);
-  if (noninteractive) error ("can't use timeouts in batch mode");
+  if (noninteractive) error (GETTEXT ("can't use timeouts in batch mode"));
   if (! event_stream) abort ();
   event_stream->disable_wakeup_cb (XINT (id));
   return Qnil;
@@ -1179,6 +1182,12 @@ dispatch_event_internal (struct command_builder *command_builder,
   case button_release_event:
     return (compose_command (command_builder, event, execute_p));
 
+#ifdef I18N4
+  case wchar_event:
+    insert_wide_char (XEVENT(event)->event.wchar.data);
+    return Qnil;
+#endif
+
   case menu_event:
     {
       if (execute_p)
@@ -1214,12 +1223,30 @@ dispatch_event_internal (struct command_builder *command_builder,
     {
       Lisp_Object p = XEVENT (event)->event.process.process;
       int infd, outfd;
+      if (!PROCESSP (p)) abort ();
       get_process_file_descriptors (XPROCESS (p), &infd, &outfd);
       if (infd >= 0)
 	{
 	  if ((read_process_output (p, infd)) == 0)
 	    {
-	      if (network_connection_p (p))
+	      /*
+		 HACK.  Whatever command_channel_p is supposed to be,
+		 it's now used to indicate whether this connection was
+		 created with connect-to-file-descriptor.  When
+		 connected to ToolTalk, it's not possible to reliably
+		 determine whether there is a message waiting for
+		 ToolTalk to receive.  ToolTalk expects to have
+		 tt_message_receive() called exactly once every time
+		 the file descriptor becomes active, so the filter
+		 function forces this by returning 0.  Emacs must not
+		 interpret this as EOF.
+
+		 command_channel_p no longer exists as such so it has
+		 been replaced with the function connected_via_file_desc.
+		 */
+
+	      if (network_connection_p (p) &&
+		  !connected_via_file_desc(XPROCESS (p)))
 		{
 		  /* Deactivate network connection */
 		  Lisp_Object status = Fprocess_status (p);
@@ -1633,7 +1660,7 @@ compose_command (struct command_builder *command_builder,
 #if 1
 	  Fsignal (Qundefined_keystroke_sequence, list1 (keys));
 #else
-	  message ("%s not defined.", /* doo dah, doo dah */
+	  message (GETTEXT ("%s not defined."), /* doo dah, doo dah */
 		   command_builder->echo_buf);
 	  bitch_at_user (intern ("undefined-key"));
 #endif
@@ -1812,7 +1839,7 @@ store_last_command_event (struct command_builder *command_builder,
   if (XEVENT (Vlast_command_event)->event_type == dead_event)
     {
       Vlast_command_event = Fallocate_event ();
-      error ("Someone deallocated the last-command-event!");
+      error (GETTEXT ("Someone deallocated the last-command-event!"));
     }
 
   if (! EQ (event, Vlast_command_event))
@@ -1879,12 +1906,12 @@ DEFUN ("dispatch-event", Fdispatch_event, Sdispatch_event, 1, 1, 0,
 {
   CHECK_EVENT (event, 0);
   if (XEVENT (event)->event_type == dead_event)
-    error ("dispatch-event called on a deallocated event!");
+    error (GETTEXT ("dispatch-event called on a deallocated event!"));
   dispatch_event_internal (the_command_builder, event, 1);
   return Qnil;
 }
 
-DEFUN ("read-key-sequence", Fread_key_sequence, Sread_key_sequence, 1, 2, 0,
+DEFUN ("read-key-sequence", Fread_key_sequence, Sread_key_sequence, 1, 1, 0,
   "Read a sequence of keystrokes or mouse clicks and return a vector of the\n\
 event objects read.  The vector and the event objects it contains are\n\
 freshly created (and will not be side-effected by subsequent calls\n\
@@ -1982,7 +2009,7 @@ syms_of_event_stream ()
   pure_put (Qundefined_keystroke_sequence, Qerror_conditions,
             list2 (Qundefined_keystroke_sequence, Qerror));
   pure_put (Qundefined_keystroke_sequence, Qerror_message,
-            build_string ("Undefined keystroke sequence"));
+            build_string (DEFER_GETTEXT ("Undefined keystroke sequence")));
 
   recent_keys_ring_index = 0;
   recent_keys_ring = make_vector (RECENT_KEYS_SIZE, Qnil);

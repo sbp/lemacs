@@ -4,7 +4,7 @@
 ;;; Description:	simple editing of tar files from GNU emacs
 ;;; Author:		Jamie Zawinski <jwz@lucid.com>
 ;;; Created:		4 Apr 1990
-;;; Version:		1.30, 6 Mar 93
+;;; Version:		1.31, 15 Dec 93
 
 ;;; Copyright (C) 1990-1993 Free Software Foundation, Inc.
 ;;;
@@ -106,11 +106,6 @@ the file never exists on disk.
 This does not work in Emacs 18, because there's no way to get the current 
 time as an integer - if this var is true, then editing a file sets its date
 to midnight, Jan 1 1970 GMT, which happens to be what 0 encodes.")
-
-(defvar tar-view-kill-buffer t
-  "*Whether to kill the buffer when view-mode exits.  The standard view-mode
-requires this, but other versions (notably less.el) which don't use
-recursive edits do not.")
 
 
 ;;; First, duplicate some Common Lisp functions; I used to just (require 'cl)
@@ -495,12 +490,67 @@ is visible (and the real data of the buffer is hidden)."
   (define-key tar-mode-map "M" 'tar-chmod-entry)
   (define-key tar-mode-map "G" 'tar-chgrp-entry)
   (define-key tar-mode-map "O" 'tar-chown-entry)
+
+  (cond ((string-match "Lucid" emacs-version)
+	 (define-key tar-mode-map 'button2 'tar-track-mouse-and-extract-file)
+	 (define-key tar-mode-map 'button3 'tar-popup-menu)))
   )
+
+
+;; Lucid Emacs menu mouse/support added by Heiko Muenkel
+;; muenkel@tnt.uni-hannover.de
+
+(autoload 'dired-mark-region "dired-lucid")
+
+(defvar tar-menu
+  '("Tar Mode Commands"
+    ["Copy Subfile to Disk" tar-copy t]
+    ["Rename Subfile" tar-rename-entry t]
+    "----"
+    ["Delete Flaged Subfiles" tar-expunge t]
+    ["Flag Subfile for Deletion" tar-flag-deleted t]
+    ["Flag Subfiles in Region for Deletion"
+     (dired-mark-region '(tar-flag-deleted 1))
+     (mark)]
+    ["Unflag Subfile" tar-unflag t]
+    ["Unflag Subfiles in Region"
+     (dired-mark-region '(tar-flag-deleted 1 t))
+     (mark)]
+    "----"
+    ["Change Permissions of Subfile..." tar-chmod-entry t]
+    ["Change Group of Subfile..." tar-chgrp-entry t]
+    ["Change Owner of Subfile..." tar-chown-entry t]
+    "----"
+    ["Edit Subfile Other Window" tar-extract-other-window t]
+    ["Edit Subfile" tar-extract t]
+    ["View Subfile" tar-view t]
+    ))
+
+
+(defun tar-track-mouse-and-extract-file (event)
+  "Visit the tar-file-entry upon which the mouse is clicked."
+  (interactive "e")
+  (mouse-set-point event)
+  (tar-next-line 0)
+  (let (buffer)
+    (save-excursion
+      (tar-extract)
+      (setq buffer (current-buffer)))
+    (switch-to-buffer buffer)))
+
+(defun tar-popup-menu (event)
+  "Display the tar-mode menu."
+  (interactive "@e")
+  (mouse-set-point event)
+  (tar-next-line 0)
+  (popup-menu tar-menu))
+
 
 ;; tar mode is suitable only for specially formatted data.
 (put 'tar-mode 'mode-class 'special)
 (put 'tar-subfile-mode 'mode-class 'special)
 
+;;;###autoload
 (defun tar-mode ()
   "Major mode for viewing a tar file as a dired-like listing of its contents.
 You can move around using the usual cursor motion commands. 
@@ -531,6 +581,15 @@ See also: variables tar-update-datestamp and tar-anal-blocksize.
   (if (and (boundp 'tar-header-offset) tar-header-offset)
       (narrow-to-region 1 tar-header-offset)
       (tar-summarize-buffer))
+
+  (cond ((string-match "Lucid" emacs-version)
+	 (require 'mode-motion)
+	 (setq mode-motion-hook 'mode-motion-highlight-line)
+	 (if (and current-menubar (not (assoc "Tar" current-menubar)))
+	     (progn
+	       (set-buffer-menubar (copy-sequence current-menubar))
+	       (add-menu nil "Tar" (cdr tar-menu))))
+	 ))
   (run-hooks 'tar-mode-hook)
   )
 
@@ -670,7 +729,14 @@ directory listing."
 		(let ((lock-directory nil)) ; disable locking
 		  (set-visited-file-name name) ; give it a name to decide mode.
 ;;		  (normal-mode)  ; pick a mode.
-		  (after-find-file nil nil)  ; pick a mode; works with crypt.el
+;;		  (after-find-file nil nil)  ; pick a mode; works with crypt.el
+		  ;; Ok, instead of running after-find-file, just invoke the
+		  ;; find-file-hooks instead.  This does everything we want
+		  ;; from after-find-file, without losing when visiting .tar
+		  ;; files via ange-ftp: doesn't probe the ftp site for the
+		  ;; name of the subfile.
+		  (normal-mode t)
+		  (run-hooks 'find-file-hooks)
 		  (set-visited-file-name nil) ; nuke the name - not meaningful.
 		  )
 		(make-local-variable 'superior-tar-buffer)
@@ -713,14 +779,15 @@ directory listing."
 	      (set-buffer tar-buffer))
 	  (narrow-to-region 1 tar-header-offset)))
       (if view-p
- 	  (if tar-view-kill-buffer
-	      (progn
-		(view-buffer buffer)
-		(and just-created (kill-buffer buffer)))
-	    (view-buffer))
-	  (if other-window-p
-	      (switch-to-buffer-other-window buffer)
-	      (switch-to-buffer buffer))))))
+	  (progn
+	    (view-buffer-other-window buffer)
+	    (save-excursion
+	      (set-buffer buffer)
+	      ;; for view-less.el; view.el can't do this.
+	      (set (make-local-variable 'view-kill-on-exit) t)))
+	(if other-window-p
+	    (switch-to-buffer-other-window buffer)
+	  (switch-to-buffer buffer))))))
 
 
 (defun tar-extract-other-window ()
@@ -1041,15 +1108,15 @@ to make your changes permanent."
   ;; (because it won't work - the .Z subfile it writes won't really be
   ;; compressed.)
   ;;
-  ;; These are for the old crypt.el
-  (if (and (boundp 'buffer-save-encrypted) buffer-save-encrypted)
-      (error "Don't know how to encrypt back into a tar file."))
-  (if (and (boundp 'buffer-save-compacted) buffer-save-compacted)
-      (error "Don't know how to compact back into a tar file."))
-  (if (and (boundp 'buffer-save-compressed) buffer-save-compressed)
-      (error "Don't know how to compress back into a tar file."))
-  (if (and (boundp 'buffer-save-gzipped) buffer-save-gzipped)
-      (error "Don't know how to gzip back into a tar file."))
+;  ;; These are for the old crypt.el
+;  (if (and (boundp 'buffer-save-encrypted) buffer-save-encrypted)
+;      (error "Don't know how to encrypt back into a tar file."))
+;  (if (and (boundp 'buffer-save-compacted) buffer-save-compacted)
+;      (error "Don't know how to compact back into a tar file."))
+;  (if (and (boundp 'buffer-save-compressed) buffer-save-compressed)
+;      (error "Don't know how to compress back into a tar file."))
+;  (if (and (boundp 'buffer-save-gzipped) buffer-save-gzipped)
+;      (error "Don't know how to gzip back into a tar file."))
 
   ;; These are for the new crypt++.el
   (if (and (boundp 'crypt-buffer-save-encrypted) crypt-buffer-save-encrypted)
@@ -1116,8 +1183,9 @@ to make your changes permanent."
 		  (cond ((fboundp 'current-time)
 			 (setq now (current-time))
 			 (setcdr now (car (cdr now))))
-			((fboundp 'current-time-seconds)
-			 (setq now (current-time-seconds))))
+;			((fboundp 'current-time-seconds)
+;			 (setq now (current-time-seconds)))
+			)
 		  (setq top (car now)
 			bot (cdr now))
 		  (cond

@@ -1,5 +1,5 @@
 /* m- file for Mips machines.
-   Copyright (C) 1987, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1992, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -177,27 +177,6 @@ NOTE-END  */
 #endif /* not NEWSOS5 */
 #endif /* not BSD */
 
-/* The standard definitions of these macros would work ok,
-   but these are faster because the constants are short.  */
-
-/* does this actually win anything?  I'd rather it not be here... --jwz */
-
-#define XUINT(a) (((unsigned)(a) << (INTBITS-VALBITS)) >> (INTBITS-VALBITS))
-
-#define XSET(var, type, ptr)						\
-  ((var) =								\
-   ((int)(type) << VALBITS)						\
-   + (((unsigned) (ptr) << (INTBITS-VALBITS)) >> (INTBITS-VALBITS)))
-
-#define XSETINT(a, b)  XSET(a, XTYPE(a), b)
-#define XSETUINT(a, b) XSET(a, XTYPE(a), b)
-#define XSETPNTR(a, b) XSET(a, XTYPE(a), b)
-
-#define XUNMARK(a)							\
-  ((a) =								\
-   (((unsigned)(a) << (INTBITS-GCTYPEBITS-VALBITS))			\
-    >> (INTBITS-GCTYPEBITS-VALBITS)))
-
 #ifndef NEWSOS5
 #ifdef USG
 
@@ -207,7 +186,8 @@ NOTE-END  */
 #undef static
 
 /* Don't try to use SIGIO or FIONREAD even though they are defined.  */
-#undef SIGIO
+/* #undef SIGIO		use BROKEN_SIGIO instead of this kludge -- jwz */
+#define BROKEN_SIGIO
 #define BROKEN_FIONREAD
 
 /* Describe special kernel features.  */

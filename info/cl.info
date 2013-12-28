@@ -1,5 +1,5 @@
-Info file cl.info, produced by Makeinfo, -*- Text -*- from input file
-cl.texinfo.
+This is Info file ../info/cl.info, produced by Makeinfo-1.55 from the
+input file cl.texinfo.
 
    This file documents the GNU Emacs Common Lisp emulation package.
 
@@ -18,84 +18,85 @@ identical to this one.
 
    Permission is granted to copy and distribute translations of this
 manual into another language, under the above conditions for modified
-versions, except that the section entitled "GNU General Public
-License" may be included in a translation approved by the author
-instead of in the original English.
+versions, except that the section entitled "GNU General Public License"
+may be included in a translation approved by the author instead of in
+the original English.
+
 
 Indirect:
-cl.info-1: 1038
-cl.info-2: 46854
-cl.info-3: 89842
-cl.info-4: 139720
-cl.info-5: 183995
-cl.info-6: 227101
+cl.info-1: 1050
+cl.info-2: 46736
+cl.info-3: 89515
+cl.info-4: 139258
+cl.info-5: 183480
+cl.info-6: 226439
 
 Tag Table:
 (Indirect)
-Node: Top1040
-Node: Overview2592
-Node: Usage4876
-Node: Organization5526
-Node: Installation7350
-Node: Naming Conventions8503
-Node: Program Structure10642
-Node: Argument Lists11110
-Node: Time of Evaluation21171
-Node: Function Aliases27181
-Node: Predicates27765
-Node: Type Predicates28085
-Node: Equality Predicates32912
-Node: Control Structure36161
-Node: Assignment36965
-Node: Generalized Variables38217
-Node: Basic Setf39524
-Node: Modify Macros46856
-Node: Customizing Setf54108
-Node: Variable Bindings61448
-Node: Dynamic Bindings62029
-Node: Lexical Bindings62919
-Node: Function Bindings67045
-Node: Macro Bindings69447
-Node: Conditionals72392
-Node: Blocks and Exits75496
-Node: Iteration78554
-Node: Loop Facility84046
-Node: Loop Basics84973
-Node: Loop Examples87584
-Node: For Clauses89844
-Node: Iteration Clauses101781
-Node: Accumulation Clauses103628
-Node: Other Clauses105972
-Node: Multiple Values112065
-Node: Macros113959
-Node: Declarations117183
-Node: Symbols125687
-Node: Property Lists125987
-Node: Creating Symbols129209
-Node: Numbers131264
-Node: Predicates on Numbers131744
-Node: Numerical Functions132774
-Node: Random Numbers137006
-Node: Implementation Parameters139722
-Node: Sequences143298
-Node: Sequence Basics143971
-Node: Mapping over Sequences147551
-Node: Sequence Functions153421
-Node: Searching Sequences159599
-Node: Sorting Sequences162638
-Node: Lists165192
-Node: List Functions165617
-Node: Substitution of Expressions169882
-Node: Lists as Sets171779
-Node: Association Lists175841
-Node: Hash Tables177545
-Node: Structures183997
-Node: Assertions198851
-Node: Efficiency Concerns201813
-Node: Common Lisp Compatibility208160
-Node: Old CL Compatibility211317
-Node: Porting Common Lisp215702
-Node: Function Index227103
-Node: Variable Index238607
+Node: Top1050
+Node: Overview2602
+Node: Usage4885
+Node: Organization5535
+Node: Installation7358
+Node: Naming Conventions8511
+Node: Program Structure10650
+Node: Argument Lists11118
+Node: Time of Evaluation21176
+Node: Function Aliases27156
+Node: Predicates27740
+Node: Type Predicates28060
+Node: Equality Predicates32870
+Node: Control Structure36108
+Node: Assignment36912
+Node: Generalized Variables38154
+Node: Basic Setf39461
+Node: Modify Macros46736
+Node: Customizing Setf53946
+Node: Variable Bindings61235
+Node: Dynamic Bindings61816
+Node: Lexical Bindings62706
+Node: Function Bindings66810
+Node: Macro Bindings69197
+Node: Conditionals72121
+Node: Blocks and Exits75200
+Node: Iteration78256
+Node: Loop Facility83729
+Node: Loop Basics84656
+Node: Loop Examples87256
+Node: For Clauses89515
+Node: Iteration Clauses101405
+Node: Accumulation Clauses103246
+Node: Other Clauses105590
+Node: Multiple Values111659
+Node: Macros113552
+Node: Declarations116770
+Node: Symbols125260
+Node: Property Lists125560
+Node: Creating Symbols128761
+Node: Numbers130813
+Node: Predicates on Numbers131293
+Node: Numerical Functions132322
+Node: Random Numbers136549
+Node: Implementation Parameters139258
+Node: Sequences142830
+Node: Sequence Basics143503
+Node: Mapping over Sequences147081
+Node: Sequence Functions152935
+Node: Searching Sequences159110
+Node: Sorting Sequences162148
+Node: Lists164696
+Node: List Functions165121
+Node: Substitution of Expressions169384
+Node: Lists as Sets171270
+Node: Association Lists175332
+Node: Hash Tables177035
+Node: Structures183480
+Node: Assertions198262
+Node: Efficiency Concerns201205
+Node: Common Lisp Compatibility207532
+Node: Old CL Compatibility210689
+Node: Porting Common Lisp215072
+Node: Function Index226439
+Node: Variable Index237943
 
 End Tag Table

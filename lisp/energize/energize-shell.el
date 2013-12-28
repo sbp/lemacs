@@ -31,12 +31,16 @@ In addition to the normal cursor-motion commands, the following keys are bound:
   (set (make-local-variable 'gdb-last-frame) nil)
   (set (make-local-variable 'gdb-last-frame-displayed-p) t)
   (set (make-local-variable 'gdb-delete-prompt-marker) nil)
+  (set (make-local-variable 'comint-input-autoexpand) nil)
   (run-hooks 'energize-debugger-mode-hook))
 
 
 (if energize-debugger-map
     nil
-  (setq energize-debugger-map (make-sparse-keymap))
+;;  (setq energize-debugger-map (make-sparse-keymap))
+;;  kludge!!
+  (setq energize-debugger-map (copy-keymap energize-map))
+
   (set-keymap-name energize-debugger-map 'energize-debugger-map)
   (set-keymap-parent energize-debugger-map gdb-mode-map)
   (define-key energize-debugger-map "\M-\t" 'comint-dynamic-complete)

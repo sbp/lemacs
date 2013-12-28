@@ -1,5 +1,5 @@
 /* VMS subprocess and command interface.
-   Copyright (C) 1987, 1988, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1988, 1992, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -60,6 +60,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #undef NULL
 
 #include "config.h"
+#include "intl.h"
 #include "lisp.h"
 #include <descrip.h>
 #include <dvidef.h>
@@ -703,7 +704,7 @@ translate_id (pid, owner)
     if (isxdigit (*p))
       {
 	id *= 16;
-	if (*p >= '0' && *p <= '9')
+	if (isdigit (*p))
 	  id += *p - '0';
 	else
 	  id += *p - 'A' + 10;

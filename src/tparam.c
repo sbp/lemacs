@@ -1,5 +1,5 @@
 /* Merge parameters into a termcap entry string.
-   Copyright (C) 1985, 1987, 1992, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1987, 1992, 1993, 1994 Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #ifdef emacs
 
 #include "config.h"
+
 /* #include "dispmisc.h" */
 #include <string.h>
 
@@ -52,13 +53,13 @@ extern char *realloc ();
 
    The fourth and following args to tparam serve as the parameter values.  */
 
-static char *tparam1 (const char *string, char *outstring, int len,
-                      const char *up, const char *left, 
+static char *tparam1 (CONST char *string, char *outstring, int len,
+                      CONST char *up, CONST char *left, 
                       int *argp);
 
 char *
 tparam (string, outstring, len, arg0, arg1, arg2, arg3)
-     const char *string;
+     CONST char *string;
      char *outstring;
      int len;
      int arg0, arg1, arg2, arg3;
@@ -71,13 +72,13 @@ tparam (string, outstring, len, arg0, arg1, arg2, arg3)
   return tparam1 (string, outstring, len, 0, 0, arg);
 }
 
-const char *BC;
-const char *UP;
+CONST char *BC;
+CONST char *UP;
 
 static char tgoto_buf[50];
 
 char *
-tgoto (const char *cm, int hpos, int vpos)
+tgoto (CONST char *cm, int hpos, int vpos)
 {
   int args[2];
   if (!cm)
@@ -89,14 +90,14 @@ tgoto (const char *cm, int hpos, int vpos)
 
 static char *
 tparam1 (string, outstring, len, up, left, argp)
-     const char *string;
+     CONST char *string;
      char *outstring;
      int len;
-     const char *up, *left;
+     CONST char *up, *left;
      register int *argp;
 {
   register int c;
-  register const char *p = string;
+  register CONST char *p = string;
   register char *op = outstring;
   char *outend;
   int outlen = 0;

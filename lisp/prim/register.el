@@ -77,7 +77,7 @@ Argument is a character, naming the register."
 ;  "Store the window configuration of all frames in register REGISTER.
 ;Use \\[jump-to-register] to restore the configuration.
 ;Argument is a character, naming the register."
-;  (interactive "cPoint to register: ")
+;  (interactive "cFrame configuration to register: ")
 ;  (set-register char (current-frame-configuration)))
 
 
@@ -89,12 +89,15 @@ If the register contains a file name, find that file.
 If the register contains a window configuration (one screen) or a screen
 configuration (all screens), restore that screen or all screens accordingly.
 Argument is a character, naming the register."
+;Optional second arg non-nil (interactively, prefix argument) says to
+;delete any existing frames that the frame configuration doesn't mention.
+;\(Otherwise, these frames are iconified.\)
   (interactive "cJump to register: ")
   (let ((val (get-register char)))
     (cond
 ;;   ((and (fboundp 'frame-configuration-p)
 ;;         (frame-configuration-p val))
-;;    (set-frame-configuration val))
+;;    (set-frame-configuration val (not delete)))
      ((window-configuration-p val)
       (set-window-configuration val))
      ((markerp val)
@@ -103,7 +106,7 @@ Argument is a character, naming the register."
      ((and (consp val) (eq (car val) 'file))
       (find-file (cdr val)))
      (t
-      (error "Register doesn't contain a buffer position or configuration")))))
+      (error (gettext "Register doesn't contain a buffer position or configuration"))))))
 
 ;(defun number-to-register (arg char)
 ;  "Store a number in a register.
@@ -139,46 +142,45 @@ REGISTER is a character."
   (interactive "cView register: ")
   (let ((val (get-register char)))
     (if (null val)
-	(message "Register %s is empty" (single-key-description char))
-      (with-output-to-temp-buffer "*Output*"
-	(princ "Register ")
-	(princ (single-key-description char))
-	(princ " contains ")
+	(message (gettext "Register %s is empty")
+		 (single-key-description char))
+      (with-output-to-temp-buffer (gettext "*Output*")
+	(princ (format (gettext "Register %s contains ")
+		       (single-key-description char)))
 	(cond 
           ((integerp val)
            (princ val))
 
           ((markerp val)
-           (princ "a buffer position:\nbuffer ")
-           (princ (buffer-name (marker-buffer val)))
-           (princ ", position ")
-           (princ (+ 0 val)))
+	   (princ (format (gettext "a buffer position:\nbuff %s, position %s")
+			  (buffer-name (marker-buffer val))
+			  (+ 0 val))))
 
 	 ((window-configuration-p val)
-	  (princ "a window configuration."))
+	  (princ (gettext "a window configuration.")))
 
 
 ;;       ((frame-configuration-p val)
 ;;        (princ "a frame configuration."))
 
 	 ((and (consp val) (eq (car val) 'file))
-	  (princ "the file ")
+	  (princ (gettext "the file "))
 	  (prin1 (cdr val))
 	  (princ "."))
 
          ((consp val)
-          (princ "the rectangle:\n")
+          (princ (gettext "the rectangle:\n"))
           (while val
             (princ (car val))
             (terpri)
             (setq val (cdr val))))
 
 	 ((stringp val)
-	  (princ "the text:\n")
+	  (princ (gettext "the text:\n"))
 	  (princ val))
 
          (t
-	  (princ "Garbage:\n")
+	  (princ (gettext "Garbage:\n"))
 	  (prin1 val)))))))
 
 (defun insert-register (char &optional arg)
@@ -195,7 +197,7 @@ Interactively, second arg is non-nil if prefix arg is supplied."
 	  (insert val)
 	(if (or (integerp val) (markerp val))
 	    (princ (+ 0 val) (current-buffer))
-	  (error "Register does not contain text")))))
+	  (error (gettext "Register does not contain text"))))))
   (if (not arg) (exchange-point-and-mark)))
 
 (defun copy-to-register (char start end &optional delete-flag)
@@ -216,7 +218,7 @@ REG, START, END and DELETE-FLAG.
 START and END are buffer positions indicating what to append."
   (interactive "cAppend to register: \nr\nP")
   (or (stringp (get-register char))
-      (error "Register does not contain text"))
+      (error (gettext "Register does not contain text")))
   (set-register char (concat (get-register char)
 			     (buffer-substring start end)))
   (if delete-flag (delete-region start end)))
@@ -229,7 +231,7 @@ REG, START, END and DELETE-FLAG.
 START and END are buffer positions indicating what to prepend."
   (interactive "cPrepend to register: \nr\nP")
   (or (stringp (get-register char))
-      (error "Register does not contain text"))
+      (error (gettext "Register does not contain text")))
   (set-register char (concat (buffer-substring start end)
 			     (get-register char)))
   (if delete-flag (delete-region start end)))

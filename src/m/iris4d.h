@@ -1,11 +1,11 @@
 /* machine description file for Iris-4D machines.  Use with s-iris3-6.h
-   Copyright (C) 1987 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1994 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -120,7 +120,9 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* This machine requires completely different unexec code
    which lives in a separate file.  Specify the file name.  */
 
+#ifndef IRIX5 /* by Daniel Rich <drich@lerc.nasa.gov> for lemacs */
 #define UNEXEC unexmips.o
+#endif
 
 #define TEXT_START 0x400000
 
@@ -170,21 +172,3 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* Define STACK_DIRECTION for alloca.c */
 
 #define STACK_DIRECTION -1
-
-/* The standard definitions of these macros would work ok,
-   but these are faster because the constants are short.  */
-
-/* does this actually win anything?  I'd rather it not be here... --jwz */
-
-#define XUINT(a) (((unsigned)(a) << INTBITS-VALBITS) >> INTBITS-VALBITS)
-
-#define XSET(var, type, ptr) \
-   ((var) = ((int)(type) << VALBITS) + (((unsigned) (ptr) << INTBITS-VALBITS) >> INTBITS-VALBITS))
-
-#define XSETINT(a, b)  XSET(a, XTYPE(a), b)
-#define XSETUINT(a, b) XSET(a, XTYPE(a), b)
-#define XSETPNTR(a, b) XSET(a, XTYPE(a), b)
-
-#define XMARKBIT(a) ((a) < 0)
-#define XSETMARKBIT(a,b) ((a) = ((a) & ~MARKBIT) | ((b) ? MARKBIT : 0))
-#define XUNMARK(a) ((a) = (((unsigned)(a) << INTBITS-GCTYPEBITS-VALBITS) >> INTBITS-GCTYPEBITS-VALBITS))

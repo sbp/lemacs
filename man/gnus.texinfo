@@ -1,6 +1,6 @@
 \input texinfo                  @c -*-texinfo-*-
 @comment %**start of header (This is for running Texinfo on a region.)
-@setfilename ../info/gnus
+@setfilename ../info/gnus.info
 @settitle GNUS 3.14 Manual
 @iftex
 @finalout

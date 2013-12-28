@@ -21,8 +21,8 @@
 ;;; -------------------------------- CONTENTS --------------------------------
 ;;;
 ;;; mime-compose: Utility routines for composing MIME-compliant mail.
-;;; $Revision: 1.3 $
-;;; $Date: 1993/06/11 02:11:00 $
+;;; $Revision: 1.4 $
+;;; $Date: 1993/10/29 03:22:06 $
 ;;;
 ;;; Canonical list of features:
 ;;;   Automatic MIME header construction.
@@ -240,7 +240,7 @@
 ;;; LCD Archive Entry:
 ;;; mime-compose|Marc Andreessen|marca@ncsa.uiuc.edu|
 ;;; MIME-compliant message generation utilities.|
-;;; $Date: 1993/06/11 02:11:00 $|$Revision: 1.3 $|~/misc/mime-compose.el.Z|
+;;; $Date: 1993/10/29 03:22:06 $|$Revision: 1.4 $|~/misc/mime-compose.el.Z|
 ;;; --------------------------------------------------------------------------
 
 (provide 'mime-compose)
@@ -433,7 +433,7 @@ from VM, the Kitchen Sink(tm) of mail readers."
         (if (sit-for 2)
             (let ((lines mime-waiting-message-lines))
               (message
-               "mime-compose.el $Revision: 1.3 $, by marca@ncsa.uiuc.edu")
+               "mime-compose.el $Revision: 1.4 $, by marca@ncsa.uiuc.edu")
               (while (and (sit-for 4) lines)
                 (message (car lines))
                 (setq lines (cdr lines)))))
@@ -454,7 +454,7 @@ from VM, the Kitchen Sink(tm) of mail readers."
             "Add a Lucid Emacs extent from START to END with STYLE."
             (let ((extent (make-extent start end)))
               (set-extent-face extent style)
-              (set-extent-data extent 'mime-compose))))
+              (set-extent-property extent 'mime-compose t))))
       (if mime-running-epoch
           (defun mime-add-zone (start end style)
             "Add an Epoch zone from START to END with STYLE."

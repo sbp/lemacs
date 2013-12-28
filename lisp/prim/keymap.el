@@ -182,7 +182,9 @@ Optional arg NO-MICE means that button events are not allowed."
 			      (nconc mods (cons key nil))
 			    key)))
 	     ((menu-event-p event)
-	      (aset new i (list 'menu-selection (event-object event))))
+	      (aset new i (list 'menu-selection
+				(event-function event)
+				(event-object event))))
 	     ((or (button-press-event-p event)
 		  (button-release-event-p event))
 	      (if no-mice

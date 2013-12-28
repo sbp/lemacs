@@ -1,22 +1,31 @@
 							-*- text -*-
 
-     Lucid GNU Emacs availability information.  Last Modified:  2-aug-93.
+     Lucid GNU Emacs availability information.  Last Modified: 20-dec-93.
 
-Lucid Emacs is available via anonymous FTP from LUCID.COM (192.43.175.3)
+Lucid Emacs is available via anonymous FTP from lucid.com (192.43.175.3)
 in the directory /pub/lemacs/.
 
-Note that the IP address of LUCID.COM changed in mid-July, 1993; if you
+Note that the IP address of lucid.com changed in mid-July, 1993; if you
 cannot connect, check to see that you are picking up the correct address.
 
-LUCID.COM is the primary distribution point, but you may find it at other
-sites as well.  Such as ftp.uu.net in /systems/gnu/lucid/, liasun3.epfl.ch
-in /pub/gnu/, and lkbreth.foretune.co.jp in /pub/GNU/lucid/.  If you would
-like to make Lucid Emacs available for FTP from your site, please let us
-know so that we can list your site here.
+lucid.com is the primary distribution point, but you may find copies of it
+at other sites as well.  Some sites to try include:
 
-The LUCID.COM distribution (and copies of it) contain precompiled
-executables for SunOS 4.1.  The Liasun3 distribution contains precompiled
-executables for SGI as well.
+	cs.uiuc.edu		     /pub/epoch-files/lemacs/
+	self.stanford.edu	     /pub/lemacs/
+	ftp.uu.net		     /systems/gnu/lucid/
+	ftp.ai.mit.edu		     /pub/lemacs/
+	ftp.germany.eu.net	     /pub/packages/lucid-emacs/
+	ftp.uni-erlangen.de	     /pub/lemacs/
+	ftp.th-darmstadt.de	     /pub/editors/GNU-Emacs/unix/Lucid-Emacs/
+	ftp.cenatls.cena.dgac.fr     /pub/Emacs/
+	liasun3.epfl.ch		     /pub/gnu/lemacs/
+	ftp.sunet.se		     /pub/gnu/lucid/lemacs/
+	audrey.levels.unisa.edu.au   /src/lucid/
+
+Try to pick a site that is networkologically close to you.  If you know of
+other mirrors of the Lucid archives, please send us mail and we will list
+them here as well.
 
 There are mailing lists and newsgroups specifically for discussing and 
 reporting bugs in Lucid GNU Emacs; see the file MAILINGLISTS in this

@@ -42,13 +42,13 @@ typedef void *POINTER;
 #include "config.h"
 #endif
 
-typedef char *POINTER;
+typedef unsigned char *POINTER;
 
 #endif
 #endif /* 0 */
 
-/* Unconditionally use char * for this.  */
-typedef char *POINTER;
+/* Unconditionally use unsigned char * for this.  */
+typedef unsigned char *POINTER;
 
 typedef unsigned long SIZE;
 
@@ -67,9 +67,9 @@ typedef void *POINTER;
 #include <malloc.h>
 #include <string.h>
 
-#define safe_bcopy(x, y, z) memmove (y, x, z)
-
 #endif	/* emacs.  */
+
+#define safe_bcopy(x, y, z) memmove (y, x, z)
 
 #define NIL ((POINTER) 0)
 
@@ -291,7 +291,7 @@ relocate_some_blocs (bloc, address)
 	  *b->variable = b->data;
 	}
 
-      safe_bcopy (address - offset, address, data_size);
+      memmove (address, address - offset, data_size);
     }
 }
 
@@ -503,8 +503,25 @@ r_alloc_init ()
   extra_bytes = ROUNDUP (50000);
 
   page_break_value = (POINTER) ROUNDUP (break_value);
+
+  /* From eirik@elf.IThaca.ny.US (Eirik Fuller):
+     The extra call to real_morecore guarantees that the end of the
+     address space is a multiple of page_size, even if page_size is
+     not really the page size of the system running the binary in
+     which page_size is stored.  This allows a binary to be built on a
+     system with one page size and run on a system with a smaller page
+     size.   (Such as compiling on a Sun 4/260 4.1.3 and running on a
+     Sun 4/65 4.1.3: 8k pages at compile time, 4k pages at run time.)
+   */
+  (*real_morecore) (page_break_value - break_value);
+
   /* Clear the rest of the last page; this memory is in our address space
      even though it is after the sbrk value.  */
+
+  /* Doubly true, with the additional call that explicitly adds the
+     rest of that page to the address space.  */
   memset (break_value, 0, (page_break_value - break_value));
+  /* Also from eirik@elf.IThaca.ny.US */
+  virtual_break_value = break_value = page_break_value;
   use_relocatable_buffers = 1;
 }

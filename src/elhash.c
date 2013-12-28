@@ -16,6 +16,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include "config.h"
 #include "lisp.h"
+#include "intl.h"
 #include "hash.h"
 #include "elhash.h"
 
@@ -29,8 +30,8 @@ struct hashtable_struct
 {
   struct lcrecord_header header;
   unsigned int fullness;
-  unsigned long (*hash_function) (const void *);
-  int		(*test_function) (const void *, const void *);
+  unsigned long (*hash_function) (CONST void *);
+  int		(*test_function) (CONST void *, CONST void *);
   Lisp_Object zero_entry;
   Lisp_Object harray;
   Lisp_Object weak;	/* Qunbound if not weak; if weak, this is the next
@@ -75,9 +76,10 @@ print_hashtable (Lisp_Object obj, Lisp_Object printcharfun, int escapeflag)
   struct hashtable_struct *table = XHASHTABLE (obj);
   char buf[50];
   if (print_readably)
-    error ("printing unreadable object #<hashtable 0x%x>", table->header.uid);
-  sprintf (buf, "#<%stable %d/%d 0x%x>",
-	   (EQ (table->weak, Qunbound) ? "" : "weak "),
+    error (GETTEXT ("printing unreadable object #<hashtable 0x%x>"),
+	   table->header.uid);
+  sprintf (buf, GETTEXT ("#<%stable %d/%d 0x%x>"),
+	   (EQ (table->weak, Qunbound) ? "" : GETTEXT ("weak ")),
            table->fullness,
            (vector_length (XVECTOR (table->harray)) / LISP_OBJECTS_PER_HENTRY),
            table->header.uid);
@@ -111,7 +113,7 @@ ht_copy_from_c (c_hashtable c_table,
     = ((char *) c_table->harray 
        - ((char *) &(dummy.contents) - (char *) &dummy));
 
-  XSET (ht->harray, Lisp_Vector, vec_addr);
+  XSETVECTOR (ht->harray, vec_addr);
   if (c_table->zero_set)
     VOID_TO_LISP (ht->zero_entry, c_table->zero_entry);
   else
@@ -179,8 +181,8 @@ DEFUN ("hashtablep", Fhashtablep, Shashtablep, 1, 1, 0,
  */
 Lisp_Object
 make_lisp_hashtable (int size,
-		     int (*test_function) (const void*,const void*),
-		     unsigned long (*hash_function) (const void*))
+		     int (*test_function) (CONST void*, CONST void*),
+		     unsigned long (*hash_function) (CONST void*))
 {
   Lisp_Object result;
   struct hashtable_struct *table = new_hashtable ();
@@ -251,7 +253,7 @@ If there is no corresponding value, return DEFAULT (default nil)")
   (key, table, defalt)
   Lisp_Object key, table, defalt; /* One can't even spell correctly in C */
 {
-  const void *vval;
+  CONST void *vval;
   struct _C_hashtable htbl;
   CHECK_HASHTABLE (table, 0);
   ht_copy_to_c (XHASHTABLE (table), &htbl);
@@ -361,7 +363,7 @@ verify_function (function, description)
 }
 
 static void
-lisp_maphash_function (const void *void_key,
+lisp_maphash_function (CONST void *void_key,
 		       void *void_val,
 		       void *void_fn)
 {
@@ -382,7 +384,7 @@ each key and value in the table.")
   struct _C_hashtable htbl;
   struct gcpro gcpro1, gcpro2;
 
-  verify_function (function, "hashtable mapping function");
+  verify_function (function, GETTEXT ("hashtable mapping function"));
   CHECK_HASHTABLE (table, 0);
   ht_copy_to_c (XHASHTABLE (table), &htbl);
   GCPRO2 (table, function);
@@ -442,8 +444,8 @@ elisp_table_op (table, op, arg1, arg2, arg3)
 
 Lisp_Object
 make_weak_hashtable (int size,
-		     int (*test_function) (const void*,const void*),
-		     unsigned long (*hash_function) (const void*))
+		     int (*test_function) (CONST void*,CONST void*),
+		     unsigned long (*hash_function) (CONST void*))
 {
   Lisp_Object table = make_lisp_hashtable (size, test_function, hash_function);
   XHASHTABLE (table)->weak = Vweak_hash_tables;
@@ -475,7 +477,7 @@ struct marked_p_kludge_fmh
 };
 
 static int
-either_unmarked_p (const void *key, const void *contents, void *closure)
+either_unmarked_p (CONST void *key, CONST void *contents, void *closure)
 {
   Lisp_Object tem;
   struct marked_p_kludge_fmh *fmh = closure;

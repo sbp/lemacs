@@ -1,5 +1,5 @@
 /* Primitive operations on floating point for GNU Emacs Lisp interpreter.
-   Copyright (C) 1988-1993 Free Software Foundation, Inc.
+   Copyright (C) 1988, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -42,13 +42,25 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    a domain error occurs.)
  */
 
-#include <signal.h>
+/*#include <signal.h>  use "syssignal.h" instead -jwz */
 
 #include "config.h"
 #include "lisp.h"
+#include "intl.h"
 #include "syssignal.h"
 
 #ifdef LISP_FLOAT_TYPE
+
+/* Work around a problem that happens because math.h on hpux 7
+   defines two static variables--which, in Emacs, are not really static,
+   because `static' is defined as nothing.  The problem is that they are
+   defined both here and in lread.c.
+   These macros prevent the name conflict.
+  */
+# if defined (HPUX) && !defined (HPUX8)
+#  define _MAXLDBL floatfns_maxldbl
+#  define _NMAXLDBL floatfns_nmaxldbl
+# endif
 
 #include <math.h>
 
@@ -111,7 +123,7 @@ static int in_float;
 /* If an argument is out of range for a mathematical function,
    here is the actual argument value to use in the error message.  */
 static Lisp_Object float_error_arg, float_error_arg2;
-static const char *float_error_fn_name;
+static CONST char *float_error_fn_name;
 
 /* Evaluate the floating point expression D, recording NUM
    as the original argument for error messages.
@@ -177,16 +189,13 @@ in_float_error ()
 
   
 
-#ifdef LRECORD_FLOAT
-
 static Lisp_Object mark_float (Lisp_Object, void (*) (Lisp_Object));
 extern void print_float (Lisp_Object, Lisp_Object, int);
 static int sizeof_float (void *h) { return (sizeof (struct Lisp_Float)); }
-/* #### internal_equal does float_equal by itself; once we remove support
-   for !LRECORD_FLOAT, we should move that logic to here. */
+static int float_equal (Lisp_Object o1, Lisp_Object o2, int depth);
 DEFINE_LRECORD_IMPLEMENTATION (lrecord_float,
                                mark_float, print_float,
-                               0, sizeof_float, 0);
+                               0, sizeof_float, float_equal);
 
 static Lisp_Object
 mark_float (Lisp_Object obj, void (*markobj) (Lisp_Object))
@@ -194,8 +203,11 @@ mark_float (Lisp_Object obj, void (*markobj) (Lisp_Object))
   return (Qnil);
 }
 
-#endif /* LRECORD_FLOAT */
-
+static int
+float_equal (Lisp_Object o1, Lisp_Object o2, int depth)
+{
+  return (extract_float (o1) == extract_float (o2));
+}
 
 /* Extract a Lisp number as a `double', or signal an error.  */
 
@@ -208,9 +220,11 @@ extract_float (Lisp_Object num)
     return (float_data (XFLOAT (num)));
   return (double) XINT (num);
 }
+#endif /* LISP_FLOAT_TYPE */
 
 
 /* Trig functions.  */
+#ifdef LISP_FLOAT_TYPE
 
 DEFUN ("acos", Facos, Sacos, 1, 1, 0,
   "Return the inverse cosine of ARG.")
@@ -220,7 +234,7 @@ DEFUN ("acos", Facos, Sacos, 1, 1, 0,
   double d = extract_float (arg);
 #ifdef FLOAT_CHECK_DOMAIN
   if (d > 1.0 || d < -1.0)
-    domain_error ("acos", arg);
+    domain_error (GETTEXT ("acos"), arg);
 #endif
   IN_FLOAT (d = acos (d), "acos", arg);
   return make_float (d);
@@ -234,7 +248,7 @@ DEFUN ("asin", Fasin, Sasin, 1, 1, 0,
   double d = extract_float (arg);
 #ifdef FLOAT_CHECK_DOMAIN
   if (d > 1.0 || d < -1.0)
-    domain_error ("asin", arg);
+    domain_error (GETTEXT ("asin"), arg);
 #endif
   IN_FLOAT (d = asin (d), "asin", arg);
   return make_float (d);
@@ -254,7 +268,7 @@ DEFUN ("atan", Fatan, Satan, 1, 2, 0,
       double d2 = extract_float (arg2);
 #ifdef FLOAT_CHECK_DOMAIN
       if (d == 0.0 && d2 == 0.0)
-	domain_error2 ("atan", arg1, arg2);
+	domain_error2 (GETTEXT ("atan"), arg1, arg2);
 #endif
       IN_FLOAT2 (d = atan2 (d, d2), "atan", arg1, arg2);
     }
@@ -290,13 +304,17 @@ DEFUN ("tan", Ftan, Stan, 1, 1, 0,
   double c = cos (d);
 #ifdef FLOAT_CHECK_DOMAIN
   if (c == 0.0)
-    domain_error ("tan", arg);
+    domain_error (GETTEXT ("tan"), arg);
 #endif
   IN_FLOAT (d = (sin (d) / c), "tan", arg);
   return make_float (d);
 }
+#endif /* LISP_FLOAT_TYPE (trig functions) */
+
 
+/* Bessel functions */
 #if 0 /* Leave these out unless we find there's a reason for them.  */
+/* #ifdef LISP_FLOAT_TYPE */
 
 DEFUN ("bessel-j0", Fbessel_j0, Sbessel_j0, 1, 1, 0,
   "Return the bessel function j0 of ARG.")
@@ -364,9 +382,11 @@ The first arg (the order) is truncated to an integer.")
   return make_float (f2);
 }
 
-#endif /* 0 */
+#endif /* 0 (bessel functions) */
 
+/* Error functions. */
 #if 0 /* Leave these out unless we see they are worth having.  */
+/* #ifdef LISP_FLOAT_TYPE */
 
 DEFUN ("erf", Ferf, Serf, 1, 1, 0,
   "Return the mathematical error function of ARG.")
@@ -398,26 +418,12 @@ DEFUN ("log-gamma", Flog_gamma, Slog_gamma, 1, 1, 0,
   return make_float (d);
 }
 
-#endif /* 0 */
-
-DEFUN ("cube-root", Fcube_root, Scube_root, 1, 1, 0,
-  "Return the cube root of ARG.")
-  (arg)
-     register Lisp_Object arg;
-{
-  double d = extract_float (arg);
-#ifdef HAVE_CBRT
-  IN_FLOAT (d = cbrt (d), "cube-root", arg);
-#else
-  if (d >= 0.0)
-    IN_FLOAT (d = pow (d, 1.0/3.0), "cube-root", arg);
-  else
-    IN_FLOAT (d = -pow (-d, 1.0/3.0), "cube-root", arg);
-#endif
-  return make_float (d);
-}
+#endif /* 0 (error functions) */
 
 
+/* Root and Log functions. */
+
+#ifdef LISP_FLOAT_TYPE
 DEFUN ("exp", Fexp, Sexp, 1, 1, 0,
   "Return the exponential base e of ARG.")
   (arg)
@@ -426,7 +432,7 @@ DEFUN ("exp", Fexp, Sexp, 1, 1, 0,
   double d = extract_float (arg);
 #ifdef FLOAT_CHECK_DOMAIN
   if (d > 709.7827)   /* Assume IEEE doubles here */
-    range_error ("exp", arg);
+    range_error (GETTEXT ("exp"), arg);
   else if (d < -709.0)
     return make_float (0.0);
   else
@@ -434,6 +440,8 @@ DEFUN ("exp", Fexp, Sexp, 1, 1, 0,
     IN_FLOAT (d = exp (d), "exp", arg);
   return make_float (d);
 }
+#endif /* LISP_FLOAT_TYPE */
+
 
 DEFUN ("expt", Fexpt, Sexpt, 2, 2, 0,
   "Return the exponential X ** Y.")
@@ -473,19 +481,24 @@ DEFUN ("expt", Fexpt, Sexpt, 2, 2, 0,
 	}
       return (make_number (acc));
     }
+#ifdef LISP_FLOAT_TYPE
   f1 = (FLOATP (arg1)) ? float_data (XFLOAT (arg1)) : XINT (arg1);
   f2 = (FLOATP (arg2)) ? float_data (XFLOAT (arg2)) : XINT (arg2);
   /* Really should check for overflow, too */
   if (f1 == 0.0 && f2 == 0.0)
     f1 = 1.0;
-#ifdef FLOAT_CHECK_DOMAIN
+# ifdef FLOAT_CHECK_DOMAIN
   else if ((f1 == 0.0 && f2 < 0.0) || (f1 < 0 && f2 != floor(f2)))
-    domain_error2 ("expt", arg1, arg2);
-#endif
+    domain_error2 (GETTEXT ("expt"), arg1, arg2);
+# endif /* FLOAT_CHECK_DOMAIN */
   IN_FLOAT2 (f1 = pow (f1, f2), "expt", arg1, arg2);
   return make_float (f1);
+#else  /* !LISP_FLOAT_TYPE */
+  abort ();
+#endif /* LISP_FLOAT_TYPE */
 }
 
+#ifdef LISP_FLOAT_TYPE
 DEFUN ("log", Flog, Slog, 1, 2, 0,
   "Return the natural logarithm of ARG.\n\
 If second optional argument BASE is given, return log ARG using that base.")
@@ -495,7 +508,7 @@ If second optional argument BASE is given, return log ARG using that base.")
   double d = extract_float (arg);
 #ifdef FLOAT_CHECK_DOMAIN
   if (d <= 0.0)
-    domain_error2 ("log", arg, base);
+    domain_error2 (GETTEXT ("log"), arg, base);
 #endif
   if (NILP (base))
     IN_FLOAT (d = log (d), "log", arg);
@@ -504,7 +517,7 @@ If second optional argument BASE is given, return log ARG using that base.")
       double b = extract_float (base);
 #ifdef FLOAT_CHECK_DOMAIN
       if (b <= 0.0 || b == 1.0)
-	domain_error2 ("log", arg, base);
+	domain_error2 (GETTEXT ("log"), arg, base);
 #endif
       if (b == 10.0)
 	IN_FLOAT2 (d = log10 (d), "log", arg, base);
@@ -514,6 +527,7 @@ If second optional argument BASE is given, return log ARG using that base.")
   return make_float (d);
 }
 
+
 DEFUN ("log10", Flog10, Slog10, 1, 1, 0,
   "Return the logarithm base 10 of ARG.")
   (arg)
@@ -522,11 +536,12 @@ DEFUN ("log10", Flog10, Slog10, 1, 1, 0,
   double d = extract_float (arg);
 #ifdef FLOAT_CHECK_DOMAIN
   if (d <= 0.0)
-    domain_error ("log10", arg);
+    domain_error (GETTEXT ("log10"), arg);
 #endif
   IN_FLOAT (d = log10 (d), "log10", arg);
   return make_float (d);
 }
+
 
 DEFUN ("sqrt", Fsqrt, Ssqrt, 1, 1, 0,
   "Return the square root of ARG.")
@@ -536,14 +551,35 @@ DEFUN ("sqrt", Fsqrt, Ssqrt, 1, 1, 0,
   double d = extract_float (arg);
 #ifdef FLOAT_CHECK_DOMAIN
   if (d < 0.0)
-    domain_error ("sqrt", arg);
+    domain_error (GETTEXT ("sqrt"), arg);
 #endif
   IN_FLOAT (d = sqrt (d), "sqrt", arg);
   return make_float (d);
 }
 
+
+DEFUN ("cube-root", Fcube_root, Scube_root, 1, 1, 0,
+  "Return the cube root of ARG.")
+  (arg)
+     register Lisp_Object arg;
+{
+  double d = extract_float (arg);
+#ifdef HAVE_CBRT
+  IN_FLOAT (d = cbrt (d), "cube-root", arg);
+#else
+  if (d >= 0.0)
+    IN_FLOAT (d = pow (d, 1.0/3.0), "cube-root", arg);
+  else
+    IN_FLOAT (d = -pow (-d, 1.0/3.0), "cube-root", arg);
+#endif
+  return make_float (d);
+}
+#endif /* LISP_FLOAT_TYPE */
+
 
-#if 1 /* Not clearly worth adding...  */
+/* Inverse trig functions. */
+#ifdef LISP_FLOAT_TYPE
+/* #if 0  Not clearly worth adding...  */
 
 DEFUN ("acosh", Facosh, Sacosh, 1, 1, 0,
   "Return the inverse hyperbolic cosine of ARG.")
@@ -553,7 +589,7 @@ DEFUN ("acosh", Facosh, Sacosh, 1, 1, 0,
   double d = extract_float (arg);
 #ifdef FLOAT_CHECK_DOMAIN
   if (d < 1.0)
-    domain_error ("acosh", arg);
+    domain_error (GETTEXT ("acosh"), arg);
 #endif
 #ifdef HAVE_INVERSE_HYPERBOLIC
   IN_FLOAT (d = acosh (d), "acosh", arg);
@@ -585,7 +621,7 @@ DEFUN ("atanh", Fatanh, Satanh, 1, 1, 0,
   double d = extract_float (arg);
 #ifdef FLOAT_CHECK_DOMAIN
   if (d >= 1.0 || d <= -1.0)
-    domain_error ("atanh", arg);
+    domain_error (GETTEXT ("atanh"), arg);
 #endif
 #ifdef HAVE_INVERSE_HYPERBOLIC
   IN_FLOAT (d = atanh (d), "atanh", arg);
@@ -603,7 +639,7 @@ DEFUN ("cosh", Fcosh, Scosh, 1, 1, 0,
   double d = extract_float (arg);
 #ifdef FLOAT_CHECK_DOMAIN
   if (d > 710.0 || d < -710.0)
-    range_error ("cosh", arg);
+    range_error (GETTEXT ("cosh"), arg);
 #endif
   IN_FLOAT (d = cosh (d), "cosh", arg);
   return make_float (d);
@@ -617,7 +653,7 @@ DEFUN ("sinh", Fsinh, Ssinh, 1, 1, 0,
   double d = extract_float (arg);
 #ifdef FLOAT_CHECK_DOMAIN
   if (d > 710.0 || d < -710.0)
-    range_error ("sinh", arg);
+    range_error (GETTEXT ("sinh"), arg);
 #endif
   IN_FLOAT (d = sinh (d), "sinh", arg);
   return make_float (d);
@@ -632,8 +668,10 @@ DEFUN ("tanh", Ftanh, Stanh, 1, 1, 0,
   IN_FLOAT (d = tanh (d), "tanh", arg);
   return make_float (d);
 }
-#endif /* 1 */
+#endif /* LISP_FLOAT_TYPE (inverse trig functions) */
 
+/* Rounding functions */
+
 DEFUN ("abs", Fabs, Sabs, 1, 1, 0,
   "Return the absolute value of ARG.")
   (arg)
@@ -641,18 +679,22 @@ DEFUN ("abs", Fabs, Sabs, 1, 1, 0,
 {
   CHECK_NUMBER (arg, 0);
 
+#ifdef LISP_FLOAT_TYPE
   if (FLOATP (arg))
   {
     IN_FLOAT (arg = make_float ((double) fabs (float_data (XFLOAT (arg)))),
               "abs", arg);
     return (arg);
   }
-  else if (XINT (arg) < 0)
-    return (make_number (- XINT (arg)));
   else
-    return (arg);
+#endif /* LISP_FLOAT_TYPE */
+    if (XINT (arg) < 0)
+      return (make_number (- XINT (arg)));
+    else
+      return (arg);
 }
 
+#ifdef LISP_FLOAT_TYPE
 DEFUN ("float", Ffloat, Sfloat, 1, 1, 0,
   "Return the floating point number equal to ARG.")
   (arg)
@@ -665,9 +707,12 @@ DEFUN ("float", Ffloat, Sfloat, 1, 1, 0,
   else				/* give 'em the same float back */
     return arg;
 }
+#endif /* LISP_FLOAT_TYPE */
+
 
 /* >>>> HAVE_LOGB, HAVE_FREXP need to be defined via configure or s/xxx.h */
 
+#ifdef LISP_FLOAT_TYPE
 DEFUN ("logb", Flogb, Slogb, 1, 1, 0,
   "Returns largest integer <= the base 2 log of the magnitude of ARG.\n\
 This is the same as the exponent of a float.")
@@ -675,11 +720,12 @@ This is the same as the exponent of a float.")
      Lisp_Object arg;
 {
   Lisp_Object val;
+#if defined (HAVE_LOGB) || defined (HAVE_FREXP)
   double f = extract_float (arg);
+#endif /* HAVE_LOGB || HAVE_FREXP */
 
 #ifdef HAVE_LOGB
-  IN_FLOAT (value = logb (f), "logb", arg);
-  XSET (val, Lisp_Int, value);
+  IN_FLOAT (val = make_number (logb (f)), "logb", arg);
 #else
 #ifdef HAVE_FREXP
   {
@@ -689,15 +735,14 @@ This is the same as the exponent of a float.")
   }
 #else
   /* Would someone like to write code to emulate logb?  */
-  error ("`logb' not implemented on this operating system");
+  error (GETTEXT ("`logb' not implemented on this operating system"));
 #endif
 #endif
 
   return val;
 }
+#endif /* LISP_FLOAT_TYPE */
 
-
-/* the rounding functions  */
 
 DEFUN ("ceiling", Fceiling, Sceiling, 1, 1, 0,
   "Return the smallest integer no less than ARG.  (Round toward +inf.)")
@@ -706,14 +751,14 @@ DEFUN ("ceiling", Fceiling, Sceiling, 1, 1, 0,
 {
   CHECK_NUMBER (arg, 0);
 
+#ifdef LISP_FLOAT_TYPE
   if (FLOATP (arg))
     IN_FLOAT (arg = make_number (ceil (float_data (XFLOAT (arg)))),
               "ceiling", arg);
+#endif /* LISP_FLOAT_TYPE */
 
   return arg;
 }
-
-#endif /* LISP_FLOAT_TYPE */
 
 
 DEFUN ("floor", Ffloor, Sfloor, 1, 2, 0,
@@ -744,7 +789,7 @@ With optional DIVISOR, return the largest integer no greater than ARG/DIVISOR.")
 		     "floor", arg, divisor);
 	  return arg;
 	}
-#endif
+#endif /* LISP_FLOAT_TYPE */
 
       i1 = XINT (arg);
       i2 = XINT (divisor);
@@ -765,12 +810,10 @@ With optional DIVISOR, return the largest integer no greater than ARG/DIVISOR.")
   if (FLOATP (arg))
     IN_FLOAT (arg = make_number (floor (float_data (XFLOAT (arg)))),
               "floor", arg);
-#endif
+#endif /* LISP_FLOAT_TYPE */
 
   return arg;
 }
-
-#ifdef LISP_FLOAT_TYPE
 
 DEFUN ("round", Fround, Sround, 1, 1, 0,
   "Return the nearest integer to ARG.")
@@ -779,10 +822,12 @@ DEFUN ("round", Fround, Sround, 1, 1, 0,
 {
   CHECK_NUMBER (arg, 0);
 
+#ifdef LISP_FLOAT_TYPE
   if (FLOATP (arg))
     /* Screw the prevailing rounding mode.  */
     IN_FLOAT (arg = make_number (rint (float_data (XFLOAT (arg)))),
               "round", arg);
+#endif /* LISP_FLOAT_TYPE */
 
   return arg;
 }
@@ -795,13 +840,17 @@ Rounds the value toward zero.")
 {
   CHECK_NUMBER (arg, 0);
 
+#ifdef LISP_FLOAT_TYPE
   if (FLOATP (arg))
     arg = make_number ((LISP_WORD_TYPE) (float_data (XFLOAT (arg))));
+#endif /* LISP_FLOAT_TYPE */
 
   return arg;
 }
 
-#if 1 /* It's not clear these are worth adding... */
+/* Float-rounding functions. */
+#ifdef LISP_FLOAT_TYPE
+/* #if 1  It's not clear these are worth adding... */
 
 DEFUN ("fceiling", Ffceiling, Sfceiling, 1, 1, 0,
   "Return the smallest integer no less than ARG, as a float.\n\
@@ -849,9 +898,10 @@ Rounds the value toward zero.")
   return make_float (d);
 }
 
-#endif /* 1 */
+#endif /* LISP_FLOAT_TYPE (float-rounding functions) */
 
 
+#ifdef LISP_FLOAT_TYPE
 #ifdef FLOAT_CATCH_SIGILL
 static SIGTYPE
 float_error (signo)
@@ -909,28 +959,26 @@ matherr (x)
   return (1);	/* don't set errno or print a message */
 }
 #endif /* HAVE_MATHERR */
+#endif /* LISP_FLOAT_TYPE */
 
+
 void
 init_floatfns ()
 {
-#ifdef FLOAT_CATCH_SIGILL
+#ifdef LISP_FLOAT_TYPE
+# ifdef FLOAT_CATCH_SIGILL
   signal (SIGILL, float_error);
-#endif 
+# endif 
   in_float = 0;
-}
-
-#else /* not LISP_FLOAT_TYPE */
-
-init_floatfns ()
-{
-  /* nothing */
-}
-
 #endif /* LISP_FLOAT_TYPE */
+}
 
 void
 syms_of_floatfns ()
 {
+  
+  /* Trig functions.  */
+  
 #ifdef LISP_FLOAT_TYPE
   defsubr (&Sacos);
   defsubr (&Sasin);
@@ -938,14 +986,10 @@ syms_of_floatfns ()
   defsubr (&Scos);
   defsubr (&Ssin);
   defsubr (&Stan);
-#if 1
-  defsubr (&Sacosh);
-  defsubr (&Sasinh);
-  defsubr (&Satanh);
-  defsubr (&Scosh);
-  defsubr (&Ssinh);
-  defsubr (&Stanh);
-#endif
+#endif /* LISP_FLOAT_TYPE */
+
+  /* Bessel functions */
+  
 #if 0
   defsubr (&Sbessel_y0);
   defsubr (&Sbessel_y1);
@@ -953,29 +997,59 @@ syms_of_floatfns ()
   defsubr (&Sbessel_j0);
   defsubr (&Sbessel_j1);
   defsubr (&Sbessel_jn);
+#endif /* 0 */
+
+  /* Error functions. */
+
+#if 0
   defsubr (&Serf);
   defsubr (&Serfc);
   defsubr (&Slog_gamma);
-#endif
+#endif /* 0 */
+
+  /* Root and Log functions. */
+
+#ifdef LISP_FLOAT_TYPE
+  defsubr (&Sexp);
+#endif /* LISP_FLOAT_TYPE */
+  defsubr (&Sexpt);
+#ifdef LISP_FLOAT_TYPE
+  defsubr (&Slog);
+  defsubr (&Slog10);
+  defsubr (&Ssqrt);
   defsubr (&Scube_root);
-#if 1
+#endif /* LISP_FLOAT_TYPE */
+
+  /* Inverse trig functions. */
+
+#ifdef LISP_FLOAT_TYPE
+  defsubr (&Sacosh);
+  defsubr (&Sasinh);
+  defsubr (&Satanh);
+  defsubr (&Scosh);
+  defsubr (&Ssinh);
+  defsubr (&Stanh);
+#endif /* LISP_FLOAT_TYPE */
+
+  /* Rounding functions */
+
+  defsubr (&Sabs);
+#ifdef LISP_FLOAT_TYPE
+  defsubr (&Sfloat);
+  defsubr (&Slogb);
+#endif /* LISP_FLOAT_TYPE */
+  defsubr (&Sceiling);
+  defsubr (&Sfloor);
+  defsubr (&Sround);
+  defsubr (&Struncate);
+
+  /* Float-rounding functions. */
+
+#ifdef LISP_FLOAT_TYPE
   defsubr (&Sfceiling);
   defsubr (&Sffloor);
   defsubr (&Sfround);
   defsubr (&Sftruncate);
-#endif
-  defsubr (&Sexp);
-  defsubr (&Sexpt);
-  defsubr (&Slog);
-  defsubr (&Slog10);
-  defsubr (&Ssqrt);
-
-  defsubr (&Sabs);
-  defsubr (&Sfloat);
-  defsubr (&Slogb);
-  defsubr (&Sceiling);
-  defsubr (&Sround);
-  defsubr (&Struncate);
 #endif /* LISP_FLOAT_TYPE */
-  defsubr (&Sfloor);
+
 }

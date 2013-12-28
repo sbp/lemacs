@@ -109,7 +109,7 @@
   "Make a primary X Selection of the given argument.  
 The argument may be a string, a cons of two markers, or an extent.  
 In the latter cases the selection is considered to be the text 
-between the markers, or the between extents endpoints."
+between the markers, or between the extent's endpoints."
   (interactive (if (not current-prefix-arg)
 		   (list (read-string "Store text for pasting: "))
 		 (list (cons ;; these need not be ordered.
@@ -456,6 +456,29 @@ Cut buffers are considered obsolete\; you should use selections instead."
 		 (vector (cons (ash a -16) (logand a 65535))
 			 (cons (ash b -16) (logand b 65535))))))))
 
+(defun xselect-convert-to-sourceloc (selection type value)
+  (let (a b buf file-name tmp)
+    (cond ((cond ((extentp value)
+		  (setq buf (or (extent-buffer value)
+				(error "selection is in a killed buffer"))
+			a (extent-start-position value)
+			b (extent-end-position value)
+			file-name (buffer-file-name buf)))
+		 ((and (consp value)
+		       (markerp (car value))
+		       (markerp (cdr value)))
+		  (setq a (marker-position (car value))
+			b (marker-position (cdr value))
+			buf (or (marker-buffer (car value))
+				(error "selection is in a killed buffer"))
+			file-name (buffer-file-name buf))))
+	   (save-excursion
+	     (set-buffer buf)
+	     (setq a (count-lines 1 a)
+		   b (count-lines 1 b)))
+	   (if (< b a) (setq tmp a a b b tmp))
+	   (format "%s:%d" file-name a)))))
+
 (defun xselect-convert-to-os (selection type size)
   (symbol-name system-type))
 
@@ -489,6 +512,7 @@ Cut buffers are considered obsolete\; you should use selections instead."
 	(DELETE . xselect-convert-to-delete)
 	(FILE_NAME . xselect-convert-to-filename)
 	(CHARACTER_POSITION . xselect-convert-to-charpos)
+	(SOURCE_LOC . xselect-convert-to-sourceloc)
 	(LINE_NUMBER . xselect-convert-to-lineno)
 	(COLUMN_NUMBER . xselect-convert-to-colno)
 	(OWNER_OS . xselect-convert-to-os)
@@ -500,6 +524,30 @@ Cut buffers are considered obsolete\; you should use selections instead."
 	(INTEGER . xselect-convert-to-integer)
 	(_EMACS_INTERNAL . xselect-convert-to-identity)
 	))
+
+
+;; The location of this has to be thought more carefully.
+
+(defun xselect-convert-to-ttprocid (selection type value)
+  (let* ((msg (create-tooltalk-message))
+	 (ttprocid (get-tooltalk-message-attribute msg 'sender)))
+    (destroy-tooltalk-message msg)
+    ttprocid
+    ))
+
+(defun xselect-convert-to-ttsession (selection type value)
+  (let* ((msg (create-tooltalk-message))
+	 (ttsession (get-tooltalk-message-attribute msg 'session)))
+    (destroy-tooltalk-message msg)
+    ttsession
+    ))
+
+(setq selection-converter-alist
+      (append
+       selection-converter-alist
+       '((SPRO_PROCID . xselect-convert-to-ttprocid)
+	 (SPRO_SESSION . xselect-convert-to-ttsession)
+	 )))
 
 
 (provide 'xselect)

@@ -49,12 +49,14 @@
 (provide 'find-dired)
 
 ;;;###autoload
-(defvar find-ls-option (if (eq system-type 'berkeley-unix) "-ls"
-			 "-exec ls -ldi {} \\;")
+(defvar find-ls-option (purecopy
+			(if (eq system-type 'berkeley-unix) "-ls"
+			  "-exec ls -ldi {} \\;"))
   "*Option to `find' to produce an `ls -l'-type listing.")
 
 ;;;###autoload
-(defvar find-grep-options (if (eq system-type 'berkeley-unix) "-s" "-l")
+(defvar find-grep-options (purecopy
+			   (if (eq system-type 'berkeley-unix) "-s" "-l"))
   "*Option to grep to be as silent as possible.
 On Berkeley systems, this is `-s', for others it seems impossible to
 suppress all output, so `-l' is used to print nothing more than the

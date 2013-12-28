@@ -1,5 +1,5 @@
 /* Lisp functions pertaining to editing.
-   Copyright (C) 1985, 1986, 1987, 1989, 1992, 1993
+   Copyright (C) 1985, 1986, 1987, 1989, 1992, 1993, 1994
    Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
@@ -32,6 +32,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #endif
 
 #include "lisp.h"
+#include "intl.h"
 #include "buffer.h"
 #include "window.h"
 #include "insdel.h"
@@ -82,6 +83,11 @@ init_editfns ()
       p++;
     }
 
+  /* don't lose utterly if someone uses these during loadup. */
+  Vuser_real_name = Qnil;
+  Vuser_name = Qnil;
+  Vuser_full_name = Qnil;
+
 #ifndef CANNOT_DUMP
   /* Don't bother with this on initial start when just dumping out */
   if (!initialized)
@@ -89,7 +95,7 @@ init_editfns ()
 #endif /* not CANNOT_DUMP */
 
   pw = (struct passwd *) getpwuid (getuid ());
-  Vuser_real_name = build_string (pw ? pw->pw_name : "unknown");
+  Vuser_real_name = build_string (pw ? pw->pw_name : GETTEXT ("unknown"));
 
   /* Get the effective user name, by consulting environment variables,
      or the effective uid if those are unset.  */
@@ -99,7 +105,7 @@ init_editfns ()
   if (!user_name)
     {
       pw = (struct passwd *) getpwuid (geteuid ());
-      user_name = (char *) (pw ? pw->pw_name : "unknown");
+      user_name = (char *) (pw ? pw->pw_name : GETTEXT ("unknown"));
     }
   Vuser_name = build_string (user_name);
 
@@ -110,10 +116,10 @@ init_editfns ()
     pw = (struct passwd *) getpwnam ((char *) XSTRING (Vuser_name)->data);
   
 #ifndef AMPERSAND_FULL_NAME
-  p = (unsigned char *) ((pw) ? USER_FULL_NAME : "unknown");
+  p = (unsigned char *) ((pw) ? USER_FULL_NAME : GETTEXT ("unknown"));
   q = (unsigned char *) strchr ((char *) p, ',');
 #else
-  p = (char *) ((pw) ? USER_FULL_NAME : "unknown");
+  p = (char *) ((pw) ? USER_FULL_NAME : GETTEXT ("unknown"));
   q = (char *) strchr ((char *) p, ',');
 #endif
   Vuser_full_name = make_string ((char *) p,
@@ -149,7 +155,8 @@ DEFUN ("char-to-string", Fchar_to_string, Schar_to_string, 1, 1, 0,
       if (NILP (ch))
 	return
 	  Fsignal (Qerror,
-		   list2 (build_string ("character has no ASCII equivalent:"),
+		   list2 (build_string
+			  (GETTEXT ("character has no ASCII equivalent:")),
 			  Fcopy_event (n, Qnil)));
       n = ch;
     }
@@ -190,7 +197,7 @@ DEFUN ("point", Fpoint, Spoint, 0, 0, 0,
 Beginning of buffer is position (point-min)")
   ()
 {
-  return (make_number (point));
+  return (make_number (PT));
 }
 
 DEFUN ("point-marker", Fpoint_marker, Spoint_marker, 0, 1, 0,
@@ -225,7 +232,6 @@ Beginning of buffer is position (point-min), end is (point-max).")
      register Lisp_Object n;
 {
   CHECK_FIXNUM_COERCE_MARKER (n, 0);
-
   SET_PT (clip_to_bounds (BEGV, XINT (n), ZV));
   return n;
 }
@@ -241,9 +247,9 @@ region_limit (int beginningp)
     Fsignal (Qmark_inactive, Qnil);
 #endif
   m = Fmarker_position (current_buffer->mark);
-  if (NILP (m)) error ("There is no region now");
-  if (!!(point < XINT (m)) == !!beginningp)
-    return (make_number (point));
+  if (NILP (m)) error (GETTEXT ("There is no region now"));
+  if (!!(PT < XINT (m)) == !!beginningp)
+    return (make_number (PT));
   else
     return (m);
 }
@@ -437,7 +443,7 @@ DEFUN ("buffer-size", Fbufsize, Sbufsize, 0, 0, 0,
 
 DEFUN ("point-min", Fpoint_min, Spoint_min, 0, 0, 0,
   "Return the minimum permissible value of point in the current buffer.\n\
-This is 1, unless a clipping restriction is in effect.")
+This is 1, unless narrowing (a buffer restriction) is in effect.")
   ()
 {
   return (make_number (BEGV));
@@ -445,7 +451,7 @@ This is 1, unless a clipping restriction is in effect.")
 
 DEFUN ("point-min-marker", Fpoint_min_marker, Spoint_min_marker, 0, 0, 0,
   "Return a marker to the minimum permissible value of point in this buffer.\n\
-This is the beginning, unless a clipping restriction is in effect.")
+This is the beginning, unless narrowing (a buffer restriction) is in effect.")
   ()
 {
   return buildmark (BEGV);
@@ -453,8 +459,8 @@ This is the beginning, unless a clipping restriction is in effect.")
 
 DEFUN ("point-max", Fpoint_max, Spoint_max, 0, 0, 0,
   "Return the maximum permissible value of point in the current buffer.\n\
-This is (1+ (buffer-size)), unless a clipping restriction is in effect,\n\
-in which case it is less.")
+This is (1+ (buffer-size)), unless narrowing (a buffer restriction)\n\
+is in effect, in which case it is less.")
   ()
 {
   return (make_number (ZV));
@@ -462,8 +468,8 @@ in which case it is less.")
 
 DEFUN ("point-max-marker", Fpoint_max_marker, Spoint_max_marker, 0, 0, 0,
   "Return a marker to the maximum permissible value of point in this buffer.\n\
-This is (1+ (buffer-size)), unless a clipping restriction is in effect,\n\
-in which case it is less.")
+This is (1+ (buffer-size)), unless narrowing (a buffer restriction)\n\
+is in effect, in which case it is less.")
   ()
 {
   return buildmark (ZV);
@@ -474,10 +480,10 @@ DEFUN ("following-char", Ffollowing_char, Sfollowing_char, 0, 0, 0,
 At the end of the buffer or accessible region, return 0.")
   ()
 {
-  if (point >= ZV)
+  if (PT >= ZV)
     return (Qzero);             /* >>> Gag me! */
   else
-    return (make_number (FETCH_CHAR (point)));
+    return (make_number (FETCH_CHAR (PT)));
 }
 
 DEFUN ("preceding-char", Fprevious_char, Sprevious_char, 0, 0, 0,
@@ -485,10 +491,10 @@ DEFUN ("preceding-char", Fprevious_char, Sprevious_char, 0, 0, 0,
 At the beginning of the buffer or accessible region, return 0.")
   ()
 {
-  if (point <= BEGV)
+  if (PT <= BEGV)
     return (Qzero);             /* >>> Gag me! */
   else
-    return (make_number (FETCH_CHAR (point - 1)));
+    return (make_number (FETCH_CHAR (PT - 1)));
 }
 
 DEFUN ("bobp", Fbobp, Sbobp, 0, 0, 0,
@@ -496,7 +502,7 @@ DEFUN ("bobp", Fbobp, Sbobp, 0, 0, 0,
 If the buffer is narrowed, this means the beginning of the narrowed part.")
   ()
 {
-  if (point == BEGV)
+  if (PT == BEGV)
     return Qt;
   return Qnil;
 }
@@ -506,7 +512,7 @@ DEFUN ("eobp", Feobp, Seobp, 0, 0, 0,
 If the buffer is narrowed, this means the end of the narrowed part.")
   ()
 {
-  if (point == ZV)
+  if (PT == ZV)
     return Qt;
   return Qnil;
 }
@@ -515,7 +521,7 @@ DEFUN ("bolp", Fbolp, Sbolp, 0, 0, 0,
   "Return T if point is at the beginning of a line.")
   ()
 {
-  if (point == BEGV || FETCH_CHAR (point - 1) == '\n')
+  if (PT == BEGV || FETCH_CHAR (PT - 1) == '\n')
     return Qt;
   return Qnil;
 }
@@ -525,7 +531,7 @@ DEFUN ("eolp", Feolp, Seolp, 0, 0, 0,
 `End of a line' includes point being at the end of the buffer.")
   ()
 {
-  if (point == ZV || FETCH_CHAR (point) == '\n')
+  if (PT == ZV || FETCH_CHAR (PT) == '\n')
     return Qt;
   return Qnil;
 }
@@ -769,7 +775,8 @@ insert1 (arg)
 DEFUN ("insert", Finsert, Sinsert, 0, MANY, 0,
   "Insert the arguments, either strings or characters, at point.\n\
 Point moves forward so that it ends up after the inserted text.\n\
-Any other markers at the point of insertion remain before the text.")
+Any other markers at the point of insertion remain before the text.\n\
+If a string has non-null string-extent-data, new extents will be created.")
   (nargs, args)
      int nargs;
      register Lisp_Object *args;
@@ -854,7 +861,7 @@ Both arguments are required.")
   strlen = min (n, 256);
   string = (char *) alloca (strlen);
   for (i = 0; i < strlen; i++)
-    string[i] = XFASTINT (chr);
+    string[i] = XINT (chr);
   while (n >= strlen)
     {
       insert_raw_string (string, strlen);
@@ -882,10 +889,24 @@ Lisp_Object
 make_string_from_buffer (struct buffer *buf,
                          int index, int length)
 {
-  Lisp_Object val = make_uninit_string (length);
+  Lisp_Object val;
+  struct gcpro gcpro1;
 
+#ifdef I18N4
+  if (index < BUF_GPT (buf) && index + length > BUF_GPT (buf))
+    move_gap (current_buffer, index);
+
+  length = wc_substring_to_mb (BUF_CHAR_ADDRESS (buf, index), length,
+			       &mb_buf, &wc_buf);
+#endif
+
+  val = make_uninit_string (length);
+  GCPRO1 (val);
   XSTRING (val)->dup_list = replicate_extents (index, length, buf);
 
+#ifdef I18N4
+  memcpy (XSTRING (val)->data, mb_buf.data, length);
+#else
   {
     int len1 = BUF_GPT (buf) - index;
     register unsigned char *start1 = BUF_CHAR_ADDRESS (buf, index);
@@ -911,14 +932,18 @@ make_string_from_buffer (struct buffer *buf,
       memcpy (dest + len1, start2, length - len1);
     }
   }
+#endif
 
+  UNGCPRO;
   return val;
 }
 
 DEFUN ("buffer-substring", Fbuffer_substring, Sbuffer_substring, 2, 2, 0,
   "Return the contents of part of the current buffer as a string.\n\
 The two arguments START and END are character positions;\n\
-they can be in either order.")
+they can be in either order.\n\
+If there are duplicable extents in the region, the string remembers\n\
+them in its string-extent-data.")
   (b, e)
      Lisp_Object b, e;
 {
@@ -978,8 +1003,8 @@ They default to the beginning and the end of BUFFER.")
 
   /* Move the gap or create enough gap in the current buffer.  */
 
-  if (point != GPT)
-    move_gap (current_buffer, point);
+  if (PT != GPT)
+    move_gap (current_buffer, PT);
   if (GAP_SIZE < end - beg)
     make_gap (end - beg - GAP_SIZE);
 
@@ -1100,6 +1125,11 @@ determines whether case is significant or ignored.")
 
   for (i = 0; i < length; i++)
     {
+#ifdef I18N4
+      wchar_t c1 = *BUF_CHAR_ADDRESS (bp1, begp1 + i);
+      wchar_t c2 = *BUF_CHAR_ADDRESS (bp2, begp2 + i);
+      /* I18N4: We ignore trt (case folding) for now. */
+#else
       int c1 = *BUF_CHAR_ADDRESS (bp1, begp1 + i);
       int c2 = *BUF_CHAR_ADDRESS (bp2, begp2 + i);
       if (trt)
@@ -1107,6 +1137,7 @@ determines whether case is significant or ignored.")
 	  c1 = trt[c1];
 	  c2 = trt[c2];
 	}
+#endif
       if (c1 < c2)
 	return make_number (- 1 - i);
       if (c1 > c2)
@@ -1133,6 +1164,7 @@ and don't mark the buffer as really changed.")
      Lisp_Object start, end, fromchar, tochar, noundo;
 {
   register int pos, stop, look;
+  int changed = 0;
 
   validate_region (&start, &end);
   CHECK_FIXNUM (fromchar, 2);
@@ -1142,7 +1174,6 @@ and don't mark the buffer as really changed.")
   stop = XINT (end);
   look = XINT (fromchar);
 
-  modify_region (current_buffer, pos, stop);
   if (! NILP (noundo))
     {
       if (MODIFF - 1 == current_buffer->save_modified)
@@ -1155,14 +1186,21 @@ and don't mark the buffer as really changed.")
     {
       if (FETCH_CHAR (pos) == look)
 	{
+	  if (! changed)
+	    {
+	      modify_region (current_buffer, XINT (start), stop);
+	      changed = 1;
+	    }
 	  if (NILP (noundo))
 	    record_change (pos, 1);
 	  *(CHAR_ADDRESS (pos)) = XINT (tochar);
-	  if (NILP (noundo))
-	    signal_after_change (pos, 1, 1);
 	}
       pos++;
     }
+
+  if (changed)
+    signal_after_change (XINT (start),
+			 stop - XINT (start), stop - XINT (start));
 
   return Qnil;
 }
@@ -1266,11 +1304,11 @@ or markers) bounding the text that should remain visible.")
   if (!(BEG <= XINT (b) && XINT (b) <= XINT (e) && XINT (e) <= Z))
     args_out_of_range (b, e);
 
-  BEGV = XFASTINT (b);
-  SET_BUF_ZV (current_buffer, XFASTINT (e));
-  if (point < XINT (b))
+  BEGV = XINT (b);
+  SET_BUF_ZV (current_buffer, XINT (e));
+  if (PT < XINT (b))
     SET_PT (XINT (b));
-  if (point > XINT (e))
+  if (PT > XINT (e))
     SET_PT (XINT (e));
   clip_changed = 1;
   /* Changing the buffer bounds invalidates any recorded current column.  */
@@ -1403,13 +1441,17 @@ It may contain %-sequences meaning to substitute the next argument.\n\
 %d means print as number in decimal (%o octal, %x hex).\n\
 %c means print a number as a single character.\n\
 The argument used for %d, %o, %x or %c must be a number.\n\
+%$ means reposition to read a specific numbered argument;\n\
+ for example, %3$%s would apply the `%s' and all following format directives\n\
+ to the third argument after the control string.  (There must be a positive\n\
+ integer between the % and the $.)\n\
 Use %% to put a single % into the output.")
   (nargs, args)                 /* Note!! args side-effected! */
      int nargs;
      register Lisp_Object *args;
 {
   /* Caller is assumed to gcpro ARGS */
-  register int n;		/* The number of the next arg to substitute */
+  int n;			/* The number of the next arg to substitute */
   register int total = 5;	/* An estimate of the final length */
   register unsigned char *format;
   register int fsize;
@@ -1428,11 +1470,12 @@ Use %% to put a single % into the output.")
   pos = 0;
   while (1)
     {
-      static const char printf_arguments[] = "0123456789- .";
+      static CONST char printf_arguments[] = "0123456789- .";
       Lisp_Object argn;
       int minlen;
       int ch;
       unsigned char *last = format;
+      unsigned char *numarg = 0;
 
       format = (unsigned char *) memchr (format, '%', fsize - pos);
       if (!format)
@@ -1452,6 +1495,7 @@ Use %% to put a single % into the output.")
       /* Process a numeric arg and skip it.  */
       if (strchr (printf_arguments, ch))
 	{
+	  numarg = format;
 	  minlen = atoi ((char *) format);
 	  if (minlen > 0)
 	    total += minlen;
@@ -1461,8 +1505,8 @@ Use %% to put a single % into the output.")
 	    {
 	      if (pos >= fsize)
 		signal_error (Qerror,
-			      list2 (build_string 
-				     ("Unterminated format specification in"),
+			      list2 (build_string (GETTEXT
+				     ("Unterminated format specification in")),
 				     args[0]));
 	      pos++;
 	      ch = *++format;
@@ -1476,6 +1520,17 @@ Use %% to put a single % into the output.")
 	  /* %% means insert n %'s */
 	  format++;
 	  pos++;
+	  continue;
+	}
+      if (ch == '$')
+	{
+	  /* %n$ means reposition to read arg number n. */
+	  n = 0;
+	  if (numarg) sscanf ((char *) numarg, "%d", &n);
+	  n--;
+	  format++;
+	  pos++;
+	  numarg = 0;
 	  continue;
 	}
       else if (++n >= nargs)
@@ -1562,7 +1617,7 @@ Use %% to put a single % into the output.")
 
 /* VARARGS 1 */
 Lisp_Object
-format1 (const char *fmt, ...)
+format1 (CONST char *fmt, ...)
 {
   char buf[200];
   va_list args;
@@ -1590,43 +1645,11 @@ Case is ignored if `case-fold-search' is non-nil in the current buffer.")
   CHECK_FIXNUM (c2, 1);
 
   if (!NILP (current_buffer->case_fold_search)
-      ? (downcase[0xff & XFASTINT (c1)] == downcase[0xff & XFASTINT (c2)]
-	 && (XFASTINT (c1) & ~0xff) == (XFASTINT (c2) & ~0xff))
+      ? (downcase[0xff & XINT (c1)] == downcase[0xff & XINT (c2)]
+	 && (XINT (c1) & ~0xff) == (XINT (c2) & ~0xff))
       : XINT (c1) == XINT (c2))
     return Qt;
   return Qnil;
-}
-
-DEFUN ("getenv", Fgetenv, Sgetenv, 1, 2, "sEnvironment variable: \np",
-  "Return the value of environment variable VAR, as a string.\n\
-When invoked interactively, print the value in the echo area.\n\
-VAR is a string, the name of the variable,\n\
- or the symbol t, meaning to return an alist representing the\n\
- current environment.")
-  (str, interactivep)
-     Lisp_Object str, interactivep;
-{
-  Lisp_Object value;
-#ifdef MAINTAIN_ENVIRONMENT
-  value = lisp_getenv (str);
-#else
-  register char *val;
-  if (EQ (str, Qt))
-    error (
-     "(getenv t) is not supported unless compiled with MAINTAIN_ENVIRONMENT");
-  CHECK_STRING (str, 0);
-  val = (char *) egetenv (XSTRING (str)->data);
-  value = (val ? build_string (val) : Qnil);
-#endif
-
-  if (!NILP (interactivep))
-    {
-      if (NILP (value))
-	message ("%s not defined in environment", XSTRING (str)->data);
-      else
-	message ("\"%s\"", XSTRING (value)->data);
-    }
-  return value;
 }
 
 void
@@ -1745,7 +1768,6 @@ See the variable `zmacs-regions'.");
   defsubr (&Ssystem_name);
   defsubr (&Smessage);
   defsubr (&Sformat);
-  defsubr (&Sgetenv);
 
   defsubr (&Sinsert_buffer_substring);
   defsubr (&Scompare_buffer_substrings);

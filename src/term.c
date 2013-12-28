@@ -1,5 +1,6 @@
 /* Terminal control module for terminals described by TERMCAP
-   Copyright (C) 1985, 1986, 1987, 1992, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1987, 1992, 1993, 1994
+   Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -17,7 +18,6 @@ You should have received a copy of the GNU General Public License
 along with GNU Emacs; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
-
 #include <stdio.h>
 #include <ctype.h>
 #include "config.h"
@@ -25,6 +25,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "termhooks.h"
 #include "termchar.h"
 #include "termopts.h"
+#include "systty.h"
 #include "cm.h"
 
 #include "dispextern.h"
@@ -38,6 +39,22 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "dispmisc.h"
 
 #include "sysdep.h"   /* For get_screen_size, tabs_safe_p, init_baud_rate */
+
+#ifdef TERMINFO
+/* These headers #define all kinds of common words like "columns"...
+   What a bunch of losers.  If we were to include them, we'd have to include
+   them last to prevent them from messing up our own header files (struct
+   slot names, etc.)  But it turns out that there are other conflicts as well
+   on some systems, so screw it: we'll just re-declare the routines we use
+   and assume the code in this file is invoking them correctly.
+ */
+/* # include <curses.h> */
+/* # include <term.h> */
+extern int tgetent (CONST char *, CONST char *);
+extern int tgetflag (CONST char *);
+extern int tgetnum (CONST char *);
+extern char *tgetstr (CONST char *, char **);
+#endif
 
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define min(a, b) ((a) < (b) ? (a) : (b))
@@ -89,8 +106,13 @@ int no_redraw_on_reenter;
 /* What's this X-specific junk doing here? */
 /* This X-specific junk is here because Epoch only ran under X
    and they didn't care.  Oh, and it isn't necessarily X specific. */
+#ifdef I18N4
 int  (*text_width_hook) (Lisp_Object font, 
-                         const unsigned char *s, int l);
+                         CONST wchar_t *s, int l);
+#else
+int  (*text_width_hook) (Lisp_Object font, 
+                         CONST unsigned char *s, int l);
+#endif
 void (*clear_window_end_hook) ();
 void (*update_line_hook) (struct window *w, 
                           struct line_header *l,
@@ -137,47 +159,48 @@ void (*set_terminal_window_hook) (int size);
 /* Lisp_Object (*read_socket_hook) (); */
 int read_socket_hook;
 
+
 /* Strings, numbers and flags taken from the termcap entry.  */
 
-static const char *TS_ins_line;	/* termcap "al" */
-static const char *TS_ins_multi_lines;/* "AL" (one parameter, # lines to insert) */
-static const char *TS_bell;		/* "bl" */
-static const char *TS_clr_to_bottom;	/* "cd" */
-static const char *TS_clr_line;	/* "ce", clear to end of line */
-static const char *TS_clr_screen;	/* "cl" */
-static const char *TS_set_scroll_region;/* "cs" (2 params, first line and last line) */
-static const char *TS_set_scroll_region_1;   /* "cS" (4 params: total lines,
+static CONST char *TS_ins_line;	/* termcap "al" */
+static CONST char *TS_ins_multi_lines;/* "AL" (one parameter, # lines to insert) */
+static CONST char *TS_bell;		/* "bl" */
+static CONST char *TS_clr_to_bottom;	/* "cd" */
+static CONST char *TS_clr_line;	/* "ce", clear to end of line */
+static CONST char *TS_clr_screen;	/* "cl" */
+static CONST char *TS_set_scroll_region;/* "cs" (2 params, first line and last line) */
+static CONST char *TS_set_scroll_region_1;   /* "cS" (4 params: total lines,
 				   lines above scroll region, lines below it,
 				   total lines again) */
-static const char *TS_del_char;	/* "dc" */
-static const char *TS_del_multi_chars;/* "DC" (one parameter, # chars to delete) */
-static const char *TS_del_line;	/* "dl" */
-static const char *TS_del_multi_lines;/* "DL" (one parameter, # lines to delete) */
-static const char *TS_delete_mode;	/* "dm", enter character-delete mode */
-static const char *TS_end_delete_mode;/* "ed", leave character-delete mode */
-static const char *TS_end_insert_mode;/* "ei", leave character-insert mode */
-static const char *TS_ins_char;	/* "ic" */
-static const char *TS_ins_multi_chars;/* "IC" (one parameter, # chars to insert) */
-static const char *TS_insert_mode;	/* "im", enter character-insert mode */
-static const char *TS_pad_inserted_char;/* "ip".  Just padding, no commands.  */
-static const char *TS_end_keypad_mode;/* "ke" */
-const char *TS_keypad_mode;		/* "ks" */
-static const char *TS_pad_char;	/* "pc", char to use as padding */
-static const char *TS_repeat;		/* "rp" (2 params, # times to repeat
+static CONST char *TS_del_char;	/* "dc" */
+static CONST char *TS_del_multi_chars;/* "DC" (one parameter, # chars to delete) */
+static CONST char *TS_del_line;	/* "dl" */
+static CONST char *TS_del_multi_lines;/* "DL" (one parameter, # lines to delete) */
+static CONST char *TS_delete_mode;	/* "dm", enter character-delete mode */
+static CONST char *TS_end_delete_mode;/* "ed", leave character-delete mode */
+static CONST char *TS_end_insert_mode;/* "ei", leave character-insert mode */
+static CONST char *TS_ins_char;	/* "ic" */
+static CONST char *TS_ins_multi_chars;/* "IC" (one parameter, # chars to insert) */
+static CONST char *TS_insert_mode;	/* "im", enter character-insert mode */
+static CONST char *TS_pad_inserted_char;/* "ip".  Just padding, no commands.  */
+static CONST char *TS_end_keypad_mode;/* "ke" */
+CONST char *TS_keypad_mode;		/* "ks" */
+static CONST char *TS_pad_char;	/* "pc", char to use as padding */
+static CONST char *TS_repeat;		/* "rp" (2 params, # times to repeat
 				   and character to be repeated) */
-static const char *TS_end_standout_mode;/* "se" */
-static const char *TS_fwd_scroll;	/* "sf" */
-static const char *TS_standout_mode;	/* "so" */
-static const char *TS_rev_scroll;	/* "sr" */
-static const char *TS_end_termcap_modes;/* "te" */
-static const char *TS_termcap_modes;	/* "ti" */
-static const char *TS_visible_bell;	/* "vb" */
-static const char *TS_end_visual_mode;/* "ve" */
-static const char *TS_visual_mode;	/* "vi" */
-static const char *TS_set_window;	/* "wi" (4 params, start and end of window,
+static CONST char *TS_end_standout_mode;/* "se" */
+static CONST char *TS_fwd_scroll;	/* "sf" */
+static CONST char *TS_standout_mode;	/* "so" */
+static CONST char *TS_rev_scroll;	/* "sr" */
+static CONST char *TS_end_termcap_modes;/* "te" */
+static CONST char *TS_termcap_modes;	/* "ti" */
+static CONST char *TS_visible_bell;	/* "vb" */
+static CONST char *TS_end_visual_mode;/* "ve" */
+static CONST char *TS_visual_mode;	/* "vi" */
+static CONST char *TS_set_window;	/* "wi" (4 params, start and end of window,
 				   each as vpos and hpos) */
-static const char *TS_underline_mode;	/* "us" */
-static const char *TS_end_underline_mode;/* "ue" */
+static CONST char *TS_underline_mode;	/* "us" */
+static CONST char *TS_end_underline_mode;/* "ue" */
 
 static int TF_hazeltine;	/* termcap hz flag. */
 static int TF_insmode_motion;	/* termcap mi flag: can move while in insert mode. */
@@ -250,7 +273,11 @@ SCREEN_PTR updating_screen;
  * 		otherwise use local info from the font structure.
  */
 int
+#ifdef I18N4
+text_width (Lisp_Object font, wchar_t *s, int l)
+#else
 text_width (Lisp_Object font, unsigned char *s, int l)
+#endif
 {
   int ret_val;
   if (CHECK_HOOK (text_width_hook))
@@ -372,7 +399,11 @@ set_scroll_region (start, stop)
   char *buf;
   if (TS_set_scroll_region)
     {
-      buf = tparam (TS_set_scroll_region, 0, 0, start, stop - 1, 0, 0);
+      buf = tparam (TS_set_scroll_region, 0, 0, start, stop - 1, 0, 0
+#ifdef TERMINFO
+		    , 0, 0, 0, 0, 0
+#endif
+		    );
     }
   else if (TS_set_scroll_region_1)
     {
@@ -380,12 +411,20 @@ set_scroll_region (start, stop)
 		    SCREEN_HEIGHT (selected_screen),
 		    start,
 		    SCREEN_HEIGHT (selected_screen) - stop,
-		    SCREEN_HEIGHT (selected_screen));
+		    SCREEN_HEIGHT (selected_screen)
+#ifdef TERMINFO
+		    , 0, 0, 0, 0, 0
+#endif
+		    );
     }
   else
     {
       buf = tparam (TS_set_window, 0, 0, start, 0,
-		    stop, SCREEN_WIDTH (selected_screen));
+		    stop, SCREEN_WIDTH (selected_screen)
+#ifdef TERMINFO
+		    , 0, 0, 0, 0, 0
+#endif
+		    );
     }
   OUTPUT (buf);
   xfree (buf);
@@ -645,6 +684,7 @@ update_end (s)
 
 /* Clear entire screen */
 
+#undef clear_screen	/* FMH! conflict with <term.h> */
 void
 clear_screen ()
 {
@@ -804,9 +844,9 @@ void
 ins_del_lines (vpos, n)
      int vpos, n;
 {
-  const char *multi = n > 0 ? TS_ins_multi_lines : TS_del_multi_lines;
-  const char *single = n > 0 ? TS_ins_line : TS_del_line;
-  const char *scroll = n > 0 ? TS_rev_scroll : TS_fwd_scroll;
+  CONST char *multi = n > 0 ? TS_ins_multi_lines : TS_del_multi_lines;
+  CONST char *single = n > 0 ? TS_ins_line : TS_del_line;
+  CONST char *scroll = n > 0 ? TS_rev_scroll : TS_fwd_scroll;
 
   register int i = n > 0 ? n : -n;
   register char *buf;
@@ -888,7 +928,7 @@ ins_del_lines (vpos, n)
 
 int
 string_cost (str)
-     const char *str;
+     CONST char *str;
 {
   cost = 0;
   if (str)
@@ -901,7 +941,7 @@ string_cost (str)
 
 static int
 string_cost_one_line (str)
-     const char *str;
+     CONST char *str;
 {
   cost = 0;
   if (str)
@@ -914,7 +954,7 @@ string_cost_one_line (str)
 
 int
 per_line_cost (str)
-     register const char *str;
+     register CONST char *str;
 {
   cost = 0;
   if (str)
@@ -1000,7 +1040,7 @@ void
 calculate_costs (screen)
      SCREEN_PTR screen;
 {
-  register const char *s = ((TS_set_scroll_region)
+  register CONST char *s = ((TS_set_scroll_region)
 			    ? TS_set_scroll_region
 			    : TS_set_scroll_region_1);
 
@@ -1075,6 +1115,8 @@ calculate_costs (screen)
 #endif /* TTY_REDISPLAY */
 
 
+extern void lose_without_x ();
+
 void
 term_init (terminal_type)
      char *terminal_type;
@@ -1086,6 +1128,9 @@ term_init (terminal_type)
 
   if (! initial_screen_is_tty ())
     return;
+
+  if (! noninteractive)
+    lose_without_x ();
 
   Wcm_clear ();
   dont_calculate_costs = 0;
@@ -1267,7 +1312,7 @@ term_init (terminal_type)
 	 If it were in the termcap entry, it would confuse other programs.  */
       if (!TS_set_window)
 	{
-          register const char *p = TS_termcap_modes;
+          register CONST char *p = TS_termcap_modes;
 	  while (*p && strcmp (p, "\033v  "))
 	    p++;
 	  if (*p)
@@ -1300,10 +1345,7 @@ term_init (terminal_type)
 
   if (Wcm_init () == -1)	/* can't do cursor motion */
     {
-
-      /* #### */
-      fatal ("Sorry, this Emacs only works under X for now\n\
-Check that your $DISPLAY environment variable is properly set.\n");
+      lose_without_x ();
 
 #ifdef VMS
       fatal ("Terminal type \"%s\" is not powerful enough to run Emacs.\n\

@@ -89,7 +89,10 @@ All the commands defined in Text mode are inherited unless overridden.")
   (define-key indented-text-mode-map "\t" 'indent-relative))
 
 (defun indented-text-mode ()
-  "Major mode for editing indented text intended for humans to read.
+  "Major mode for editing text with indented paragraphs.
+In this mode, paragraphs are delimited only by blank lines.
+You can thus get the benefit of adaptive filling
+ (see the variable `adaptive-fill-mode').
 \\{indented-text-mode-map}
 Turning on `indented-text-mode' calls the value of the variable
 `text-mode-hook', if that value is non-nil."
@@ -101,6 +104,10 @@ Turning on `indented-text-mode' calls the value of the variable
   (set-syntax-table text-mode-syntax-table)
   (make-local-variable 'indent-line-function)
   (setq indent-line-function 'indent-relative-maybe)
+  (make-local-variable 'paragraph-start)
+  (setq paragraph-start (concat "^$\\|" page-delimiter))
+  (make-local-variable 'paragraph-separate)
+  (setq paragraph-separate paragraph-start)
   (use-local-map indented-text-mode-map)
   (setq mode-name "Indented Text")
   (setq major-mode 'indented-text-mode)

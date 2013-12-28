@@ -805,7 +805,7 @@ to read a file name from the minibuffer."
 		 (bufmod (buffer-modified-p))
 		 (case-fold-search t))
 	     (while (re-search-forward "\\*Note\\([ \n]\\)" nil t)
-	       (replace-match (concat "*" Info-footnote-tag "\\1")))
+	       (replace-match (concat "*" Info-footnote-tag "\ ")))
 	     (set-buffer-modified-p bufmod))))
      (Info-reannotate-node)
      (and (string-match "^19" emacs-version)
@@ -1837,8 +1837,9 @@ Info-annotations-path) is to be edited; default is 1."
 		    (message (if flag "Type Space to see more"
 			       "Type Space to return to Info"))
 		    (let ((e (next-command-event)))
-		      (if (eq ?\  (event-to-character e))
-			  (setq unread-command-event e)))
+		      (if (/= ?\  (event-to-character e))
+			  (progn (setq unread-command-event e) nil)
+			flag)))
 ;		    (if (eq ?\  (setq ch (if (string-match "^19[^L]*$"
 ;							   emacs-version)
 ;					     (read-event)
@@ -1851,7 +1852,6 @@ Info-annotations-path) is to be edited; default is 1."
 ;			     (setq unread-command-events (list ch)))
 ;			    (t (setq unread-command-char ch)))
 ;		      nil)
-		    )
 	(scroll-up)))
     (message "")
     (bury-buffer "*Help*")))
@@ -2397,9 +2397,9 @@ Allowed only if variable `Info-enable-edit' is non-nil."
 
 (defun Info-highlight-region (start end face)
   (let ((extent (make-extent start end)))
-    (set-extent-data extent 'info)
     (set-extent-face extent face)
-    (set-extent-attribute extent 'highlight)))
+    (set-extent-property extent 'info t)
+    (set-extent-property extent 'highlight t)))
 
 (defun Info-fontify-node ()
   (save-excursion
@@ -2459,7 +2459,8 @@ Allowed only if variable `Info-enable-edit' is non-nil."
       (if (looking-at ".*\\bNext:") (setq next-p t))
       (if (looking-at ".*\\bPrev:") (setq prev-p t))
       (if (looking-at ".*Up:") (setq up-p t))
-      (setq menu (nconc (list "Info" "Info Commands:" "----")
+      (setq menu (nconc (list "Info" ; title: not shown
+			      "Info Commands:" "----")
 			(if (setq in (Info-indicated-node event))
 			    (list (vector (car (cdr in)) in t)))
 			(list
@@ -2503,7 +2504,8 @@ Allowed only if variable `Info-enable-edit' is non-nil."
 				     (vector node (list 'Info-menu node)
 					     t))))
 		       subnodes)))
-    (popup-menu menu)))
+    (let ((popup-menu-titles nil))
+      (popup-menu menu))))
 
 (provide 'info)
 

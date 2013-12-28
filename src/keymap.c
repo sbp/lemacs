@@ -1,5 +1,5 @@
 /* Manipulation of keymaps
-   Copyright (C) 1985-1993 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1991, 1992, 1993, 1994 Free Software Foundation, Inc.
    Totally redesigned by jwz in 1991.
 
 This file is part of GNU Emacs.
@@ -23,6 +23,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include <stdio.h>
 
 #include "lisp.h"
+#include "intl.h"
 #include "keymap.h"
 #include "commands.h"
 #include "buffer.h"
@@ -170,16 +171,12 @@ Lisp_Object Qmode_line_map;
 static Lisp_Object describe_buffer_bindings (Lisp_Object descbuf);
 static Lisp_Object describe_buffer_mouse_bindings (Lisp_Object descbuf);
 static void describe_command (Lisp_Object definition);
-static void describe_map (Lisp_Object map, Lisp_Object keys,
-                          int partial, 
-                          Lisp_Object shadow,
-                          int mice_only_p);
 static int bucky_sym_to_bucky_bit (Lisp_Object sym);
-static void describe_map_1 (Lisp_Object keymap, Lisp_Object elt_prefix,
-			    void (*elt_describer) (Lisp_Object),
-			    int partial, 
-			    Lisp_Object shadow, 
-			    int mice_only_p);
+static void describe_map (Lisp_Object keymap, Lisp_Object elt_prefix,
+			  void (*elt_describer) (Lisp_Object),
+			  int partial, 
+			  Lisp_Object shadow, 
+			  int mice_only_p);
 Lisp_Object Qcontrol, Qctrl, Qmeta, Qsuper, Qhyper, Qsymbol, Qshift;
 Lisp_Object Qbutton0, Qbutton1, Qbutton2, Qbutton3, Qbutton4, Qbutton5,
   Qbutton6, Qbutton7;
@@ -431,7 +428,7 @@ struct keymap_submaps_closure
 };
 
 static void
-keymap_submaps_mapper_0 (const void *hash_key, void *hash_contents, 
+keymap_submaps_mapper_0 (CONST void *hash_key, void *hash_contents, 
                          void *keymap_submaps_closure)
 {
   Lisp_Object contents;
@@ -441,15 +438,15 @@ keymap_submaps_mapper_0 (const void *hash_key, void *hash_contents,
 }
 
 static void
-keymap_submaps_mapper (const void *hash_key, void *hash_contents, 
+keymap_submaps_mapper (CONST void *hash_key, void *hash_contents, 
                        void *keymap_submaps_closure)
 {
   Lisp_Object key, contents;
   Lisp_Object *result_locative;
+  struct keymap_submaps_closure *cl = keymap_submaps_closure;
   CVOID_TO_LISP (key, hash_key);
   VOID_TO_LISP (contents, hash_contents);
-  result_locative = (((struct keymap_submaps_closure *) keymap_submaps_closure)
-		     ->result_locative);
+  result_locative = cl->result_locative;
 
   if (!NILP (Fkeymapp (contents)))
     *result_locative = Fcons (Fcons (key, contents), *result_locative);
@@ -571,7 +568,7 @@ of all keymaps.")
     QUIT;
     if (EQ (k, keymap))
       signal_error (Qerror, 
-                    list3 (build_string ("Cyclic keymap indirection"),
+                    list3 (build_string (GETTEXT("Cyclic keymap indirection")),
                            keymap, 
                            parent));
   }
@@ -777,7 +774,7 @@ struct copy_keymap_inverse_closure
 };
 
 static void
-copy_keymap_inverse_mapper (const void *hash_key, void *hash_contents, 
+copy_keymap_inverse_mapper (CONST void *hash_key, void *hash_contents, 
                             void *copy_keymap_inverse_closure)
 {
   Lisp_Object key, inverse_table, inverse_contents;
@@ -823,16 +820,20 @@ struct copy_keymap_closure
 };
 
 static void
-copy_keymap_mapper (const void *hash_key, void *hash_contents, 
+copy_keymap_mapper (CONST void *hash_key, void *hash_contents, 
                     void *copy_keymap_closure)
 {
   Lisp_Object key, contents;
-  struct copy_keymap_closure *closure
-    = (struct copy_keymap_closure *) copy_keymap_closure;
+  struct copy_keymap_closure *closure = copy_keymap_closure;
 
   CVOID_TO_LISP (key, hash_key);
   VOID_TO_LISP (contents, hash_contents);
-  /* Don't recursively copy keymaps that are indirected through symbols. */
+  /* When we encounter a keymap which is indirected through a
+     symbol, we need to copy the sub-map.  In v18, the form
+       (lookup-key (copy-keymap global-map) "\C-x")
+     returned a new keymap, not the symbol 'Control-X-prefix.
+   */
+  contents = get_keymap (contents, 0, 1);  /* #### autoload GC-safe here? */
   if (KEYMAPP (contents))
     keymap_store_internal (key, closure->self, copy_keymap (contents));
 }
@@ -942,7 +943,7 @@ define_key_parser (Lisp_Object spec,
 	default:
 	  signal_error (Qwrong_type_argument,
 			list2 (build_string
-			       ("unable to bind this type of event"),
+			       (GETTEXT ("unable to bind this type of event")),
 			       spec));
 	}
     }
@@ -970,13 +971,15 @@ define_key_parser (Lisp_Object spec,
 	  {
 	    if (! mod_p)
 	      signal_error (Qerror,
-			    list2 (build_string ("unknown modifier"), keysym));
+			    list2 (build_string (GETTEXT ("unknown modifier")),
+				   keysym));
 	  }
 	else
 	  {
 	    if (mod_p)
 	      signal_error (Qerror,
-			    list2 (build_string ("nothing but modifiers here"),
+			    list2 (build_string
+				   (GETTEXT ("nothing but modifiers here")),
 				   spec));
 	  }
 	rest = XCONS (rest)->cdr;
@@ -997,19 +1000,21 @@ define_key_parser (Lisp_Object spec,
 	fixnum_keysym:
 	  if (XINT (keysym) < ' ' || XINT (keysym) > 127)
 	    signal_error (Qerror,
-			  list2 (build_string
-				 ("keysym must be in the printing ASCII range"),
+			  list2 (build_string (GETTEXT
+				 ("keysym must be in the printing ASCII range")),
 				 keysym));
+          /* >>> This sucks!  I want to be able to write (control shift a) */
 	  if (modifiers & MOD_SHIFT)
 	    signal_error (Qerror,
-			  list2 (build_string (
-		    "the `shift' modifier may not be applied to ASCII keysyms"),
+			  list2 (build_string (GETTEXT (
+		    "the `shift' modifier may not be applied to ASCII keysyms")),
 				 spec));
 	}
       else
 	{
 	  signal_error (Qerror, 
-			list2 (build_string ("unknown keysym specifier"),
+			list2 (build_string
+			       (GETTEXT ("unknown keysym specifier")),
 			       keysym));
 	}
 
@@ -1020,7 +1025,8 @@ define_key_parser (Lisp_Object spec,
   else
     {
       signal_error (Qerror, 
-		    list2 (build_string ("unknown key-sequence specifier"),
+		    list2 (build_string
+			   (GETTEXT ("unknown key-sequence specifier")),
 			   spec));
     }
 }
@@ -1040,7 +1046,8 @@ key_desc_list_to_event (list, event, allow_menu_events)
     {
       Lisp_Object fn, arg;
       if (! NILP (Fcdr (Fcdr (list))))
-	signal_error (Qerror, list2 (build_string ("invalid menu event desc"),
+	signal_error (Qerror, list2 (build_string
+				     (GETTEXT ("invalid menu event desc")),
                                      list));
       arg = Fcar (Fcdr (list));
       if (SYMBOLP (arg))
@@ -1064,7 +1071,7 @@ key_desc_list_to_event (list, event, allow_menu_events)
       EQ (keysym, Qbutton5) || EQ (keysym, Qbutton5up) ||
       EQ (keysym, Qbutton6) || EQ (keysym, Qbutton6up) ||
       EQ (keysym, Qbutton7) || EQ (keysym, Qbutton7up))
-    error ("Mouse-clicks can't appear in saved keyboard macros.");
+    error (GETTEXT ("Mouse-clicks can't appear in saved keyboard macros."));
 
   XEVENT (event)->channel = Qnil;
   XEVENT (event)->event_type = key_press_event;
@@ -1165,12 +1172,12 @@ ensure_meta_prefix_char_keymapp (keys, index, keymap)
   else
     abort ();
   if (EQ (keys, new_keys))
-    sprintf (buf, "can't bind %s: %s has a non-keymap binding",
+    sprintf (buf, GETTEXT ("can't bind %s: %s has a non-keymap binding"),
 	(char *) XSTRING (Fkey_description (keys))->data,
 	(char *) XSTRING (Fsingle_key_description 
                           (make_number (meta_prefix_char)))->data);
   else
-    sprintf (buf, "can't bind %s: %s %s has a non-keymap binding",
+    sprintf (buf, GETTEXT ("can't bind %s: %s %s has a non-keymap binding"),
 	(char *) XSTRING (Fkey_description (keys))->data,
 	(char *) XSTRING (Fkey_description (new_keys))->data,
 	(char *) XSTRING (Fsingle_key_description
@@ -1406,7 +1413,7 @@ DEFUN ("define-key", Fdefine_key, Sdefine_key, 3, 3, 0, 0
                   Lisp_Object desc
                     = Fsingle_key_description (make_number (meta_prefix_char));
 		  signal_error (Qerror, list3 (build_string
-				  ("Map contains meta-bindings, can't bind"),
+			  (GETTEXT ("Map contains meta-bindings, can't bind")),
 					       desc, keymap));
 		}
               UNGCPRO;
@@ -1460,7 +1467,7 @@ DEFUN ("define-key", Fdefine_key, Sdefine_key, 3, 3, 0, 0
 	if (NILP (Fkeymapp (cmd)))
           signal_error (Qerror,
                         list3 (build_string
-                               ("invalid prefix keys in sequence"),
+                               (GETTEXT ("invalid prefix keys in sequence")),
                                c, keys));
 
 	if (ascii_hack && !NILP (keysym2) &&
@@ -1487,13 +1494,13 @@ struct raw_key {
 /* Caller should gc-protect args */
 static Lisp_Object
 raw_lookup_key (Lisp_Object keymap,
-                const struct raw_key *raw_keys, int raw_keys_count,
+                CONST struct raw_key *raw_keys, int raw_keys_count,
                 int keys_so_far)
 {
   Lisp_Object k = keymap;
-  const Lisp_Object keysym = raw_keys[0].keysym;
-  const int modifiers = raw_keys[0].bits;
-  const int remaining = raw_keys_count - 1;
+  CONST Lisp_Object keysym = raw_keys[0].keysym;
+  CONST int modifiers = raw_keys[0].bits;
+  CONST int remaining = raw_keys_count - 1;
 
   /* Loop over keymap and parents */
   while (1)
@@ -1729,6 +1736,12 @@ it takes to reach a non-prefix command.")
    2-3x.  And they're already slower than v18 by 5-6x. 
  */
 
+static int relevant_extent_keymaps_to_search (Lisp_Object pos,
+					      Lisp_Object buffer,
+					      int nmaps, int max_maps,
+					      Lisp_Object maps[],
+					      Lisp_Object glyph);
+
 static int
 relevant_keymaps_to_search (Lisp_Object keys,
                             int max_maps, Lisp_Object maps[])
@@ -1760,16 +1773,32 @@ relevant_keymaps_to_search (Lisp_Object keys,
       || (XEVENT (terminal)->event_type != button_press_event 
           && XEVENT (terminal)->event_type != button_release_event))
     {
-      /* It's not a mouse event, so use the local map of the current buffer. */
+      /* It's not a mouse event; order of keymaps searched is:
+	 o  keymap of any/all extents under the mouse
+	 o  local-map of current-buffer
+	 o  global-map
+       */
       Lisp_Object local_map = current_buffer->keymap;
+      if (EVENTP (terminal))
+	{
+	  Lisp_Object cb, pt;
+	  XSETR (cb, Lisp_Buffer, current_buffer);
+	  XSETINT (pt, PT);
+	  nmaps = relevant_extent_keymaps_to_search (pt, cb, nmaps,
+						     max_maps, maps, Qnil);
+	}
       push_map_or_punt (local_map);
     }
   else
     {
-      /* If it's a mouse event, then first check the mouse-grabbed-buffer.
-	 After that, the interesting buffer is the buffer of the window under
-	 the mouse.  If this was a mode-line hit instead of a text-hit, then
-	 check the mode-line-map of that buffer.  Then, check the local map.
+      /* It's a mouse event; order of keymaps searched is:
+	 o  local-map of mouse-grabbed-buffer
+	 o  keymap of any/all extents under the mouse
+	    if the mouse is over a modeline:
+	    o  mode-line-map of buffer corresponding to that modeline
+	    o  else, local-map of buffer under the mouse
+	 o  local-map of current-buffer
+	 o  global-map
        */
       Lisp_Object window, screen;
       int mode_p;
@@ -1806,6 +1835,14 @@ relevant_keymaps_to_search (Lisp_Object keys,
 		  if (!EQ (mode_line_map, Qunbound))
 		    push_map_or_punt (mode_line_map);
 		}
+	      else
+		{
+		  /* if it was a modeline hit, then it can't have been over
+		     an extent with a keymap. */
+		  nmaps = relevant_extent_keymaps_to_search
+		    (Fevent_point (terminal), buffer, nmaps,
+		     max_maps, maps, Fevent_glyph (terminal));
+		}
 	      local_map = XBUFFER (buffer)->keymap;
 	      if (!EQ (buffer, Vmouse_grabbed_buffer))
 		push_map_or_punt (local_map);
@@ -1817,6 +1854,53 @@ relevant_keymaps_to_search (Lisp_Object keys,
 #undef push_map_or_punt
 }
 
+/* Returns a set of keymaps extracted from the extents at POS in BUFFER.
+   The GLYPH arg, if specified, is one more extent to look for a keymap in,
+   and if it has one, its keymap will be the first element in the list 
+   returned.  This is so we can correctly search the keymaps associated
+   with glyphs which may be physically disjoint from their extents: for
+   example, if a glyph is out in the margin, we should still consult the
+   kemyap of that glyph's extent, which may not itself be under the mouse.
+ */
+static int
+relevant_extent_keymaps_to_search (Lisp_Object pos, Lisp_Object buffer,
+				   int nmaps, int max_maps, Lisp_Object maps[],
+				   Lisp_Object glyph)
+{
+  Lisp_Object extent = Qnil;
+  Lisp_Object keymap;
+  int i = 4;
+
+  /* The glyph keymap, if any, comes first.
+     (Processing it twice is no big deal: noop.) */
+  if (!NILP (glyph))
+    {
+      keymap = Fextent_property (glyph, Qkeymap);
+      if (!NILP (keymap))
+	{
+	  i++;
+	  /* #### is autoload gc-safe here? */
+	  keymap = get_keymap (keymap, 0, 0);
+	  if (!NILP (keymap)) maps[nmaps++] = keymap;
+	}
+    }
+
+  /* Next check the extents at the text position, if any */
+  if (NILP (pos))
+    return nmaps;
+  for (; i < max_maps; i++) /* don't overflow here */
+    {
+      extent = Fextent_at (pos, buffer, Qkeymap, extent);
+      if (NILP (extent)) break;
+      keymap = Fextent_property (extent, Qkeymap);
+      if (NILP (keymap)) abort ();
+      keymap = get_keymap (keymap, 0, 0); /* #### is autoload gc-safe here? */
+      if (!NILP (keymap)) maps[nmaps++] = keymap;
+    }
+  return nmaps;
+}
+
+
 
 /* Attempts to find a command corresponding to the event-sequence
    whose head is event0 (sequence is threaded though event_next).
@@ -1826,7 +1910,7 @@ relevant_keymaps_to_search (Lisp_Object keys,
 Lisp_Object
 event_binding (Lisp_Object event0)
 {
-  Lisp_Object maps[10];
+  Lisp_Object maps[100];
   int nmaps;
 
   if (!EVENTP (event0)) abort ();
@@ -1841,12 +1925,25 @@ DEFUN ("key-binding", Fkey_binding, Skey_binding, 1, 1, 0,
 KEYS is a string, a vector of events, or a vector of key-description lists\n\
 as described in the documentation for the `define-key' function.\n\
 The binding is probably a symbol with a function definition; see\n\
-the documentation for `lookup-key' for more information.")
+the documentation for `lookup-key' for more information.\n\
+\n\
+For key-presses, the order of keymaps searched is:\n\
+  - the `keymap' property of any extent(s) at point;\n\
+  - the current-local-map of the current-buffer;\n\
+  - the current global map.\n\
+\n\
+For mouse-clicks, the order of keymaps searched is:\n\
+  - the current-local-map of the `mouse-grabbed-buffer' if any;\n\
+  - the `keymap' property of any extent(s) at the position of the click;\n\
+  - the mode-line-map of the buffer corresponding to the mode-line under\n\
+    the mouse (if the click happened over a mode line);\n\
+  - the current-local-map of the buffer under the mouse;\n\
+  - the current global map.")
   (keys)
     Lisp_Object keys;
 {
   int i;
-  Lisp_Object maps[10];
+  Lisp_Object maps[100];
   int nmaps = relevant_keymaps_to_search (keys, countof (maps), maps);
   if (nmaps < 0) abort (); /* this can't happen, right? */
 
@@ -1935,12 +2032,11 @@ struct map_keymap_unsorted_closure
 
 /* used by map_keymap() */
 static void
-map_keymap_unsorted_mapper (const void *hash_key, void *hash_contents, 
+map_keymap_unsorted_mapper (CONST void *hash_key, void *hash_contents, 
                             void *map_keymap_unsorted_closure)
 {
   Lisp_Object key, contents;
-  struct map_keymap_unsorted_closure *closure
-    = (struct map_keymap_unsorted_closure *) map_keymap_unsorted_closure;
+  struct map_keymap_unsorted_closure *closure = map_keymap_unsorted_closure;
   int modifiers = closure->bits;
   int mod_bit;
   CVOID_TO_LISP (key, hash_key);
@@ -1968,12 +2064,12 @@ struct map_keymap_sorted_closure
 
 /* used by map_keymap_sorted() */
 static void
-map_keymap_sorted_mapper (const void *hash_key, void *hash_contents, 
+map_keymap_sorted_mapper (CONST void *hash_key, void *hash_contents, 
                           void *map_keymap_sorted_closure)
 {
+  struct map_keymap_sorted_closure *cl = map_keymap_sorted_closure;
   Lisp_Object key, contents;
-  Lisp_Object *list = (((struct map_keymap_sorted_closure *)
-                        map_keymap_sorted_closure)->result_locative);
+  Lisp_Object *list = cl->result_locative;
   CVOID_TO_LISP (key, hash_key);
   VOID_TO_LISP (contents, hash_contents);
   *list = Fcons (Fcons (key, contents), *list);
@@ -2038,9 +2134,17 @@ map_keymap_sort_predicate (Lisp_Object obj1, Lisp_Object obj2,
     return (bit2 ? 1 : -1);
 
   /* otherwise, string-sort them. */
-  return ((0 > strcmp ((char *) XSYMBOL (obj1)->name->data,
-		       (char *) XSYMBOL (obj2)->name->data))
-	  ? 1 : -1);
+  {
+    char *s1 = (char *) XSYMBOL (obj1)->name->data;
+    char *s2 = (char *) XSYMBOL (obj2)->name->data;
+    return (
+#ifdef I18N2
+	    (0 > strcoll (s1, s2))
+#else
+	    (0 > strcmp (s1, s2))
+#endif
+	    ? 1 : -1);
+  }
 }
 
 
@@ -2353,7 +2457,8 @@ of a key read from the user rather than a character from a buffer.")
 		strcpy (bufp, (char *) XSYMBOL (keysym)->name->data);
 	      if (!NILP (XCONS (rest)->cdr))
 		signal_error (Qerror,
-			      list2 (build_string ("invalid key description"),
+			      list2 (build_string
+				     (GETTEXT ("invalid key description")),
 				     key));
 	    }
 	}
@@ -2389,7 +2494,8 @@ of a character from a buffer rather than a key read from the user.")
       if (NILP (ch))
 	return
 	  Fsignal (Qerror,
-		   list2 (build_string ("character has no ASCII equivalent"),
+		   list2 (build_string
+			  (GETTEXT ("character has no ASCII equivalent")),
                           Fcopy_event (chr, Qnil)));
       chr = ch;
     }
@@ -2746,7 +2852,7 @@ If the argument is non-null, then only the mouse bindings are displayed.")
   (mice_only_p)
   Lisp_Object mice_only_p;
 {
-  internal_with_output_to_temp_buffer ("*Help*",
+  internal_with_output_to_temp_buffer (GETTEXT ("*Help*"),
 				       NILP (mice_only_p)
 				       ? describe_buffer_bindings
 				       : describe_buffer_mouse_bindings,
@@ -2758,10 +2864,10 @@ If the argument is non-null, then only the mouse bindings are displayed.")
 static Lisp_Object
 describe_buffer_bindings_1 (Lisp_Object descbuf, int mice_only_p)
 {
-  const char *heading =
+  CONST char *heading =
     (mice_only_p
-     ? "button          binding\n------          -------\n"
-     : "key             binding\n---             -------\n");
+     ? GETTEXT ("button          binding\n------          -------\n")
+     : GETTEXT ("key             binding\n---             -------\n"));
   struct gcpro gcpro1;
 
   GCPRO1 (descbuf);
@@ -2769,14 +2875,14 @@ describe_buffer_bindings_1 (Lisp_Object descbuf, int mice_only_p)
 
   if (!NILP (XBUFFER (descbuf)->keymap))
     {
-      insert_string ("Local Bindings:\n");
+      insert_string (GETTEXT ("Local Bindings:\n"));
       insert_string (heading);
       describe_map_tree (XBUFFER (descbuf)->keymap, 0, Qnil,
                          mice_only_p);
       insert_string ("\n");
     }
 
-  insert_string ("Global Bindings:\n");
+  insert_string (GETTEXT ("Global Bindings:\n"));
   insert_string (heading);
 
   describe_map_tree (Vcurrent_global_map, 0, XBUFFER (descbuf)->keymap,
@@ -2834,9 +2940,22 @@ describe_map_tree (Lisp_Object startmap, int partial, Lisp_Object shadow,
 	    sh = Qnil;
 	}
       if (NILP (sh) || !NILP (Fkeymapp (sh)))
-	describe_map (Fcdr (elt), Fcar (elt), partial,
-		      (NILP (sh) ? Qnil : get_keymap (sh, 1, 1)),
-		      mice_only_p);
+	{
+	  /* Describe the contents of map MAP, assuming that this map
+	     itself is reached by the sequence of prefix keys KEYS (a vector).
+	     PARTIAL and SHADOW are as in `describe_map_tree'.  */
+	  Lisp_Object keys = Fcar (elt);
+	  Lisp_Object keysdesc = ((!NILP (keys) && XINT (Flength (keys)) > 0)
+				  ? concat2 (Fkey_description (keys), 
+					     Vsingle_space_string)
+				  : Qnil);
+	  Lisp_Object shadow = (NILP (sh) ? Qnil : get_keymap (sh, 1, 1));
+	  describe_map (Fcdr (elt), keysdesc,
+			describe_command,
+			partial,
+			shadow,
+			mice_only_p);
+	}
     }
   UNGCPRO;
 }
@@ -2848,20 +2967,20 @@ describe_command (Lisp_Object definition)
   struct gcpro gcpro1;
   GCPRO1 (definition);
 
-  Findent_to (make_number (16), make_number (1));
+  Findent_to (make_number (16), make_number (3));
   if (SYMBOLP (definition))
     {
       insert1 (Fsymbol_name (definition));
     }
   else if (STRINGP (definition) || VECTORP (definition))
     {
-      insert_string ("Kbd Macro: ");
+      insert_string (GETTEXT ("Kbd Macro: "));
       insert1 (Fkey_description (definition));
     }
   else if (COMPILEDP (definition))
-    insert_string ("Anonymous Compiled Function");
+    insert_string (GETTEXT ("Anonymous Compiled Function"));
   else if (CONSP (definition) && EQ (XCONS (definition)->car, Qlambda))
-    insert_string ("Anonymous Lambda");
+    insert_string (GETTEXT ("Anonymous Lambda"));
   else if (KEYMAPP (definition))
     {
       Lisp_Object name = XKEYMAP (definition)->name;
@@ -2869,41 +2988,23 @@ describe_command (Lisp_Object definition)
 	  && (SYMBOLP (name) || STRINGP (name)) /* >>>??? */
 	  )
 	{
-	  insert_string ("Prefix Command ");
+	  insert_string (GETTEXT ("Prefix command "));
 	  if (SYMBOLP (name) 
 	      && EQ (find_symbol_value (name), definition))
-	    insert1 (name);
+	    insert1 (Fsymbol_name (name));
 	  else
 	    {
 	      insert1 (Fprin1_to_string (name, Qnil));
 	    }
 	}
       else
-	insert_string ("Prefix Command");
+	insert_string (GETTEXT ("Prefix Command"));
     }
   else
-    insert_string ("??");
+    insert_string (GETTEXT ("??"));
 
   insert_string ("\n");
   UNGCPRO;
-}
-
-/* Describe the contents of map MAP, assuming that this map
-   itself is reached by the sequence of prefix keys KEYS (a vector).
-   PARTIAL and SHADOW are as in `describe_map_tree' above.  */
-
-static void
-describe_map (Lisp_Object map, Lisp_Object keys, 
-              int partial, Lisp_Object shadow, int mice_only_p)
-{
-  Lisp_Object keysdesc;
-  
-  if (!NILP (keys) && XINT (Flength (keys)) > 0)
-    keysdesc = concat2 (Fkey_description (keys), Vsingle_space_string);
-  else
-    keysdesc = Qnil;
-  describe_map_1 (map, keysdesc, describe_command,
-		  partial, shadow, mice_only_p);
 }
 
 struct describe_map_closure {
@@ -2921,8 +3022,7 @@ describe_map_mapper (Lisp_Object key, int bits, Lisp_Object binding,
 		     void *describe_map_closure)
 {
   Lisp_Object sh;
-  struct describe_map_closure *closure =
-    (struct describe_map_closure *) describe_map_closure;
+  struct describe_map_closure *closure = describe_map_closure;
 
   /* Dont mention suppressed commands.  */
   if (SYMBOLP (binding)
@@ -3037,22 +3137,21 @@ elide_next_two_p (Lisp_Object list)
 
 
 static void
-describe_map_1 (Lisp_Object keymap,
-		Lisp_Object elt_prefix,
-		void (*elt_describer) (Lisp_Object),
-		int partial, 
-		Lisp_Object shadow,
-		int mice_only_p)
+describe_map (Lisp_Object keymap, Lisp_Object elt_prefix,
+	      void (*elt_describer) (Lisp_Object),
+	      int partial, 
+	      Lisp_Object shadow,
+	      int mice_only_p)
 {
   struct describe_map_closure describe_map_closure;
   Lisp_Object list = Qnil;
-  struct gcpro gcpro1, gcpro2, gcpro3, gcpro4;
   int printable_min = (FIXNUMP (current_buffer->ctl_arrow)
 		       ? XINT (current_buffer->ctl_arrow)
 		       : ((EQ (current_buffer->ctl_arrow, Qt) ||
 			   EQ (current_buffer->ctl_arrow, Qnil))
 			  ? 256 : 160));
   int elided = 0;
+  struct gcpro gcpro1, gcpro2, gcpro3, gcpro4;
 
   keymap = get_keymap (keymap, 1, 1);
   describe_map_closure.partial = (partial ? Qsuppress_keymap : Qnil);
@@ -3071,70 +3170,72 @@ describe_map_1 (Lisp_Object keymap,
 		  describe_map_mapper, &describe_map_closure);
     }
 
-  list = list_sort (list, Qnil, describe_map_sort_predicate);
-
-  insert_string ("\n");
-  while (!NILP (list))
+  if (!NILP (list))
     {
-      Lisp_Object keysym = XCONS (XCONS (XCONS (list)->car)->car)->car;
-      int modifiers = XINT (XCONS (XCONS (XCONS (list)->car)->car)->cdr);
-
-      if (!NILP (elt_prefix))
-	insert_from_string (elt_prefix, -1);
-
-      if (modifiers & MOD_META)    insert_string ("M-");
-      if (modifiers & MOD_CONTROL) insert_string ("C-");
-      if (modifiers & MOD_SUPER)   insert_string ("S-");
-      if (modifiers & MOD_HYPER)   insert_string ("H-");
-      if (modifiers & MOD_SYMBOL)  insert_string ("Sym-");
-      if (modifiers & MOD_SHIFT)   insert_string ("Sh-");
-      if (SYMBOLP (keysym))
+      list = list_sort (list, Qnil, describe_map_sort_predicate);
+      insert_string ("\n");
+      while (!NILP (list))
 	{
-	  Lisp_Object code = Fget (keysym, Vcharacter_set_property, Qnil);
-	  int c = (FIXNUMP (code) ? XINT (code) : -1);
-	  /* Calling Fsingle_key_description() would cons more */
-	  if (EQ (keysym, QKlinefeed))		insert_string ("LFD");
-	  else if (EQ (keysym, QKtab))		insert_string ("TAB");
-	  else if (EQ (keysym, QKreturn))	insert_string ("RET");
-	  else if (EQ (keysym, QKescape))	insert_string ("ESC");
-	  else if (EQ (keysym, QKdelete))	insert_string ("DEL");
-	  else if (EQ (keysym, QKspace))	insert_string ("SPC");
-	  else if (EQ (keysym, QKbackspace))	insert_string ("BS");
-	  else if (c >= printable_min)		insert_char (c);
-	  else
-	    insert_raw_string ((char *) XSYMBOL (keysym)->name->data,
-			       XSYMBOL (keysym)->name->size);
-	}
-      else if (FIXNUMP (keysym))
-	insert_char (XINT (keysym));
-      else
-	insert_string ("---bad keysym---");
+	  Lisp_Object keysym = XCONS (XCONS (XCONS (list)->car)->car)->car;
+	  int modifiers = XINT (XCONS (XCONS (XCONS (list)->car)->car)->cdr);
 
-      if (elided)
-	elided = 0;
-      else
-	{
-	  int k = 0;
+	  if (!NILP (elt_prefix))
+	    insert_from_string (elt_prefix, -1);
 
-	  while (elide_next_two_p (list))
+	  if (modifiers & MOD_META)    insert_string ("M-");
+	  if (modifiers & MOD_CONTROL) insert_string ("C-");
+	  if (modifiers & MOD_SUPER)   insert_string ("S-");
+	  if (modifiers & MOD_HYPER)   insert_string ("H-");
+	  if (modifiers & MOD_SYMBOL)  insert_string ("Sym-");
+	  if (modifiers & MOD_SHIFT)   insert_string ("Sh-");
+	  if (SYMBOLP (keysym))
 	    {
-	      k++;
-	      list = XCONS (list)->cdr;
-	    }
-	  if (k != 0)
-	    {
-	      if (k == 1)
-		insert_string (", ");
+	      Lisp_Object code = Fget (keysym, Vcharacter_set_property, Qnil);
+	      int c = (FIXNUMP (code) ? XINT (code) : -1);
+	      /* Calling Fsingle_key_description() would cons more */
+	      if (EQ (keysym, QKlinefeed))	 insert_string ("LFD");
+	      else if (EQ (keysym, QKtab))	 insert_string ("TAB");
+	      else if (EQ (keysym, QKreturn))	 insert_string ("RET");
+	      else if (EQ (keysym, QKescape))	 insert_string ("ESC");
+	      else if (EQ (keysym, QKdelete))	 insert_string ("DEL");
+	      else if (EQ (keysym, QKspace))	 insert_string ("SPC");
+	      else if (EQ (keysym, QKbackspace)) insert_string ("BS");
+	      else if (c >= printable_min)	 insert_char (c);
 	      else
-		insert_string (" .. ");
-	      elided = 1;
-	      continue;
+		insert_raw_string ((char *) XSYMBOL (keysym)->name->data,
+				   XSYMBOL (keysym)->name->size);
 	    }
-	}
+	  else if (FIXNUMP (keysym))
+	    insert_char (XINT (keysym));
+	  else
+	    insert_string (GETTEXT ("---bad keysym---"));
 
-      /* Print a description of the definition of this character.  */
-      (*elt_describer) (XCONS (XCONS (list)->car)->cdr);
-      list = XCONS (list)->cdr;
+	  if (elided)
+	    elided = 0;
+	  else
+	    {
+	      int k = 0;
+
+	      while (elide_next_two_p (list))
+		{
+		  k++;
+		  list = XCONS (list)->cdr;
+		}
+	      if (k != 0)
+		{
+		  if (k == 1)
+		    insert_string (", ");
+		  else
+		    insert_string (" .. ");
+		  elided = 1;
+		  continue;
+		}
+	    }
+
+	  /* Print a description of the definition of this character.  */
+	  (*elt_describer) (XCONS (XCONS (list)->car)->cdr);
+	  list = XCONS (list)->cdr;
+	}
     }
   UNGCPRO;
 }

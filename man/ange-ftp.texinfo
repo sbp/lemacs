@@ -1,6 +1,6 @@
 \input texinfo   @c -*-texinfo-*-
 @comment %**start of header (This is for running Texinfo on a region.)
-@setfilename ../info/ange-ftp
+@setfilename ../info/ange-ftp.info
 @settitle ange-ftp
 @comment %**end of header (This is for running Texinfo on a region.)
 

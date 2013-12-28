@@ -788,7 +788,7 @@ is initialized from the SAVEDIR environment variable."
 		     (file-name-directory default-name)
 		     default-name)))
 	  (gnus-make-directory (file-name-directory filename))
-	  (rmail-output filename)
+	  (rmail-output filename 1 t t)
 	  ;; Remember the directory name to save articles.
 	  (setq gnus-newsgroup-last-mail filename)
 	  )))

@@ -18,13 +18,19 @@ along with GNU Emacs; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 
-#include <signal.h>
+/* #include <signal.h>  use "syssignal.h" instead -jwz */
 
 #include "config.h"
+
+#include "syssignal.h"
+
+#include "intl.h"
 #include <stdio.h>
 #include <ctype.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+
+#if 0 /* this stuff looks a lot like systty.h --jwz */
 
 #ifdef HAVE_TERMIO
 #include <termio.h>
@@ -33,9 +39,13 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define TIOCOUTQ TCOUTQ
 #endif /* TCOUTQ defined */
 #else
+#ifdef HAVE_TERMIOS
+#include <termios.h>
+#else
 #ifndef VMS
 #include <sys/ioctl.h>
 #endif /* not VMS */
+#endif /* not HAVE_TERMIOS */
 #endif /* not HAVE_TERMIO */
 
 /* Allow m- file to inhibit use of FIONREAD.  */
@@ -47,6 +57,10 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #ifndef FIONREAD
 #undef SIGIO
 #endif
+
+#else /* !0 */
+#include "systty.h"
+#endif /* !0 */
 
 #include "termchar.h"
 #include "termopts.h"
@@ -118,6 +132,7 @@ Lisp_Object Vwindow_system_version;
 /* Nonzero means reading single-character input with prompt
    so put cursor on minibuffer after the prompt.  */
 int cursor_in_echo_area;
+Lisp_Object Qcursor_in_echo_area;
 
 /* The currently selected screen.
    In a single-screen version, this variable is always 0.  */
@@ -164,6 +179,7 @@ static void change_screen_size_1 (struct screen *screen, register int newlength,
 extern struct window *find_window_by_pixel_pos (unsigned int pix_x,
 						unsigned int pix_y,
 						Lisp_Object win);
+extern void check_screen_size (struct screen *screen, int *rows, int *cols);
 
 
 extern struct Root_Block *cur_root;
@@ -378,6 +394,9 @@ update_window (struct window *w)
 void
 update_cursor (struct screen *s, int blit)
 {
+  if (redisplay_lock)
+    return;
+
   /*
    * We haven't called update_end(), so InUpdate = 1, and cursor_to
    * will simply plot cursor in new position.
@@ -458,12 +477,12 @@ direct_output_forward_char(int n)
 #ifdef DEFINE_CHANGE_FUNCTIONS
   if (w != XWINDOW(s->minibuffer_window))
     {
-      signal_after_movement((NIL(w->last_point)) ? point : w->last_point);
+      signal_after_movement((NIL(w->last_point)) ? PT : w->last_point);
     }
 #endif  
   
   w->last_point_x = make_number (s->cursor_x);
-  w->last_point = make_number (point);
+  w->last_point = make_number (PT);
 
   cursor_to(s->new_cur_line,s->new_cur_char,
 	    s->cursor_y,s->cursor_x,s->new_cur_w,s);
@@ -486,7 +505,11 @@ output_for_insert(int c)
   register struct line_header *l = s->cur_line;
   register struct char_block *new,*cb = s->cur_char;
   register struct buffer *b = current_buffer;
+#ifdef I18N4
+  wchar_t a[2];
+#else
   unsigned char a[2];			/* CRUDE */
+#endif
   int pixright;
   struct Lisp_Font *font;
 
@@ -521,7 +544,7 @@ output_for_insert(int c)
   else
     {
       struct face *e_face;
-      e_face = get_face_at_bufpos (s,b,point,0,0);
+      e_face = get_face_at_bufpos (s, b, PT, 0, 0);
       if (e_face != new->face)
 	new->face = e_face;
     }
@@ -589,8 +612,12 @@ pixel_insert_ok (int c, int fill)
   struct buffer *b = current_buffer;
   struct face *face;
   struct Lisp_Font *font;
-  
+
+#ifdef I18N4
+  wchar_t a[2];
+#else
   unsigned char a[2];
+#endif
 
   if (l->lwidth == 0) return 1;	/* Empty line */
 
@@ -598,7 +625,7 @@ pixel_insert_ok (int c, int fill)
     face = cb->face;
   else
     {
-      face = get_face_at_bufpos (selected_screen, b, point, 0, 0);
+      face = get_face_at_bufpos (selected_screen, b, PT, 0, 0);
     }
   font = XFONT (FACE_FONT (face));
   
@@ -616,8 +643,11 @@ pixel_insert_ok (int c, int fill)
 void
 change_screen_size (screen, newheight, newwidth, pretend)
      register struct screen *screen;
-     register int newheight, newwidth, pretend;
+     int newheight, newwidth, pretend;
 {
+  /* sometimes we get passed a size that's too small (esp. when a client widget gets
+     resized, since we have no control over this).  So deal. */
+  check_screen_size (screen, &newheight, &newwidth);
   if (in_display || gc_in_progress)
     {
       screen->size_change_pending = 1;
@@ -644,7 +674,11 @@ change_screen_size_1 (screen, newheight, newwidth, pretend)
     abort ();
 
   if (NILP (SCREEN_DEFAULT_FONT (screen)))
-    return;
+    {
+      SCREEN_HEIGHT (screen) = newheight;
+      SCREEN_WIDTH (screen) = newwidth;
+      return;
+    }
 
   font = XFONT (SCREEN_DEFAULT_FONT (screen));
 
@@ -712,12 +746,8 @@ change_screen_size_1 (screen, newheight, newwidth, pretend)
     }
 
   /* The message buffer may grow if the screen size grows, but it will
-     never shrink.  While this is not a true fix to the problem of the
-     minibuffer message getting truncated on a screen if it originally
-     appeared on a smaller screen, it should help lessen the
-     probability of it occuring.  I'll fix this problem fully
-     later one. */
-
+   * never shrink.
+   */
   if (newwidth)
     if (SCREEN_MESSAGE_BUF (screen))
       {
@@ -805,12 +835,12 @@ init_display ()
   if (!terminal_type && initial_screen_is_tty())
     {
 #ifdef VMS
-      fprintf (stderr, "Please specify your terminal type.\n\
+      fprintf (stderr, GETTEXT ("Please specify your terminal type.\n\
 For types defined in VMS, use  set term /device=TYPE.\n\
 For types not defined in VMS, use  define emacs_term \"TYPE\".\n\
-\(The quotation marks are necessary since terminal types are lower case.)\n");
+\(The quotation marks are necessary since terminal types are lower case.)\n"));
 #else
-      fprintf (stderr, "Please set the environment variable TERM; see tset(1).\n");
+      fprintf (stderr, GETTEXT ("Please set the environment variable TERM; see tset(1).\n"));
 #endif
       exit (1);
     }
@@ -988,7 +1018,7 @@ pixel_to_glyph_translation (struct screen *s, register unsigned int pix_x,
       /* Determine the character position of the pointer. */
       if (l)
 	{
-	  if (pix_x < ((*w)->pixleft + LEFT_MARGIN (b, s)))
+	  if (pix_x < ((*w)->pixleft + LEFT_MARGIN (b, s, *w)))
 	    {
 	      *x = 0;
 	    }
@@ -1002,6 +1032,8 @@ pixel_to_glyph_translation (struct screen *s, register unsigned int pix_x,
 		  if (cb->char_b) (*x)++;
 		  cb = cb->next;
 		}
+	      if (cb->e)
+		XSETEXTENT (*class, cb->e);
 	      while (!cb->char_b && cb != l->end)
 		cb = cb->next;
 	      if (cb == l->end ||
@@ -1064,7 +1096,7 @@ pixel_to_glyph_translation (struct screen *s, register unsigned int pix_x,
     {
       *bufp = pos->bufpos;
 
-      if (NILP(*class) && pix_x < ((*w)->pixleft + LEFT_MARGIN (b, s)))
+      if (NILP(*class) && pix_x < ((*w)->pixleft + LEFT_MARGIN (b, s, *w)))
 	return 2;
       else
 	return 1;
@@ -1087,7 +1119,7 @@ FILE = nil means just close any termscript file currently open.")
       file = Fexpand_file_name (file, Qnil);
       termscript = fopen ((char *)XSTRING (file)->data, "w");
       if (termscript == 0)
-	report_file_error ("Opening termscript", Fcons (file, Qnil));
+	report_file_error (GETTEXT ("Opening termscript"), Fcons (file, Qnil));
     }
   return Qnil;
 }
@@ -1137,7 +1169,7 @@ bitch_at_user (sound)
   if (noninteractive)
     putchar (07);
   else if (!INTERACTIVE)  /* Stop executing a keyboard macro. */
-    error ("Keyboard macro terminated by a command ringing the bell");
+    error (GETTEXT("Keyboard macro terminated by a command ringing the bell"));
   else
     ring_bell (sound);
   fflush (stdout);
@@ -1155,7 +1187,6 @@ DEFUN ("initialize-first-screen", Finitialize_first_screen,
   return Qnil;
 }
 
-
 void
 syms_of_display ()
 {
@@ -1163,6 +1194,8 @@ syms_of_display ()
   defsubr (&Sding);
   defsubr (&Ssend_string_to_terminal);
   defsubr (&Sinitialize_first_screen);
+
+  defsymbol (&Qcursor_in_echo_area, "cursor-in-echo-area");
 
   DEFVAR_INT ("baud-rate", &baud_rate,
     "The output baud rate of the terminal.\n\

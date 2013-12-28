@@ -26,6 +26,7 @@ static size_t getpagesize() { return( 4096 ); }
 #endif /* no CLSIZE */
 #else /* no NBPG */
 #if defined (sparc) && defined (USG)
+#include <unistd.h>
 #define getpagesize() PAGESIZE
 #else /* not Solaris 2 */
 #define getpagesize() NBPC

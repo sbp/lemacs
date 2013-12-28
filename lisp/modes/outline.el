@@ -19,13 +19,15 @@
 
 ;; Jan '86, Some new features added by Peter Desnoyers and rewritten by RMS.
 
-(defvar outline-regexp "[*\^L]+"
+;;;###autoload
+(defvar outline-regexp (purecopy "[*\^L]+")
   "*Regular expression to match the beginning of a heading.
 Any line whose beginning matches this regexp is considered to start a heading.
 The recommended way to set this is with a Local Variables: list
 in the file it applies to.  See also outline-heading-end-regexp.")
   
-(defvar outline-heading-end-regexp "[\n\^M]"
+;;;###autoload
+(defvar outline-heading-end-regexp (purecopy "[\n\^M]")
   "*Regular expression to match the end of a heading line.
 You can assume that point is at the beginning of a heading
 when this regexp is searched for.  The heading ends at the end of the match.
@@ -57,6 +59,7 @@ in the file it applies to.")
 (setq minor-mode-alist (append minor-mode-alist
 			       (list '(outline-minor-mode " Outl"))))
 
+;;;###autoload
 (defun outline-mode ()
   "Set major mode for editing outlines with selective display.
 Headings are lines which start with asterisks: one for major headings,

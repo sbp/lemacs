@@ -1,0 +1,1298 @@
+This is Info file ../info/era.info, produced by Makeinfo-1.55 from the
+input file era.texinfo.
+
+   This file documents Era 0.88, the latest greatest implementation of
+GNU Emacs.
+
+
+File: era.info,  Node: Top,  Next: Summary of New Features,  Prev: (dir),  Up: (dir)
+
+   The Era Editor
+
+* Menu:
+
+* Summary of New Features::
+* Annotations::
+* Internationalization::
+* Partial Files::
+* Emacs Client Widget::
+* Atomic Extents::
+* Disabling the Menu::
+* Motif Drag and Drop::
+* Xt Interface Functions::
+* Improved Pixmap Support::
+* ToolTalk Support::
+* Miscellaneous (for now)::
+
+
+File: era.info,  Node: Summary of New Features,  Next: Annotations,  Prev: Top,  Up: Top
+
+Summary of New Features
+***********************
+
+   * Marginal and in-text annotations.
+
+   * Support for partial files.
+
+   * The ability to make Era a client widget.
+
+   * There is a new extent property, `'atomic', which prevents point
+     from being positioned anywhere within the extent.
+
+   * It is possible to disable the menu; this is primarily for use in an
+     Emacs client widget.
+
+   * Support for drag-and-drop under Motif.  This support is general,
+     and all features accessible from C are also accessible from E-Lisp.
+
+   * Support for interfacing with Xt widgets.
+
+   * Support for interacting with ToolTalk.
+
+
+File: era.info,  Node: Annotations,  Next: Internationalization,  Prev: Summary of New Features,  Up: Top
+
+Annotations
+***********
+
+* Menu:
+
+* Annotation Basics::
+* Annotation Primitives::
+* Margin Primitives::
+* Hooks::
+
+
+File: era.info,  Node: Annotation Basics,  Next: Annotation Primitives,  Prev: Annotations,  Up: Annotations
+
+Annotation Basics
+=================
+
+   Marginal annotations are notes associated with a particular location
+in a buffer.  They may be displayed in a margin created on the left-hand
+side of the screen, in any whitespace at the beginning of a line, or
+inside of the text itself.  Every annotation may have an associated
+action to be performed when the annotation is selected.  The term
+*annotation* is used to refer to an individual note.  The term *margin*
+is generically used to refer to the whitespace before the first
+character on a line.
+
+`annotation'
+     Each annotation has the following characteristics:
+    GLYPH
+          This may be either a bitmap/pixmap object or a string.
+
+    FACE
+          The face with which to display the glyph.
+
+    ACTION
+          If non-nil this field must contain a function capable of
+          being the first argument to `funcall'.  This function is
+          evaluated with a single argument, the value of the DATA
+          field, each time the annotation is selected.
+
+    DATA
+          Not used internally.  This field can contain any Elisp
+          object.  It is passed as the lone argument to ACTION
+          described above.
+
+    TYPE
+          Valid types are: `bitmap', `pixmap' and `string'.
+
+   The margin is divided into *outside* and *inside*.  The outside
+margin is space on the left side of the screen which normal text cannot
+be displayed in.  The inside margin is that space between the leftmost
+point text can be displayed and where the first character actually is.
+
+   There are four different *layout types* which affect the exact
+location an annotation appears.
+
+`outside-margin'
+     The annotation is placed, left-justified, into the outside margin
+     area.  If the outside margin is not wide enough for an annotation
+     to fit it is not displayed.
+
+`inside-margin'
+     The annotation is placed, left-justified, into the inside margin
+     area.  If the inside margin is not wide enough for the annotation
+     to fit it will be displayed using any available outside margin
+     space if and only if the variable `use-left-overflow' is non-`nil'.
+
+`whitespace'
+     The annotation is placed, right-justified, into the inside margin
+     area.  This puts the annotation as close as possible to the first
+     non-whitespace character on a line.  If the inside margin is not
+     wide enough for the annotation to fit it will be displayed if and
+     only if the variable `use-left-overflow' is non-`nil'.
+
+`text'
+     The annotation is placed at the position it is inserted.  It will
+     create enough space for itself inside of the text area.  It does
+     not take up a place in the logical buffer, only in the display of
+     the buffer.
+
+   The current layout policy is that all `whitespace' annotations are
+displayed first.  Next, all `inside-margin' annotations are displayed
+using any remaining space.  Finally as many `outside-margin'
+annotations are displayed as possible.  The `text' annotations will
+always display as they create their own space to display in.
+
+
+File: era.info,  Node: Annotation Primitives,  Next: Margin Primitives,  Prev: Annotation Basics,  Up: Annotations
+
+Annotation Primitives
+=====================
+
+ - Function: make-annotation GLYPH &optional POSITION LAYOUT BUFFER
+     Create a marginal annotation with GLYPH, which may be a
+     bitmap/pixmap or a string at position POS.  Use layout policy
+     LAYOUT and place the annotation in buffer BUFFER.  If POS is
+     `nil', point is used.  If LAYOUT is `nil', `whitespace' is used.
+     If BUFFER is `nil', the current buffer is used.  Returns the newly
+     create annotation.
+
+ - Function: delete-annotation ANNOTATION
+     Remove ANNOTATION from its buffer.  This does not modify the
+     buffer text.  Returns the annotation deleted.
+
+ - Function: annotationp ANNOTATION
+     Return `t' if ANNOTATION is an annotation, `nil' otherwise.
+
+ - Function: annotation-visible ANNOTATION
+     Return `t' if there is enough available space to display
+     ANNOTATION, `nil' otherwise.
+
+ - Function: annotation-at &optional POSITION BUFFER
+     Return the annotation at POSITION in BUFFER.  If POSITION is `nil'
+     point is used.  If BUFFER is `nil' the current buffer is used.
+
+ - Function: annotation-layout ANNOTATION
+     Return the layout policy of ANNOTATION.
+
+ - Function: set-annotation-layout ANNOTATION LAYOUT
+     Set the layout policy of ANNOTATION to LAYOUT.
+
+ - Function: annotation-type ANNOTATION
+     Returns the display type of ANNOTATION.  The type will be one of
+     following symbols:
+    `'
+          pixmap
+
+    `'
+          bitmap
+
+    `'
+          string
+
+    `'
+          nil (object is not an annotation)
+
+ - Function: annotation-width ANNOTATION
+     Return the width of ANNOTATION in pixels.
+
+ - Function: annotation-glyph ANNOTATION
+     If ANNOTATION is of type `string' return the string.  Otherwise
+     return the bitmap or pixmap object of the glyph representing
+     ANNOTATION.
+
+ - Function: set-annotation-glyph ANNOTATION GLYPH &optional LAYOUT
+     Set the glyph image of ANNOTATION to GLYPH.  If LAYOUT is
+     non-`nil' set the layout policy of ANNOTATION to LAYOUT.  Returns
+     the new value of `annotation-glyph'.
+
+ - Function: annotation-data ANNOTATION
+     Return the data associated with ANNOTATION.
+
+ - Function: set-annotation-data ANNOTATION DATA
+     Set the data field of ANNOTATION to DATA.  Returns DATA.
+
+ - Function: annotation-action ANNOTATION
+     Return the action associated with ANNOTATION.
+
+ - Function: set-annotation-action ANNOTATION ACTION
+     Set the action field of ANNOTATION to ACTION.  Returns ACTION.
+
+ - Function: annotation-face ANNOTATION
+     Return the face associated with ANNOTATION.
+
+ - Function: set-annotation-face ANNOTATION FACE
+     Set the face associated with ANNOTATION to FACE.
+
+ - Function: annotations-in-region START END BUFFER
+     Return a list of all annotations in BUFFER which are between START
+     and END inclusively.
+
+ - Function: annotation-at &optional POSITION BUFFER
+     Return a list of all annotations at POSITION in BUFFER.  If
+     POSITION is `nil' point is used.  If BUFFER is `nil' the current
+     buffer is used.
+
+ - Function: annotation-list &optional BUFFER
+     Returns a list of all annotations in BUFFER.  If BUFFER is `nil',
+     the current buffer is used.
+
+ - Function: all-annotations
+     Returns a list of all annotations in all buffers in existence.
+
+
+File: era.info,  Node: Margin Primitives,  Next: Hooks,  Prev: Annotation Primitives,  Up: Annotations
+
+Margin Primitives
+=================
+
+   It is possible to set values for both a left and a right hand side
+margin.  Only the left side has been implemented.  All margin settings
+are buffer-local at the moment.
+
+ - Function: set-buffer-left-margin-width WIDTH &optional BUFFER
+     Set the width, in characters, of the left outside margin of BUFFER
+     to WIDTH.  If BUFFER is `nil', the current buffer is used.
+     Returns the new width.
+
+ - Function: set-buffer-right-margin-width WIDTH &optional BUFFER
+     Set the width, in characters, of the right outside margin of
+     BUFFER to WIDTH.  If BUFFER is `nil', the current buffer is used.
+     Returns the new width.
+
+ - Function: buffer-left-margin-width &optional BUFFER
+     Return the width of the left outside margin, in characters, of
+     BUFFER.  If BUFFER is `nil', the current buffer is used.
+
+ - Function: buffer-right-margin-width &optional BUFFER
+     Return the width of the right outside margin, in characters, of
+     BUFFER.  If BUFFER is `nil', the current buffer is used.
+
+ - Function: buffer-left-margin-pixwidth &optional BUFFER
+     Return the width of the left outside margin, in pixels, of BUFFER.
+     If BUFFER is `nil', the current buffer is used.
+
+ - Function: buffer-right-margin-pixwidth &optional BUFFER
+     Return the width of the right outside margin, in pixels, of
+     BUFFER.  If BUFFER is `nil', the current buffer is used.
+
+ - Variable: use-left-overflow
+     If non-`nil' use the left outside margin as extra whitespace when
+     displaying `whitespace' and `inside-margin' annotations.  Defaults
+     to `nil'.
+
+   The margin colors are controlled by the faces `left-margin' and
+`right-margin'.  These can be set using the X resources
+`Emacs*left-margin*background' and `Emacs*left-margin*foreground'.
+Likewise for the right margin.
+
+
+File: era.info,  Node: Hooks,  Prev: Margin Primitives,  Up: Annotations
+
+Hooks
+=====
+
+   The following three hooks are provided for use with the marginal
+annotations:
+
+*`before-delete-annotation-hook'*
+     This hook is called immediately before an annotation is destroyed.
+     It is passed a single argument, the annotation being destroyed.
+
+*`after-delete-annotation-hook'*
+     This hook is called immediately after an annotation is destroyed.
+     It may contain any number of functions to run.  No arguments are
+     passed to any of the functions on the hook.
+
+*`make-annotation-hook'*
+     This hook is called immediately after an annotation is created.
+     It is passed a single argument, the newly created annotation.
+
+
+File: era.info,  Node: Internationalization,  Next: Partial Files,  Prev: Annotations,  Up: Top
+
+Internationalization
+********************
+
+* Menu:
+
+* I18N Levels 1 and 2::
+* I18N Level 3::
+* I18N Level 4::
+
+
+File: era.info,  Node: I18N Levels 1 and 2,  Next: I18N Level 3,  Prev: Internationalization,  Up: Internationalization
+
+I18N Levels 1 and 2
+===================
+
+   Era is now compliant with I18N levels 1 and 2.  Specifically, this
+means that it is 8-bit clean and correctly handles time and date
+functions.  Era will correctly display the entire ISO-Latin 1 character
+set.
+
+   The compose key may now be used to create any character in the
+ISO-Latin 1 character set not directly available via the keyboard..  In
+order for the compose key to work it is necessary to load the file
+`x-compose.el'.  At any time while composing a character, `C-h' will
+display all valid completions and the character which would be produced.
+
+
+File: era.info,  Node: I18N Level 3,  Next: I18N Level 4,  Prev: I18N Levels 1 and 2,  Up: Internationalization
+
+I18N Level 3
+============
+
+* Menu:
+
+* Level 3 Basics::
+* Level 3 Primitives::
+* Dynamic Messaging::
+* Domain Specification::
+* Documentation String Extraction::
+
+
+File: era.info,  Node: Level 3 Basics,  Next: Level 3 Primitives,  Prev: I18N Level 3,  Up: I18N Level 3
+
+Level 3 Basics
+--------------
+
+   Era now provides alpha-level functionality for I18N Level 3.  This
+means that everything necessary for full messaging is available, but
+not every file has been converted.
+
+   The two message files which have been created are `src/emacs.po' and
+`lisp/packages/mh-e.po'.  Both files need to be converted using
+`msgfmt', and the resulting `.mo' files placed in some locale's
+`LC_MESSAGES' directory.  The test "translations" in these files are
+the original messages prefixed by `TRNSLT_'.
+
+   The domain for a variable is stored on the variable's property list
+under the property name VARIABLE-DOMAIN.  The function
+`documentation-property' uses this information when translating a
+variable's documentation.
+
+
+File: era.info,  Node: Level 3 Primitives,  Next: Dynamic Messaging,  Prev: Level 3 Basics,  Up: I18N Level 3
+
+Level 3 Primitives
+------------------
+
+ - Function: gettext STRING
+     This function looks up STRING in the default message domain and
+     returns its translation.  If `I18N3' was not enabled when Era was
+     compiled, it just returns STRING.
+
+ - Function: dgettext DOMAIN STRING
+     This function looks up STRING in the specified message domain and
+     returns its translation.  If `I18N3' was not enabled when Era was
+     compiled, it just returns STRING.
+
+ - Function: bind-text-domain DOMAIN PATHNAME
+     This function associates a pathname with a message domain.  Here's
+     how the path to message file is constructed under SunOS 5.x:
+
+          `{pathname}/{LANG}/LC_MESSAGES/{domain}.mo'
+
+     If `I18N3' was not enabled when Era was compiled, this function
+     does nothing.
+
+ - Special Form: domain STRING
+     This function specifies the text domain used for translating
+     documentation strings and interactive prompts of a function.  For
+     example, write:
+
+          (defun foo (arg) "Doc string" (domain "emacs-foo") ...)
+
+     to specify `emacs-foo' as the text domain of the function `foo'.
+     The "call" to `domain' is actually a declaration rather than a
+     function; when actually called, `domain' just returns `nil'
+
+ - Function: domain-of FUNCTION
+     This function returns the text domain of FUNCTION; it returns
+     `nil' if it is the default domain.  If `I18N3' was not enabled
+     when Era was compiled, it always returns `nil'.
+
+
+File: era.info,  Node: Dynamic Messaging,  Next: Domain Specification,  Prev: Level 3 Primitives,  Up: I18N Level 3
+
+Dynamic Messaging
+-----------------
+
+   The `format' function has been extended to permit you to change the
+order of parameter insertion.  For example, the conversion format
+`%1$s' inserts parameter one as a string, while `%2$s' inserts
+parameter two.  This is useful when creating translations which require
+you to change the word order.
+
+
+File: era.info,  Node: Domain Specification,  Next: Documentation String Extraction,  Prev: Dynamic Messaging,  Up: I18N Level 3
+
+Domain Specification
+--------------------
+
+   The default message domain of Era is `emacs'.  For add-on packages,
+it is best to use a different domain.  For example, let us say we want
+to convert the "gorilla" package to use the domain `emacs-gorilla'.  To
+translate the message "What gorilla?", use `dgettext' as follows:
+
+     (dgettext "emacs-gorilla" "What gorilla?")
+
+   A function (or macro) which has a documentation string or an
+interactive prompt needs to be associated with the domain in order for
+the documentation or prompt to be translated.  This is done with the
+`domain' special form as follows:
+
+     (defun scratch (location)
+       "Scratch the specified location."
+       (domain "emacs-gorilla")
+       (interactive "sScratch: ")
+       ... )
+
+   It is most efficient to specify the domain in the first line of of
+the function body, before the `interactive' form.
+
+   For variables and constants which have documentation strings,
+specify the domain after the documentation.
+
+ - Special Form: defvar SYMBOL [VALUE [DOC-STRING [DOMAIN]]]
+     Example:
+          (defvar weight 250 "Weight of gorilla, in pounds." "emacs-gorilla")
+
+ - Special Form: defconst SYMBOL [VALUE [DOC-STRING [DOMAIN]]]
+     Example:
+          (defconst limbs 4 "Number of limbs" "emacs-gorilla")
+
+   Autoloaded functions which are specified in `loaddefs.el' do not need
+to have a domain specification, because their documentation strings are
+extracted into the main message base.  However, for autoloaded functions
+which are specified in a separate package, use following syntax:
+
+ - Function: autoload SYMBOL FILENAME &optional DOCSTRING INTERACTIVE
+          MACRO DOMAIN
+     Example:
+          (autoload 'explore "jungle" "Explore the jungle." nil nil "emacs-gorilla")
+
+
+File: era.info,  Node: Documentation String Extraction,  Prev: Domain Specification,  Up: I18N Level 3
+
+Documentation String Extraction
+-------------------------------
+
+   The utility `etc/make-po' scans the file `DOC' to extract
+documentation strings and creates a message file `doc.po'.  This file
+may then be inserted within `emacs.po'.
+
+   Currently, `make-po' is hard-coded to read from `DOC' and write to
+`doc.po'.  In order to extract documentation strings from an add-on
+package, first run `make-docfile' on the package to produce the `DOC'
+file.  Then run `make-po -p' with the `-p' argument to indicate that we
+are extracting documentation for an add-on package.
+
+   (The `-p' argument is a kludge to make up for a subtle difference
+between pre-loaded documentation and add-on documentation:  For add-on
+packages, the final carriage returns in the strings produced by
+`make-docfile' must be ignored.)
+
+
+File: era.info,  Node: I18N Level 4,  Prev: I18N Level 3,  Up: Internationalization
+
+I18N Level 4
+============
+
+   Not yet documented.
+
+
+File: era.info,  Node: Partial Files,  Next: Emacs Client Widget,  Prev: Internationalization,  Up: Top
+
+Partial Files
+*************
+
+* Menu:
+
+* Intro to Partial Files::
+* Creating a Partial File::
+* Detached Partial Files::
+
+
+File: era.info,  Node: Intro to Partial Files,  Next: Creating a Partial File,  Prev: Partial Files,  Up: Partial Files
+
+Intro to Partial Files
+======================
+
+   Partial files are now supported.  A "partial file" is a section of a
+buffer (called the "master buffer") that is placed in its own buffer
+and treated as its own file.  Changes made to the partial file are not
+reflected in the master buffer until the partial file is "saved" using
+the standard buffer save commands.  Partial files can be "reverted"
+(from the master buffer) just like normal files.  When a file part is
+active on a master buffer, that section of the master buffer is marked
+as read-only.  Two file parts on the same master buffer are not allowed
+to overlap.  Partial file buffers are indicated by the words `File
+Part' in the modeline.
+
+   The master buffer knows about all the partial files that are active
+on it, and thus killing or reverting the master buffer will be handled
+properly.  When the master buffer is saved, if there are any unsaved
+partial files active on it then the user will be given the opportunity
+to first save these files.
+
+   When a partial file buffer is first modified, the master buffer is
+automatically marked as modified so that saving the master buffer will
+work correctly.
+
+
+File: era.info,  Node: Creating a Partial File,  Next: Detached Partial Files,  Prev: Intro to Partial Files,  Up: Partial Files
+
+Creating a Partial File
+=======================
+
+ - Function: make-file-part &optional START END NAME BUFFER
+     Make a file part on buffer BUFFER out of the region.  Call it
+     NAME.  This command creates a new buffer containing the contents
+     of the region and marks the buffer as referring to the specified
+     buffer, called the "master buffer".  When the file-part buffer is
+     saved, its changes are integrated back into the master buffer.
+     When the master buffer is deleted, all file parts are deleted with
+     it.
+
+     When called from a function, expects four arguments, START, END,
+     NAME, and BUFFER, all of which are optional and default to the
+     beginning of BUFFER, the end of BUFFER, a name generated from
+     BUFFER name, and the current buffer, respectively.
+
+
+File: era.info,  Node: Detached Partial Files,  Prev: Creating a Partial File,  Up: Partial Files
+
+Detached Partial Files
+======================
+
+   Every partial file has an extent in the master buffer associated
+with it (called the "master extent"), marking where in the master
+buffer the partial file begins and ends.  If the text in master buffer
+that is contained by the extent is deleted, then the extent becomes
+"detached", meaning that it no longer refers to a specific region of
+the master buffer.  This can happen either when the text is deleted
+directly or when the master buffer is reverted.  Neither of these should
+happen in normal usage because the master buffer should generally not be
+edited directly.
+
+   Before doing any operation that references a partial file's master
+extent, Emacs checks to make sure that the extent is not detached.  If
+this is the case, Emacs warns the user of this and the master extent is
+deleted out of the master buffer, disconnecting the file part.  The file
+part's filename is cleared and thus must be explicitly specified if the
+detached file part is to be saved.
+
+
+File: era.info,  Node: Emacs Client Widget,  Next: Atomic Extents,  Prev: Partial Files,  Up: Top
+
+Emacs Client Widget
+*******************
+
+   An "Emacs client widget" is a widget that is part of another program
+but functions as an Emacs screen.  This is intended to be a more
+powerful replacement for standard text widgets.
+
+* Menu:
+
+* Using an Emacs Client Widget::
+* Emacs Client Widget Resource Settings::
+* Motif-Specific Info About the Emacs Client Widget::
+
+
+File: era.info,  Node: Using an Emacs Client Widget,  Next: Emacs Client Widget Resource Settings,  Prev: Emacs Client Widget,  Up: Emacs Client Widget
+
+Using an Emacs Client Widget
+============================
+
+   The current implementation of the Emacs client widget is designed for
+use in a Motif application; thus it is a subclass of the base Motif
+widget XmPrimitive.  In order to use an Emacs client widget in a client
+program, simply create an instance of widget type EmacsClient and link
+your program with the library libemacsclient.a or libemacsclient.so.
+The corresponding header file is called `EmacsWidget.h'.  (There was
+already a file called `emacsclient.c' elsewhere in Emacs.)
+
+   The Emacs client widget will not do anything until an instance of
+Emacs is told about this particular widget.  To do that, call the
+function `x-create-screen', passing as its second argument a string
+containing the decimal representation of the widget's X window ID number
+(this can be obtained by the Xt function `XtWindow()').  In order for
+the client program to communicate this information to Emacs, a method
+such as sending a ToolTalk message needs to be used.
+
+   Once `x-create-screen' has been called, Emacs will create a screen
+that occupies the client widget's window.  This screen can be used just
+like any other screen in Emacs.
+
+
+File: era.info,  Node: Emacs Client Widget Resource Settings,  Next: Motif-Specific Info About the Emacs Client Widget,  Prev: Using an Emacs Client Widget,  Up: Emacs Client Widget
+
+Emacs Client Widget Resource Settings
+=====================================
+
+   The Emacs client widget is a subclass of the Motif widget XmPrimitive
+and thus inherits all its resources.  In addition, the following new
+resources are defined:
+
+`deadShell (class DeadShell)'
+     A boolean resource indicating whether the last request to the
+     EmacsShell widget that contains the screen corresponding to this
+     widget timed out.  If true, no further requests will be made (all
+     requests will automatically fail) until a response to the last
+     request is received.  This resource should normally not be set by
+     the user.
+
+`shellTimeout (class ShellTimeout)'
+     A value specifying how long (in milliseconds) the client should
+     wait for a response when making a request to the corresponding
+     EmacsShell widget.  If this timeout is exceeded, the client will
+     assume that the shell is dead and will fail the request and all
+     subsequent requests until a response to the request is received.
+     Default value is 5000, or 5 seconds.
+
+   The shell that contains the screen corresponding to an Emacs client
+widget is of type EmacsShell, as opposed to standard screens, whose
+shell is of type TopLevelShell.  The EmacsShell widget is a direct
+subclass of Shell and thus inherits its resources.  In addition, the
+following new resources are defined:
+
+`window (class Window)'
+     The X window ID of the widget to use for this Emacs screen.  This
+     is normally set by the call to `x-create-screen' and should not be
+     modified by the user.
+
+`deadClient (class DeadClient)'
+     A boolean resource indicating whether the last request to the
+     corresponding EmacsClient widget timed out.  If true, no further
+     requests will be made (all requests will automatically fail) until
+     a response to the last request is received.  This resource should
+     normally not be set by the user.
+
+`ClientTimeout (class ClientTimeout)'
+     A value specifying how long (in milliseconds) the shell should wait
+     for a response when making a request to the corresponding
+     EmacsClient widget.  If this timeout is exceeded, the shell will
+     assume that the client is dead and will fail the request and all
+     subsequent requests until a response to the request is received.
+     Default value is 5000, or 5 seconds.
+
+   Note that the requests that are made between the client and the shell
+are primarily for handling query-geometry and geometry-manager requests
+made by parent or child widgets.
+
+
+File: era.info,  Node: Motif-Specific Info About the Emacs Client Widget,  Prev: Emacs Client Widget Resource Settings,  Up: Emacs Client Widget
+
+Motif-Specific Info About the Emacs Client Widget
+=================================================
+
+   By default, the Emacs client widget has navigation type
+`XmTAB_GROUP'.
+
+   The widget traversal keystrokes are modified slightly from the
+standard XmPrimitive keystrokes.  In particular, `TAB' alone does not
+traverse to the next widget (`Ctrl-TAB' must be used instead), but
+functions like a normal TAB in Emacs.  This follows the semantics of
+the Motif text widget.  The traversal keystrokes `Ctrl-TAB' and
+`Shift-TAB' are silently filtered by the Emacs client widget and are
+not seen by Emacs.
+
+
+File: era.info,  Node: Atomic Extents,  Next: Disabling the Menu,  Prev: Emacs Client Widget,  Up: Top
+
+Atomic Extents
+**************
+
+   There is a new extent attribute, `'atomic', which can be set with
+`set-extent-attribute'.  When an extent is marked as atomic, point
+cannot be positioned anywhere within the extent by any cursor motion or
+positioning commands.  Cursor motion commands such as `forward-char',
+`backward-char', `scroll-up', etc. will skip over the extent and
+position point at the other end.  Attempts to directly position point
+inside an atomic extent by using `goto-char' or the mouse positioning
+commands will cause point to be placed at whichever end of the extent
+is closer to the desired position.
+
+   To turn off the atomic attribute of an extent, call
+`set-extent-attribute' with attribute `'non-atomic'.
+
+
+File: era.info,  Node: Disabling the Menu,  Next: Motif Drag and Drop,  Prev: Atomic Extents,  Up: Top
+
+Disabling the Menu
+******************
+
+   There is a new boolean EmacsScreen resource, `nomenu', which will
+cause the screen's menubar not to appear if set to true.  This was
+primarily implemented for Emacs client widgets.
+
+
+File: era.info,  Node: Motif Drag and Drop,  Next: Xt Interface Functions,  Prev: Disabling the Menu,  Up: Top
+
+Motif Drag and Drop
+*******************
+
+* Menu:
+
+* Introduction to Drag and Drop::
+* More About Drag and Drop::
+* Programming Drag and Drop::
+* Drag and Drop Functions::
+* Drag and Drop Widgets::
+* Drag and Drop Internal Information::
+
+
+File: era.info,  Node: Introduction to Drag and Drop,  Next: More About Drag and Drop,  Prev: Motif Drag and Drop,  Up: Motif Drag and Drop
+
+Introduction to Drag and Drop
+=============================
+
+   "drag-and-drop" is a general facility for exchanging information
+between applications or between sections of an application, and can also
+be used for other purposes such as performing operations on data
+objects.  The paradigm involves dragging a visual representation of a
+data object across the screen to a target (or "drop site") and dropping
+it there.  The drop site can be a document that the object is to be
+included in, an operation to be performed on the object, etc.  Three
+different general operations, known as "copy", "move", and "link", can
+be performed on the data object when it is dropped on the target.  The
+actual operation performed depends on the operations allowed by the
+drag source and drop site and the keys held down by the user during the
+drag.  There is no set definition of what it means, for example, to
+"copy" the object from one place to another; the semantics of these
+three operations are left to the individual applications involved.
+
+
+File: era.info,  Node: More About Drag and Drop,  Next: Programming Drag and Drop,  Prev: Introduction to Drag and Drop,  Up: Motif Drag and Drop
+
+More About Drag and Drop
+========================
+
+   Drag-and-drop, as implemented under Motif, is an extremely general
+and heavily customizable facility.  In order to manage this flexibility
+without excessive complexity, the Xt concept of "widgets", which are
+objects that encapsulate data and functions, is used heavily.
+Consequently, Era provides a direct interface to Xt widget manipulation
+functions (*note Xt Interface Functions::.).
+
+   During the drag, "drag-over" and "drag-under" visuals take place.
+The drag-over visual is the visual representation of the data being
+dragged, and includes sections that indicate what operation will be
+performed when the object is dropped and whether the object is currently
+over a valid drop site.  The drag-over visual may change as the object
+passes over different drop sites and non-drop-site areas.  The
+appearance of the drag-over visual is determined by the drag-source
+application.
+
+   A drag-under visual is a change that happens to a drop site as the
+object is dragged over the site.  This can include highlighting the
+drop site, making it look pushed-in or popped-out, replacing it with a
+bitmap, or possibly even doing complicated actions such as producing a
+sound and animating a picture.  The drag-under visuals are determined
+by either the drag-source application or drop-site application,
+depending on the "protocol" used during the drag.
+
+   There are two possible protocols that can be used during the
+dragging.  The choice of protocol determines mostly whether the
+drop-site application is involved in the drag and consequently the
+nature of the visuals used during the drag.  In the "preregister"
+protocol, the drop-site application is not involved at all during the
+drag.  It stores information about valid drop sites and desired
+drag-under visuals in X properties associated with the drop-site
+application's window(s), and the drag-source application reads this and
+is entirely responsible for the drag-under visuals.  In the "dynamic"
+protocol, the drag-source application communicates with the drop-site
+application during the drag, and the latter is responsible for
+drag-under visuals.  The dynamic protocol is more flexible and allows
+for complex drag-under visuals, nested and overlapping drop sites,
+etc., but imposes some other limitations and uses more server
+resources.  The applications involved or the user can specify which
+protocol is preferred and/or supported, and the Motif toolkit
+determines from this information which protocol to use.  It is possible
+that no protocol will satisfy both applications; in this case, there
+are no drag-over or drag-under visuals.
+
+   When a drop occurs, information is exchanged using the X selection
+protocol, which is a basic, general, low-level method for exchanging
+data between applications.  Information exchanged through the selection
+mechanism always comes in a particular format, known as a "target" in
+drag-and-drop.  This format can be a string, a list of integers, a
+bitmap in standard X format, etc.  The drag-source and drop-site
+application each specify a list of targets that are supported for
+exchanging data; there must be at least one target in common for data
+to be exchanged.
+
+
+File: era.info,  Node: Programming Drag and Drop,  Next: Drag and Drop Functions,  Prev: More About Drag and Drop,  Up: Motif Drag and Drop
+
+Programming Drag and Drop
+=========================
+
+   * Before the drag, the drop-site application registers information
+     about each drop site, including the location of the site, the
+     operations and targets supported, a callback function to be called
+     when an object is dropped on the site, the nature of the
+     drag-under visuals to be used, and optionally a callback function
+     to be called as an object is dragged over the site (this applies
+     only in the dynamic protocol).
+
+   * When the user begins a drag, the drag-source application specifies
+     information about the object being dragged, including the
+     operations and targets supported, the nature of the drag-over
+     visuals to be used, and various callback functions.
+
+   * During the drag, callback functions in the drag-source and/or
+     drop-site application may be called as the object is dragged over
+     different drop sites, depending on the protocol being used and on
+     whether any appropriate callback functions have been registered.
+     Either these callback functions or the Motif toolkit itself
+     supplies the drag-over and drag-under visuals.
+
+   * When the object is dropped, the appropriate callback function in
+     the drop-site application is called, and it determines whether a
+     drop is allowable and what the targets should be for exchanging
+     the information.  The drop-start callback function in the
+     drag-source application is also called, if such a callback is
+     defined.
+
+   * For each valid target, the transfer callback function in the
+     drag-source application is called to send the data, and the
+     corresponding transfer callback function in the drop-site
+     application is called to receive the data.
+
+   * When all targets have been processed, the drop-finish callback
+     function in the drag-source application is called, if such a
+     callback is defined.
+
+
+File: era.info,  Node: Drag and Drop Functions,  Next: Drag and Drop Widgets,  Prev: Programming Drag and Drop,  Up: Motif Drag and Drop
+
+Drag and Drop Functions
+=======================
+
+ - Function: xm-create-drag-icon SCREEN NAME VALUES
+
+ - Function: xm-drag-cancel
+
+ - Function: xm-drag-start
+     Initiate a drag-and-drop transaction.  Equivalent to `XmDragStart'
+     in C.  A drag-and-drop transaction is started on SCREEN and a
+     widget of class `xm-drag-context' is returned, with its values
+     initialized from VALUES, an alist of (RESOURCE . VALUE) pairs.
+     See `xt-set-values' (*note Widget Functions::.).
+
+ - Function: xm-drop-site-configure-stacking-order
+
+ - Function: xm-drop-site-end-update
+
+ - Function: xm-drop-site-query-stacking-order
+
+ - Function: xm-drop-site-register
+
+ - Function: xm-drop-site-start-update
+
+ - Function: xm-drop-site-unregister
+
+ - Function: xm-drop-transfer-add
+
+ - Function: xm-drop-transfer-start
+
+ - Function: xm-get-drag-context
+
+ - Function: xm-get-xm-display
+
+ - Function: xm-get-xm-screen
+
+ - Function: xm-targets-are-compatible
+
+
+File: era.info,  Node: Drag and Drop Widgets,  Next: Drag and Drop Internal Information,  Prev: Drag and Drop Functions,  Up: Motif Drag and Drop
+
+Drag and Drop Widgets
+=====================
+
+   At the beginning of the description of each resource, a list of
+properties is given as follows:
+     (type default-value access)
+
+   Only capsule summaries of the meanings of the widget resources and
+given.  For more information on these widgets and their associated
+resources, see the book `OSF/Motif Programmer's Reference'.
+
+* Menu:
+
+* xm-display::
+* xm-screen::
+* xm-drag-icon::
+* xm-drag-context::
+* xm-drop-site::
+* xm-drop-transfer::
+
+
+File: era.info,  Node: xm-display,  Next: xm-screen,  Prev: Drag and Drop Widgets,  Up: Drag and Drop Widgets
+
+xm-display
+----------
+
+   This is equivalent to the C widget `XmDisplay', specifying per-
+display resources as follows:
+
+`drag-initiator-protocol-style'
+     Specifies the default virtual bindings for the display.
+
+`drag-initiator-protocol-style'
+     Specifies the drag and drop protocol requirements or preference
+     when the client is an initiator.
+
+`drag-receiver-protocol-style'
+     Specifies the drag and drop protocol requirements or preference
+     when this client is a receiver.
+
+
+File: era.info,  Node: xm-screen,  Next: xm-drag-icon,  Prev: xm-display,  Up: Drag and Drop Widgets
+
+xm-screen
+---------
+
+   This is equivalent to the C widget `XmScreen', specifying per-
+screen resources as follows:
+
+`dark-threshold'
+     An integer between 0 (zero) and 100, inclusive, that specifies a
+     level of perceived brightness for a color.
+
+`default-copy-cursor-icon'
+     Specifies the DragIcon used during a drag operation when the
+     operation is a copy and no other pixmap is specified by the
+     application.
+
+`default-invalid-cursor-icon'
+     Specifies the DragIcon used to indicate that the cursor is over an
+     invalid drop site during a drag operation when no other pixmap
+     symbol is specified by the application.
+
+`default-link-cursor-icon'
+     Specifies the DragIcon used during a drag operation when the
+     operation is a link and no other pixmap is specified by the
+     application.
+
+`default-move-cursor-icon'
+     Specifies the DragIcon used during a drag operation when the
+     operation is a move and no other pixmap is specified by the
+     application.
+
+`default-none-cursor-icon'
+     Specifies the DragIcon used to indicate that the cursor is not
+     over a drop site during a drag operation when no other pixmap
+     symbol is specified by the application.
+
+`default-source-cursor-icon'
+     Specifies the depth-1 pixmap used as a cursor when a
+     `source-cursor-icon' is not provided by the DragContext, or it is
+     not usable.
+
+`default-valid-cursor-icon'
+     Specifies the DragIcon used to indicate that the cursor is over a
+     valid drop site during a drag operation when no other pixmap
+     symbol is specified by the application.
+
+`font'
+`foreground-threshold'
+     An integer between 0 (zero) and 100, inclusive, that specifies a
+     level of perceived brightness for a color.
+
+`horizontal-font-unit'
+`light-threshold'
+     An integer between 0 (zero) and 100, inclusive, that specifies a
+     level of perceived brightness for a color.
+
+`menu-cursor'
+`move-opaque'
+`unpost-behavior'
+`vertical-font-unit'
+
+File: era.info,  Node: xm-drag-icon,  Next: xm-drag-context,  Prev: xm-screen,  Up: Drag and Drop Widgets
+
+xm-drag-icon
+------------
+
+   This is the equivalent of the C widget `XmDragIcon', used to
+represent the source data in a drag-and-drop transaction.  Resources are
+as follows:
+
+`attachment'
+     Specifies a relative location on the source icon for the
+     attachment of the state or operation icon.
+
+`depth'
+`height'
+`hot-x'
+     Specifies the x-coordinate of the hotspot of a cursor DragIcon in
+     relation to the origin of the pixmap bounding box.
+
+`hot-y'
+     Specifies the y-coordinate of the hotspot of a cursor DragIcon in
+     relation to the origin of the pixmap bounding box.
+
+`mask'
+     Specifies a pixmap of depth 1 to use as the DragIcon mask pixmap.
+
+`offset-x'
+     Specifies a horizontal offset (in pixels) of the origin of the
+     state or operation icon relative to the attachment point on the
+     source icon.
+
+`offset-y'
+     Specifies a vertical offset (in pixels) of the origin of the state
+     or operation icon relative to the attachment point on the source
+     icon.
+
+`pixmap'
+     Specifies a pixmap to use as the DragIcon pixmap.
+
+`width'
+
+File: era.info,  Node: xm-drag-context,  Next: xm-drop-site,  Prev: xm-drag-icon,  Up: Drag and Drop Widgets
+
+xm-drag-context
+---------------
+
+   This is the equivalent of the C widget `XmDragContext', used to hold
+information for and track the state of a drag-and-drop transaction.
+Resources are as follows:
+
+`blend-model'
+     Specifies which combination of DragIcons are blended to produce a
+     drag-over visual.
+
+`client-data'
+     Specifies the client data to be passed to `convert-proc' when it is
+     invoked.
+
+`convert-proc'
+     Specifies a procedure of type !!!!!!!!!!!!!!!!!!! that converts the
+     source data to the format(s) requested by the receiver client.
+
+`cursor-background'
+     Specifies the background pixel value of the cursor.
+
+`cursor-foreground'
+     Specifies the foreground pixel value of the cursor when the state
+     icon is not blended.
+
+`drag-drop-finish-callback'
+     Specifies the list of callbacks that are called when the
+     transaction is completed.
+
+`drag-motion-callback'
+     Specifies the list of callbacks that are invoked when the pointer
+     moves.
+
+`drop-operations'
+     Specifies the set of valid operations associated with an initiator
+     client for a drag transaction.
+
+`drop-finish-callback'
+     Specifies the list of callbacks that are invoked when the drop is
+     completed.
+
+`drop-site-enter-callback'
+     Specifies the list of callbacks that are invoked when the pointer
+     enters a drop site.
+
+`drop-site-leave-callback'
+     Specifies the list of callbacks that are invoked when the pointer
+     leaves a drop site.
+
+`drop-start-callback'
+     Specifies the list of callbacks that are invoked when a drop is
+     initiated.
+
+`export-targets'
+     Specifies the list of target atoms associated with this source.
+
+`incremental'
+     Specifies a Boolean value that indicates whether the transfer on
+     the initiator side uses the Xt incremental selection transfer
+     mechanism described in `X Toolkit Intrinsics-C Language Interface'.
+
+`invalid-cursor-foreground'
+     Specifies the foreground pixel value of the cursor when the state
+     is invalid.
+
+`none-cursor-foreground'
+     Specifies the foreground pixel value of the cursor when the state
+     is none.
+
+`num-export-targets'
+`operation-changed-callback'
+     Specifies the list of callbacks that are invoked when the drag is
+     started and when the user requests that a different operation be
+     applied to the drop.
+
+`operation-cursor-icon'
+     Specifies the cursor icon used to designate the type of operation
+     performed by the drag transaction.
+
+`source-cursor-icon'
+     Specifies the cursor icon used to represent the source when a
+     dynamic visual style is used.
+
+`source-pixmap-icon'
+     Specifies the pixmap icon used to represent the source when a
+     preregister visual style is used.
+
+`state-cursor-icon'
+     Specifies the cursor icon used to designate the state of a drop
+     site.
+
+`top-level-enter-callback'
+     Specifies the list of callbacks that are invoked when the pointer
+     enters a top-level window or root window (due to changing screens).
+
+`top-level-leave-callback'
+     Specifies the list of callbacks that are invoked when the pointer
+     leaves a top-level window or root window (due to changing screens).
+
+`valid-cursor-foreground'
+     Specifies the foreground pixel value of the cursor when the state
+     is valid.
+
+
+File: era.info,  Node: xm-drop-site,  Next: xm-drop-transfer,  Prev: xm-drag-context,  Up: Drag and Drop Widgets
+
+xm-drop-site
+------------
+
+   This is the equivalent of the C pseudo-widget `XmDropSite',
+specifying the location, behavior, and capabilities of a drop site.
+Resources are as follows:
+
+`animation-mask'
+     Specifies a mask to use with the pixmap specified by
+     `animation-pixmap' when the animation style is `drag-under-pixmap'.
+
+`animation-pixmap'
+     Specifies a pixmap for drag-under animation when the animation
+     style is `drag-under-pixmap'.
+
+`animation-pixmap-depth'
+`animation-style'
+     Specifies the drag-under animation style used when a drag enters a
+     valid drop site.
+
+`drag-proc'
+     Specifies the procedure that is invoked when the drop site
+     receives a crossing, motion, or operation changed message.
+
+`drop-proc'
+     Specifies the procedure that is invoked when a drop (excluding a
+     cancel or interrupt action) occurs on a drop site regardless of
+     the status of the drop site.
+
+`drop-rectangles'
+     Specifies a list of rectangles that describe the shape of a drop
+     site.
+
+`drop-site-activity'
+     Indicates whether a drop site is active or inactive.
+
+`drop-site-operations'
+     Specifies the set of valid operations associated with a drop site.
+
+`drop-site-type'
+     Specifies the type of the drop site.
+
+`import-targets'
+     Specifies the list of target atoms that this drop site accepts.
+
+`num-drop-rectangles'
+`num-import-targets'
+
+File: era.info,  Node: xm-drop-transfer,  Prev: xm-drop-site,  Up: Drag and Drop Widgets
+
+xm-drop-transfer
+----------------
+
+   This is the equivalent of the C widget `XmDropTransfer', specifying
+information required by the toolkit in order to process and complete a
+drop transaction.  Resources are as follows:
+
+`drop-transfers'
+     Specifies the address of an array of drop transfer entry records.
+     !!!!!!!!!!!!!
+
+`incremental'
+     Specifies a Boolean value that indicates whether the transfer on
+     the receiver side uses the Xt incremental selection transfer
+     mechanism described in `X Toolkit Intrinsics-C Language Interface'.
+
+`num-drop-transfers'
+`transfer-proc'
+     Specifies a procedure of type !!!!!!!!!!!!! that delivers the
+     requested selection values.
+
+`transfer-status'
+     Specifies the current status of the drop transfer.
+
+
+File: era.info,  Node: Drag and Drop Internal Information,  Prev: Drag and Drop Widgets,  Up: Motif Drag and Drop
+
+Drag and Drop Internal Information
+==================================
+
+   The E-Lisp drag-and-drop implementation is pretty straightforward
+and is, as much as possible, a direct lifting of the Motif
+drag-and-drop functionality into E-Lisp.  The E-Lisp Xt interface
+(*note Xt Interface Functions::.) is the foundation upon which the
+drag-and-drop package is based.  The pseudo- widget `XmDropSite' is
+accessed in E-Lisp (as `xm-drop-site') using the standard widget-access
+functions; thus, there are no direct equivalents for
+`XmDropSiteRetrieve' and `XmDropSiteRegister'.  The WIDGET argument in
+the C functions is replaced by a SCREEN argument, specifying the Emacs
+screen where the drag or drop is taking place.
+
+
+File: era.info,  Node: Xt Interface Functions,  Next: Improved Pixmap Support,  Prev: Motif Drag and Drop,  Up: Top
+
+Xt Interface Functions
+**********************
+
+* Menu:
+
+* Introduction to Xt Interface Functions::
+* More About Widgets::
+* Widget Types::
+* Widget Access Parameters::
+* Widget Functions::
+* Xt Interface Internal Information::
+
+
+File: era.info,  Node: Introduction to Xt Interface Functions,  Next: More About Widgets,  Prev: Xt Interface Functions,  Up: Xt Interface Functions
+
+Introduction to Xt Interface Functions
+======================================
+
+   "Xt" is a C-language toolkit that sits on top of the low-level
+C-language X library "Xlib" and provides a high-level, object-oriented
+interface to X programming.  An Xt program consists of a number of
+"widgets", each of which encapsulates "resources" and "methods" and
+typically corresponds to a section of the program's window that has
+specific characteristics of its own (such as a label, button, or menu
+bar).  A resource is simply a named piece of data; a method is a named,
+callable function.  Each widget belongs to a "class", which defines
+which resources and methods exist for that widget.  A typical resource
+would specify the size or background color of the widget; a typical
+method would specify a function to be called when the widget needs to
+be redrawn, or a function to be called when the widget is about to be
+destroyed.  New widget classes are usually created as a "subclass" of
+an existing class; a subclass inherits all the resources and methods of
+its parent class (or "superclass") and can add its own resources and
+methods and/or redefine the methods and default resource values of its
+parent class.  It is possible to create subclasses of subclasses, and
+so on; in fact, all classes form a hierarchy and are ultimately derived
+from the top-level class `Object'.
+
+   The widget paradigm for encapsulating data and functions can, and is,
+used for representing other sorts of things than objects on a screen.
+Some parts of Era (for example, its Motif drag-and-drop interface) make
+heavy use of Xt widgets for representing many different sorts of data.
+Era provides a E-Lisp interface to Xt widgets so that the E-Lisp
+programmer can take full advantage of the functionality provided.
+

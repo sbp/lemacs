@@ -178,7 +178,7 @@ xrealloc (ptr, size)
 {
   char *result = realloc (ptr, ((unsigned) size));
   if (result == ((char *) NULL))
-    fatal ("virtual memory exhausted");
+    fatal ("virtual memory exhausted", 0);
   return result;
 }
 
@@ -646,7 +646,7 @@ main (argc, argv)
   
   the_pipe = popen (command_line, "w");
   if (the_pipe == ((FILE *) NULL))
-    fatal ("cannot open pipe to real mailer");
+    fatal ("cannot open pipe to real mailer", 0);
 
   add_a_stream (the_pipe, pclose);
 

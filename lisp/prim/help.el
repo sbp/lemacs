@@ -1,5 +1,5 @@
 ;; Help commands for Emacs
-;; Copyright (C) 1985, 1986, 1992, 1993 Free Software Foundation, Inc.
+;; Copyright (C) 1985, 1986, 1992, 1993, 1994 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -20,7 +20,7 @@
 
 (defvar help-map (let ((map (make-sparse-keymap)))
                    (set-keymap-name map 'help-map)
-                   (set-keymap-prompt map "(Type ? for further options)")
+                   (set-keymap-prompt map (gettext "(Type ? for further options)"))
                    map)
   "Keymap for characters following the Help key.")
 
@@ -120,8 +120,8 @@
 	      (setq defn (car defn))))
       (setq defn (key-binding key)))
     (if (or (null defn) (integerp defn))
-        (message "%s is undefined" (key-description key))
-      (message "%s runs the command %s"
+        (message (gettext "%s is undefined") (key-description key))
+      (message (gettext "%s runs the command %s")
 	       (key-description key)
 	       (if (symbolp defn) defn (prin1-to-string defn))))))
 
@@ -136,11 +136,11 @@ If FUNCTION is nil, applies `message' to the message, thus printing it."
 	 (substitute-command-keys
 	  (if (one-window-p t)
 	      (if pop-up-windows
-		  "Type \\[delete-other-windows] to remove help window."
-		"Type \\[switch-to-buffer] RET to remove help window.")
-   "Type \\[switch-to-buffer-other-window] RET to restore the other window.")) 
+		  (gettext "Type \\[delete-other-windows] to remove help window.")
+		(gettext "Type \\[switch-to-buffer] RET to remove help window."))
+   (gettext "Type \\[switch-to-buffer-other-window] RET to restore the other window."))) 
 	 (substitute-command-keys
-	  "  \\[scroll-other-window] to scroll the help.")))))
+	  (gettext "  \\[scroll-other-window] to scroll the help."))))))
 
 (defun describe-key (key)
   "Display documentation of the function invoked by KEY.
@@ -151,35 +151,47 @@ When called interactvely, KEY may also be a menu selection."
     ;; If the key typed was really a menu selection, grab the form out
     ;; of the event object and intuit the function that would be called,
     ;; and describe that instead.
-    (if (and (vectorp key) (= 1 (length key)) (menu-event-p (aref key 0)))
+    (if (and (vectorp key) (= 1 (length key))
+	     (or (menu-event-p (aref key 0))
+		 (eq (car-safe (aref key 0)) 'menu-selection)))
 	(let ((event (aref key 0)))
-	  (setq defn (list (event-function event) (event-object event)))
+	  (setq defn (if (eventp event)
+			 (list (event-function event) (event-object event))
+		       (cdr event)))
 	  (if (eq (car defn) 'eval)
 	      (setq defn (car (cdr defn))))
 	  (if (eq (car-safe defn) 'call-interactively)
 	      (setq defn (car (cdr defn))))
 	  (if (and (consp defn) (null (cdr defn)))
 	      (setq defn (car defn))))
+      ;; else
       (setq defn (key-binding key)))
     (if (or (null defn) (integerp defn))
-        (message "%s is undefined" (key-description key))
-      (with-output-to-temp-buffer "*Help*"
+        (message (gettext "%s is undefined") (key-description key))
+      (with-output-to-temp-buffer (gettext "*Help*")
 ;	(princ (key-description key))
 ;	(princ " runs the command ")
 	(prin1 defn)
 	(princ ":\n")
-	(if (or (stringp defn) (vectorp defn))
-	    (let ((cmd (key-binding defn)))
-	      (princ "a keyboard macro")
-	      (if cmd
-		  (progn
-		    (princ " which runs the command ")
-		    (princ cmd)
-		    (princ ":\n\n")
-		    (if (documentation cmd) (princ (documentation cmd))))))
-	  (if (documentation defn)
-	      (princ (documentation defn))
-	    (princ "not documented")))
+	(cond
+	 ((or (stringp defn) (vectorp defn))
+	  (let ((cmd (key-binding defn)))
+	    (if (not cmd)
+		(princ (gettext "a keyboard macro"))
+	      (progn
+		(princ (format
+			(gettext "a keyboard macro which runs the command %s:\n\n")
+			cmd))
+		(princ cmd)
+		(if (documentation cmd) (princ (documentation cmd)))))))
+	 ((and (consp defn) (not (eq 'lambda (car-safe defn))))
+	  (princ "\n")
+	  (let ((describe-function-show-arglist nil))
+	    (describe-function-1 (car defn) standard-output)))
+	 ((documentation defn)
+	  (princ (documentation defn)))
+	 (t
+	  (princ (gettext "not documented"))))
 	(print-help-return-message)))))
 
 
@@ -189,11 +201,11 @@ Argument is a command definition, usually a symbol with a function definition."
   (interactive "CWhere is command: ")
   (let ((keys (where-is-internal definition (current-local-map) nil nil nil)))
     (if keys
-	(message "%s is on %s" definition
+	(message (gettext "%s is on %s") definition
 	  (mapconcat 'key-description
-		     (sort keys '(lambda (x y) (< (length x) (length y))))
+		     (sort keys #'(lambda (x y) (< (length x) (length y))))
 		     ", "))
-      (message "%s is not on any keys" definition)))
+      (message (gettext "%s is not on any keys") definition)))
   nil)
 
 
@@ -205,9 +217,9 @@ For this to work correctly for a minor mode, the mode's indicator variable
 \(listed in `minor-mode-alist') must also be a function whose documentation
 describes the minor mode."
   (interactive)
-  (with-output-to-temp-buffer "*Help*"
+  (with-output-to-temp-buffer (gettext "*Help*")
     (princ mode-name)
-    (princ " Mode:\n")
+    (princ (gettext " Mode:\n"))
     (princ (documentation major-mode))
     (let ((minor-modes (if minor minor-mode-alist '()))
 	  (locals (buffer-local-variables)))
@@ -222,7 +234,7 @@ describes the minor mode."
 		   (cdr local-binding)
 		   (fboundp minor-mode))
 	      (progn
-		(princ (format "\n\n\n%s minor mode (indicator%s):\n"
+		(princ (format (gettext "\n\n\n%s minor mode (indicator%s):\n")
 			       minor-mode indicator))
 		(princ (documentation minor-mode)))))
 	(setq minor-modes (cdr minor-modes))))
@@ -263,7 +275,7 @@ This is the same as \\[universal-argument] \\[describe-bindings]."
 (defun view-lossage ()
   "Display last 100 input keystrokes."
   (interactive)
-  (with-output-to-temp-buffer "*Help*"
+  (with-output-to-temp-buffer (gettext "*Help*")
     (princ (key-description (recent-keys)))
     (save-excursion
       (set-buffer standard-output)
@@ -309,14 +321,14 @@ C-f  Info-elisp-ref.  Look up a function in Emacs Lisp manual."
   (let ((help-key (copy-event last-command-event))
 	event char)
     (message
-  "A B C F I K L M N P S T V W C-c C-d C-n C-w.  Type %s again for more help: "
+  (gettext "A B C F I K L M N P S T V W C-c C-d C-n C-w.  Type %s again for more help: ")
   ;; arrgh, no room for "C-i C-k C-f" !!
      (single-key-description help-key))
     (setq event (next-command-event)
 	  char (or (event-to-character event) event))
     (if (or (equal char help-key) (equal char ?\C-h) (equal char ??))
 	(save-window-excursion
-	  (switch-to-buffer "*Help*")
+	  (switch-to-buffer (gettext "*Help*"))
 	  (delete-other-windows)
 	  (erase-buffer)
 	  (insert (documentation 'help-for-help))
@@ -327,10 +339,9 @@ C-f  Info-elisp-ref.  Look up a function in Emacs Lisp manual."
 		(scroll-up))
 	    (if (memq char '(?\177 ?\M-v))
 		(scroll-down))
-	    (message
-	     "A B C F I K L M N P S T V W C-c C-d C-n C-w C-i C-k C-f%s: "
-		     (if (pos-visible-in-window-p (point-max))
-			 "" " or Space to scroll"))
+	    (message (if (pos-visible-in-window-p (point-max))
+			 (gettext "A B C F I K L M N P S T V W C-c C-d C-n C-w C-i C-k C-f: ")
+		       (gettext "A B C F I K L M N P S T V W C-c C-d C-n C-w C-i C-k C-f or Space to scroll: ")))
 	    (let ((cursor-in-echo-area t))
 	      (setq event (next-command-event event)
 		    char (or (event-to-character event) event))))))
@@ -371,28 +382,29 @@ not an autoload.")
            (val (let ((enable-recursive-minibuffers t))
                   (completing-read
                     (if fn 
-                        (format "Describe function (default %s): " fn)
-                        "Describe function: ")
+                        (format (gettext "Describe function (default %s): ") fn)
+                        (gettext "Describe function: "))
                     obarray 'fboundp t))))
       (list (if (equal val "") fn (intern val)))))
-  (with-output-to-temp-buffer "*Help*"
+  (with-output-to-temp-buffer (gettext "*Help*")
     (describe-function-1 function standard-output)
     (print-help-return-message)
     (save-excursion (set-buffer standard-output) (buffer-string))))
 
-(defun describe-function-1 (function stream)
+(defun describe-function-1 (function stream &optional nodoc)
   (prin1 function stream)
   (princ ": " stream)
   (let* ((def function)
          (doc (or (documentation function)
-                  "not documented"))
+                  (gettext "not documented")))
 	 aliases kbd-macro-p fndef macrop)
     (while (symbolp def)
       (or (eq def function)
 	  (if aliases
-	      (setq aliases (concat aliases "\n     which is an alias for "
-				    (symbol-name def) ", "))
-	    (setq aliases (concat "an alias for " (symbol-name def) ", "))))
+	      (setq aliases (concat aliases 
+				    (format (gettext "\n     which is an alias for %s, ")
+					    (symbol-name def))))
+	    (setq aliases (format (gettext "an alias for %s, ") (symbol-name def)))))
       (setq def (symbol-function def)))
     (if (eq 'macro (car-safe def))
 	(setq fndef (cdr def)
@@ -419,40 +431,67 @@ not an autoload.")
             (princ "\n  -- " stream)))
     (if aliases (princ aliases stream))
     (let ((int #'(lambda (string)
-		   (princ (if (commandp def) "an interactive " "a ") stream)
-		   (princ string stream))))
+		   (princ (format (if (commandp def)
+				      (gettext "an interactive %s")
+				    (gettext "a %s"))
+				  string)
+			  stream))))
       (cond ((or (stringp def) (vectorp def))
-             (princ "a keyboard macro." stream)
+             (princ (gettext "a keyboard macro.") stream)
 	     (setq kbd-macro-p t))
             ((subrp fndef)
-             (funcall int (if macrop "built-in macro." "built-in function.")))
+             (funcall int (if macrop
+			      (gettext "built-in macro.")
+			    (gettext "built-in function."))))
             ((compiled-function-p fndef)
-             (funcall int (if macrop "compiled Lisp macro."
-			    "compiled Lisp function.")))
+             (funcall int (if macrop (gettext "compiled Lisp macro.")
+			    (gettext "compiled Lisp function."))))
             ((symbolp fndef)
-             (princ (format "alias for `%s'." (prin1-to-string def)) stream))
+             (princ (format (gettext "alias for `%s'.")
+			    (prin1-to-string def)) stream))
             ((eq (car-safe fndef) 'lambda)
-             (funcall int (if macrop "Lisp macro." "Lisp function.")))
+             (funcall int (if macrop (gettext "Lisp macro.")
+			    (gettext "Lisp function."))))
             ((eq (car-safe fndef) 'mocklisp)
-             (princ (if macrop "a mocklisp macro." "a mocklisp function.")
+             (princ (if macrop (gettext "a mocklisp macro.")
+		      (gettext "a mocklisp function."))
 		    stream))
             ((eq (car-safe def) 'autoload)
-             (funcall int "autoloaded Lisp ")
-             (princ (if (elt def 4) "macro" "function") stream)
-	     (princ "\n  -- loads from " stream) (prin1 (elt def 1) stream))
+	     (if (elt def 4)
+		 (funcall int (gettext "autoloaded Lisp macro"))
+	       (funcall int (gettext "autoloaded Lisp function")))
+	     (princ (format (gettext "\n  -- loads from \"%s\"") (elt def 1)) stream))
             (t
              nil)))
     (terpri)
     (cond (kbd-macro-p
-	   (princ "These characters are executed:\n\n\t" stream)
+	   (princ (gettext "These characters are executed:\n\n\t") stream)
 	   (princ (key-description def) stream)
 	   (cond ((setq def (key-binding def))
-		  (princ "\n\nwhich executes the command " stream)
-		  (princ def stream)
-		  (princ ".\n\n" stream)
+		  (princ (format (gettext "\n\nwhich executes the command %s.\n\n") def) stream)
 		  (describe-function-1 def stream))))
+	  (nodoc nil)
 	  (t
 	   (princ doc stream)))))
+
+
+(defun describe-function-arglist (function)
+  (interactive (list (or (function-called-at-point)
+			 (error "no function call at point"))))
+  (let ((b nil))
+    (unwind-protect
+	(save-excursion
+	  (set-buffer (setq b (get-buffer-create " *arglist*")))
+	  (buffer-disable-undo b)
+	  (erase-buffer)
+	  (describe-function-1 function b t)
+	  (goto-char (point-min))
+	  (end-of-line)
+	  (or (eobp) (delete-char 1))
+	  (just-one-space)
+	  (end-of-line)
+	  (message (buffer-substring (point-min) (point))))
+      (and b (kill-buffer b)))))
 
 
 (defun variable-at-point ()
@@ -471,24 +510,23 @@ not an autoload.")
           (val (let ((enable-recursive-minibuffers t))
                  (completing-read
                    (if v
-                       (format "Describe variable (default %s): " v)
-                       "Describe variable: ")
+                       (format (gettext "Describe variable (default %s): ") v)
+                       (gettext "Describe variable: "))
                    obarray 'boundp t))))
      (list (if (equal val "") v (intern val)))))
-  (with-output-to-temp-buffer "*Help*"
-    (prin1 variable)
-    (princ "'s value is ")
+  (with-output-to-temp-buffer (gettext "*Help*")
+    (princ (format (gettext "%s's value is ") variable))
     (if (not (boundp variable))
-        (princ "void.")
+        (princ (gettext "void."))
       (prin1 (symbol-value variable)))
     (terpri) (terpri)
-    (princ "Documentation:")
+    (princ (gettext "Documentation:"))
     (terpri)
     (let ((doc (documentation-property variable 'variable-documentation)))
       (if doc
 	  ;; note: documentation-property calls substitute-command-keys.
 	  (princ doc)
-	(princ "not documented as a variable.")))
+	(princ (gettext "not documented as a variable."))))
     (print-help-return-message)
     ;; Return the text we displayed.
     (save-excursion (set-buffer standard-output) (buffer-string))))
@@ -500,7 +538,7 @@ that is matched against command symbol names.  Returns list of symbols and
 documentation found."
   (interactive "sCommand apropos (regexp): ")
   (let ((message
-	 (let ((standard-output (get-buffer-create "*Help*")))
+	 (let ((standard-output (get-buffer-create (gettext "*Help*"))))
 	   (print-help-return-message 'identity))))
     (apropos string t 'commandp)
     (and message (message message))))
@@ -514,15 +552,15 @@ to the specified name LIBRARY (a la calling `load' instead of `load-library')."
   (interactive "sLocate library: \nP")
   (let ((file (locate-file library load-path (if nosuffix nil ".elc:.el:"))))
     (if file
-	(message "Library is file %s" file)
-      (message "No library %s in search path" library))
+	(message (gettext "Library is file %s") file)
+      (message (gettext "No library %s in search path") library))
     file))
 
 (defun describe-syntax ()
   "Describe the syntax specifications in the syntax table.
 The descriptions are inserted in a buffer, which is then displayed."
   (interactive)
-  (with-output-to-temp-buffer "*Help*"
+  (with-output-to-temp-buffer (gettext "*Help*")
     ;; defined in syntax.el
     (describe-syntax-table (syntax-table) standard-output)))
 
@@ -531,7 +569,7 @@ The descriptions are inserted in a buffer, which is then displayed."
 \(Any processes listed as Exited or Signaled are actually eliminated
 after the listing is made.)"
   (interactive)
-  (with-output-to-temp-buffer "*Process List*"
+  (with-output-to-temp-buffer (gettext "*Process List*")
     (set-buffer standard-output)
     (buffer-disable-undo standard-output)
     (make-local-variable 'truncate-lines)
@@ -539,8 +577,8 @@ after the listing is made.)"
     (let ((stream standard-output))
       ;;      00000000001111111111222222222233333333334444444444
       ;;      01234567890123456789012345678901234567890123456789
-      (princ "Proc         Status   Buffer         Command\n" stream)
-      (princ "----         ------   ------         -------\n" stream)
+      (princ (gettext "Proc         Status   Buffer         Command\n") stream)
+      (princ (gettext "----         ------   ------         -------\n") stream)
       (let ((tail (process-list)))
         (while tail
           (let* ((p (car tail))
@@ -561,15 +599,15 @@ after the listing is made.)"
             (indent-to 22 1)            ;>>>
             (let ((b (process-buffer p)))
               (cond ((not b)
-                     (princ "(none)" stream))
+                     (princ (gettext "(none)") stream))
                     ((not (buffer-name b))
-                     (princ "(killed)" stream))
+                     (princ (gettext "(killed)") stream))
                     (t
                      (princ (buffer-name b) stream))))
             (indent-to 37 1)            ;>>>
             (if (not (integerp pid))
                 (progn
-                  (princ "network stream connection " stream)
+                  (princ (gettext "network stream connection ") stream)
                   (princ (car pid) stream)
                   (princ "@" stream)
                   (princ (cdr pid) stream))

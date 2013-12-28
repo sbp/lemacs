@@ -12,20 +12,20 @@ extern Lisp_Object Fremhash (Lisp_Object obj, Lisp_Object table);
 extern Lisp_Object Fhashtable_fullness (Lisp_Object table);
 
 extern Lisp_Object make_lisp_hashtable (int size,
-	 int (*test_function) (const void*,const void*),
-	 unsigned long (*hash_function) (const void*));
+	 int (*test_function) (CONST void*,CONST void*),
+	 unsigned long (*hash_function) (CONST void*));
 
 extern Lisp_Object make_weak_hashtable (int size,
-	 int (*test_function) (const void*,const void*),
-	 unsigned long (*hash_function) (const void*));
+	 int (*test_function) (CONST void*,CONST void*),
+	 unsigned long (*hash_function) (CONST void*));
 
-extern void elisp_maphash (void (*fn) (const void *key, void *contents,
+extern void elisp_maphash (void (*fn) (CONST void *key, void *contents,
 				       void *extra_arg),
                            Lisp_Object table, 
                            void *extra_arg);
 
-extern void elisp_map_remhash (int (*fn) (const void *key,
-					  const void *contents,
+extern void elisp_map_remhash (int (*fn) (CONST void *key,
+					  CONST void *contents,
 					  void *extra_arg),
                            Lisp_Object table, 
                            void *extra_arg);

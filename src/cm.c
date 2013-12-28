@@ -21,17 +21,19 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include "config.h"
 #include <stdio.h>
-#include "cm.h"
+
 #include "lisp.h"
+#include "systty.h"
+#include "cm.h"
 #include "termhooks.h"
 #include "dispmisc.h"
 
 #define	BIG	9999		/* 9999 good on VAXen.  For 16 bit machines
 				   use about 2000.... */
 
-extern char *tgoto (const char *cm, int hpos, int vpos);
+extern char *tgoto (CONST char *cm, int hpos, int vpos);
 
-extern const char *BC, *UP;
+extern CONST char *BC, *UP;
 
 /*>>> Great global variable name */
 int cost;		/* sums up costs */
@@ -46,8 +48,8 @@ void
 cmputc (int c)
 {
   if (termscript)
-    fputc (c & 0177, termscript);
-  putchar (c & 0177);
+    fputc (c /*  & 0177 */, termscript);
+  putchar (c /*  & 0177 */);
 }
 
 /* NEXT TWO ARE DONE WITH MACROS */
@@ -160,7 +162,7 @@ calccost (srcy, srcx, dsty, dstx, doit)
             tabx,
             tab2x,
             tabcost;
-    register const char  *p;
+    register CONST char  *p;
 
     /* If have just wrapped on a terminal with xn,
        don't believe the cursor position: give up here
@@ -295,7 +297,7 @@ cmgoto (row, col)
             directcost;
     int     use;
     char   *p;
-    const char   *dcm;
+    CONST char   *dcm;
 
   /* First the degenerate case */
   if (row == curY && col == curX)

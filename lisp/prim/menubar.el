@@ -65,17 +65,32 @@
 (defun x-new-screen (&optional screen-name)
   "Creates a new emacs screen (that is, a new X window.)"
   (interactive)
-  (select-screen (x-create-screen
-		  (append (if screen-name
-			      (list (cons 'name screen-name))
-			    nil)
-			  screen-default-alist)))
-  (switch-to-buffer (get-buffer-create "*scratch*"))
-  ;; hack: if evi mode is loaded and in use, put the new screen in evi mode.
-  (if (and (boundp 'evi-install-undo-list) evi-install-undo-list)
-      (evi-mode))
+  (prog1
+      (select-screen (x-create-screen
+		      (append (if screen-name
+				  (list (cons 'name screen-name))
+				nil)
+			      screen-default-alist)))
+    (switch-to-buffer (get-buffer-create (gettext "*scratch*")))
+    ;; hack: if evi mode is loaded and in use, put the new screen in evi mode.
+    (if (and (boundp 'evi-install-undo-list) evi-install-undo-list)
+	(evi-mode)))
   )
 
+(defun x-new-screen-other (window-id &optional screen-params)
+  "Creates a new emacs screen using an existing X window.
+WINDOW-ID is a string specifying the ID of the X window.  Optional
+parameter SCREEN-PARAMS is an alist of parameters to set for this
+screen."
+  (interactive)
+  (prog1
+      (select-screen (x-create-screen
+		      (append screen-params screen-default-alist) window-id))
+    (switch-to-buffer (get-buffer-create (gettext "*scratch*")))
+    ;; hack: if evi mode is loaded and in use, put the new screen in evi mode.
+    (if (and (boundp 'evi-install-undo-list) evi-install-undo-list)
+	(evi-mode)))
+    )
 
 (defun set-menubar (menubar)
   "Set the default menubar to be menubar."
@@ -115,8 +130,8 @@ Signals an error if the item is not found."
 	  (if (consp result)
 	      (find-menu-item (cdr result) (cdr item-path-list) result)
 	    (if result
-		(signal 'error (list "not a submenu" result))
-	      (signal 'error (list "no such submenu" (car item-path-list)))))
+		(signal 'error (list (gettext "not a submenu") result))
+	      (signal 'error (list (gettext "no such submenu") (car item-path-list)))))
 	(cons result parent)))))
 
 
@@ -131,9 +146,10 @@ menu item called \"Item\" under the \"Foo\" submenu of \"Menu\"."
 	 (item (car pair))
 	 (menu (cdr pair)))
     (or item
-	(signal 'error (list (if menu "No such menu item" "No such menu")
+	(signal 'error (list (if menu (gettext "No such menu item")
+			       (gettext "No such menu"))
 			     path)))
-    (if (consp item) (error "can't disable menus, only menu items"))
+    (if (consp item) (error (gettext "can't disable menus, only menu items")))
     (aset item 2 nil)
     (set-menubar-dirty-flag)
     item))
@@ -150,9 +166,10 @@ menu item called \"Item\" under the \"Foo\" submenu of \"Menu\"."
 	 (item (car pair))
 	 (menu (cdr pair)))
     (or item
-	(signal 'error (list (if menu "No such menu item" "No such menu")
+	(signal 'error (list (if menu (gettext "No such menu item")
+			       (gettext "No such menu"))
 			     path)))
-    (if (consp item) (error "%S is a menu, not a menu item" path))
+    (if (consp item) (error (gettext "%S is a menu, not a menu item") path))
     (aset item 2 t)
     (set-menubar-dirty-flag)
     item))
@@ -168,7 +185,8 @@ menu item called \"Item\" under the \"Foo\" submenu of \"Menu\"."
 		   (car (find-menu-item menubar menu-path))
 		 (error nil)))
 	 (item (cond ((not (listp menu))
-		      (signal 'error (list "not a submenu" menu-path)))
+		      (signal 'error (list (gettext "not a submenu")
+					   menu-path)))
 		     (menu
 		      (car (find-menu-item (cdr menu) (list item-name))))
 		     (t
@@ -246,7 +264,7 @@ BEFORE, if provided, is the name of a menu item before which this item should
  be added, if this item is not on the menu already.  If the item is already
  present, it will not be moved."
 ;  (or menu-path (error "must specify a menu path"))
-  (or item-name (error "must specify an item name"))
+  (or item-name (error (gettext "must specify an item name")))
   (add-menu-item-1 t menu-path item-name function enabled-p before))
 
 
@@ -285,7 +303,8 @@ NEW-NAME is the string that the menu item will be printed as from now on."
 	 (item (car pair))
 	 (menu (cdr pair)))
     (or item
-	(signal 'error (list (if menu "No such menu item" "No such menu")
+	(signal 'error (list (if menu (gettext "No such menu item")
+			       (gettext "No such menu"))
 			     path)))
     (if (and (consp item)
 	     (stringp (car item)))
@@ -310,8 +329,8 @@ MENU-ITEMS is a list of menu item descriptions.
 BEFORE, if provided, is the name of a menu before which this menu should
  be added, if this menu is not on its parent already.  If the menu is already
  present, it will not be moved."
-  (or menu-name (error "must specify a menu name"))
-  (or menu-items (error "must specify some menu items"))
+  (or menu-name (error (gettext "must specify a menu name")))
+  (or menu-items (error (gettext "must specify some menu items")))
   (add-menu-item-1 nil menu-path menu-name menu-items t before))
 
 
@@ -465,9 +484,8 @@ select that buffer.")
   (save-excursion
     (set-buffer buffer)
     (write-file (read-file-name
-		 (concat "Write " (buffer-name (current-buffer))
-			 " to file: ")))))
-
+		 (foramt (gettext "Write %s to file: ")
+			 (buffer-name (current-buffer)))))))
 
 (defsubst build-buffers-menu-internal (buffers)
   (let (name line)

@@ -369,8 +369,10 @@ If so, return the true (non-nil) value returned by PREDICATE."
 (defun isqrt (a)
   "Return the integer square root of the argument."
   (if (and (integerp a) (> a 0))
-      (let ((g (cond ((>= a 1000000) 10000) ((>= a 10000) 1000)
-		     ((>= a 100) 100) (t 10)))
+      (let ((g (cond ((>= a 1000000) a)
+		     ((>= a 10000) 1000)
+		     ((>= a 100) 100)
+		     (t 10)))
 	    g2)
 	(while (< (setq g2 (/ (+ g (/ a g)) 2)) g)
 	  (setq g g2))

@@ -12,6 +12,8 @@
 #include "../src/paths.h"      /* For PATH_EXEC.  */
 
 #if __STDC__
+#include <stdlib.h>
+#include <unistd.h>
 #include <time.h> /* for time() */
 #endif
 
@@ -106,7 +108,6 @@ yow (fp)
   int c, i = 0;
   char *buf;
   unsigned int bufsize;
-  char *malloc(), *realloc();
 
   offset = rand() % len + header_len;
   if (fseek(fp, offset, 0) == -1) {
@@ -133,7 +134,7 @@ yow (fp)
   }
 
   bufsize = BUFSIZE;
-  buf = malloc(bufsize);
+  buf = (char *) malloc(bufsize);
   if (buf == (char *)0) {
     fprintf(stderr, "can't allocate any memory\n");
     exit (3);
@@ -146,7 +147,7 @@ yow (fp)
     if (i == bufsize-1) {
       /* Yow! Is this quotation too long yet? */
       bufsize *= 2;
-      buf = realloc(buf, bufsize);
+      buf = (char *)realloc(buf, bufsize);
       if (buf == (char *)0) {
 	fprintf(stderr, "can't allocate more memory\n");
 	exit (3);

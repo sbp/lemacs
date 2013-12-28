@@ -169,7 +169,8 @@ first comment line visible (if point is in a comment)."
 	   ;;(repos-debug-macro "4")
 	   ))))
 
-;;;###autoload
+;;; This key should be bound to switch-to-other-buffer by default so
+;;; don't ###autoload it. -jwz
 (define-key esc-map "\C-l" 'reposition-window)
 
 ;;; Auxiliary functions

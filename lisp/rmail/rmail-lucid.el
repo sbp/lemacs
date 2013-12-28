@@ -22,9 +22,7 @@
 ;;; Middle button selects indicated mail message in Rmail summary buffer
 
 (defvar rmail-summary-mode-menu
-  '("Rmail Summary"
-    "Rmail Summary Commands:"
-    "----"
+  '("Rmail Summary Commands"
     ["Select Message" rmail-summary-goto-msg t nil]
     "----"
     ["Previous Page" scroll-down t]
@@ -84,9 +82,7 @@
 
 ;; The following are for rmail mode 
 (defconst rmail-mode-menu
-  '("Rmail" 
-    "Rmail Commands:"
-    "----"
+  '("Rmail Commands"
     ["Previous Page" scroll-down t]
     ["Next Page" scroll-up t]
     ["Top Of This Message" rmail-beginning-of-message t]

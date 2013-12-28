@@ -21,13 +21,14 @@
 ;; along with GNU Emacs; see the file COPYING.  If not, write to
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
+;;; Commentary:
+
+;; Make GNU Emacs look like Gosling Emacs.  `M-x set-gosmacs-bindings'
+;; does this change; `M-x set-gnu-bindings' undoes it.
 
 ;;; Code:
 
-(dont-compile
- ;; don't require it at compile-time, otherwise we won't be able to compile
- ;; it in an emacs that wasn't compiled with #define MOCKLISP_SUPPORT.
- (require 'mlsupport))
+; (require 'mlsupport)	; not really needed
 
 (defvar non-gosmacs-binding-alist nil)
 

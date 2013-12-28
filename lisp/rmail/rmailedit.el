@@ -1,11 +1,15 @@
-;; "RMAIL edit mode"  Edit the current message.
+;;; rmailedit.el --- "RMAIL edit mode"  Edit the current message.
+
 ;; Copyright (C) 1985 Free Software Foundation, Inc.
+
+;; Maintainer: FSF
+;; Keywords: mail
 
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -17,6 +21,7 @@
 ;; along with GNU Emacs; see the file COPYING.  If not, write to
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
+;;; Code:
 
 (require 'rmail)
 
@@ -25,6 +30,7 @@
     nil
   (setq rmail-edit-map (make-sparse-keymap))
   (set-keymap-parent rmail-edit-map text-mode-map)
+  (set-keymap-name rmail-edit-map 'rmail-edit-map)
   (define-key rmail-edit-map "\C-c\C-c" 'rmail-cease-edit)
   (define-key rmail-edit-map "\C-c\C-]" 'rmail-abort-edit))
 
@@ -47,6 +53,7 @@ to return to regular RMAIL:
     (setq mode-line-format (default-value 'mode-line-format)))
   (run-hooks 'text-mode-hook 'rmail-edit-mode-hook))
 
+(defvar rmail-old-text) ;jwz
 (defun rmail-edit-current-message ()
   "Edit the contents of this message."
   (interactive)
@@ -104,3 +111,4 @@ to return to regular RMAIL:
   (insert rmail-old-text)
   (rmail-cease-edit))
 
+;;; rmailedit.el ends here

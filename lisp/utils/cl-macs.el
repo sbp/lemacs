@@ -416,7 +416,9 @@ The result of the body appears to the compiler as a quoted constant."
 				    (symbol-function 'byte-compile-file-form)))
 			(list 'byte-compile-file-form (list 'quote set))
 			'(byte-compile-file-form form)))
-	  (print set (symbol-value 'outbuffer)))
+	  (print set (symbol-value ;;'outbuffer
+				   'byte-compile-output-buffer
+				   )))
 	(list 'symbol-value (list 'quote temp)))
     (list 'quote (eval form))))
 
@@ -1571,9 +1573,10 @@ Example: (defsetf nth (n x) (v) (list 'setcar (list 'nthcdr n x) v))."
 (defsetf default-file-modes set-default-file-modes t)
 (defsetf default-value set-default)
 (defsetf documentation-property put)
-(defsetf extent-data set-extent-data)
+(defsetf extent-data set-extent-data) ; obsolete
 (defsetf extent-face set-extent-face)
 (defsetf extent-priority set-extent-priority)
+(defsetf extent-property set-extent-property)
 (defsetf extent-end-position (ext) (store)
   (list 'progn (list 'set-extent-endpoints (list 'extent-start-position ext)
 		     store) store))

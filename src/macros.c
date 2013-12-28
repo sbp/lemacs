@@ -1,5 +1,5 @@
 /* Keyboard macros.
-   Copyright (C) 1985, 1986, 1992, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1992, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -27,6 +27,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include "config.h"
 #include "lisp.h"
+#include "intl.h"
 #include "events.h"
 #include "macros.h"
 #include "commands.h"
@@ -73,18 +74,18 @@ Non-nil arg (prefix arg) means append to last macro defined;\n\
      Lisp_Object append;
 {
   if (defining_kbd_macro)
-      error ("Already defining kbd macro");
+      error (GETTEXT ("Already defining kbd macro"));
 
   redraw_mode_line++;
   if (NILP (append))
     {
       kbd_macro_ptr = 0;
       kbd_macro_end = 0;
-      message ("Defining kbd macro...");
+      message (GETTEXT ("Defining kbd macro..."));
     }
   else
     {
-      message ("Appending to kbd macro...");
+      message (GETTEXT ("Appending to kbd macro..."));
       kbd_macro_ptr = kbd_macro_end;
       Fexecute_kbd_macro (Vlast_kbd_macro, make_number (1));
     }
@@ -109,7 +110,7 @@ An argument of zero means repeat until error.")
   int repeat;
 
   if (!defining_kbd_macro)
-    error ("Not defining kbd macro.");
+    error (GETTEXT ("Not defining kbd macro."));
 
   if (NILP (arg))
     repeat = -1;
@@ -126,7 +127,7 @@ An argument of zero means repeat until error.")
 	  XVECTOR (kbd_macro_builder)->contents [i];
       defining_kbd_macro = 0;
       redraw_mode_line++;
-      message ("Keyboard macro defined");
+      message (GETTEXT ("Keyboard macro defined"));
     }
 
   if (repeat < 0)
@@ -201,7 +202,7 @@ pop_kbd_macro_event (Lisp_Object event)
 	break;
       }
     default:
-      error ("junk in executing-macro");
+      error (GETTEXT ("junk in executing-macro"));
     }
 
   Fthrow (Qexecute_kbd_macro, Qt);
@@ -230,9 +231,9 @@ defining others, use \\[name-last-kbd-macro].")
      Lisp_Object prefix;
 {
   if (defining_kbd_macro)
-    error ("Can't execute anonymous macro while defining one");
+    error (GETTEXT ("Can't execute anonymous macro while defining one"));
   else if (NILP (Vlast_kbd_macro))
-    error ("No kbd macro has been defined");
+    error (GETTEXT ("No kbd macro has been defined"));
   else
     Fexecute_kbd_macro (Vlast_kbd_macro, prefix);
   return Qnil;
@@ -271,7 +272,7 @@ COUNT is a repeat count, or nil for once, or 0 for infinite loop.")
 
   final = indirect_function (macro, 1);
   if (!STRINGP (final) && !VECTORP (final))
-    error ("Keyboard macros must be strings or vectors.");
+    error (GETTEXT ("Keyboard macros must be strings or vectors."));
 
   tem = Fcons (Vexecuting_macro, make_number (executing_macro_index));
   record_unwind_protect (pop_kbd_macro, tem);
@@ -283,7 +284,7 @@ COUNT is a repeat count, or nil for once, or 0 for infinite loop.")
       executing_macro_index = 0;
       internal_catch (Qexecute_kbd_macro, call_command_loop, Qnil, 0);
     }
-  while (--repeat > 0
+  while (--repeat != 0
 	 && (STRINGP (Vexecuting_macro) ||
 	     VECTORP (Vexecuting_macro)));
 

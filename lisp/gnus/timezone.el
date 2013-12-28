@@ -118,13 +118,14 @@ Optional argument TIMEZONE specifies a time zone."
   (format "%02d:%02d:%02d" hour minute second))
 
 (defun timezone-parse-date (date)
-  "Parse DATE and return a vector [year month day time timezone].
-19 is prepended to year if necessary. Timezone may be NIL if nothing.
-Understand the following styles:
+  "Parse DATE and return a vector [YEAR MONTH DAY TIME TIMEZONE].
+19 is prepended to year if necessary. Timezone may be nil if nothing.
+Understands the following styles:
  (1) 14 Apr 89 03:20[:12] [GMT]
  (2) Fri, 17 Mar 89 4:01[:33] [GMT]
  (3) Mon Jan 16 16:12[:37] [GMT] 1989
- (4) 6 May 1992 1641-JST (Wednesday)"
+ (4) 6 May 1992 1641-JST (Wednesday)
+ (5) 22-AUG-1993 10:59:12.82"
   (let ((date (or date ""))
 	(year nil)
 	(month nil)
@@ -145,12 +146,16 @@ Understand the following styles:
 	   (setq year 4 month 1 day 2 time 3 zone nil))
 	  ((string-match
 	    "\\([^ \t,]+\\)[ \t]+\\([0-9]+\\)[ \t]+\\([0-9]+:[0-9:]+\\)[ \t]+\\([-+a-zA-Z0-9]+\\)[ \t]+\\([0-9]+\\)" date)
-	   ;; Styles: (3) with timezoen
+	   ;; Styles: (3) with timezone
 	   (setq year 5 month 1 day 2 time 3 zone 4))
 	  ((string-match
 	    "\\([0-9]+\\)[ \t]+\\([^ \t,]+\\)[ \t]+\\([0-9]+\\)[ \t]+\\([0-9]+\\)[ \t]*\\([-+a-zA-Z0-9]+\\)" date)
 	   ;; Styles: (4) with timezone
 	   (setq year 3 month 2 day 1 time 4 zone 5))
+	  ((string-match
+	    "\\([0-9]+\\)-\\([A-Za-z]+\\)-\\([0-9]+\\)[ \t]+\\([0-9]+:[0-9]+:[0-9]+\\)\\.[0-9]+" date)
+	   ;; Styles: (5) without timezone.
+	   (setq year 3 month 2 day 1 time 4 zone nil))
 	  )
     (if year
 	(progn
@@ -236,7 +241,7 @@ or an integer of the form +-HHMM, or a time zone name."
 	;;(+ (* 60 (/ timezone 100)) (% timezone 100))
 	;; ANSI C compliance about truncation of integer division
 	;; by eggert@twinsun.com (Paul Eggert)
-	(let* ((abszone (max timezone (- timezone)))
+	(let* ((abszone (abs timezone))
  	       (minutes (+ (* 60 (/ abszone 100)) (% abszone 100))))
  	  (if (< timezone 0) (- minutes) minutes))))
      (t 0)))
@@ -293,12 +298,7 @@ If TIMEZONE is nil, use the local time zone."
 	 (diff   (- (timezone-zone-to-minute timezone)
 		    (timezone-zone-to-minute local)))
 	 (minute (+ minute diff))
-	 (hour-fix
-	  (if (< minute 0)
-	     ;;(/ (- minute 59) 60) (/ minute 60)
-	     ;; ANSI C compliance about truncation of integer division
-	     ;; by eggert@twinsun.com (Paul Eggert)
-	     (- (/ (- 59 minute) 60)) (/ minute 60))))
+	 (hour-fix (floor minute 60)))
     (setq hour (+ hour hour-fix))
     (setq minute (- minute (* 60 hour-fix)))
     ;; HOUR may be larger than 24 or smaller than 0.

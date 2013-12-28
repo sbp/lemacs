@@ -1,5 +1,5 @@
-;; Makes the shell buffer's prompt be bold (or whatever).
-;; Copyright (C) 1992-1993 Free Software Foundation, Inc.
+;; Decorate a shell buffer with fonts.
+;; Copyright (C) 1992, 1993, 1994 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -17,17 +17,54 @@
 ;; along with GNU Emacs; see the file COPYING.  If not, write to
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
-;; Do this: (add-hook 'shell-mode-hook 'install-shell-font-prompt) 
-;; and the prompt in your shell-buffers will appear in boldface.
+;; Do this: (add-hook 'shell-mode-hook 'install-shell-fonts) 
+;; and the prompt in your shell-buffers will appear bold-italic, process
+;; output will appear in normal face, and typein will appear in bold.
 ;;
-;; If you want it to be italic instead, do (copy-face 'italic 'shell-prompt).
+;; The faces shell-prompt, shell-input and shell-output can be modified
+;; as desired, for example, (copy-face 'italic 'shell-prompt).
 
+;; Written by Jamie Zawinski, overhauled by Eric Benson.
+
+;; TODO:
+;; =====
+;; Parse ANSI/VT100 escape sequences to turn on underlining/boldface/etc.
+;; Automatically run nuke-nroff-bs?
+
+
+(require 'text-props)	; for put-nonduplicable-text-property
 
 (make-face 'shell-prompt)
-(or (face-differs-from-default-p 'shell-prompt)
-    (copy-face 'bold 'shell-prompt))
+(if (not (face-differs-from-default-p 'shell-prompt))
+    (copy-face 'bold-italic 'shell-prompt))
 
-(defun shell-hack-prompt-font (limit)
+(make-face 'shell-input)
+(if (not (face-differs-from-default-p 'shell-input))
+    (copy-face 'bold 'shell-input))
+
+(make-face 'shell-output)
+(if (not (face-differs-from-default-p 'shell-output))
+    (progn (make-face-unbold 'shell-output)
+	   (make-face-unitalic 'shell-output)
+	   (set-face-underline-p 'shell-output nil)))
+
+(defvar shell-font-current-face 'shell-input)
+
+(defun shell-font-fontify-region (start end delete-count)
+  ;; for use as an after-change-function; fontifies the inserted text.
+  (if (= start end)
+      nil
+;    ;; This creates lots of extents (one per user-typed character)
+;    ;; which is wasteful of memory.
+;    (let ((e (make-extent start end)))
+;      (set-extent-face e shell-font-current-face)
+;      (set-extent-property e 'shell-font t))
+
+    ;; This efficiently merges extents
+    (put-nonduplicable-text-property start end 'face shell-font-current-face)
+    ))
+
+(defun shell-font-hack-prompt (limit)
   "Search backward from point-max for text matching the comint-prompt-regexp,
 and put it in the `shell-prompt' face.  LIMIT is the left bound of the search."
   (save-excursion
@@ -35,36 +72,62 @@ and put it in the `shell-prompt' face.  LIMIT is the left bound of the search."
     (save-match-data
      (cond ((re-search-backward comint-prompt-regexp limit t)
 	    (goto-char (match-end 0))
-	    (skip-chars-backward " \t")
-	    (set-extent-face (make-extent (match-beginning 0) (point))
-			     'shell-prompt))))))
+	    (cond ((= (point) (point-max))
+		   (skip-chars-backward " \t")
+		   (let ((shell-font-current-face 'shell-prompt))
+		     (shell-font-fontify-region
+		      (match-beginning 0) (point) 0)))))))))
 
-(defun shell-face-process-filter (proc string)
-  "A process-filter that simply inserts the string into the process's buffer,
-to give the illusion of a process with no filter, but then searches backward
-for text matching the comint-prompt-regexp of this buffer, and puts it in
-the `shell-prompt' face."
-  (save-excursion 
-    (set-buffer (process-buffer proc))
-    (goto-char (process-mark proc))
-    (let* ((p (point))
-	   (ie (and comint-last-input-end
-		    (marker-position comint-last-input-end)))
-	   (w (get-buffer-window (current-buffer)))
-	   (ws (and w (window-start w))))
-      (insert-before-markers string)
-      ;; the insert-before-markers may have screwed window-start
-      ;; and likely moved comint-last-input-end.  This is why the
-      ;; insertion-reaction should be a property of markers, not
-      ;; of the function which does the inserting.
-      (if ws (set-window-start w ws t))
-      (if ie (set-marker comint-last-input-end ie))
-      (set-marker (process-mark proc) (point))
-      (shell-hack-prompt-font p))))
 
-(defun install-shell-font-prompt ()
-  "Add this to your shell-mode-hook to make the prompt be printed in boldface.
-The prompt uses the face called `shell-prompt'; you can alter the graphical
-attributes of that with the normal face-manipulation functions."
-  (set-process-filter (get-buffer-process (current-buffer))
-		      'shell-face-process-filter))
+(defvar shell-font-process-filter nil
+  "In an interaction buffer with shell-font, this is the original proc filter.
+shell-font encapsulates this.")
+
+(defun shell-font-process-filter (proc string)
+  "Invoke the original process filter, then set fonts on the output.
+The original filter is in the buffer-local variable shell-font-process-filter."
+  (let ((cb (current-buffer))
+	(pb (process-buffer proc)))
+    (if (null pb)
+	;; If the proc has no buffer, leave it alone.
+	(funcall shell-font-process-filter proc string)
+      ;; Don't do save excursion because some proc filters want to change
+      ;; the buffer's point.
+      (set-buffer pb)
+      (let ((p (marker-position (process-mark proc))))
+	(prog1
+	    ;; this let must not be around the `set-buffer' call.
+	    (let ((shell-font-current-face 'shell-output))
+	      (funcall shell-font-process-filter proc string))
+	  (shell-font-hack-prompt p)
+	  (set-buffer cb))))))
+
+;;;###autoload
+(defun install-shell-fonts ()
+  "Decorate the current interaction buffer with fonts.
+This uses the faces called `shell-prompt', `shell-input' and `shell-output';
+you can alter the graphical attributes of those with the normal
+face-manipulation functions."
+  (let* ((proc (or (get-buffer-process (current-buffer))
+		   (error "no process in %S" (current-buffer))))
+	 (old (or (process-filter proc)
+		  (error "no process filter on %S" proc))))
+    (make-local-variable 'after-change-function)
+    (setq after-change-function 'shell-font-fontify-region)
+    (make-local-variable 'shell-font-current-face)
+    (setq shell-font-current-face 'shell-input)
+    (make-local-variable 'shell-font-process-filter)
+    (or (eq old 'shell-font-process-filter) ; already set
+	(setq shell-font-process-filter old))
+    (set-process-filter proc 'shell-font-process-filter))
+  nil)
+
+(add-hook 'shell-mode-hook	'install-shell-fonts)
+(add-hook 'telnet-mode-hook	'install-shell-fonts)
+(add-hook 'gdb-mode-hook	'install-shell-fonts)
+
+;; for compatibility with the 19.8 version
+(fset 'install-shell-font-prompt 'install-shell-fonts)
+(make-obsolete 'install-shell-font-prompt 'install-shell-fonts)
+
+(provide 'shell-font)

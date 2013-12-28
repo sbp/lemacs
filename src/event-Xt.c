@@ -1,5 +1,5 @@
 /* The event_stream interface for X11 with Xt, and/or tty screens.
-   Copyright (C) 1991, 1992, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1991, 1992, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -19,27 +19,34 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include "config.h"
 #include "lisp.h"
+#include "intl.h"
+#include "systime.h"
 
 #include <stdio.h>
 #include <X11/X.h>
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
 #include <X11/keysym.h>
+#include "xintrinsicp.h"
 
-#ifdef LWLIB_HAS_EXTENSIONS
-#include <X11/IntrinsicP.h>
-#include "EmacsScreenP.h"
-#endif
+#include "lwlib.h"
 
+#include "xterm.h"
 #include "process.h"
 #include "events.h"
-
 #include "blockio.h"
 #include "dispextern.h"
 #include "screen.h"
 
-#include "xterm.h"
-#include "lwlib.h"
+#include "EmacsScreenP.h"
+
+#ifdef EXTERNAL_WIDGET
+#include "EmacsShell.h"
+#endif
+
+#ifdef DEBUG_WIDGET
+extern int debug_widget;
+#endif
 
 /* The timestamp of the last button or key event used by emacs itself.
    This is used for asserting selections and input focus. */
@@ -262,7 +269,7 @@ x_reset_modifier_mapping (display)
    */
   if (mode_bit)
     {
-      const char *warn = 0;
+      CONST char *warn = 0;
       if (mode_bit == meta_bit) warn = "Meta", meta_bit = 0;
       else if (mode_bit == hyper_bit) warn = "Hyper", hyper_bit = 0;
       else if (mode_bit == super_bit) warn = "Super", super_bit = 0;
@@ -369,13 +376,28 @@ keysym_obeys_caps_lock_p (KeySym sym)
 
 static XComposeStatus *x_compose_status;
 
+#if (defined(sun) || defined(__sun)) && defined(__GNUC__)
+# define SUNOS_GCC_L0_BUG
+#endif
+
+#ifdef SUNOS_GCC_L0_BUG
+static void
+x_to_emacs_keysym_sunos_bug (Lisp_Object *return_value_sunos_bug, /* >>>> */
+                             XEvent *event, int simple_p)
+#else /* !SUNOS_GCC_L0_BUG */
 static Lisp_Object
 x_to_emacs_keysym (XEvent *event, int simple_p)
+#endif /* !SUNOS_GCC_L0_BUG */
      /* simple_p means don't try too hard (ASCII only) */
 {
   char *name;
   KeySym keysym = 0;
   
+#ifdef SUNOS_GCC_L0_BUG
+# define return(lose) \
+	do {*return_value_sunos_bug = (lose); goto return_it; } while (0)
+#endif
+
   BLOCK_INPUT;
   XLookupString (&event->xkey, 0, 0, &keysym, x_compose_status);
   UNBLOCK_INPUT;
@@ -389,24 +411,27 @@ x_to_emacs_keysym (XEvent *event, int simple_p)
     /* These would be handled correctly by the default case, but by
        special-casing them here we don't garbage a string or call intern().
        */
-  case XK_BackSpace:	return QKbackspace;
-  case XK_Tab:		return QKtab;
-  case XK_Linefeed:	return QKlinefeed;
-  case XK_Return:	return QKreturn;
-  case XK_Escape:	return QKescape;
-  case XK_space:	return QKspace;
-  case XK_Delete:	return QKdelete;
-  case 0:		return Qnil;
+  case XK_BackSpace:	return (QKbackspace);
+  case XK_Tab:		return (QKtab);
+  case XK_Linefeed:	return (QKlinefeed);
+  case XK_Return:	return (QKreturn);
+  case XK_Escape:	return (QKescape);
+  case XK_space:	return (QKspace);
+  case XK_Delete:	return (QKdelete);
+  case 0:		return (Qnil);
   default:
-    if (simple_p) return Qnil;
+    if (simple_p) return (Qnil);
     BLOCK_INPUT;
+    /* >>> without return_value_sunos_bug, %l0 (GCC struct return pointer)
+     * >>>  gets roached (top 8 bits cleared) around this call.
+     */
     name = XKeysymToString (keysym);
     UNBLOCK_INPUT;
     if (!name || !name[0])	/* this shouldn't happen... */
       {
 	char buf [255];
 	sprintf (buf, "unknown_keysym_0x%X", keysym);
-	return KEYSYM (buf);
+	return (KEYSYM (buf));
       }
     /* If it's got a one-character name, that's good enough. */
     if (!name[1]) return (make_number (name[0]));
@@ -421,13 +446,29 @@ x_to_emacs_keysym (XEvent *event, int simple_p)
 	char buf [255];
 	char *s1, *s2;
 	for (s1 = name, s2 = buf; *s1; s1++, s2++)
-	  *s2 = ((*s1 >= 'A' && *s1 <= 'Z') ? (*s1 + ('a'-'A')) : *s1);
+	  *s2 = tolower (*s1);
 	*s2 = 0;
-	return KEYSYM (buf);
+	return (KEYSYM (buf));
       }
-    return KEYSYM (name);
+    return (KEYSYM (name));
   }
+#ifdef SUNOS_GCC_L0_BUG
+# undef return
+ return_it:
+  return;
+#endif
 }
+
+#ifdef SUNOS_GCC_L0_BUG
+/* >>>>> */
+static Lisp_Object
+x_to_emacs_keysym (XEvent *event, int simple_p)
+{
+  Lisp_Object return_value_sunos_bug;
+  x_to_emacs_keysym_sunos_bug (&return_value_sunos_bug, event, simple_p);
+  return (return_value_sunos_bug);
+}
+#endif
 
 
 extern int x_allow_sendevents;
@@ -478,6 +519,10 @@ set_last_server_timestamp (XEvent* x_event)
     }
 }
 
+#ifdef EXTERNAL_WIDGET
+extern Widget get_emacs_shell (Widget);
+#endif
+
 static void
 x_event_to_emacs_event (x_event, emacs_event)
      struct Lisp_Event *emacs_event;
@@ -495,6 +540,11 @@ x_event_to_emacs_event (x_event, emacs_event)
       unsigned int modifiers = 0;
       int shift_p = x_event->xkey.state & ShiftMask;
       int lock_p  = x_event->xkey.state & LockMask;
+#ifdef EXTERNAL_WIDGET
+      struct screen *s = x_any_window_to_screen (x_event->xany.window);
+      int emacs_shell_p = s && is_emacs_shell (s->display.x->widget);
+#endif
+
 #ifdef LWLIB_HAS_EXTENSIONS
       Widget to_widget;
 #endif
@@ -508,8 +558,17 @@ x_event_to_emacs_event (x_event, emacs_event)
       if (((x_event->xany.type == KeyPress)
 	   ? x_event->xkey.send_event
 	   : x_event->xbutton.send_event)
+#ifdef EXTERNAL_WIDGET
+	  /* BPW events get sent to an EmacsShell using XSendEvent.
+	     This is not a perfect solution. */
+	  && !emacs_shell_p
+#endif
 	  && !x_allow_sendevents)
 	{
+#ifdef DEBUG_WIDGET
+	  if (debug_widget)
+	    printf ("dropped send event\n");
+#endif
 	  x_event->xany.type = 0;
 	  goto MAGIC;
 	}
@@ -561,6 +620,16 @@ x_event_to_emacs_event (x_event, emacs_event)
 	    struct screen *screen = 0;
 	    KeyCode keycode = x_event->xkey.keycode;
 
+#ifdef I18N4
+	  /* "A KeyPress event with a KeyCode of zero is used exclusively as
+	     a signal that an input method has composed input which can be
+	     returned..." -- X11 R5 Xlib - C Library manual, section 13.14.2.
+	     We treat the signal itself as a magic event -- i.e., ignore it. */
+	  if (keycode == 0) {
+	    get_composed_input (&(x_event->xkey));
+	    goto MAGIC;
+	  }
+#endif
 
 	    if (x_key_is_modifier_p (keycode)) /* it's a modifier key */
 	      goto MAGIC;
@@ -636,7 +705,11 @@ x_event_to_emacs_event (x_event, emacs_event)
 	case ButtonRelease:
 	  {
 	    struct screen *screen = x_window_to_screen (x_event->xbutton.window);
+#ifdef LWLIB_USES_OLIT
+	    if (! screen || olit_menu_up_flag)
+#else
 	    if (! screen)
+#endif
 	      goto MAGIC;	/* not for us */
 	    XSETR (emacs_event->channel, Lisp_Screen, screen);
 	  }
@@ -688,10 +761,37 @@ x_event_to_emacs_event (x_event, emacs_event)
       emacs_event->timestamp	  = x_event->xmotion.time;
       emacs_event->event.motion.x = x_event->xmotion.x;
       emacs_event->event.motion.y = x_event->xmotion.y;
+      {
+	unsigned int modifiers = 0;
+	if (x_event->xmotion.state & ShiftMask)   modifiers |= MOD_SHIFT;
+	if (x_event->xmotion.state & ControlMask) modifiers |= MOD_CONTROL;
+	if (x_event->xmotion.state & MetaMask)    modifiers |= MOD_META;
+	if (x_event->xmotion.state & SuperMask)   modifiers |= MOD_SUPER;
+	if (x_event->xmotion.state & HyperMask)   modifiers |= MOD_HYPER;
+	if (x_event->xmotion.state & SymbolMask)  modifiers |= MOD_SYMBOL;
+	/* Currently ignores Shift_Lock but probably shouldn't
+	   (but it definitely should ignore Caps_Lock). */
+	emacs_event->event.motion.modifiers = modifiers;
+      }
     }
     break;
     
   case ClientMessage:
+#ifdef I18N4
+    if (x_event->xclient.message_type == wc_atom) {
+      struct screen *screen = 0;
+
+      screen = x_any_window_to_screen (x_event->xkey.window);
+      if (! screen)
+	screen = selected_screen;
+
+      XSETR (emacs_event->channel, Lisp_Screen, screen);
+      emacs_event->event_type       = wchar_event;
+      emacs_event->timestamp        = x_event->xclient.data.l[0];
+      emacs_event->event.wchar.data = x_event->xclient.data.l[1];
+      break;
+    }
+#endif
     /* Patch bogus TAKE_FOCUS messages from MWM; CurrentTime is passed as the
        timestamp of the TAKE_FOCUS, which the ICCCM explicitly prohibits. */
     if (x_event->xclient.message_type == Xatom_WM_PROTOCOLS
@@ -890,6 +990,19 @@ emacs_Xt_handle_magic_event (emacs_event)
 	  }
 	enqueue_command_event (event);
       }
+    else if (event->xclient.message_type == Xatom_WM_PROTOCOLS &&
+	     event->xclient.data.l[0] == Xatom_WM_TAKE_FOCUS)
+      {
+	Lisp_Object scr;
+	Lisp_Object event = Fallocate_event ();
+
+	XSETR (scr, Lisp_Screen, s);
+
+	XEVENT (event)->event_type = eval_event;
+	XEVENT (event)->event.eval.function = Qx_FocusIn_internal;
+	XEVENT (event)->event.eval.object = scr;
+	enqueue_command_event (event);
+      }
 #if 0
     else if (event->xclient.message_type == Xatom_WM_PROTOCOLS &&
 	     event->xclient.data.l[0] == Xatom_WM_TAKE_FOCUS)
@@ -1007,14 +1120,31 @@ emacs_Xt_focus_event_handler (x_event, s)
   Lisp_Object event = Fallocate_event ();
   XEVENT (event)->event_type = eval_event;
   if (x_event->xany.type == FocusIn)
-    XEVENT (event)->event.eval.function = Qx_FocusIn_internal;
+    {
+#ifdef I18N4
+      if (input_context)
+	XSetICFocus (input_context);
+#endif
+      XEVENT (event)->event.eval.function = Qx_FocusIn_internal;
+    }
   else if (x_event->xany.type == FocusOut)
-    XEVENT (event)->event.eval.function = Qx_FocusOut_internal;
+    {
+#ifdef I18N4
+      if (input_context)
+	XUnsetICFocus (input_context);
+#endif
+      XEVENT (event)->event.eval.function = Qx_FocusOut_internal;
+    }
   else
     abort ();
   if (! s)
     if (! (s = x_any_window_to_screen (x_event->xfocus.window)))
-      abort ();
+      /* abort ();
+	 focus events are sometimes generated just before
+	 a screen is destroyed.  The screen has already been removed
+	 from the list; otherwise there would be a call to
+	 x_Focus*_internal with a bogus screen structure. */
+      return;
   XSETR (XEVENT (event)->event.eval.object, Lisp_Screen, s);
   enqueue_command_event (event);
 }
@@ -1022,8 +1152,8 @@ emacs_Xt_focus_event_handler (x_event, s)
 
 
 
-#if 1 /* include describe_event definition */
-#include <X11/IntrinsicP.h>	/* only describe_event() needs this */
+#if 0 /* include describe_event definition */
+#include "xintrinsicp.h"	/* only describe_event() needs this */
 #include <X11/Xproto.h>		/* only describe_event() needs this */
 
 extern char *x_event_name (int event_type);
@@ -1047,7 +1177,10 @@ describe_event_window (window)
 void
 describe_event (XEvent *event)
 {
-  printf ("%s\n", x_event_name (event->xany.type));
+  char buf[100];
+  sprintf (buf, "%s%s", x_event_name (event->xany.type),
+	   event->xany.send_event ? " (send)" : "");
+  printf ("%-30s", buf);
   switch (event->xany.type) {
   case Expose:
     describe_event_window (event->xexpose.window);
@@ -1136,10 +1269,12 @@ describe_event (XEvent *event)
 	       "PartiallyObscured"
 	       :(event->xvisibility.state == VisibilityFullyObscured ?
 		 "FullyObscured" : "?"))));
+    break;
   case KeyPress:
     {
       Lisp_Object keysym;
       describe_event_window (event->xkey.window);
+      printf ("   subwindow: %d\n", event->xkey.subwindow);
       printf ("    state: ");
       if (event->xkey.state & ShiftMask)   printf ("Shift ");
       if (event->xkey.state & LockMask)    printf ("Lock ");
@@ -1166,6 +1301,9 @@ describe_event (XEvent *event)
       else
 	printf ("   keysym: %s\n", XSYMBOL (keysym)->name->data);
     }
+    break;
+  default:
+    printf ("\n");
     break;
   }
   fflush (stdout);
@@ -1398,6 +1536,23 @@ emacs_Xt_select_process (process)
   int infd, outfd;
   BLOCK_INPUT;
   get_process_file_descriptors (process, &infd, &outfd);
+
+  if (!NILP (process_fds_with_input [infd]) ||
+      !NILP (process_fds_with_input [outfd]))
+    /* This would mean that we're selecting input for a process without having
+       deselected the old process on that fd.  Or something. */
+    abort ();
+
+  if (process_fds_to_input_ids[infd]  != 0 &&
+      process_fds_to_input_ids[outfd] != 0 &&
+      process_fds_to_input_ids[infd]  != ((XtInputId) -1) &&
+      process_fds_to_input_ids[outfd] != ((XtInputId) -1))
+    /* initialized to 0, set to -1 when cleared.  If it's another value, then
+       something wasn't shut down properly.  I think the outfds should never
+       turn up here (if they're distinct.)
+     */
+    abort ();
+
   process_fds_to_input_ids[infd] = 
     XtAppAddInput (Xt_app_con, infd,
 		   (XtPointer) (XtInputReadMask /* | XtInputExceptMask */),
@@ -1413,15 +1568,70 @@ emacs_Xt_unselect_process (process)
   int infd, outfd;
   XtInputId id;
   get_process_file_descriptors (process, &infd, &outfd);
+
   /* If the infd is <= 0, it has already been deleted, and Xt will freak
-     because it's calls to select() will fail. */
+     because it's calls to select() will fail.  (Actually 0 is a legal
+     file descriptor but it's not one we'll see here because it's stdin.)
+   */
   if (infd <= 0) abort ();
+
+  if (!NILP (process_fds_with_input[infd]))
+    {
+      /* We are unselecting this process before we have drained the rest of
+	 the input from it, probably from status_notify() in the command loop.
+	 This can happen like so:
+
+	  - We are waiting in XtAppNextEvent()
+	  - Process generates output
+	  - Process is marked as being ready, syntho-event is pushed
+	  - Process dies, SIGCHLD gets generated before we return (!!!???)
+	    It could happen I guess.
+	  - sigchld_handler() marks process as dead
+	  - Somehow we end up getting a new KeyPress event on the queue
+	    at the same time (I'm really so sure how that happens but I'm
+	    not sure it can't either so let's assume it can...)
+	  - Key events have priority so we return that instead of the proc.
+	  - Before dispatching the lisp key event we call status_notify()
+	  - Which deselects the process that SIGCHLD marked as dead.
+
+	 Thus we never remove it from _with_input and turn it into a lisp
+	 event, so we need to do it here.  But this does not mean that we're
+	 throwing away the last block of output - status_notify() has already
+	 taken care of running the proc filter or whatever.
+       */
+      if (process != XPROCESS (process_fds_with_input[infd])) abort ();
+      process_fds_with_input[infd] = Qnil;
+      if (process_events_occurred <= 0) abort ();
+      process_events_occurred--;
+    }
+
   id = process_fds_to_input_ids [infd];
   if (! id) return;
-  process_fds_to_input_ids [infd] = -1;
+  process_fds_to_input_ids [infd] = ((XtInputId) -1);
   BLOCK_INPUT;
   XtRemoveInput (id);
   UNBLOCK_INPUT;
+}
+
+
+/* This is called from GC when a process object is about to be freed.
+   If we've still got pointers to it in this file, we're gonna lose hard.
+ */
+void
+debug_process_finalization (struct Lisp_Process *p)
+{
+  int i;
+  int infd, outfd;
+  get_process_file_descriptors (p, &infd, &outfd);
+  /* if it still has fds, then it hasn't been killed yet. */
+  if (infd >= 0 || outfd >= 0) abort ();
+  /* Better not still be in the "with input" table; we know it's got no fds. */
+  for (i = 0; i < MAX_PROC_FDS; i++)
+    {
+      Lisp_Object process = process_fds_with_input [i];
+      if (NILP (process)) continue;
+      if (XPROCESS (process) == p) abort ();
+    }
 }
 
 
@@ -1437,11 +1647,17 @@ Xt_process_to_emacs_event (emacs_event)
       process = process_fds_with_input [i];
       if (!NILP (process))
 	{
+	  /* debugging */
+	  int infd, outfd;
+	  if (!PROCESSP (process)) abort ();
+	  get_process_file_descriptors (XPROCESS (process), &infd, &outfd);
+	  if (infd != i) abort ();
+
 	  process_fds_with_input [i] = Qnil;
 	  break;
 	}
       }
-  if (NILP (process) || EQ (process, Qzero)) abort ();
+  if (NILP (process)) abort ();
 
   process_events_occurred--;
   emacs_event->event_type = process_event;
@@ -1486,8 +1702,33 @@ emacs_Xt_next_event (emacs_event)
      when there is nothing else left to handle.)
    */
   BLOCK_INPUT;
+#ifdef I18N4
+ get_next_event:
+#endif
   XtAppNextEvent_non_synthetic (x_current_display, Xt_app_con, &x_event);
+#ifdef I18N4
+  /* Does the input method want to grab this event?  If so, we'll ignore it.
+     (cf. X11 R5 Xlib - C Library, section 13.12) */
+  if (XFilterEvent (&x_event, NULL) == True)
+    goto get_next_event;
+#endif
   UNBLOCK_INPUT;
+#ifdef DEBUG_WIDGET
+  if (debug_widget)
+    describe_event(&x_event);
+#if 0
+  {
+    XWindowAttributes xwa;
+
+    if (x_event.xany.send_event && x_event.xany.type == KeyPress) {
+	XGetWindowAttributes(x_current_display, 0xD0002C, &xwa);
+	printf("key send-event on window %d, aem = %x, yem = %x\n",
+		x_event.xany.window, xwa.all_event_masks,
+		xwa.your_event_mask);
+    }
+  }
+#endif
+#endif
 
   if (x_event.xany.type == 0 &&
       (completed_timeouts || process_events_occurred))
@@ -1617,6 +1858,12 @@ x_check_for_interrupt_char (Display *display)
   if (XCheckIfEvent (display, &event, interrupt_char_predicate, 0))
     {
       interrupt_signal (0);
+
+#ifndef LISP_COMMAND_LOOP  /* <93Jul11.222009pdt.73959@atalanta.adoc.xerox.com>
+                            * <9307120535.AA00405@thalidomide.lucid.com>
+                            * <9307120934.AA01258@thalidomide.lucid.com>
+                            */
+
       /* We have read a ^G.  If that is the only event in the queue, leave
 	 it there so that it is read immediately.  If there are other events
 	 in the queue (possibly ahead of it) it's ok to discard the ^G event
@@ -1626,6 +1873,8 @@ x_check_for_interrupt_char (Display *display)
        */
       if (! XEventsQueued (display, QueuedAlready))
 	XPutBackEvent (display, &event);
+#endif /* !LISP_COMMAND_LOOP */
+
     }
   UNBLOCK_INPUT;
 }

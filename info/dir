@@ -15,10 +15,8 @@ File: dir	Node: Top	This is the top of the INFO tree
 
 * Menu: The list of major topics begins on the next line.
 
-* Info::	Documentation browsing system.
-
 * Emacs::	The extensible self-documenting text editor.
-		This manual is for Lucid GNU Emacs 19.6.
+		This manual is for Lucid GNU Emacs 19.9.
 
 * Dired::	Manual for Tree Dired.
 
@@ -32,19 +30,22 @@ File: dir	Node: Top	This is the top of the INFO tree
 
 * Edebug::	A source-level debugger for Emacs Lisp.
 
+* W3::		A browser for the World Wide Web global hypertext system.
+
 * Lispref::	Emacs-Lisp technical reference for GNU Emacs 18.
 
 * ILISP::	Multi-dialect inferior LISP interface.
 
 * Ispell::	Interactive spelling corrector.
 
+* EVI::		A vi emulator.
+
 * GDB::		The source-level C and C++ debugger.
 
 * PCL-CVS::	An Emacs-based front end to CVS.
 
 * Texinfo::	With one source file, make either a printed manual (through
-		TeX) or an Info file (through texinfo).  Full documentation
-		in this menu item.
+		TeX) or an Info file (through texinfo).
 
 * CL::		A Common Lisp compatibility package for Emacs-Lisp.
 

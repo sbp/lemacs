@@ -1,5 +1,5 @@
 /* machine description file for Sun 4 SPARC.
-   Copyright (C) 1987 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -97,7 +97,9 @@ NOTE-END  */
 
 /* Must use the system's termcap.  It does special things.  */
 
-#define LIBS_TERMCAP -ltermcap
+#ifndef LIBS_TERMCAP /* s/sol2.h defines this -jwz */
+# define LIBS_TERMCAP -ltermcap
+#endif
 
 /* Mask for address bits within a memory segment */
 

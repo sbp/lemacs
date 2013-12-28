@@ -4,6 +4,8 @@
 
 (defconst mh-e-time-stamp "Time-stamp: <93/05/30 18:37:43 gildea>")
 
+(domain "emacs-mh")
+
 ;; Maintainer: Stephen Gildea <gildea@lcs.mit.edu>
 ;; Version: 3.8.2
 ;; Keywords: mail
@@ -48,7 +50,7 @@
 ;;; Modified by James Larus, BBN, July 1984 and UCB, 1984 & 1985.
 ;;; Rewritten for GNU Emacs, James Larus 1985.  larus@ginger.berkeley.edu
 ;;; Modified by Stephen Gildea 1988.  gildea@bbn.com
-(defconst mh-e-RCS-id "$Header: /cadillac-inferno-5/cvs-master/lemacs/lisp/packages/mh-e.el,v 1.3 1993/07/09 02:48:43 jwz Exp $")
+(defconst mh-e-RCS-id "$Header: /cadillac-inferno-5/cvs-master/lemacs/lisp/packages/mh-e.el,v 1.5 1993/10/29 03:54:43 jwz Exp $")
 
 ;;; Code:
 
@@ -99,7 +101,7 @@ It is passed three arguments: TO recipients, SUBJECT, and CC recipients.")
     (save-excursion
       (goto-char (point))
       (or (bolp) (forward-line 1))
-      (while (< (point) (mark))
+      (while (< (point) (mark t))
 	(insert mh-ins-string)
 	(forward-line 1))))
   "Hook to run citation function.
@@ -371,10 +373,10 @@ digest are inserted into the folder after that message."
   (let ((digest (mh-get-msg-num t)))
     (mh-process-or-undo-commands mh-current-folder)
     (mh-set-folder-modified-p t)		; lock folder while bursting
-    (message "Bursting digest...")
+    (message (dgettext "emacs-mh" "Bursting digest..."))
     (mh-exec-cmd "burst" mh-current-folder digest "-inplace")
     (mh-scan-folder mh-current-folder (format "%d-last" mh-first-msg-num))
-    (message "Bursting digest...done")))
+    (message (dgettext "emacs-mh" "Bursting digest...done"))))
 
 
 (defun mh-copy-msg (prefix-provided msg-or-seq dest)
@@ -383,9 +385,9 @@ Default is the displayed message.  If optional prefix argument is
 provided, then prompt for the message sequence."
   (interactive (list current-prefix-arg
 		     (if current-prefix-arg
-			 (mh-read-seq-default "Copy" t)
+			 (mh-read-seq-default (dgettext "emacs-mh" "Copy") t)
 			 (mh-get-msg-num t))
-		     (mh-prompt-for-folder "Copy to" "" t)))
+		     (mh-prompt-for-folder (dgettext "emacs-mh" "Copy to") "" t)))
   (mh-exec-cmd "refile" msg-or-seq "-link" "-src" mh-current-folder dest)
   (if prefix-provided
       (mh-notate-seq msg-or-seq ?C mh-cmd-note)
@@ -397,7 +399,7 @@ provided, then prompt for the message sequence."
 Default is the displayed message.  If optional prefix argument is
 given then prompt for the message sequence."
   (interactive (list (if current-prefix-arg
-			 (mh-read-seq-default "Delete" t)
+			 (mh-read-seq-default (dgettext "emacs-mh" "Delete") t)
 			 (mh-get-msg-num t))))
   (if (numberp msg-or-seq)
       (mh-delete-a-msg msg-or-seq)
@@ -410,7 +412,7 @@ given then prompt for the message sequence."
 Default is the displayed message.  If optional prefix argument is
 provided, then prompt for the message sequence."
   (interactive (list (if current-prefix-arg
-			 (mh-read-seq-default "Delete" t)
+			 (mh-read-seq-default (dgettext "emacs-mh" "Delete") t)
 			 (mh-get-msg-num t))))
   (if (numberp msg-or-seq)
       (mh-delete-a-msg msg-or-seq)
@@ -424,10 +426,10 @@ from a sequence."
   (interactive (let ((argp current-prefix-arg))
 		 (list argp
 		       (if argp
-			   (mh-read-seq-default "Delete" t)
+			   (mh-read-seq-default (dgettext "emacs-mh" "Delete") t)
 			   (mh-get-msg-num t))
 		       (if (not argp)
-			   (mh-read-seq-default "Delete from" t)))))
+			   (mh-read-seq-default (dgettext "emacs-mh" "Delete from") t)))))
   (if prefix-provided
       (mh-remove-seq msg-or-seq)
       (mh-remove-msg-from-seq msg-or-seq from-seq)))
@@ -444,7 +446,7 @@ from a sequence."
 		 (rename-buffer (format "draft-%d" msg))
 		 (buffer-name))
 		(t
-		 (mh-read-draft "clean-up" (mh-msg-filename msg) nil)))))
+		 (mh-read-draft (dgettext "emacs-mh" "clean-up") (mh-msg-filename msg) nil)))))
     (mh-clean-msg-header (point-min)
 			 "^Date:\\|^Received:\\|^Message-Id:\\|^From:\\|^Delivery-Date:"
 			 nil)
@@ -471,7 +473,8 @@ Default is the displayed message."
   (interactive (list (mh-get-msg-num t)))
   (let ((from-folder mh-current-folder)
 	(config (current-window-configuration))
-	(draft (mh-read-draft "extraction" (mh-msg-filename msg) nil)))
+	(draft (mh-read-draft (dgettext "emacs-mh" "extraction")
+			      (mh-msg-filename msg) nil)))
     (goto-char (point-min))
     (cond ((re-search-forward mh-rejected-letter-start nil t)
 	   (forward-char 1)
@@ -480,7 +483,7 @@ Default is the displayed message."
 				"^Date:\\|^Received:\\|^Message-Id:\\|^From:\\|^Sender:\\|^Return-Path:"
 				nil))
 	  (t
-	   (message "Does not appear to be a rejected letter.")))
+	   (message (dgettext "emacs-mh" "Does not appear to be a rejected letter."))))
     (goto-char (point-min))
     (set-buffer-modified-p nil)
     (mh-compose-and-send-mail draft "" from-folder msg (mh-get-field "To")
@@ -499,16 +502,16 @@ Default is the displayed message."
 If optional prefix argument provided, then prompt for the message sequence."
   (interactive (list current-prefix-arg
 		     (if current-prefix-arg
-			 (mh-read-seq-default "Forward" t)
+			 (mh-read-seq-default (dgettext "emacs-mh" "Forward") t)
 			 (mh-get-msg-num t))
-		     (read-string "To: ")
-		     (read-string "Cc: ")))
+		     (read-string (dgettext "emacs-mh" "To: "))
+		     (read-string (dgettext "emacs-mh" "Cc: "))))
   (let* ((folder mh-current-folder)
 	 (config (current-window-configuration))
 	 ;; forw always leaves file in "draft" since it doesn't have -draft
 	 (draft-name (expand-file-name "draft" mh-user-path))
 	 (draft (cond ((or (not (file-exists-p draft-name))
-			   (y-or-n-p "The file 'draft' exists.  Discard it? "))
+			   (y-or-n-p (dgettext "emacs-mh" "The file 'draft' exists.  Discard it? ")))
 		       (mh-exec-cmd "forw"
 				    "-build" mh-current-folder msg-or-seq)
 		       (prog1
@@ -564,7 +567,7 @@ Return non-nil if cursor is at message."
 	  (t
 	   (goto-char starting-place)
 	   (if (not no-error-if-no-message)
-	       (error "No message %d" number))
+	       (error (dgettext "emacs-mh" "No message %d") number))
 	   nil))))
 
 
@@ -575,7 +578,7 @@ If this is given, incorporate mail into the current folder, rather
 than +inbox.  Run `mh-inc-folder-hook' after incorporating new mail."
   (interactive (list (if current-prefix-arg
 			 (expand-file-name
-			  (read-file-name "inc mail from file: "
+			  (read-file-name (dgettext "emacs-mh" "inc mail from file: ")
 					  mh-user-path)))))
   (let ((config (current-window-configuration)))
     (if (not maildrop-name)
@@ -593,17 +596,18 @@ than +inbox.  Run `mh-inc-folder-hook' after incorporating new mail."
   "Remove the current folder."
   (interactive)
   (if (or mh-do-not-confirm
-	  (yes-or-no-p (format "Remove folder %s? " mh-current-folder)))
+	  (yes-or-no-p (format (dgettext "emacs-mh" "Remove folder %s? ")
+			       mh-current-folder)))
       (let ((folder mh-current-folder))
 	(mh-set-folder-modified-p t)	; lock folder to kill it
 	(mh-exec-cmd-daemon "rmf" folder)
 	(mh-remove-folder-from-folder-list folder)
-	(message "Folder %s removed" folder)
+	(message (dgettext "emacs-mh" "Folder %s removed") folder)
 	(mh-set-folder-modified-p nil)	; so kill-buffer doesn't complain
 	(if (get-buffer mh-show-buffer)
 	    (kill-buffer mh-show-buffer))
 	(kill-buffer folder))
-      (message "Folder not removed")))
+      (message (dgettext "emacs-mh" "Folder not removed"))))
 
 
 (defun mh-last-msg ()
@@ -617,22 +621,22 @@ than +inbox.  Run `mh-inc-folder-hook' after incorporating new mail."
 (defun mh-list-folders ()
   "List mail folders."
   (interactive)
-  (with-output-to-temp-buffer " *mh-temp*"
+  (with-output-to-temp-buffer (dgettext "emacs-mh" " *mh-temp*")
     (save-excursion
-      (switch-to-buffer " *mh-temp*")
+      (switch-to-buffer (dgettext "emacs-mh" " *mh-temp*"))
       (erase-buffer)
-      (message "Listing folders...")
+      (message (dgettext "emacs-mh" "Listing folders..."))
       (mh-exec-cmd-output "folders" t (if mh-recursive-folders
 					  "-recurse"
 					  "-norecurse"))
       (goto-char (point-min))
-      (message "Listing folders...done"))))
+      (message (dgettext "emacs-mh" "Listing folders...done")))))
 
 
 (defun mh-msg-is-in-seq (msg)
   "Display the sequences that contain MESSAGE (default: displayed message)."
   (interactive (list (mh-get-msg-num t)))
-  (message "Message %d is in sequences: %s"
+  (message (dgettext "emacs-mh" "Message %d is in sequences: %s")
 	   msg
 	   (mapconcat 'concat
 		      (mh-list-to-string (mh-seq-containing-msg msg))
@@ -642,7 +646,7 @@ than +inbox.  Run `mh-inc-folder-hook' after incorporating new mail."
 (defun mh-narrow-to-seq (seq)
   "Restrict display of this folder to just messages in a sequence.
 Reads which sequence.  Use \\[mh-widen] to undo this command."
-  (interactive (list (mh-read-seq "Narrow to" t)))
+  (interactive (list (mh-read-seq (dgettext "emacs-mh" "Narrow to") t)))
   (let ((eob (point-max)))
     (with-mh-folder-updating (t)
       (cond ((mh-seq-to-msgs seq)
@@ -652,7 +656,7 @@ Reads which sequence.  Use \\[mh-widen] to undo this command."
 	     (mh-recenter nil)
 	     (setq mh-narrowed-to-seq seq))
 	    (t
-	     (error "No messages in sequence `%s'" (symbol-name seq)))))))
+	     (error (dgettext "emacs-mh" "No messages in sequence `%s'") (symbol-name seq)))))))
 
 
 (defun mh-next-undeleted-msg (&optional arg)
@@ -676,11 +680,11 @@ If optional prefix argument provided, prompt for the range of messages
 to display after packing.  Otherwise, show the entire folder."
   (interactive (list (if current-prefix-arg
 			 (mh-read-msg-range
-			  "Range to scan after packing [all]? ")
+			  (dgettext "emacs-mh" "Range to scan after packing [all]? "))
 			 "all")))
   (mh-pack-folder-1 range)
   (mh-goto-cur-msg)
-  (message "Packing folder...done"))
+  (message (dgettext "emacs-mh" "Packing folder...done")))
 
 
 (defun mh-pipe-msg (prefix-provided command)
@@ -688,7 +692,7 @@ to display after packing.  Otherwise, show the entire folder."
 If optional prefix argument is provided, send the entire message.
 Otherwise just send the message's body."
   (interactive
-   (list current-prefix-arg (read-string "Shell command on message: ")))
+   (list current-prefix-arg (read-string (dgettext "emacs-mh" "Shell command on message: "))))
   (save-excursion
     (mh-display-msg (mh-get-msg-num t) mh-current-folder) ;update show buffer
     (goto-char (point-min))
@@ -702,10 +706,10 @@ If optional prefix argument provided, then prompt for message sequence."
   (interactive
    (list current-prefix-arg
 	 (if current-prefix-arg
-	     (mh-read-seq-default "Refile" t)
+	     (mh-read-seq-default (dgettext "emacs-mh" "Refile") t)
 	     (mh-get-msg-num t))
 	 (intern
-	  (mh-prompt-for-folder "Destination"
+	  (mh-prompt-for-folder (dgettext "emacs-mh" "Destination")
 				(if (eq 'refile (car mh-last-destination))
 				    (symbol-name (cdr mh-last-destination))
 				    "")
@@ -723,13 +727,13 @@ Default is the displayed message.  Use the same folder or file as the
 previous refile or write command."
   (interactive (list (mh-get-msg-num t)))
   (if (null mh-last-destination)
-      (error "No previous refile or write"))
+      (error (dgettext "emacs-mh" "No previous refile or write")))
   (cond ((eq (car mh-last-destination) 'refile)
 	 (mh-refile-a-msg msg (cdr mh-last-destination))
-	 (message "Destination folder: %s" (cdr mh-last-destination)))
+	 (message (dgettext "emacs-mh" "Destination folder: %s") (cdr mh-last-destination)))
 	(t
 	 (mh-write-msg-to-file msg (cdr mh-last-destination))
-	 (message "Destination: %s" (cdr mh-last-destination))))
+	 (message (dgettext "emacs-mh" "Destination: %s") (cdr mh-last-destination))))
   (mh-next-msg))
 
 
@@ -739,16 +743,16 @@ If optional prefix argument provided, then include the message in the reply
 using filter mhl.reply in your MH directory."
   (interactive (list current-prefix-arg (mh-get-msg-num t)))
   (let ((minibuffer-help-form
-	 "from => Sender only\nto => Sender and primary recipients\ncc or all => Sender and all recipients"))
+	 (dgettext "emacs-mh" "from => Sender only\nto => Sender and primary recipients\ncc or all => Sender and all recipients")))
     (let ((reply-to (or mh-reply-default-reply-to
-			(completing-read "Reply to whom: "
+			(completing-read (dgettext "emacs-mh" "Reply to whom: ")
 					 '(("from") ("to") ("cc") ("all"))
 					 nil
 					 t)))
 	  (folder mh-current-folder)
 	  (show-buffer mh-show-buffer)
 	  (config (current-window-configuration)))
-      (message "Composing a reply...")
+      (message (dgettext "emacs-mh" "Composing a reply..."))
       (cond ((or (equal reply-to "from") (equal reply-to ""))
 	     (apply 'mh-exec-cmd
 		    "repl" "-build" "-noquery"
@@ -788,9 +792,9 @@ using filter mhl.reply in your MH directory."
 	  (if (not prefix-provided)
 	      (mh-display-msg msg folder))
 	  (mh-add-msgs-to-seq msg 'answered t)
-	  (message "Composing a reply...done")
+	  (message (dgettext "emacs-mh" "Composing a reply...done"))
 	  (mh-compose-and-send-mail draft "" folder msg to subject cc
-				    mh-note-repl "Replied:" config))))))
+				    mh-note-repl (dgettext "emacs-mh" "Replied:") config))))))
 
 
 (defun mh-quit ()
@@ -816,7 +820,7 @@ configuration, if one exists.  Finish by running mh-quit-hook."
       (mh-when (not (and (search-forward "\n\n" nil t)
 			 (search-forward "From:" nil t)))
 	(other-window -1)
-	(error "No more messages")))
+	(error (dgettext "emacs-mh" "No more messages"))))
     ;; Go back to previous blank line, then forward to the first non-blank.
     (search-backward "\n\n" nil t)
     (forward-line 2)
@@ -836,7 +840,7 @@ configuration, if one exists.  Finish by running mh-quit-hook."
       (mh-when (not (and (search-backward "\n\n" nil t)
 			 (search-backward "From:" nil t)))
 	(other-window -1)
-	(error "No more messages")))
+	(error (dgettext "emacs-mh" "No more messages"))))
     ;; Go back to previous blank line, then forward to the first non-blank.
     (search-backward "\n\n" nil t)
     (forward-line 2)
@@ -883,8 +887,8 @@ If optional prefix argument provided, then prompt for the message sequence."
 				   (mh-read-seq-default "Print" t)))
 			 (mh-get-msg-num t))))
   (if prefix-provided
-      (message "Printing sequence...")
-      (message "Printing message..."))
+      (message (dgettext "emacs-mh" "Printing sequence..."))
+      (message (dgettext "emacs-mh" "Printing message...")))
   (let ((print-command
 	 (if prefix-provided
 	     (format "(scan -clear %s ; %s -nobell -clear %s %s) | %s"
@@ -896,7 +900,7 @@ If optional prefix argument provided, then prompt for the message sequence."
 		     (mh-msg-filenames msg-or-seq)
 		     (format mh-lpr-command-format
 			     (if prefix-provided
-				 (format "Sequence from %s" mh-current-folder)
+				 (format (dgettext "emacs-mh" "Sequence from %s") mh-current-folder)
 				 (format "%s/%d" mh-current-folder
 					 msg-or-seq))))
 	     (format "%s -nobell -clear %s %s | %s"
@@ -907,7 +911,7 @@ If optional prefix argument provided, then prompt for the message sequence."
 		         "")
 		     (format mh-lpr-command-format
 			     (if prefix-provided
-				 (format "Sequence from %s" mh-current-folder)
+				 (format (dgettext "emacs-mh" "Sequence from %s") mh-current-folder)
 				 (format "%s/%d" mh-current-folder
 					 msg-or-seq)))))))
     (if mh-print-background
@@ -918,8 +922,8 @@ If optional prefix argument provided, then prompt for the message sequence."
 	(mh-notate msg-or-seq ?P mh-cmd-note))
     (mh-add-msgs-to-seq msg-or-seq 'printed t)
     (if prefix-provided
-	(message "Printing sequence...done")
-        (message "Printing message...done"))))
+	(message (dgettext "emacs-mh" "Printing sequence...done"))
+        (message (dgettext "emacs-mh" "Printing message...done")))))
 
 
 (defun mh-put-msg-in-seq (prefix-provided from to)
@@ -928,9 +932,9 @@ If optional prefix argument provided, then prompt for the message sequence."
   (interactive (list current-prefix-arg
 		     (if current-prefix-arg
 			 (mh-seq-to-msgs
-			   (mh-read-seq-default "Add messages from" t))
+			   (mh-read-seq-default (dgettext "emacs-mh" "Add messages from") t))
 			 (mh-get-msg-num t))
-		     (mh-read-seq-default "Add to" nil)))
+		     (mh-read-seq-default (dgettext "emacs-mh" "Add to") nil)))
   (setq mh-previous-seq to)
   (mh-add-msgs-to-seq from to))
 
@@ -940,7 +944,7 @@ If optional prefix argument provided, then prompt for the message sequence."
 If optional prefix argument is provided, prompt for the range of
 messages to display.  Otherwise show the entire folder."
   (interactive (list (if current-prefix-arg
-			 (mh-read-msg-range "Range to scan [all]? ")
+			 (mh-read-msg-range (dgettext "emacs-mh" "Range to scan [all]? "))
 			 nil)))
   (setq mh-next-direction 'forward)
   (mh-scan-folder mh-current-folder (or range "all")))
@@ -950,24 +954,24 @@ messages to display.  Otherwise show the entire folder."
   "Redistribute a letter.
 Depending on how your copy of MH was compiled, you may need to change the
 setting of the variable mh-redist-full-contents.  See its documentation."
-  (interactive (list (read-string "Redist-To: ")
-		     (read-string "Redist-Cc: ")
+  (interactive (list (read-string (dgettext "emacs-mh" "Redist-To: "))
+		     (read-string (dgettext "emacs-mh" "Redist-Cc: "))
 		     (mh-get-msg-num t)))
   (save-window-excursion
     (let ((folder mh-current-folder)
-	  (draft (mh-read-draft "redistribution"
+	  (draft (mh-read-draft (dgettext "emacs-mh" "redistribution")
 				(if mh-redist-full-contents
 				    (mh-msg-filename msg)
 				    nil)
 				nil)))
       (mh-goto-header-end 0)
-      (insert "Resent-To: " to "\n")
-      (if (not (equal cc "")) (insert "Resent-cc: " cc "\n"))
+      (insert (dgettext "emacs-mh" "Resent-To: ") to "\n")
+      (if (not (equal cc (dgettext "emacs-mh" ""))) (insert "Resent-cc: " cc "\n"))
       (mh-clean-msg-header (point-min)
 			   "^Message-Id:\\|^Received:\\|^Return-Path:\\|^Sender:\\|^Date:\\|^From:"
 			   nil)
       (save-buffer)
-      (message "Redistributing...")
+      (message (dgettext "emacs-mh" "Redistributing..."))
       (if mh-redist-full-contents
 	  (call-process "/bin/sh" nil 0 nil "-c"
 			(format "mhdist=1 mhaltmsg=%s %s -push %s"
@@ -983,7 +987,7 @@ setting of the variable mh-redist-full-contents.  See its documentation."
 		       "-component" "Resent:"
 		       "-text" (format "\"%s %s\"" to cc))
       (kill-buffer draft)
-      (message "Redistributing...done"))))
+      (message (dgettext "emacs-mh" "Redistributing...done")))))
 
 
 (defun mh-write-msg-to-file (msg file)
@@ -993,13 +997,13 @@ setting of the variable mh-redist-full-contents.  See its documentation."
 	 (let ((default-dir (if (eq 'write (car mh-last-destination))
 				(file-name-directory (cdr mh-last-destination))
 				default-directory)))
-	   (read-file-name "Save message in file: " default-dir
+	   (read-file-name (dgettext "emacs-mh" "Save message in file: ") default-dir
 			   (expand-file-name "mail.out" default-dir)))))
   (let ((file-name (mh-msg-filename msg))
 	(output-file (mh-expand-file-name file)))
     (setq mh-last-destination (cons 'write file))
     (save-excursion
-      (set-buffer (get-buffer-create " *mh-temp*"))
+      (set-buffer (get-buffer-create (dgettext "emacs-mh" " *mh-temp*")))
       (erase-buffer)
       (insert-file-contents file-name)
       (append-to-file (point-min) (point-max) output-file))))
@@ -1007,12 +1011,12 @@ setting of the variable mh-redist-full-contents.  See its documentation."
 
 (defun mh-search-folder (folder)
   "Search FOLDER for messages matching a pattern."
-  (interactive (list (mh-prompt-for-folder "Search"
+  (interactive (list (mh-prompt-for-folder (dgettext "emacs-mh" "Search")
 					   mh-current-folder
 					   t)))
-  (switch-to-buffer-other-window "pick-pattern")
+  (switch-to-buffer-other-window (dgettext "emacs-mh" "pick-pattern"))
   (if (or (zerop (buffer-size))
-	  (not (y-or-n-p "Reuse pattern? ")))
+	  (not (y-or-n-p (dgettext "emacs-mh" "Reuse pattern? "))))
       (mh-make-pick-template)
       (message ""))
   (setq mh-searching-folder folder))
@@ -1042,21 +1046,21 @@ Expects the TO, CC, and SUBJECT fields as arguments.
 CONFIG is the window configuration before sending mail."
   (let ((folder mh-current-folder)
 	(msg-num (mh-get-msg-num nil)))
-    (message "Composing a message...")
+    (message (dgettext "emacs-mh" "Composing a message..."))
     (let ((draft (mh-read-draft
-		  "message"
+		  (dgettext "emacs-mh" "message")
 		  (if (file-exists-p
 		       (expand-file-name "components" mh-user-path))
 		      (expand-file-name "components" mh-user-path)
 		      (if (file-exists-p
 			   (expand-file-name "components" mh-lib))
 			  (expand-file-name "components" mh-lib)
-			  (error "Can't find components file")))
+			  (error (dgettext "emacs-mh" "Can't find components file"))))
 		  nil)))
       (mh-insert-fields "To:" to "Subject:" subject "Cc:" cc)
       (set-buffer-modified-p nil)
       (goto-char (point-max))
-      (message "Composing a message...done")
+      (message (dgettext "emacs-mh" "Composing a message...done"))
       (mh-compose-and-send-mail draft "" folder msg-num
 				to subject cc
 				nil nil config))))
@@ -1089,9 +1093,9 @@ mh-summary-height) and the show buffer below it."
   (mh-process-or-undo-commands mh-current-folder)
   (setq mh-next-direction 'forward)
   (mh-set-folder-modified-p t)		; lock folder while sorting
-  (message "Sorting folder...")
+  (message (dgettext "emacs-mh" "Sorting folder..."))
   (mh-exec-cmd "sortm" mh-current-folder)
-  (message "Sorting folder...done")
+  (message (dgettext "emacs-mh" "Sorting folder...done"))
   (mh-scan-folder mh-current-folder "all"))
 
 
@@ -1109,7 +1113,7 @@ Default is the displayed message.  If optional prefix argument is
 provided, then prompt for the message sequence."
   (interactive (list current-prefix-arg
 		     (if current-prefix-arg
-			 (mh-read-seq-default "Undo" t)
+			 (mh-read-seq-default (dgettext "emacs-mh" "Undo") t)
 			 (mh-get-msg-num t))))
   (cond (prefix-provided
 	 (mh-mapc (function mh-undo-msg) (mh-seq-to-msgs msg-or-seq)))
@@ -1128,7 +1132,7 @@ provided, then prompt for the message sequence."
 		 (mh-undo-msg (mh-get-msg-num t))
 		 (mh-maybe-show))
 	       (goto-char original-position)
-	       (error "Nothing to undo")))))
+	       (error (dgettext "emacs-mh" "Nothing to undo"))))))
   ;; update the mh-refile-list so mh-outstanding-commands-p will work
   (mh-mapc (function
 	    (lambda (elt)
@@ -1155,7 +1159,7 @@ provided, then prompt for the message sequence."
   "Undo all commands in current folder."
   (interactive)
   (cond ((or mh-do-not-confirm
-	     (yes-or-no-p "Undo all commands in folder? "))
+	     (yes-or-no-p (dgettext "emacs-mh" "Undo all commands in folder? ")))
 	 (setq mh-delete-list nil
 	       mh-refile-list nil
 	       mh-seq-list nil
@@ -1163,13 +1167,13 @@ provided, then prompt for the message sequence."
 	 (with-mh-folder-updating (nil)
 	   (mh-unmark-all-headers t)))
 	(t
-	 (message "Commands not undone.")
+	 (message (dgettext "emacs-mh" "Commands not undone."))
 	 (sit-for 2))))
 
 
 (defun mh-unshar-msg (dir)
   "Unpack the shar file contained in the current message into directory DIR."
-  (interactive (list (read-file-name "Unshar message in directory: "
+  (interactive (list (read-file-name (dgettext "emacs-mh" "Unshar message in directory: ")e
 				     mh-unshar-default-directory
 				     mh-unshar-default-directory nil)))
   (mh-display-msg (mh-get-msg-num t) mh-current-folder) ;update show buffer
@@ -1185,7 +1189,7 @@ provided, then prompt for the message sequence."
 	  (re-search-forward "^: " nil t))
       (let ((default-directory (expand-file-name dir))
 	    (start (progn (beginning-of-line) (point)))
-	    (log-buffer (get-buffer-create "*Unshar Output*")))
+	    (log-buffer (get-buffer-create (dgettext "emacs-mh" "*Unshar Output*"))))
 	(save-excursion
 	  (set-buffer log-buffer)
 	  (setq default-directory (expand-file-name dir))
@@ -1196,14 +1200,14 @@ provided, then prompt for the message sequence."
 	    (call-process "mkdir" nil log-buffer t default-directory)))
 	(set-window-start (display-buffer log-buffer) 0) ;so can watch progress
 	(call-process-region start (point-max) "sh" nil log-buffer t))
-    (error "Cannot find start of shar.")))
+    (error (dgettext "emacs-mh" "Cannot find start of shar."))))
 	
 
 (defun mh-visit-folder (folder &optional range)
   "Visit FOLDER and display RANGE of messages.
 Assumes mh-e has already been initialized."
-  (interactive (list (mh-prompt-for-folder "Visit" "+inbox" t)
-		     (mh-read-msg-range "Range [all]? ")))
+  (interactive (list (mh-prompt-for-folder (dgettext "emacs-mh" "Visit") "+inbox" t)
+		     (mh-read-msg-range (dgettext "emacs-mh" "Range [all]? "))))
   (let ((config (current-window-configuration)))
     (mh-scan-folder folder (or range "all"))
     (setq mh-previous-window-config config))
@@ -1229,7 +1233,7 @@ Assumes mh-e has already been initialized."
   (save-excursion
     (mh-goto-msg msg nil t)
     (if (looking-at mh-refiled-msg-regexp)
-	(error "Message %d is refiled.  Undo refile before deleting." msg))
+	(error (dgettext "emacs-mh" "Message %d is refiled.  Undo refile before deleting.") msg))
     (if (looking-at mh-deleted-msg-regexp)
 	nil
 	(mh-set-folder-modified-p t)
@@ -1243,15 +1247,15 @@ Assumes mh-e has already been initialized."
   (save-excursion
     (mh-goto-msg msg nil t)
     (cond ((looking-at mh-deleted-msg-regexp)
-	   (error "Message %d is deleted.  Undo delete before moving." msg))
+	   (error (dgettext "emacs-mh" "Message %d is deleted.  Undo delete before moving.") msg))
 	  ((looking-at mh-refiled-msg-regexp)
 	   (if (y-or-n-p
-		(format "Message %d already refiled.  Copy to %s as well? "
+		(format (dgettext "emacs-mh" "Message %d already refiled.  Copy to %s as well? ")
 			msg destination))
 	       (mh-exec-cmd "refile" (mh-get-msg-num t) "-link"
 			    "-src" mh-current-folder
 			    (symbol-name destination))
-	       (message "Message not copied.")))
+	       (message (dgettext "emacs-mh" "Message not copied."))))
 	  (t
 	   (mh-set-folder-modified-p t)
 	   (if (not (memq destination mh-refile-list))
@@ -1274,7 +1278,7 @@ Assumes mh-e has already been initialized."
 	(show-buffer mh-show-buffer)
 	(folder mh-current-folder))
     (if (not (file-exists-p msg-filename))
-	(error "Message %d does not exist" msg-num))
+	(error (dgettext "emacs-mh" "Message %d does not exist") msg-num))
     (switch-to-buffer show-buffer)
     (if mh-bury-show-buffer (bury-buffer (current-buffer)))
     (mh-when (not (equal msg-filename buffer-file-name))
@@ -1380,9 +1384,9 @@ Assumes mh-e has already been initialized."
 	 (let ((draft-name (expand-file-name "draft" mh-user-path)))
 	   (pop-to-buffer "draft")	; Create if necessary
 	   (if (buffer-modified-p)
-	       (if (y-or-n-p "Draft has been modified; kill anyway? ")
+	       (if (y-or-n-p (dgettext "emacs-mh" "Draft has been modified; kill anyway? "))
 		   (set-buffer-modified-p nil)
-		   (error "Draft preserved")))
+		   (error (dgettext "emacs-mh" "Draft preserved"))))
 	   (setq buffer-file-name draft-name)
 	   (clear-visited-file-modtime)
 	   (unlock-buffer)
@@ -1393,7 +1397,7 @@ Assumes mh-e has already been initialized."
   (mh-when (and initial-contents
 		(or (zerop (buffer-size))
 		    (not (y-or-n-p
-			  (format "A draft exists.  Use for %s? " use)))))
+			  (format (dgettext "emacs-mh" "A draft exists.  Use for %s? ") use)))))
     (erase-buffer)
     (insert-file-contents initial-contents)
     (if delete-contents-file (delete-file initial-contents)))
@@ -1406,7 +1410,7 @@ Assumes mh-e has already been initialized."
 (defun mh-new-draft-name ()
   ;; Returns the pathname of folder for draft messages.
   (save-excursion
-    (set-buffer (get-buffer-create " *mh-temp*"))
+    (set-buffer (get-buffer-create (dgettext "emacs-mh" " *mh-temp*")))
     (erase-buffer)
     (mh-exec-cmd-output "mhpath" nil mh-draft-folder "new")
     (buffer-substring (point) (1- (mark)))))
@@ -1573,8 +1577,8 @@ The value of mh-folder-mode-hook is called when a new folder is set up."
   (mh-regenerate-headers range)
   (mh-when (zerop (buffer-size))
     (if (equal range "all")
-	(message "Folder %s is empty" folder)
-	(message "No messages in %s, range %s" folder range))
+	(message (dgettext "emacs-mh" "Folder %s is empty") folder)
+	(message (dgettext "emacs-mh" "No messages in %s, range %s") folder range))
     (sit-for 5))
   (mh-goto-cur-msg))
 
@@ -1582,7 +1586,7 @@ The value of mh-folder-mode-hook is called when a new folder is set up."
 (defun mh-regenerate-headers (range)
   ;; Replace buffer with scan of its contents over range RANGE.
   (let ((folder mh-current-folder))
-    (message "Scanning %s..." folder)
+    (message (dgettext "emacs-mh" "Scanning %s...") folder)
     (with-mh-folder-updating (nil)
       (erase-buffer)
       (mh-exec-cmd-output "scan" nil
@@ -1601,7 +1605,7 @@ The value of mh-folder-mode-hook is called when a new folder is set up."
       (mh-make-folder-mode-line (if (equal range "all")
 				    nil
 				    mh-partial-folder-mode-line-annotation)))
-    (message "Scanning %s...done" folder)))
+    (message (dgettext "emacs-mh" "Scanning %s...done") folder)))
 
 
 (defun mh-get-new-mail (maildrop-name)
@@ -1613,8 +1617,8 @@ The value of mh-folder-mode-hook is called when a new folder is set up."
 	(return-value t))
     (with-mh-folder-updating (t)
       (message (if maildrop-name
-		   (format "inc %s -file %s..." folder maildrop-name)
-		   (format "inc %s..." folder)))
+		   (format (dgettext "emacs-mh" "inc %s -file %s...") folder maildrop-name)
+		   (format (dgettext "emacs-mh" "inc %s...") folder)))
       (mh-unmark-all-headers nil)
       (setq mh-next-direction 'forward)
       (goto-char (point-max))
@@ -1628,16 +1632,16 @@ The value of mh-folder-mode-hook is called when a new folder is set up."
 				"-width" (window-width)))
 	(message
 	 (if maildrop-name
-	     (format "inc %s -file %s...done" folder maildrop-name)
-	     (format "inc %s...done" folder)))
+	     (format (dgettext "emacs-mh" "inc %s -file %s...done") folder maildrop-name)
+	     (format (dgettext "emacs-mh" "inc %s...done") folder)))
 	(goto-char start-of-inc)
 	(cond ((looking-at "inc: no mail")
 	       (keep-lines mh-valid-scan-line) ; Flush random scan lines
 	       (goto-char point-before-inc)
-	       (message "No new mail%s%s" (if maildrop-name " in " "")
+	       (message (dgettext "emacs-mh" "No new mail%s%s") (if maildrop-name " in " "")
 			(if maildrop-name maildrop-name "")))
 	      ((re-search-forward "^inc:" nil t) ; Error messages
-	       (error "inc error"))
+	       (error (dgettext "emacs-mh" "inc error")))
 	      (t
 	       (mh-delete-seq-locally 'cur) ; To pick up new one
 	       (setq mh-seq-list (mh-read-folder-sequences folder t))
@@ -1703,16 +1707,16 @@ The value of mh-folder-mode-hook is called when a new folder is set up."
 	   (mh-maybe-show cur-msg))
 	  (t
 	   (mh-last-msg)
-	   (message "No current message")))))
+	   (message (dgettext "emacs-mh" "No current message"))))))
 
 
 (defun mh-pack-folder-1 (range)
   ;; Close and pack the current folder.
   (mh-process-or-undo-commands mh-current-folder)
-  (message "Packing folder...")
+  (message (dgettext "emacs-mh" "Packing folder..."))
   (mh-set-folder-modified-p t)		; lock folder while packing
   (save-excursion
-    (mh-exec-cmd-quiet " *mh-temp*" "folder" mh-current-folder "-pack"))
+    (mh-exec-cmd-quiet (dgettext "emacs-mh" " *mh-temp*") "folder" mh-current-folder "-pack"))
   (mh-regenerate-headers range))
 
 
@@ -1722,7 +1726,7 @@ The value of mh-folder-mode-hook is called when a new folder is set up."
   (if (mh-outstanding-commands-p)
       (if (or mh-do-not-confirm
 	      (y-or-n-p
-		"Process outstanding deletes and refiles (or lose them)? "))
+		(dgettext "emacs-mh" "Process outstanding deletes and refiles (or lose them)? ")))
 	  (mh-process-commands folder)
 	  (mh-undo-folder))
       (mh-invalidate-show-buffer)))
@@ -1730,7 +1734,7 @@ The value of mh-folder-mode-hook is called when a new folder is set up."
 
 (defun mh-process-commands (folder)
   ;; Process outstanding commands for the folder FOLDER.
-  (message "Processing deletes and refiles for %s..." folder)
+  (message (dgettext "emacs-mh" "Processing deletes and refiles for %s...") folder)
   (set-buffer folder)
   (with-mh-folder-updating (nil)
     ;; Update the unseen sequence if it exists
@@ -1767,7 +1771,7 @@ The value of mh-folder-mode-hook is called when a new folder is set up."
 	  mh-seen-list nil)
     (mh-unmark-all-headers t)
     (mh-notate-user-sequences)
-    (message "Processing deletes and refiles for %s...done" folder)))
+    (message (dgettext "emacs-mh" "Processing deletes and refiles for %s...done") folder)))
 
 
 (defun mh-delete-scan-msgs (msgs)
@@ -1912,7 +1916,7 @@ it does not exist.  Set the mark to point before moving."
 Prompt for the field name with a completion list of the current folders."
   (interactive)
   (let ((last-input-char ?\C-f)
-        (folder (mh-prompt-for-folder "Fcc" "" t)))
+        (folder (mh-prompt-for-folder (dgettext "emacs-mh" "Fcc") "" t)))
     (expand-abbrev)
     (save-excursion
       (mh-to-field)
@@ -1932,13 +1936,13 @@ Prompt for the field name with a completion list of the current folders."
   (let ((file-name (buffer-file-name)))
     (set-buffer-modified-p t)		; Force writing of contents
     (save-buffer)
-    (message "Checking recipients...")
-    (switch-to-buffer-other-window "*Mail Recipients*")
+    (message (dgettext "emacs-mh" "Checking recipients..."))
+    (switch-to-buffer-other-window (dgettext "emacs-mh" "*Mail Recipients*"))
     (bury-buffer (current-buffer))
     (erase-buffer)
     (mh-exec-cmd-output "whom" t file-name)
     (other-window -1)
-    (message "Checking recipients...done")))
+    (message (dgettext "emacs-mh" "Checking recipients...done"))))
 
 
 
@@ -1982,7 +1986,7 @@ Put messages found in a sequence named `search'."
 	     (mh-make-folder searching-buffer)
 	     (setq range "all")
 	     (setq new-buffer t))))
-    (message "Searching...")
+    (message (dgettext "emacs-mh" "Searching..."))
     (goto-char (point-min))
     (while (setq pattern (mh-next-pick-field pattern-buffer))
       (setq msgs (mh-seq-from-command searching-buffer
@@ -1993,7 +1997,7 @@ Put messages found in a sequence named `search'."
 						   "-sequence" "search"
 						   "-list"))))
       (setq range "search"))
-    (message "Searching...done")
+    (message (dgettext "emacs-mh" "Searching...done"))
     (if new-buffer
 	(mh-scan-folder searching-buffer msgs)
 	(switch-to-buffer searching-buffer))
@@ -2073,12 +2077,12 @@ Run mh-before-send-letter-hook before doing anything."
   (run-hooks 'mh-before-send-letter-hook)
   (set-buffer-modified-p t)		; Make sure buffer is written
   (save-buffer)
-  (message "Sending...")
+  (message (dgettext "emacs-mh" "Sending..."))
   (let ((draft-buffer (current-buffer))
 	(file-name (buffer-file-name))
 	(config mh-previous-window-config))
     (cond (arg
-	   (pop-to-buffer "MH mail delivery")
+	   (pop-to-buffer (dgettext "emacs-mh" "MH mail delivery"))
 	   (erase-buffer)
 	   (if mh-send-args
 	       (mh-exec-cmd-output "send" t "-watch" "-nopush"
@@ -2105,11 +2109,11 @@ Run mh-before-send-letter-hook before doing anything."
 					 (mh-get-field "Cc:"))))
 
     (mh-when (or (not arg)
-		 (y-or-n-p "Kill draft buffer? "))
+		 (y-or-n-p (dgettext "emacs-mh" "Kill draft buffer? ")))
       (kill-buffer draft-buffer)
       (if config
 	  (set-window-configuration config)))
-    (message "Sending...done")))
+    (message (dgettext "emacs-mh" "Sending...done"))))
 
 
 (defun mh-insert-letter (prefix-provided folder msg)
@@ -2120,8 +2124,8 @@ If optional prefix argument provided, do not indent and do not delete
 headers.  Leaves the mark before the letter and point after it."
   (interactive
    (list current-prefix-arg
-	 (mh-prompt-for-folder "Message from" mh-sent-from-folder nil)
-	 (read-input (format "Message number%s: "
+	 (mh-prompt-for-folder (dgettext "emacs-mh" "Message from") mh-sent-from-folder nil)
+	 (read-input (format (dgettext "emacs-mh" "Message number%s: ")
 			     (if mh-sent-from-msg
 				 (format " [%d]" mh-sent-from-msg)
 				 "")))))
@@ -2176,7 +2180,7 @@ yanked message will be deleted."
 	  (mh-insert-prefix-string mh-ins-buf-prefix)
 	  (insert "\n")
 	  (widen)))
-      (error "There is no current message")))
+      (error (dgettext "emacs-mh" "There is no current message"))))
 
 
 (defun mh-insert-prefix-string (mh-ins-string)
@@ -2192,7 +2196,7 @@ yanked message will be deleted."
   "Kill the draft message file and the draft message buffer.
 Use \\[kill-buffer] if you don't want to delete the draft message file."
   (interactive)
-  (if (y-or-n-p "Kill draft message? ")
+  (if (y-or-n-p (dgettext "emacs-mh" "Kill draft message? "))
       (let ((config mh-previous-window-config))
 	(if (file-exists-p (buffer-file-name))
 	    (delete-file (buffer-file-name)))
@@ -2201,7 +2205,7 @@ Use \\[kill-buffer] if you don't want to delete the draft message file."
 	(message "")
 	(if config
 	    (set-window-configuration config)))
-    (error "Message not killed")))
+    (error (dgettext "emacs-mh" "Message not killed"))))
 
 
 (defun mh-recenter (arg)
@@ -2269,7 +2273,7 @@ Use \\[kill-buffer] if you don't want to delete the draft message file."
 		    (t (intern input))))
 	 (msgs (mh-seq-to-msgs seq)))
     (if (and (null msgs) not-empty)
-	(error (format "No messages in sequence `%s'" seq)))
+	(error (format (dgettext "emacs-mh" "No messages in sequence `%s'") seq)))
     seq))
 
 
@@ -2285,7 +2289,7 @@ Use \\[kill-buffer] if you don't want to delete the draft message file."
 			       (mh-push seq seqs))))
 	       mh-seq-list))
     (save-excursion
-      (mh-exec-cmd-quiet " *mh-temp*" "mark" folder "-list")
+      (mh-exec-cmd-quiet (dgettext "emacs-mh" " *mh-temp*") "mark" folder "-list")
       (goto-char (point-min))
       ;; look for name in line of form "cur: 4" or "myseq (private): 23"
       (while (re-search-forward "^[^: ]+" nil t)
@@ -2312,7 +2316,7 @@ Use \\[kill-buffer] if you don't want to delete the draft message file."
 	(case-fold-search t))
     (save-excursion
       (save-window-excursion
-	(apply 'mh-exec-cmd-quiet " *mh-temp*" seq-command)
+	(apply 'mh-exec-cmd-quiet (dgettext "emacs-mh" " *mh-temp*") seq-command)
 	(goto-char (point-min))
 	(while (setq msg (car (mh-read-msg-list)))
 	  (mh-push msg msgs)
@@ -2338,7 +2342,7 @@ Use \\[kill-buffer] if you don't want to delete the draft message file."
 	     (let ((num2 (string-to-int (buffer-substring (match-beginning 0)
 							  (match-end 0)))))
 	       (if (< num2 num)
-		   (error "Bad message range: %d-%d" num num2))
+		   (error (dgettext "emacs-mh" "Bad message range: %d-%d") num num2))
 	       (while (<= num num2)
 		 (mh-push num msgs)
 		 (setq num (1+ num)))))
@@ -2389,7 +2393,7 @@ Use \\[kill-buffer] if you don't want to delete the draft message file."
   (let ((old-seq (mh-find-seq seq)))
     (if old-seq
 	(rplaca old-seq new-name)
-	(error "Sequence %s does not exists" seq))
+	(error (dgettext "emacs-mh" "Sequence %s does not exists") seq))
     (mh-undefine-sequence seq (mh-seq-msgs old-seq))
     (mh-define-sequence new-name (mh-seq-msgs old-seq))))
 
@@ -2510,14 +2514,14 @@ Use \\[kill-buffer] if you don't want to delete the draft message file."
   ;; Execute MH command COMMAND with ARGS.
   ;; Any output is assumed to be an error and is shown to the user.
   (save-excursion
-    (set-buffer " *mh-temp*")
+    (set-buffer (dgettext "emacs-mh" " *mh-temp*"))
     (erase-buffer)
     (apply 'call-process
 	   (expand-file-name command mh-progs) nil t nil
 	   (mh-list-to-string args))
     (if (> (buffer-size) 0)
 	(save-window-excursion
-	  (switch-to-buffer-other-window " *mh-temp*")
+	  (switch-to-buffer-other-window (dgettext "emacs-mh" " *mh-temp*"))
 	  (sit-for 5)))))
 
 
@@ -2546,7 +2550,7 @@ Use \\[kill-buffer] if you don't want to delete the draft message file."
   ;; Execute MH command COMMAND with ARGS.  Any output from command is
   ;; displayed in an asynchronous pop-up window.
   (save-excursion
-    (set-buffer (get-buffer-create " *mh-temp*"))
+    (set-buffer (get-buffer-create (dgettext "emacs-mh" " *mh-temp*")))
     (erase-buffer))
   (let* ((process-connection-type nil)
 	 (process (apply 'start-process
@@ -2558,9 +2562,9 @@ Use \\[kill-buffer] if you don't want to delete the draft message file."
 
 (defun mh-process-daemon (process output)
   ;; Process daemon that puts output into a temporary buffer.
-  (set-buffer (get-buffer-create " *mh-temp*"))
+  (set-buffer (get-buffer-create (dgettext "emacs-mh" " *mh-temp*")))
   (insert-before-markers output)
-  (display-buffer " *mh-temp*"))
+  (display-buffer (dgettext "emacs-mh" " *mh-temp*")))
 
 
 (defun mh-exec-lib-cmd-output (command &rest args)
@@ -2585,7 +2589,7 @@ Use \\[kill-buffer] if you don't want to delete the draft message file."
 	    ((listp (car l))
 	     (setq new-list (nconc (nreverse (mh-list-to-string (car l)))
 				   new-list)))
-	    (t (error "Bad element in mh-list-to-string: %s" (car l))))
+	    (t (error (dgettext "emacs-mh" "Bad element in mh-list-to-string: %s") (car l))))
       (setq l (cdr l)))
     (nreverse new-list)))
 
@@ -2625,7 +2629,7 @@ Use \\[kill-buffer] if you don't want to delete the draft message file."
   ;; Prompt for a folder name with PROMPT.  Returns the folder's name as a
   ;; string.  DEFAULT is used if the folder exists and the user types return.
   ;; If the CAN-CREATE flag is t, then a non-existent folder is made.
-  (let* ((prompt (format "%s folder%s" prompt
+  (let* ((prompt (format (dgettext "emacs-mh" "%s folder%s") prompt
 			 (if (equal "" default)
 			     "? "
 			     (format " [%s]? " default))))
@@ -2643,13 +2647,13 @@ Use \\[kill-buffer] if you don't want to delete the draft message file."
     (let ((new-file-p (not (file-exists-p (mh-expand-file-name name)))))
       (cond ((and new-file-p
 		  (y-or-n-p
-		   (format "Folder %s does not exist. Create it? " name)))
-	     (message "Creating %s" name)
+		   (format (dgettext "emacs-mh" "Folder %s does not exist. Create it? ") name)))
+	     (message (dgettext "emacs-mh" "Creating %s") name)
 	     (call-process "mkdir" nil nil nil (mh-expand-file-name name))
-	     (message "Creating %s...done" name)
+	     (message (dgettext "emacs-mh" "Creating %s...done") name)
 	     (mh-push (list name) mh-folder-list))
 	    (new-file-p
-	     (error "Folder %s is not created" name))
+	     (error (dgettext "emacs-mh" "Folder %s is not created") name))
 	    (t
 	     (mh-when (null (assoc name mh-folder-list))
 	       (mh-push (list name) mh-folder-list)))))
@@ -2666,9 +2670,9 @@ A useful function for the command line or for when you need to sync by hand."
   "Return a list of the user's folders.
 Result is in a form suitable for completing read."
   (interactive)
-  (message "Collecting folder names...")
+  (message (dgettext "emacs-mh" "Collecting folder names..."))
   (save-window-excursion
-    (mh-exec-cmd-quiet " *mh-temp*" "folders" "-fast"
+    (mh-exec-cmd-quiet (dgettext "emacs-mh" " *mh-temp*") "folders" "-fast"
 		       (if mh-recursive-folders
 			   "-recurse"
 			   "-norecurse"))
@@ -2680,7 +2684,7 @@ Result is in a form suitable for completing read."
 	(forward-line 1)
 	(mh-push (list (format "+%s" (buffer-substring start (1- (point)))))
 		 list))
-      (message "Collecting folder names...done")
+      (message (dgettext "emacs-mh" "Collecting folder names...done"))
       list)))
 
 
@@ -2716,7 +2720,7 @@ Result is in a form suitable for completing read."
 	   (string-to-int (buffer-substring (match-beginning 1)
 					    (match-end 1))))
 	  (error-if-no-message
-	   (error "Cursor not pointing to message"))
+	   (error (dgettext "emacs-mh" "Cursor not pointing to message")))
 	  (t nil))))
 
 
@@ -2752,11 +2756,11 @@ Assumes that any filename that starts with '+' is a folder name."
     ;; Be sure profile is fully expanded before switching buffers
     (let ((profile (expand-file-name (or (getenv "MH") "~/.mh_profile"))))
       (if (not (file-exists-p profile))
-	  (error "Cannot find MH profile %s" profile))
+	  (error (dgettext "emacs-mh" "Cannot find MH profile %s") profile))
       (set-buffer (get-buffer-create " *mh-temp*"))
       (erase-buffer)
       (insert-file-contents profile)
-      (setq mh-draft-folder (mh-get-field "Draft-Folder:"))
+      (setq mh-draft-folder (mh-get-field (dgettext "emacs-mh" "Draft-Folder:")))
       (cond ((equal mh-draft-folder "")
 	     (setq mh-draft-folder nil))
 	    ((not (mh-folder-name-p mh-draft-folder))
@@ -2769,7 +2773,7 @@ Assumes that any filename that starts with '+' is a folder name."
 	     (expand-file-name mh-user-path (expand-file-name "~"))))
       (if (and mh-draft-folder
 	       (not (file-exists-p (mh-expand-file-name mh-draft-folder))))
-	  (error "Draft folder %s does not exist.  Create it and try again."
+	  (error (dgettext "emacs-mh" "Draft folder %s does not exist.  Create it and try again.")
 		 mh-draft-folder))
       (setq mh-unseen-seq (mh-get-field "Unseen-Sequence:"))
       (if (equal mh-unseen-seq "")

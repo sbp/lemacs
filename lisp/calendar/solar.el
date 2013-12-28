@@ -3,7 +3,9 @@
 ;; Copyright (C) 1992 Free Software Foundation, Inc.
 
 ;; Author: Edward M. Reingold <reingold@cs.uiuc.edu>
-;; Keywords: sunrise, sunset, equinox, solstice, calendar, diary, holidays
+;; Keywords: calendar
+;; Human-Keywords: sunrise, sunset, equinox, solstice, calendar, diary,
+;;	holidays
 
 ;; This file is part of GNU Emacs.
 
@@ -25,7 +27,8 @@
 ;;; Commentary:
 
 ;; This collection of functions implements the features of calendar.el and
-;; diary.el that deal with sunrise/sunset and eqinoxes/solstices.
+;; diary.el that deal with times of day, sunrise/sunset, and
+;; eqinoxes/solstices.
 
 ;; Based on the ``Almanac for Computers 1984,'' prepared by the Nautical
 ;; Almanac Office, United States Naval Observatory, Washington, 1984 and
@@ -54,7 +57,61 @@
     (require 'lisp-float-type)
   (error "Solar calculations impossible since floating point is unavailable."))
 
-(require 'calendar)
+(require 'cal-dst)
+
+;;;jwz: does this really need to be autoloaded?  I don't think so. ###autoload
+(defvar calendar-time-display-form
+  '(12-hours ":" minutes am-pm
+    (if time-zone " (") time-zone (if time-zone ")"))
+  "*The pseudo-pattern that governs the way a time of day is formatted.
+
+A pseudo-pattern is a list of expressions that can involve the keywords
+`12-hours', `24-hours', and `minutes',  all numbers in string form,
+and `am-pm' and `time-zone',  both alphabetic strings.
+
+For example, the form
+
+  '(24-hours \":\" minutes
+    (if time-zone \" (\") time-zone (if time-zone \")\"))
+
+would give military-style times like `21:07 (UTC)'.")
+
+;;;###autoload
+(defvar calendar-latitude nil
+  "*Latitude of `calendar-location-name' in degrees, + north, - south.
+For example, 40.7 for New York City.
+It may not be a good idea to set this in advance for your site;
+if there may be users running Emacs at your site
+who are physically located elsewhere, they would get the wrong
+value and might not know how to override it.")
+
+;;;###autoload
+(defvar calendar-longitude nil
+  "*Longitude of `calendar-location-name' in degrees, + east, - west.
+For example, -74.0 for New York City.
+It may not be a good idea to set this in advance for your site;
+if there may be users running Emacs at your site
+who are physically located elsewhere, they would get the wrong
+value and might not know how to override it.")
+
+;;;jwz: does this really need to be autoloaded?  I don't think so. ###autoload
+(defvar calendar-location-name
+  '(let ((float-output-format "%.1f"))
+     (format "%s%s, %s%s"
+	     (abs calendar-latitude)
+	     (if (> calendar-latitude 0) "N" "S")
+	     (abs calendar-longitude)
+	     (if (> calendar-longitude 0) "E" "W")))
+  "*Expression evaluating to name of `calendar-longitude', calendar-latitude'.
+Default value is just the latitude, longitude pair.")
+
+(defvar solar-n-hemi-seasons
+  '("Vernal Equinox" "Summer Solstice" "Autumnal Equinox" "Winter Solstice")
+  "List of season changes for the northern hemisphere.")
+
+(defvar solar-s-hemi-seasons
+  '("Autumnal Equinox" "Winter Solstice" "Vernal Equinox" "Summer Solstice")
+  "List of season changes for the southern hemisphere.")
 
 (defun solar-setup ()
   "Prompt user for latitude, longitude, and time zone."
@@ -70,7 +127,7 @@
   (if (not calendar-time-zone)
       (setq calendar-time-zone
             (solar-get-number
-             "Enter difference from Universal Time (in minutes): "))))
+             "Enter difference from Coordinated Universal Time (in minutes): "))))
 
 (defun solar-get-number (prompt)
   "Return a number from the minibuffer, prompting with PROMPT.
@@ -96,7 +153,7 @@ Returns nil if nothing was entered."
 
 (defun solar-degrees-to-quadrant (angle)
   "Determines the quadrant of ANGLE."
-  (1+ (truncate (/ (solar-mod angle 360.0) 90.0))))
+  (1+ (floor (mod angle 360) 90)))
 
 (defun solar-arctan (x quad)
   "Arctangent of X in quadrant QUAD."
@@ -113,13 +170,6 @@ Returns nil if nothing was entered."
 (defun solar-arcsin (y)
   (let ((x (sqrt (- 1 (* y y)))))
     (solar-arctan (/ y x) (solar-xy-to-quadrant x y))))
-
-(defun solar-mod (x y)
-  "Returns X mod Y; value is *always* non-negative."
-  (let ((v (% x y)))
-    (if (> 0 v)
-	(+ v y)
-      v)))
 
 (defconst solar-earth-inclination 23.441884 
   "Inclination of earth's equator to its solar orbit in degrees.")
@@ -142,11 +192,11 @@ Returns nil if nothing was entered."
 (defun solar-longitude-of-sun (day)
   "Longitude of the sun at DAY in the year."
   (let ((mean-anomaly (- (* 0.9856 day) 3.289)))
-    (solar-mod (+ mean-anomaly 
-		  (* 1.916 (solar-sin-degrees mean-anomaly))
-		  (* 0.020 (solar-sin-degrees (* 2 mean-anomaly)))
-		  282.634)
-	       360)))
+    (mod (+ mean-anomaly 
+	    (* 1.916 (solar-sin-degrees mean-anomaly))
+	    (* 0.020 (solar-sin-degrees (* 2 mean-anomaly)))
+	    282.634)
+	 360)))
 
 (defun solar-right-ascension (longitude)
   "Right ascension of the sun, given its LONGITUDE."
@@ -186,10 +236,10 @@ of hours.  Returns nil if the sun does not rise at that location on that day."
       (let* ((local-sunrise (solar-degrees-to-hours
                              (- 360 (solar-arccos cos-local-sunrise))))
              (local-mean-sunrise
-	      (solar-mod (- (+ local-sunrise solar-right-ascension-at-sunrise)
-			    (+ (* 0.065710 approx-sunrise)
-			       6.622))
-			 24)))
+	      (mod (- (+ local-sunrise solar-right-ascension-at-sunrise)
+		      (+ (* 0.065710 approx-sunrise)
+			 6.622))
+		   24)))
 	(+ (- local-mean-sunrise (solar-degrees-to-hours calendar-longitude))
 	   (/ calendar-time-zone 60.0))))))
 
@@ -218,39 +268,57 @@ of hours.  Returns nil if the sun does not set at that location on that day."
       (let* ((local-sunset (solar-degrees-to-hours
                             (solar-arccos cos-local-sunset)))
              (local-mean-sunset
-	      (solar-mod (- (+ local-sunset solar-right-ascension-at-sunset)
-			    (+ (* 0.065710 approx-sunset) 6.622))
-			 24)))
+	      (mod (- (+ local-sunset solar-right-ascension-at-sunset)
+		      (+ (* 0.065710 approx-sunset) 6.622))
+		   24)))
 	(+ (- local-mean-sunset (solar-degrees-to-hours calendar-longitude))
 	   (/ calendar-time-zone 60.0))))))
 
-(defun solar-time-string (time date)
-  "Printable form for decimal fraction standard TIME on DATE.
+(defun solar-time-string (time date &optional style)
+  "Printable form for decimal fraction *standard* TIME on DATE.
+Optional parameter STYLE forces the time to be standard time when its value
+is 'standard and daylight savings time (if available) when its value is
+'daylight.
+
 Format used is given by `calendar-time-display-form'.  Converted to daylight
-savings time according to `calendar-daylight-savings-starts' and
-`calendar-daylight-savings-ends', if those variables are not nil."
+savings time according to `calendar-daylight-savings-starts',
+`calendar-daylight-savings-ends', `calendar-daylight-savings-starts-time',
+`calendar-daylight-savings-ends-time', and `calendar-daylight-savings-offset'."
   (let* ((year (extract-calendar-year date))
-	 (abs-date (calendar-absolute-from-gregorian date))
-	 (dst (and calendar-daylight-savings-starts
-		   calendar-daylight-savings-ends
-		   (<= (calendar-absolute-from-gregorian
-			(eval calendar-daylight-savings-starts))
-		       abs-date)
-		   (< abs-date
-		      (calendar-absolute-from-gregorian
-		       (eval calendar-daylight-savings-ends)))))
-	 (time (if dst (1+ time) time))
+	 (time (round (* 60 time)))
+	 (rounded-abs-date (+ (calendar-absolute-from-gregorian date)
+			      (/ time 60.0 24.0)))
+         (dst-starts (and calendar-daylight-savings-starts
+                          (+ (calendar-absolute-from-gregorian
+                              (eval calendar-daylight-savings-starts))
+			     (/ calendar-daylight-savings-starts-time
+				60.0 24.0))))
+         (dst-ends (and calendar-daylight-savings-ends
+                        (+ (calendar-absolute-from-gregorian
+                            (eval calendar-daylight-savings-ends))
+			   (/ (- calendar-daylight-savings-ends-time
+				 calendar-daylight-time-offset)
+			      60.0 24.0))))
+	 (dst (and (not (eq style 'standard))
+                   (or (eq style 'daylight)
+                       (and dst-starts dst-ends
+                            (or (and (< dst-starts dst-ends);; northern hemi.
+                                     (<= dst-starts rounded-abs-date)
+                                     (< rounded-abs-date dst-ends))
+                                (and (< dst-ends dst-starts);; southern hemi.
+                                     (or (< rounded-abs-date dst-ends)
+                                         (<= dst-starts rounded-abs-date)))))
+                       (and dst-starts (not dst-ends)
+                            (<= dst-starts rounded-abs-date))
+                       (and dst-ends (not dst-starts)
+                            (< rounded-abs-date dst-ends)))))
 	 (time-zone (if dst
 			calendar-daylight-time-zone-name
 			calendar-standard-time-zone-name))
-	 (24-hours (truncate time))
-	 (minutes (round (* 60 (- time 24-hours))))
-         (24-hours (if (= minutes 60) (1+ 24-hours) 24-hours))
-         (minutes (if (= minutes 60) 0 minutes))
-         (minutes (format "%02d" minutes))
-	 (12-hours (format "%d" (if (> 24-hours 12)
-				    (- 24-hours 12)
-				  (if (= 24-hours 0) 12 24-hours))))
+	 (time (+ time (if dst calendar-daylight-time-offset 0)))
+	 (24-hours (/ time 60))
+	 (minutes (format "%02d" (% time 60)))
+	 (12-hours (format "%d" (1+ (% (+ 24-hours 11) 12))))
 	 (am-pm (if (>= 24-hours 12) "pm" "am"))
 	 (24-hours (format "%02d" 24-hours)))
     (mapconcat 'eval calendar-time-display-form "")))
@@ -299,7 +367,7 @@ savings time according to `calendar-daylight-savings-starts' and
     app))
 
 (defun solar-ephemeris-correction (year)
-  "Difference in minutes between Ephemeris time an Universal time in YEAR.
+  "Difference in minutes between Ephemeris time and UTC in YEAR.
 Value is only an approximation."
   (let ((T (/ (- year 1900) 100.0)))
     (+ 0.41 (* 1.2053 T) (* 0.4992 T T))))
@@ -309,9 +377,10 @@ Value is only an approximation."
 solstice; K=2, fall equinox; K=3, winter solstice.  Accurate to within
 several minutes."
   (let ((date (list (+ 3 (* k 3)) 21 year))
+        app
 	(correction 1000))
     (while (> correction 0.00001)
-      (setq app (solar-mod (solar-apparent-longitude-of-sun date) 360.0))
+      (setq app (mod (solar-apparent-longitude-of-sun date) 360))
       (setq correction (* 58 (solar-sin-degrees (- (* k 90) app))))
       (setq date (list (extract-calendar-month date)
 		       (+ (extract-calendar-day date) correction)
@@ -345,7 +414,7 @@ This function is suitable for execution in a .emacs file."
         (calendar-time-zone
          (if (< arg 16) calendar-time-zone
            (solar-get-number
-            "Enter difference from Universal Time (in minutes): ")))
+            "Enter difference from Coordinated Universal Time (in minutes): ")))
         (calendar-location-name
          (if (< arg 16) calendar-location-name
            (let ((float-output-format "%.1f"))
@@ -356,10 +425,10 @@ This function is suitable for execution in a .emacs file."
                      (if (> calendar-longitude 0) "E" "W")))))
         (calendar-standard-time-zone-name
          (if (< arg 16) calendar-standard-time-zone-name
-           (cond ((= calendar-time-zone 0) "UT")
+           (cond ((= calendar-time-zone 0) "UTC")
                  ((< calendar-time-zone 0)
-                     (format "UT%dmin" calendar-time-zone))
-                 (t  (format "UT+%dmin" calendar-time-zone)))))
+                     (format "UTC%dmin" calendar-time-zone))
+                 (t  (format "UTC+%dmin" calendar-time-zone)))))
         (calendar-daylight-savings-starts
          (if (< arg 16) calendar-daylight-savings-starts))
         (calendar-daylight-savings-ends
@@ -409,16 +478,17 @@ No diary entry if there is no sunset on that date."
         (if light (format "%s Sabbath candle lighting"
                           (solar-time-string light date))))))
 
-(defun calendar-holiday-function-solar-equinoxes-solstices ()
+;;;###autoload
+(defun solar-equinoxes-solstices ()
   "Date and time of equinoxes and solstices, if visible in the calendar window.
 Requires floating point."
-  (let* ((m displayed-month)
-	 (y displayed-year))
+  (let ((m displayed-month)
+        (y displayed-year))
     (increment-calendar-month m y (cond ((= 1 (% m 3)) -1)
 					((= 2 (% m 3))  1)
 					(t              0)))
     (let* ((calendar-standard-time-zone-name
-            (if calendar-time-zone calendar-standard-time-zone-name "UT"))
+            (if calendar-time-zone calendar-standard-time-zone-name "UTC"))
            (calendar-daylight-savings-starts
             (if calendar-time-zone calendar-daylight-savings-starts))
            (calendar-daylight-savings-ends
@@ -428,6 +498,7 @@ Requires floating point."
 	   (date (solar-equinoxes/solstices k y))
 	   (day (extract-calendar-day date))
 	   (time (* 24 (- day (truncate day))))
+	   (s-hemi (and calendar-latitude (< calendar-latitude 0)))
            ;; Time zone/DST can't move the date out of range,
            ;; so let solar-time-string do the conversion.
 	   (date (list (extract-calendar-month date)
@@ -435,10 +506,8 @@ Requires floating point."
 		       (extract-calendar-year date))))
       (list (list date
 		  (format "%s %s"
-			  (cond ((= k 0)  "Vernal Equinox")
-				((= k 1)  "Summer Solstice")
-				((= k 2)  "Fall Equinox")
-				((= k 3)  "Winter Solstice"))
+			  (nth k (if s-hemi solar-s-hemi-seasons
+                                   solar-n-hemi-seasons))
 			  (solar-time-string time date)))))))
 
 (provide 'solar)

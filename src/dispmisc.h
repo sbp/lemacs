@@ -31,18 +31,27 @@ struct window;
 struct line_header;
 struct char_block;
 
+#ifndef TERMINFO
 /* defined in termcap.c */
 #ifndef tputs
-extern void tputs (const char *string, int nlines, void (*outfun) (int));
+extern void tputs (CONST char *string, int nlines, void (*outfun) (int));
 extern int tgetent (char *bp, char *name);
-extern int tgetflag (const char *cap);
-extern int tgetnum (const char *cap);
-extern const char *tgetstr (const char *cap, char **area);
+extern int tgetflag (CONST char *cap);
+extern int tgetnum (CONST char *cap);
+extern CONST char *tgetstr (CONST char *cap, char **area);
+#endif
 #endif
 
+#ifdef TERMINFO
+/* defined in terminfo.c */
+extern char *tparam (CONST char *string, char *outstring, int len,
+                     int arg1, int arg2, int arg3, int arg4, int arg5,
+		     int arg6, int arg7, int arg8, int arg9);
+#else
 /* defined in tparam.c */
-extern char *tparam (const char *string, char *outstring, int len,
+extern char *tparam (CONST char *string, char *outstring, int len,
                      int arg0, int arg1, int arg2, int arg4);
+#endif
 
 /* defined in term.c */
 extern int initial_screen_is_tty (void);
@@ -54,12 +63,17 @@ extern void calculate_costs (struct screen *);
 extern void term_init (char *terminal_type);
 extern void set_terminal_window (int size);
 extern void ins_del_lines (int vpos, int n);
-extern int string_cost (const char *str);
-extern int per_line_cost (const char *str);
+extern int string_cost (CONST char *str);
+extern int per_line_cost (CONST char *str);
 extern void clear_screen (void);
 extern void clear_end_of_line (int first_unused_hpos);
+#ifdef I18N4
+extern int text_width (Lisp_Object font, wchar_t *s,
+		       int l);
+#else
 extern int text_width (Lisp_Object font, unsigned char *s,
 		       int l);
+#endif
 
 extern void delete_glyphs (int n);
 extern void insert_glyphs (int hpos, int vpos, int len);
@@ -102,10 +116,12 @@ extern struct char_block *get_char_block (void);
 extern void free_char_blocks (struct char_block *b, struct char_block *e);
 extern void update_window (struct window *);
 extern void update_window_attributes (struct window *);
+extern void lock_redisplay (void);
+extern void unlock_redisplay (void);
+extern int redisplay_lock;
 /* Can't declare this, as including file might not grok Lisp_Object
    extern void clear_display_structs (Lisp_Object window); */
 extern int minibuf_prompt_width;
-extern int minibuf_prompt_pix_width;
 
 
 /* defined in dispnew.c */
@@ -129,12 +145,12 @@ extern struct face *get_face_at_bufpos (struct screen *, struct buffer *,
 
 /* defined in scroll.c */
 extern void do_line_insertion_deletion_costs (struct screen *,
-                                              const char *ins_line_string,
-                                              const char *multi_ins_string,
-                                              const char *del_line_string, 
-                                              const char *multi_del_string,
-                                              const char *setup_string,
-                                              const char *cleanup_string,
+                                              CONST char *ins_line_string,
+                                              CONST char *multi_ins_string,
+                                              CONST char *del_line_string, 
+                                              CONST char *multi_del_string,
+                                              CONST char *setup_string,
+                                              CONST char *cleanup_string,
                                               int coefficient);
 extern int scroll_cost (struct screen *, int from, int to, int amount);
 extern int scroll_screen_lines (int, int, int, struct window *);
@@ -156,7 +172,9 @@ extern int face_cache_invalid;
 
 
 /* defined in menubar.c */
-extern void update_psheets (void);
-extern void update_screen_menubars (void);
+extern void update_menubars (void);
+
+/* defined in scrollbar.c */
+extern void update_scrollbars (void);
 
 #endif /* _EMACS_DISPMISC_H_ */

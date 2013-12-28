@@ -21,6 +21,10 @@
 
 #include "../src/config.h"
 
+#if __STDC__
+#include <stdlib.h>
+#endif
+
 #ifdef USG
 #include <string.h>
 #else

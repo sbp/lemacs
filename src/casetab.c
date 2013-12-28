@@ -20,6 +20,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* Written by Howard Gayle.  See chartab.c for details. */
 
 #include "config.h"
+#include "intl.h"
 #include "lisp.h"
 #include "buffer.h"
 
@@ -27,7 +28,7 @@ Lisp_Object Qcase_table_p;
 Lisp_Object Vascii_downcase_table, Vascii_upcase_table;
 Lisp_Object Vascii_canon_table, Vascii_eqv_table;
 
-void compute_trt_inverse ();
+void compute_trt_inverse (unsigned char *trt, unsigned char *inverse);
 
 DEFUN ("case-table-p", Fcase_table_p, Scase_table_p, 1, 1, 0,
   "Return t iff ARG is a case table.\n\
@@ -184,9 +185,8 @@ set_case_table (table, standard)
    the elements of INVERSE.  */
 
 void
-compute_trt_inverse (trt, inverse)
-     register unsigned char *trt;
-     register unsigned char *inverse;
+compute_trt_inverse (register unsigned char *trt,
+		     register unsigned char *inverse)
 {
   register int i = 0400;
   register unsigned char c, q;
@@ -216,19 +216,18 @@ init_casetab_once ()
   Vascii_canon_table = tem;
 
   for (i = 0; i < 256; i++)
-    XSTRING (tem)->data[i] = (i >= 'A' && i <= 'Z') ? i + 040 : i;
+    XSTRING (tem)->data[i] = tolower ((char) i);
 
   tem = Fmake_string (make_number (256), make_number (0));
   Vascii_upcase_table = tem;
   Vascii_eqv_table = tem;
 
   for (i = 0; i < 256; i++)
-    XSTRING (tem)->data[i]
-      = ((i >= 'A' && i <= 'Z')
-	 ? i + ('a' - 'A')
-	 : ((i >= 'a' && i <= 'z')
-	    ? i + ('A' - 'a')
-	    : i));
+    XSTRING (tem)->data[i] = (isupper (i)
+			      ? tolower (i)
+			      : (islower (i)
+				 ? toupper (i)
+				 : i));
 }
 
 void

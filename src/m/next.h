@@ -114,11 +114,15 @@ and this notice must be preserved on all copies.  */
 /* This seems to be right for end_of_data, but it may not be used anyway.  */
 #define DATA_END get_edata ()
 
-#define LD_SWITCH_MACHINE -X -noseglinkedit
+#define LD_SWITCH_MACHINE -noseglinkedit
+
+#define LIB_STANDARD -lenv -lsys_s 
+#define LD_SWITCH_SYSTEM
 
 #define environ _environ
 
 /* Where to find the kernel, for load average.  */
+#undef KERNEL_FILE
 #define KERNEL_FILE "/mach"
 
 #define NO_REMAP

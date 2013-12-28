@@ -1,11 +1,11 @@
 /* Client process that communicates with GNU Emacs acting as server.
-   Copyright (C) 1986, 1987 Free Software Foundation, Inc.
+   Copyright (C) 1986, 1987, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -26,6 +26,10 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #undef close
 #undef signal
 
+#if __STDC__
+#include <stdlib.h>
+#include <unistd.h>
+#endif
 
 #if !defined(HAVE_SOCKETS) && !defined(HAVE_SYSVIPC)
 #include <stdio.h>
@@ -67,9 +71,6 @@ main (argc, argv)
   struct sockaddr_un server;
   char *homedir, *cwd, *str;
   char string[BUFSIZ];
-
-  char *getenv (), *getwd ();
-  int geteuid ();
 
   if (argc < 2)
     {
@@ -129,14 +130,14 @@ main (argc, argv)
       perror ("connect");
       exit (1);
     }
-  if ((out = fdopen (s, "r+")) == NULL)
+  if ((out = (FILE *) fdopen (s, "r+")) == NULL)
     {
       fprintf (stderr, "%s: ", argv[0]);
       perror ("fdopen");
       exit (1);
     }
 
-  cwd = getwd (string);
+  cwd = (char *) getwd (string);
   if (cwd == 0)
     {
       /* getwd puts message in STRING if it fails.  */
@@ -196,6 +197,9 @@ main (argc, argv)
   char *cwd;
   char *temp;
   char *getwd (), *getcwd (), *getenv ();
+  char argv0[BUFSIZ];
+
+  strcpy (argv0, argv[0]);
 
   if (argc < 2)
     {
@@ -267,7 +271,7 @@ main (argc, argv)
   msgp->mtype = 1;
   if (msgsnd (s, msgp, strlen (msgp->mtext)+1, 0) < 0)
     {
-      fprintf (stderr, "%s: ", argv[0]);
+      fprintf (stderr, "%s: ", argv0);
       perror ("msgsnd");
       exit (1);
     }

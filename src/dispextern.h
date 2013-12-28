@@ -45,7 +45,11 @@ extern int windows_or_buffers_changed;
 
 struct glyphs_from_chars
   {
+#ifdef I18N4
+    wchar_t c;
+#else
     UCHAR c;
+#endif
     GLYPH *glyphs;
     int columns;
     struct face *faceptr;
@@ -102,7 +106,11 @@ struct char_block
   GLYPH glyph;
   short xpos;			/* Start pos (x) */
   short width;			/* Pixel width of character */
+#ifdef I18N4
+  wchar_t ch;			/* character at this pos */  
+#else
   unsigned char ch;		/* character at this pos */  
+#endif
   unsigned int char_b	:1;	/* true for characters, false for glyphs */
   unsigned int blank	:1;	/* true if the width should be blanked */
   unsigned int new	:1;
@@ -114,7 +122,7 @@ struct line_header
   struct line_header *next,*prev; /* Next line */
   short ypos;			/* Baseline pos for line */
   short prevy;			/* Previous y position */
-  short ascent,descent;		/* Max ascent,descent for line */
+  unsigned short ascent, descent; /* Max ascent,descent for line */
   short chars;			/* Number of chars on this line */
   short lwidth;			/* Line width (pixels) */
   short mwidth;			/* Margin width (pixels) */

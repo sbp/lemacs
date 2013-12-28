@@ -47,9 +47,13 @@ the mode-motion-hook of the buffer of that window is run.")
 		(setq point (point))
 		(condition-case nil (funcall forward) (error nil))
 		(if (and mode-motion-extent (extent-buffer mode-motion-extent))
-		    (set-extent-endpoints mode-motion-extent point (point))
-		  (setq mode-motion-extent (make-extent point (point)))
-		  (set-extent-attribute mode-motion-extent 'highlight)))
+		    (if (eq point (point))
+			(delete-extent mode-motion-extent)
+		      (set-extent-endpoints mode-motion-extent point (point)))
+		  (if (eq point (point))
+		      nil
+		    (setq mode-motion-extent (make-extent point (point)))
+		    (set-extent-property mode-motion-extent 'highlight t))))
 	    ;; not over text; zero the extent.
 	    (if (and mode-motion-extent (extent-buffer mode-motion-extent)
 		     (not (eq (extent-start-position mode-motion-extent)
@@ -101,6 +105,10 @@ the mode-motion-hook of the buffer of that window is run.")
   ;; the way filename completion works is funny.  Possibly there's some
   ;; more general way this could be dealt with...
   ;;
+  ;; We do some further voodoo when reading a pathname that is an ange-ftp
+  ;; path, because causing FTP activity as a result of mouse motion is a
+  ;; really bad time.
+  ;;
   (let ((filename-kludge-p (eq minibuffer-completion-table
 			       'read-file-name-internal)))
     (mode-motion-highlight-internal
@@ -108,19 +116,27 @@ the mode-motion-hook of the buffer of that window is run.")
      #'(lambda () (mouse-track-beginning-of-word
 		   (if filename-kludge-p 'nonwhite t)))
      #'(lambda ()
-	(let ((p (point)) string)
+	(let ((p (point))
+	      (string ""))
 	  (mouse-track-end-of-word (if filename-kludge-p 'nonwhite t))
-	  (if (or (= p (point)) (null minibuffer-completion-table))
+	  (if (and (/= p (point)) minibuffer-completion-table)
+	      (setq string (buffer-substring p (point))))
+	  (if (string-match "\\`[ \t\n]*\\'" string)
 	      (goto-char p)
-	    (setq string (buffer-substring p (point)))
 	    (if filename-kludge-p
 		(setq string (minibuf-select-kludge-filename string)))
 	    ;; try-completion bogusly returns a string even when that string
 	    ;; is complete if that string is also a prefix for other
 	    ;; completions.  This means that we can't just do the obvious
 	    ;; thing, (eq t (try-completion ...)).
-	    (let ((comp (try-completion string minibuffer-completion-table
-					minibuffer-completion-predicate)))
+	    (let (comp)
+	      (if (and filename-kludge-p
+		       ;; #### evil evil evil evil
+		       (fboundp 'ange-ftp-ftp-path)
+		       (ange-ftp-ftp-path string))
+		  (setq comp t)
+		(setq comp (try-completion string minibuffer-completion-table
+					   minibuffer-completion-predicate)))
 	      (or (eq comp t)
 		  (and (equal comp string)
 		       (or (null minibuffer-completion-predicate)
@@ -183,8 +199,8 @@ the special minibuffer behavior."
 	      (call-interactively command)
 	    (if minibuffer-completion-table
 		(error
-	      "Highlighted words are valid completions.  You may select one.")
-	      (error "no completions"))))
+	      (gettext "Highlighted words are valid completions.  You may select one."))
+	      (error (gettext "no completions")))))
       ;; things get confused if the minibuffer is terminated while
       ;; not selected.
       (select-window (minibuffer-window))

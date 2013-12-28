@@ -17,6 +17,7 @@
 ;; along with GNU Emacs; see the file COPYING.  If not, write to
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
+;;;###autoload
 (defun load-sound-file (filename sound-name &optional volume)
   "Read in an audio-file and add it to the sound-alist.
 
@@ -48,6 +49,7 @@ nVolume (0 for default): ")
 		       sound-alist)))
   sound-name)
 
+;;;###autoload
 (defun load-default-sounds ()
   "Load and install some sound files as beep-types.
 This only works if you're on display 0 of a Sun SparcStation, SGI machine,

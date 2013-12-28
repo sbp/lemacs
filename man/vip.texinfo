@@ -22,7 +22,7 @@
 
 \input texinfo
 
-@setfilename ../info/vip
+@setfilename ../info/vip.info
 @settitle VIP
 
 @iftex

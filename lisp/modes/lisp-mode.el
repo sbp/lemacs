@@ -55,7 +55,9 @@
       (modify-syntax-entry ?  "    " emacs-lisp-mode-syntax-table)
       (modify-syntax-entry ?\t "    " emacs-lisp-mode-syntax-table)
       (modify-syntax-entry ?\n ">   " emacs-lisp-mode-syntax-table)
-      (modify-syntax-entry ?\f ">   " emacs-lisp-mode-syntax-table)
+      ;; WRONG, ^L does not terminate a comment.  Treat it as whitespace? -jwz
+      ;;(modify-syntax-entry ?\f ">   " emacs-lisp-mode-syntax-table)
+      (modify-syntax-entry ?\f "    " emacs-lisp-mode-syntax-table)
       (modify-syntax-entry ?\; "<   " emacs-lisp-mode-syntax-table)
       (modify-syntax-entry ?` "'   " emacs-lisp-mode-syntax-table)
       (modify-syntax-entry ?' "'   " emacs-lisp-mode-syntax-table)
@@ -390,16 +392,17 @@ of the start of the containing expression."
                (goto-char indent-point)
                (skip-chars-forward " \t")
                (current-column))
-              ((and (integerp lisp-indent-offset) containing-sexp)
-               ;; Indent by constant offset
-               (goto-char containing-sexp)
-               (+ (current-column) lisp-indent-offset))
               (desired-indent)
               ((and (boundp 'lisp-indent-function)
                     lisp-indent-function
                     (not retry))
                (or (funcall lisp-indent-function indent-point state)
                    normal-indent))
+              ;; lisp-indent-offset shouldn't override lisp-indent-function !
+              ((and (integerp lisp-indent-offset) containing-sexp)
+               ;; Indent by constant offset
+               (goto-char containing-sexp)
+               (+ normal-indent lisp-indent-offset))
               (t
                normal-indent))))))
 
@@ -567,12 +570,22 @@ ENDPOS is encountered."
 		(setcar (nthcdr 5 state) nil))
 	    (setq inner-loop-done t)))
 	(and endpos
-	     (<= next-depth 0)
-	     (progn
-	       (setq indent-stack (append indent-stack
-					  (make-list (- next-depth) nil))
-		     last-depth (- last-depth next-depth)
-		     next-depth 0)))
+	     (while (<= next-depth 0)
+	       (setq indent-stack (append indent-stack (list nil)))
+	       (setq next-depth (1+ next-depth))
+	       (setq last-depth (1+ last-depth))))
+;;
+;; The new method, below, sends this code into an infinite loop.  The
+;; old works fine, so why bother changing it?  The new way may actually
+;; be faster.  If it worked.  -- cthomp
+;;
+;;	(and endpos
+;;	     (<= next-depth 0)
+;;	     (progn
+;;	       (setq indent-stack (append indent-stack
+;;					  (make-list (- next-depth) nil))
+;;		     last-depth (- last-depth next-depth)
+;;		     next-depth 0)))
 	(or outer-loop-done
             (setq outer-loop-done (<= next-depth 0)))
 	(if outer-loop-done

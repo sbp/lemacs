@@ -1,5 +1,5 @@
 /* "intern" and friends -- moved here from lread.c
-   Copyright (C) 1985, 1986, 1987, 1988, 1989, 1992, 1993
+   Copyright (C) 1985, 1986, 1987, 1988, 1989, 1992, 1993, 1994
    Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
@@ -81,14 +81,14 @@ check_obarray (Lisp_Object obarray)
 }
 
 Lisp_Object
-intern (const char *str)
+intern (CONST char *str)
 {
   Lisp_Object tem;
   int len = strlen (str);
   Lisp_Object obarray = Vobarray;
   if (!VECTORP (obarray) || vector_length (XVECTOR (obarray)) == 0)
     obarray = check_obarray (obarray);
-  tem = oblookup (obarray, (const unsigned char *) str, len);
+  tem = oblookup (obarray, (CONST unsigned char *) str, len);
   if (SYMBOLP (tem))
     return tem;
   return Fintern (((purify_flag)
@@ -154,7 +154,7 @@ it defaults to the value of `obarray'.")
 }
 
 Lisp_Object
-oblookup (Lisp_Object obarray, const unsigned char *ptr, int size)
+oblookup (Lisp_Object obarray, CONST unsigned char *ptr, int size)
 {
   int hash, obsize;
   struct Lisp_Symbol *tail;
@@ -166,7 +166,7 @@ oblookup (Lisp_Object obarray, const unsigned char *ptr, int size)
       obarray = check_obarray (obarray);
     }
   /* Combining next two lines breaks VMS C 2.3.  */
-  hash = hash_string ((const unsigned char *) ptr, size);
+  hash = hash_string ((CONST unsigned char *) ptr, size);
   hash %= obsize;
   bucket = XVECTOR (obarray)->contents[hash];
   if (XINT (bucket) == 0)
@@ -190,10 +190,10 @@ oblookup (Lisp_Object obarray, const unsigned char *ptr, int size)
 }
 
 int
-hash_string (const unsigned char *ptr, int len)
+hash_string (CONST unsigned char *ptr, int len)
 {
-  register const unsigned char *p = ptr;
-  register const unsigned char *end = p + len;
+  register CONST unsigned char *p = ptr;
+  register CONST unsigned char *end = p + len;
   register unsigned char c;
   register int hash = 0;
 
@@ -511,7 +511,7 @@ print_symbol_value_magic (Lisp_Object obj,
 static Lisp_Object
 do_symval_forwarding (Lisp_Object valcontents, struct buffer *buffer)
 {
-  const struct symbol_value_forward *fwd;
+  CONST struct symbol_value_forward *fwd;
 
   if (!SYMBOL_VALUE_MAGIC_P (valcontents))
     return (valcontents);
@@ -594,7 +594,7 @@ store_symval_forwarding (sym, ovalue, newval)
 
     case fixnum_forward:
       {
-	const struct symbol_value_forward *fwd
+	CONST struct symbol_value_forward *fwd
 	  = XSYMBOL_VALUE_FORWARD (ovalue);
 	CHECK_FIXNUM (newval, 1);
 	*((int *)symbol_value_forward_forward (fwd)) = XINT (newval);
@@ -603,7 +603,7 @@ store_symval_forwarding (sym, ovalue, newval)
 
     case boolean_forward:
       {
-	const struct symbol_value_forward *fwd
+	CONST struct symbol_value_forward *fwd
 	  = XSYMBOL_VALUE_FORWARD (ovalue);
 	*((int *)symbol_value_forward_forward (fwd))
 	  = ((NILP (newval)) ? 0 : 1);
@@ -612,7 +612,7 @@ store_symval_forwarding (sym, ovalue, newval)
 
     case object_forward:
       {
-	const struct symbol_value_forward *fwd
+	CONST struct symbol_value_forward *fwd
 	  = XSYMBOL_VALUE_FORWARD (ovalue);
 	*((Lisp_Object *)symbol_value_forward_forward (fwd)) = newval;
 	return;
@@ -620,7 +620,7 @@ store_symval_forwarding (sym, ovalue, newval)
 
     case default_buffer_forward:
       {
-	const struct symbol_value_forward *fwd
+	CONST struct symbol_value_forward *fwd
 	  = XSYMBOL_VALUE_FORWARD (ovalue);
 	*((Lisp_Object *)((char *) XBUFFER (Vbuffer_defaults)
 			  + ((char *)symbol_value_forward_forward (fwd)
@@ -631,7 +631,7 @@ store_symval_forwarding (sym, ovalue, newval)
 
     case current_buffer_forward:
       {
-	const struct symbol_value_forward *fwd
+	CONST struct symbol_value_forward *fwd
 	  = XSYMBOL_VALUE_FORWARD (ovalue);
 	*((Lisp_Object *)((char *)current_buffer
 			  + ((char *)symbol_value_forward_forward (fwd)
@@ -825,14 +825,14 @@ find_symbol_value (sym)
 
     case fixnum_forward:
       {
-	const struct symbol_value_forward *fwd
+	CONST struct symbol_value_forward *fwd
 	  = XSYMBOL_VALUE_FORWARD (valcontents);
 	return (make_number (*((int *)symbol_value_forward_forward (fwd))));
       }
 
     case boolean_forward:
       {
-	const struct symbol_value_forward *fwd
+	CONST struct symbol_value_forward *fwd
 	  = XSYMBOL_VALUE_FORWARD (valcontents);
 	if (*((int *)symbol_value_forward_forward (fwd)))
 	  return (Qt);
@@ -842,14 +842,14 @@ find_symbol_value (sym)
 
     case object_forward:
       {
-	const struct symbol_value_forward *fwd
+	CONST struct symbol_value_forward *fwd
 	  = XSYMBOL_VALUE_FORWARD (valcontents);
 	return (*((Lisp_Object *) symbol_value_forward_forward (fwd)));
       }
 
     case default_buffer_forward:
       {
-	const struct symbol_value_forward *fwd
+	CONST struct symbol_value_forward *fwd
 	  = XSYMBOL_VALUE_FORWARD (valcontents);
 	return (*((Lisp_Object *)((char *) XBUFFER (Vbuffer_defaults)
 				  + ((char *)symbol_value_forward_forward (fwd)
@@ -858,7 +858,7 @@ find_symbol_value (sym)
 
     case current_buffer_forward:
       {
-	const struct symbol_value_forward *fwd
+	CONST struct symbol_value_forward *fwd
 	  = XSYMBOL_VALUE_FORWARD (valcontents);
 	return (*((Lisp_Object *)((char *)current_buffer
 				  + ((char *)symbol_value_forward_forward (fwd)
@@ -922,7 +922,7 @@ DEFUN ("set", Fset, Sset, 2, 2, 0,
 
 	case current_buffer_forward:
 	  {
-	    const struct symbol_value_forward *fwd
+	    CONST struct symbol_value_forward *fwd
 	      = XSYMBOL_VALUE_FORWARD (valcontents);
 	    register int mask = *((int *) symbol_value_forward_forward (fwd));
 	    if (mask > 0)
@@ -1044,7 +1044,7 @@ default_value (sym)
 
     case current_buffer_forward:
       {
-	const struct symbol_value_forward *fwd
+	CONST struct symbol_value_forward *fwd
 	  = XSYMBOL_VALUE_FORWARD (valcontents);
 	return (*((Lisp_Object *)((char *)XBUFFER (Vbuffer_defaults)
 				  + ((char *)symbol_value_forward_forward (fwd)
@@ -1137,7 +1137,7 @@ for this variable.")
 	/* Handle variables like case-fold-search that have special slots in
 	   the buffer.  Make them work apparently like buffer_local variables.
 	 */
-	register const struct symbol_value_forward *fwd 
+	register CONST struct symbol_value_forward *fwd 
 	  = XSYMBOL_VALUE_FORWARD (valcontents);
 	register int offset = ((char *)symbol_value_forward_forward (fwd) 
 			       - (char *)&buffer_local_flags);
@@ -1431,7 +1431,7 @@ From now on the default value will apply in this buffer.")
 
     case current_buffer_forward:
       {
-        const struct symbol_value_forward *fwd
+        CONST struct symbol_value_forward *fwd
           = XSYMBOL_VALUE_FORWARD (valcontents);
         register int offset = ((char *)symbol_value_forward_forward (fwd) 
                                - (char *)&buffer_local_flags);
@@ -1480,7 +1480,7 @@ From now on the default value will apply in this buffer.")
 
 
 void
-defsymbol (Lisp_Object *location, const char *name)
+defsymbol (Lisp_Object *location, CONST char *name)
 {
   *location = Fintern (make_pure_pname (name, strlen (name), 1),
                        Qnil);
@@ -1508,7 +1508,7 @@ defsubr (struct Lisp_Subr *subr)
   XSETR (XSYMBOL (sym)->function, Lisp_Subr, subr);
 }
 
-#define OBARRAY_SIZE 509
+#define OBARRAY_SIZE 1511
 
 #ifndef Qzero
 Lisp_Object Qzero;
@@ -1549,7 +1549,7 @@ init_symbols ()
   }
 
   XSETR (Qunbound, Lisp_Symbol_Value_Magic, &guts_of_unbound_marker);
-    if ((const void *) XPNTR (Qunbound) != (const void *) &guts_of_unbound_marker)
+    if ((CONST void *) XPNTR (Qunbound) != (CONST void *) &guts_of_unbound_marker)
   {
     /* This might happen on DATA_SEG_BITS machines. */
     /* abort (); */
@@ -1566,12 +1566,13 @@ init_symbols ()
   XSYMBOL (Qt)->value = Qt;     /* Veritas aetera */
 
   defsymbol (&Qvariable_documentation, "variable-documentation");
+  defsymbol (&Qvariable_domain, "variable-domain");	/* I18N3 */
 }
 
 /* Create and initialise a variable whose value is forwarded to C data */
 void
-defvar_mumble (const char *namestring, 
-               const void *magic, int sizeof_magic)
+defvar_mumble (CONST char *namestring, 
+               CONST void *magic, int sizeof_magic)
 {
   Lisp_Object kludge;
   Lisp_Object sym = Fintern (make_pure_pname (namestring, strlen (namestring),
@@ -1579,7 +1580,7 @@ defvar_mumble (const char *namestring,
 
   /* Check that magic points somewhere we can represent as a Lisp pointer */
   XSETR (kludge, 0, magic);
-  if (magic != (const void *) XPNTR (kludge))
+  if (magic != (CONST void *) XPNTR (kludge))
   {
     /* This might happen on DATA_SEG_BITS machines. */
     /* abort (); */

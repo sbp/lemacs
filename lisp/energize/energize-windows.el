@@ -50,6 +50,9 @@
 to the bottom whenever output appears with reckless abandon.  If nil,
 it will behave just like normal shell and gdb-mode buffers.")
 
+(defvar energize-error-log-context-lines 0
+  "*Number of lines to skip above the current error in the Energize error log")
+
 ;;; called by energize-show-all-buffers
 ;;; If the extent is specified:
 ;;;   - scrolls the window so that point is at at the beginning of the extent.
@@ -61,6 +64,9 @@ it will behave just like normal shell and gdb-mode buffers.")
 (defun energize-scroll-window-at-extent (window extent only-one)
   (let* ((buffer (window-buffer window))
 	 (type (energize-buffer-type buffer)))
+    (if (and extent (null (extent-start-position extent)))
+	;; it has been detached somehow.
+	(setq extent nil))
     (if extent
 	(let ((pos (extent-start-position extent)))
 	  (if (not (eq pos 0))
@@ -73,6 +79,9 @@ it will behave just like normal shell and gdb-mode buffers.")
 					 (save-excursion
 					   (set-buffer buffer)
 					   (goto-char pos)
+					   (forward-line
+					    (-
+					     energize-error-log-context-lines))
 					   (beginning-of-line)
 					   (point))))
 		      ((and only-one (eq type 'energize-source-buffer))
@@ -245,6 +254,9 @@ it will behave just like normal shell and gdb-mode buffers.")
 (defun energize-make-many-buffers-visible-function (arg)
   (let ((buffer-extent-list (car arg))
 	(go-there (cdr arg)))
+    ;; enqueue an history record if we're going to move
+    (if go-there
+	(energize-history-enqueue))
     (setq buffer-extent-list 
 	  (energize-prune-killed-buffers-from-list buffer-extent-list))
     (if buffer-extent-list
@@ -281,3 +293,100 @@ If second argument is NIL point should not change."
     ;; when we're doing something in direct response to a menu selection.
     (energize-make-many-buffers-visible-function
      (cons buffer-extent-list t))))
+
+
+;;; This deales with the energize history
+(defvar energize-navigation-history '(nil)
+  "List of places where Energize took you to.
+It is a list of (file-name/buffer-name . position)")
+
+(defvar energize-history-maximum-length 20
+  "Maximum number of locations kept in the energize history")
+
+(defvar energize-navigation-current ()
+  "Current pointer into the energize-navigation-history")
+
+(defvar energize-navigation-current-length 0)
+
+(defun energize-history-enqueue ()
+  "Memorize the current place in the history.
+Trim the history if need be."
+  (let ((new-item
+	 (cons (or buffer-file-truename (current-buffer))
+	       (1+ (count-lines 1 (point))))))
+    (if (not (equal new-item (car energize-navigation-history)))
+	(progn
+	  (setq energize-navigation-history
+		(cons new-item energize-navigation-history))
+	  (setq energize-navigation-current-length
+		(1+ energize-navigation-current-length))
+	  (if (> energize-navigation-current-length
+		 (* 2 energize-history-maximum-length))
+	      (let ((tail (nthcdr energize-history-maximum-length
+				  energize-navigation-history)))
+		(rplacd tail nil)
+		(setq energize-navigation-current-length
+		      energize-history-maximum-length)))))))
+
+(defun energize-history-dequeue ()
+  "Forget the current place in the history"
+  (setq energize-navigation-history (cdr energize-navigation-history)))
+
+(defun energize-history-go-back (item)
+  "Go back to the place memorized by item"
+  (let ((buffer-or-file (car item))
+	(position (cdr item))
+	(buffer ()))
+    (cond ((bufferp buffer-or-file)
+	   (setq buffer buffer-or-file))
+	  ((stringp buffer-or-file)
+	   (setq buffer (or (get-file-buffer buffer-or-file)
+			    (find-file-noselect buffer-or-file)))))
+    (if (null (buffer-name buffer))
+	()
+      (pop-to-buffer buffer)
+      (goto-line position)
+      t)))
+
+(defun energize-history-previous ()
+  "Go back in the history.
+If the last command was the same go back more"
+  (interactive)
+  (if (not (eq last-command 'energize-history-previous))
+      (setq energize-navigation-current energize-navigation-history))
+  (energize-history-enqueue)
+  (while (and (car energize-navigation-current)
+	      (not
+	       (energize-history-go-back (car energize-navigation-current))))
+    (rplaca energize-navigation-current
+	    (car (cdr energize-navigation-current)))
+    (rplacd energize-navigation-current
+	    (cdr (cdr energize-navigation-current))))
+  (if (null (car energize-navigation-current))
+      (progn
+	(energize-history-dequeue)
+	(setq last-command 'beep)
+	(error "You reached the beginning of the Energize history"))
+    (setq energize-navigation-current
+	  (cdr energize-navigation-current))))
+
+(define-key global-map '(shift f14) 'energize-history-previous)
+
+(defun energize-history ()
+  "Show the energize history in the energize history buffer"
+  (interactive)
+  (pop-to-buffer "*Energize History*")
+  (erase-buffer)
+  (mapcar (function (lambda (item)
+		      (if item
+			  (progn
+			    (insert (format "%s" (car item)))
+			    (indent-to-column 32 1)
+			    (insert (format "%s\n" (cdr item)))))))
+	  energize-navigation-history)
+  (goto-char (point-min))
+  (energize-history-mode))
+
+(defun energize-history-mode ()
+  "Turn on energize history mode"
+  )

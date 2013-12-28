@@ -103,14 +103,27 @@ int x_selection_timeout;
 
 /* Utility functions */
 
-static void lisp_data_to_selection_data ();
-static Lisp_Object selection_data_to_lisp_data ();
-static Lisp_Object x_get_window_property_as_lisp_data ();
+static void lisp_data_to_selection_data (Display *,
+					 Lisp_Object obj,
+					 unsigned char **data_ret,
+					 Atom *type_ret,
+					 unsigned int *size_ret,
+					 int *format_ret);
+static Lisp_Object selection_data_to_lisp_data (Display *,
+						unsigned char *data,
+						int size,
+						Atom type,
+						int format);
+static Lisp_Object x_get_window_property_as_lisp_data (Display *,
+						       Window,
+						       Atom property,
+						       Lisp_Object target_type,
+						       Atom selection_atom);
 
-static int expect_property_change ();
-static void wait_for_property_change ();
-static void unexpect_property_change ();
-static int waiting_for_other_props_on_window ();
+static int expect_property_change (Display *, Window, Atom prop, int state);
+static void wait_for_property_change (int);
+static void unexpect_property_change (int);
+static int waiting_for_other_props_on_window (Display *, Window);
 
 /* This converts a Lisp symbol to a server Atom, avoiding a server 
    roundtrip whenever possible.
@@ -293,7 +306,11 @@ hack_motif_clipboard_selection (Atom selection_atom,
       Widget widget = selected_screen->display.x->edit_widget;
 #endif
       long itemid;
+#if XmVersion >= 1002
+      long dataid;
+#else
       int dataid;	/* 1.2 wants long, but 1.1.5 wants int... */
+#endif
       XmString fmh;
       BLOCK_INPUT;
       fmh = XmStringCreateLtoR ("Clipboard", XmSTRING_DEFAULT_CHARSET);
@@ -822,9 +839,7 @@ property_deleted_p (void *tick)
 }
 
 static int
-waiting_for_other_props_on_window (display, window)
-     Display *display;
-     Window window;
+waiting_for_other_props_on_window (Display *display, Window window)
 {
   struct prop_location *rest = for_whom_the_bell_tolls;
   while (rest)
@@ -837,11 +852,8 @@ waiting_for_other_props_on_window (display, window)
 
 
 static int
-expect_property_change (display, window, property, state)
-     Display *display;
-     Window window;
-     Atom property;
-     int state;
+expect_property_change (Display *display, Window window,
+			Atom property, int state)
 {
   struct prop_location *pl = (struct prop_location *)
     xmalloc (sizeof (struct prop_location));
@@ -856,8 +868,7 @@ expect_property_change (display, window, property, state)
 }
 
 static void
-unexpect_property_change (tick)
-     int tick;
+unexpect_property_change (int tick)
 {
   struct prop_location *prev = 0, *rest = for_whom_the_bell_tolls;
   while (rest)
@@ -877,8 +888,7 @@ unexpect_property_change (tick)
 }
 
 static void
-wait_for_property_change (tick)
-     int tick;
+wait_for_property_change (int tick)
 {
   wait_delaying_user_input (property_deleted_p, (void *) tick);
 }
@@ -1215,13 +1225,12 @@ receive_incremental_selection (display, window, property, target_type,
 
 
 static Lisp_Object
-x_get_window_property_as_lisp_data (display, window, property, target_type,
-				    selection_atom)
-     Display *display;
-     Window window;
-     Atom property;
-     Lisp_Object target_type;	/* for error messages only */
-     Atom selection_atom;	/* for error messages only */
+x_get_window_property_as_lisp_data (Display *display,
+				    Window window,
+				    Atom property,
+				    /* next two for error messages only */
+				    Lisp_Object target_type,
+				    Atom selection_atom)
 {
   Atom actual_type;
   int actual_format;
@@ -1302,11 +1311,11 @@ x_get_window_property_as_lisp_data (display, window, property, target_type,
 
 
 static Lisp_Object
-selection_data_to_lisp_data (display, data, size, type, format)
-     Display *display;
-     unsigned char *data;
-     Atom type;
-     int size, format;
+selection_data_to_lisp_data (Display *display,
+			     unsigned char *data,
+			     int size,
+			     Atom type,
+			     int format)
 {
 
   if (type == Xatom_NULL)
@@ -1386,14 +1395,12 @@ selection_data_to_lisp_data (display, data, size, type, format)
 
 
 static void
-lisp_data_to_selection_data (display, obj,
-			     data_ret, type_ret, size_ret, format_ret)
-     Display *display;
-     Lisp_Object obj;
-     unsigned char **data_ret;
-     Atom *type_ret;
-     unsigned int *size_ret;
-     int *format_ret;
+lisp_data_to_selection_data (Display *display,
+			     Lisp_Object obj,
+			     unsigned char **data_ret,
+			     Atom *type_ret,
+			     unsigned int *size_ret,
+			     int *format_ret)
 {
   Lisp_Object type = Qnil;
   if (CONSP (obj) && SYMBOLP (XCONS (obj)->car))

@@ -22,7 +22,11 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    that set them.  */
 
 char *UP, *BC, PC;
+#ifdef HAVE_TERMIOS	/* copied from sysdep.c -jwz */
+speed_t ospeed;
+#else
 short ospeed;
+#endif
 
 /* Interface to curses/terminfo library.
    Turns out that all of the terminfo-level routines look
@@ -31,14 +35,18 @@ short ospeed;
    format is different too.
 */
 
+#include <curses.h>
+#include <term.h>
+
+extern void *xmalloc (int size);
+
 char *
 tparam (string, outstring, len, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9)
-     char *string;
+     const char *string;
      char *outstring;
      int arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9;
 {
   char *temp;
-  extern char *tparm();
 
   temp = tparm (string, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
   if (outstring == 0)

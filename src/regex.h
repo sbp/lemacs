@@ -25,7 +25,11 @@ what you give them.   Help stamp out software-hoarding!  */
 /* Define number of parens for which we record the beginnings and ends.
    This affects how much space the `struct re_registers' type takes up.  */
 #ifndef RE_NREGS
-#define RE_NREGS 10
+/* Lemacs change: increased this from 10 to 100 for compatibility with
+   FSF19 lisp code which expects the number of possible matches to be
+   unlimited.
+ */
+#define RE_NREGS 100
 #endif
 
 /* These bits are used in the obscure_syntax variable to choose among
@@ -70,12 +74,24 @@ what you give them.   Help stamp out software-hoarding!  */
 
 /* This data structure is used to represent a compiled pattern. */
 
+#ifdef I18N4
+#include "intl.h"
+#endif
+
 struct re_pattern_buffer
   {
+#ifdef I18N4
+    wchar_t *buffer;	/* Space holding the compiled pattern commands. */
+#else
     char *buffer;	/* Space holding the compiled pattern commands. */
+#endif
     int allocated;	/* Size of space that  buffer  points to */
     int used;		/* Length of portion of buffer actually occupied */
+#ifdef I18N4
+    set_of_chars *fastmap;	/* Pointer to fastmap, if any, or zero if none. */
+#else
     char *fastmap;	/* Pointer to fastmap, if any, or zero if none. */
+#endif
 			/* re_search uses the fastmap, if there is one,
 			   to skip quickly over totally implausible characters */
     char *translate;	/* Translate table to apply to all characters before comparing.
@@ -171,7 +187,13 @@ enum regexpcode
     notsyntaxspec /* Matches any character whose syntax differs from the specified. */
   };
 
-extern char *re_compile_pattern ();
+#ifdef I18N4
+extern char *re_compile_pattern (wchar_t *pattern, int size,
+				 struct re_pattern_buffer *bufp);
+#else
+extern char *re_compile_pattern (char *pattern, int size,
+				 struct re_pattern_buffer *bufp);
+#endif
 /* Is this really advertised? */
 /*extern void re_compile_fastmap ();*/
 extern int re_search (), re_search_2 ();

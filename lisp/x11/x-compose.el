@@ -93,12 +93,13 @@
 (defvar compose-ring-map	(make-sparse-keymap))
 
 ;;; The command `compose-key' exists so that this file may be autoloaded.
+;;;this doesn't work yet###autoload
 (define-function 'compose-key compose-map)
 
 ;; The "Compose" key:
 ;; (keysym is lower case because we downcase everything in the Symbol font...)
 ;;
-;;;###autoload
+;;;this doesn't work yet###autoload
 (define-key global-map [multi_key]	'compose-key)
 
 ;; The "Dead" keys:
@@ -610,6 +611,83 @@
 (define-key compose-map "|C"	[cent])
 (define-key compose-map "|c"	[cent])
 (define-key compose-map "||"	[brokenbar])
+
+
+;;; Electric dead keys: making a' mean a-acute.
+
+(defun electric-diacritic (&optional count)
+  "Modify the previous character with an accent.
+For example, if `:' is bound to this command, then typing `a:' 
+will first insert `a' and then turn it into `\344' (adiaeresis.)
+The keys to which this command may be bound (and the accents 
+which it understands) are:
+
+   '  (acute)       \301\311\315\323\332\335 \341\351\355\363\372\375
+   `  (grave)       \300\310\314\322\331 \340\350\354\362\371
+   :  (diaeresis)   \304\313\317\326\334 \344\353\357\366\374\377
+   ^  (circumflex)  \302\312\316\324\333 \342\352\356\364\373
+   ,  (cedilla)     \307\347
+   .  (ring)        \305\345"
+  (interactive "p")
+  (or count (setq count 1))
+  
+  (if (not (eq last-command 'self-insert-command))
+      ;; Only do the magic if the two chars were typed in succession.
+      (self-insert-command count)
+
+    ;; This is so that ``a : C-x u'' will transform `adiaeresis' back into `a:'
+    (self-insert-command count)
+    (undo-boundary)
+    (delete-char (- count))
+
+    (let* ((c last-command-char)
+	   (map (cond ((eq c ?') compose-acute-map)
+		      ((eq c ?`) compose-grave-map)
+		      ((eq c ?,) compose-cedilla-map)
+		      ((eq c ?:) compose-diaeresis-map)
+		      ((eq c ?^) compose-circumflex-map)
+		      ((eq c ?~) compose-tilde-map)
+		      ((eq c ?.) compose-ring-map)
+		      (t (error "unknown diacritic: %s (%c)" c c))))
+	   (base-char (preceding-char))
+	   (mod-char (and (>= (downcase base-char) ?a) ; only do alphabetics?
+			  (<= (downcase base-char) ?z)
+			  (lookup-key map (make-string 1 base-char)))))
+      (if (and (vectorp mod-char) (= (length mod-char) 1))
+	  (setq mod-char (aref mod-char 0)))
+      (if (and mod-char (symbolp mod-char))
+	  (setq mod-char (or (get mod-char character-set-property) mod-char)))
+      (if (and mod-char (> count 0))
+	  (delete-char -1)
+	(setq mod-char c))
+      (while (> count 0)
+	(insert mod-char)
+	(setq count (1- count))))))
+
+;; should "::" mean "¨" and ": " mean ":"?
+;; should we also do 
+;;    (?~
+;;     (?A "\303")
+;;     (?C "\307")
+;;     (?D "\320")
+;;     (?N "\321")
+;;     (?O "\325")
+;;     (?a "\343")
+;;     (?c "\347")
+;;     (?d "\360")
+;;     (?n "\361")
+;;     (?o "\365")
+;;     (?> "\273")
+;;     (?< "\253")
+;;     (?  "~")) ; no special code
+;;    (?\/
+;;     (?A "\305") ;; A-with-ring (Norwegian and Danish)
+;;     (?E "\306") ;; AE-ligature (Norwegian and Danish)
+;;     (?O "\330")
+;;     (?a "\345") ;; a-with-ring (Norwegian and Danish)
+;;     (?e "\346") ;; ae-ligature (Norwegian and Danish)
+;;     (?o "\370")
+;;     (?  "/")) ; no special code
 
 
 ;;; Providing help in the middle of a compose sequence.  (Way cool.)

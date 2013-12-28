@@ -18,6 +18,11 @@
 ;; along with GNU Emacs; see the file COPYING.  If not, write to
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
+;jwz: this is preloaded so don't ;;;###autoload
+(defconst only-global-abbrevs nil
+  "*t means user plans to use global abbrevs only.
+Makes the commands to define mode-specific abbrevs define global ones instead."
+  )
 
 (defvar abbrev-table-name-list '()
   "List of symbols whose values are abbrev tables.")
@@ -126,7 +131,7 @@ The value is nil if that abbrev is not defined.
 Optional second arg TABLE is abbrev table to look it up in.
 The default is to try buffer's mode-specific abbrev table, then global table."
   (let ((frob (function (lambda (table)
-                (let ((sym (intern abbrev table)))
+                (let ((sym (intern-soft abbrev table)))
                   (if (and (boundp sym)
                            (stringp (symbol-value sym)))
                       sym
@@ -245,6 +250,7 @@ and be replaced by its expansion."
 (if edit-abbrevs-map
     nil
   (setq edit-abbrevs-map (make-sparse-keymap))
+  (set-keymap-name edit-abbrevs-map 'edit-abbrevs-map)
   (define-key edit-abbrevs-map "\C-x\C-s" 'edit-abbrevs-redefine)
   (define-key edit-abbrevs-map "\C-c\C-c" 'edit-abbrevs-redefine))
 
@@ -386,12 +392,12 @@ Reads the abbreviation in the minibuffer.
 
 Don't use this function in a Lisp program; use define-abbrev instead."
   (interactive "p")
-  (add-abbrev
-   (if only-global-abbrevs
-       global-abbrev-table 
-     (or local-abbrev-table
-	 (error "No per-mode abbrev table.")))
-   "Mode" arg))
+  (add-abbrev (if only-global-abbrevs
+		  global-abbrev-table 
+		(or local-abbrev-table
+		    (error "No per-mode abbrev table.")))
+	      "Mode"
+	      arg))
 
 (defun add-global-abbrev (arg)
   "Define global (all modes) abbrev for last word(s) before point.
@@ -427,12 +433,12 @@ With argument N, defines the Nth word before point.
 Reads the expansion in the minibuffer.
 Expands the abbreviation after defining it."
   (interactive "p")
-  (inverse-add-abbrev
-   (if only-global-abbrevs
-       global-abbrev-table 
-     (or local-abbrev-table
-	 (error "No per-mode abbrev table.")))
-   "Mode" arg))
+  (inverse-add-abbrev (if only-global-abbrevs
+			  global-abbrev-table 
+			(or local-abbrev-table
+			    (error "No per-mode abbrev table.")))
+		      "Mode"
+		      arg))
 
 (defun inverse-add-global-abbrev (arg)
   "Define last word before point as a global (mode-independent) abbrev.

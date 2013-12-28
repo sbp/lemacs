@@ -21,7 +21,7 @@
 /* No need to get the pty name at all.  */
 #define PTY_NAME_SPRINTF
 #ifdef emacs
-char *_get_pty();
+/* char *_getpty(); */  /* this causes prototype conflicts */
 #endif
 /* We need only try once to open a pty.  */
 #define PTY_ITERATION
@@ -50,3 +50,11 @@ char *_get_pty();
 #undef IRIS_UTIME
 #define IRIX_CONST_ENUM_BUG
 #define INTERRUPTIBLE_CLOSE
+#undef  HAVE_TERMIO
+#define SIGNALS_VIA_CHARACTERS
+#define HAVE_TERMIOS
+
+/* From edwards@sunrise.Stanford.EDU (Larry Edwards) for Lemacs */
+#define HAVE_RINT
+#define NO_MATHERR
+#define HAVE_RENAME

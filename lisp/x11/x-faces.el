@@ -1,6 +1,6 @@
 ;;; x-faces.el --- X-specific face frobnication.
 
-;;; Copyright (C) 1992, 1993 Free Software Foundation, Inc.
+;;; Copyright (C) 1992, 1993, 1994 Free Software Foundation, Inc.
 
 ;; Author: Jamie Zawinski <jwz@lucid.com>
 
@@ -46,6 +46,28 @@
 ;;  set-face-foreground, set-face-font, etc.  See the code in this file, and
 ;;  in faces.el.
 
+
+(eval-when-compile
+ ;; these used to be defsubsts, now they're subrs.  Avoid losing if we're
+ ;; being compiled with an emacs that has the old interpretation.
+ ;; (Warning, proclaim-notinline seems to be broken in 19.8.)
+ (remprop 'facep 'byte-optimizer)
+ (remprop 'face-name 'byte-optimizer)
+ (remprop 'face-id 'byte-optimizer)
+ (remprop 'face-font 'byte-optimizer)
+ (remprop 'face-foreground 'byte-optimizer)
+ (remprop 'face-background 'byte-optimizer)
+ (remprop 'face-background-pixmap 'byte-optimizer)
+ (remprop 'face-underline-p 'byte-optimizer)
+ (remprop 'face-font-name 'byte-optimizer)
+ (remprop 'set-face-font 'byte-optimizer)
+ (remprop 'set-face-foreground 'byte-optimizer)
+ (remprop 'set-face-background 'byte-optimizer)
+ (remprop 'set-face-background-pixmap 'byte-optimizer)
+ (remprop 'set-face-underline-p 'byte-optimizer)
+ )
+
+
 (defconst x-font-regexp nil)
 (defconst x-font-regexp-head nil)
 (defconst x-font-regexp-head-2 nil)
@@ -59,7 +81,7 @@
 (let ((- 		"[-?]")
       (foundry		"[^-]+")
       (family 		"[^-]+")
-      (weight		"\\(bold\\|demibold\\|medium\\)")		; 1
+      (weight		"\\(bold\\|demibold\\|medium\\|black\\)")	; 1
 ;     (weight\?		"\\(\\*\\|bold\\|demibold\\|medium\\|\\)")	; 1
       (weight\?		"\\([^-]*\\)")					; 1
       (slant		"\\([ior]\\)")					; 2
@@ -134,7 +156,9 @@
 (defun x-make-font-bold (font &optional screen)
   "Given an X font specification, this attempts to make a `bold' font.
 If it fails, it returns nil."
-  (try-font (x-frob-font-weight font "bold") screen))
+  ;; Certain Type1 fonts know "bold" as "black"...
+  (or (try-font (x-frob-font-weight font "bold") screen)
+      (try-font (x-frob-font-weight font "black") screen)))
 
 (defun x-make-font-demibold (font &optional screen)
   "Given an X font specification, this attempts to make a `demibold' font.
@@ -229,12 +253,25 @@ X fonts can be specified (by the user) in either pixels or 10ths of points,
       (let ((name (nth 2 (car available)))
 	    old-size)
 	(or (string-match x-font-regexp font) (error "can't parse %S" font))
-	(or (string-match x-font-regexp name) (error "can't parse %S" name))
 	(setq old-size (string-to-int
 			(substring font (match-beginning 6) (match-end 6))))
+	(or (> old-size 0) (error "font truename has 0 pointsize?"))
+	(or (string-match x-font-regexp name) (error "can't parse %S" name))
 	;; turn pixelsize into a wildcard, and make pointsize be +/- 10,
 	;; which is +/- 1 point.  All other fields stay the same as they
 	;; were in the "template" font returned by x-available-font-sizes.
+	;;
+	;; #### But this might return the same font: for example, if the
+	;;      truename of "-*-courier-medium-r-normal--*-230-75-75-m-0-*"
+	;;      is "...-240-..." (instead of 230) then this loses, because
+	;;      the 230 that was passed in as an arg got turned into 240
+	;;      by the call to font-truename; then we decrement that by 10
+	;;      and return the result which is the same.  I think the way to
+	;;      fix this is to make this be a loop that keeps trying
+	;;      progressively larger pointsize deltas until it finds one
+	;;      whose truename differs.  Have to be careful to avoid infinite
+	;;      loops at the upper end...
+	;;
 	(concat (substring name 0 (match-beginning 5)) "*"
 		(substring name (match-end 5) (match-beginning 6))
 		(int-to-string (+ old-size (if up-p 10 -10)))
@@ -483,11 +520,22 @@ Returns nil on failure."
 
 ;;; internal routines
 
-;;; This is called from make-face to read the initial values of the face
-;;; from the resource database.  (Later calls to set-face-mumble may override
-;;; these values.)  This is also called from make-screen-initial-faces before
-;;; the initial X screen is mapped, so it had better not signal an error.
+;;; x-resource-face is responsible for initializing a newly-created face from
+;;; the resource database.
 ;;;
+;;; When a new face is created, it is called from Fmake_face() with a screen
+;;; argument of nil.  It then initializes this face on all exising screens.
+;;;
+;;; When a new screen is created, it is called from `x-initialize-screen-faces'
+;;; called from `make-screen-initial-faces' called from init_screen_faces()
+;;; from Fx_create_screen().  In this case it is called once for each existing
+;;; face, with the newly-created screen as the argument.  It then initializes
+;;; the newly-created faces on that screen.
+;;;
+;;; This had better not signal an error.  The screen is in an intermediate
+;;; state where signalling an error or entering the debugger would likely
+;;; result in a crash.
+
 (defun x-resource-face (face &optional screen set-anyway)
   (cond
    ((null screen)
@@ -561,79 +609,105 @@ Returns nil on failure."
   face)
 
 
+;;; x-initialize-screen-faces is responsible for initializing all the faces
+;;; on a newly-created screen from the resource database.  It does this by
+;;; calling x-resource-face on each of the new screen's faces.
+;;;
+;;; It is called from `make-screen-initial-faces', which called from 
+;;; init_screen_faces() from Fx_create_screen().
+;;;
 ;;; This is called from make-screen-initial-faces to make sure that the
 ;;; "default" and "modeline" faces for this screen have enough attributes
 ;;; specified for emacs to be able to display anything on it.  This had
 ;;; better not signal an error.
 ;;;
 (defun x-initialize-screen-faces (screen)
-  (let ((default (get-face 'default screen))
-	(modeline (get-face 'modeline screen)))
+  ;;
+  ;; First initialize all faces from the resource database.
+  ;;
+  (let ((faces (list-faces)))
+    (while faces
+      (x-resource-face (car faces) screen)
+      (setq faces (cdr faces))))
+  ;;
+  ;; If the "default" face didn't have a font specified, try to pick one.
+  ;;
+  (or
+   (face-font 'default screen)
+   ;;
+   ;; No font specified in the resource database; try to cope.
+   ;;
+   ;; At first I wanted to do this by just putting a font-spec in the
+   ;; fallback resources passed to XtAppInitialize(), but that fails
+   ;; if there is an Emacs app-defaults file which doesn't specify a
+   ;; font: apparently the fallback resources are not consulted when
+   ;; there is an app-defaults file, which seems pretty bogus to me.
+   ;;
+   ;; We should also probably try "*xtDefaultFont", but I think that it
+   ;; might be legal to specify that as "xtDefaultFont:", that is, at
+   ;; top level, instead of "*xtDefaultFont:", that is, applicable to
+   ;; every application.  `x-get-resource' can't handle that right now.
+   ;;
+   (set-face-font
+    'default
     (or
-     (face-font default screen)
-     ;;
-     ;; No font specified in the resource database; try to cope.
-     ;;
-     ;; At first I wanted to do this by just putting a font-spec in the
-     ;; fallback resources passed to XtAppInitialize(), but that fails
-     ;; if there is an Emacs app-defaults file which doesn't specify a
-     ;; font: apparently the fallback resources are not consulted when
-     ;; there is an app-defaults file, which seems pretty bogus to me.
-     ;;
-     ;; We should also probably try "*xtDefaultFont", but I think that it
-     ;; might be legal to specify that as "xtDefaultFont:", that is, at
-     ;; top level, instead of "*xtDefaultFont:", that is, applicable to
-     ;; every application.  `x-get-resource' can't handle that right now.
-     ;;
-     (set-face-font default
-      (or (try-font "-*-courier-medium-r-*-*-*-120-*-*-*-*-iso8859-*" screen)
-	  (try-font "-*-courier-*-r-*-*-*-120-*-*-*-*-iso8859-*" screen)
-	  (try-font "-*-*-medium-r-*-*-*-120-*-*-m-*-iso8859-*" screen)
-	  (try-font "-*-*-medium-r-*-*-*-120-*-*-c-*-iso8859-*" screen)
-	  (try-font "-*-*-*-r-*-*-*-120-*-*-m-*-iso8859-*" screen)
-	  (try-font "-*-*-*-r-*-*-*-120-*-*-c-*-iso8859-*" screen)
-	  (try-font "-*-*-*-r-*-*-*-120-*-*-*-*-iso8859-*" screen)
-	  ;; if we get to here we're screwed, and faces.c will fatal()...
-	  )))
-    ;;
-    ;; If the "default" face didn't have both colors specified, then pick
-    ;; some, taking into account the "reverseVideo" resource, as well as
-    ;; whether one of the colors was specified.  
-    ;;
-    (let ((fg (face-foreground default screen))
-	  (bg (face-background default screen)))
-      (if (not (and fg bg))
-	  (if (or (and fg (equal (downcase (pixel-name fg)) "white"))
-		  (and bg (equal (downcase (pixel-name bg)) "black"))
-		  (car (x-get-resource "reverseVideo" "ReverseVideo"
-				       'boolean screen)))
-	      (progn
-		(or fg (set-face-foreground default "white" screen))
-		(or bg (set-face-background default "black" screen)))
-	    (or fg (set-face-foreground default "black" screen))
-	    (or bg (set-face-background default "white" screen)))))
-    ;;
-    ;; Now let's try to pick some reasonable defaults for a few other faces.
-    ;; This kind of stuff should normally go on the create-screen-hook, but
-    ;; this way we won't be in danger of the user screwing things up by not
-    ;; adding hooks in a safe way.
-    ;;
-    (let ((pre-display-buffer-function nil) ; we're on thin ice here...
-	  (stack-trace-on-error nil)
-	  (debug-on-error nil))
-      (x-initialize-other-random-faces screen)
-      (x-initialize-pointer-shape screen)  ; from x-mouse.el
-      )))
+     ;; I18N4 change
+;;     (try-font "-*-courier-medium-r-*-*-*-120-*-*-*-*-iso8859-*" screen)
+;;     (try-font "-*-courier-*-r-*-*-*-120-*-*-*-*-iso8859-*" screen)
+;;     (try-font "-*-*-medium-r-*-*-*-120-*-*-m-*-iso8859-*" screen)
+;;     (try-font "-*-*-medium-r-*-*-*-120-*-*-c-*-iso8859-*" screen)
+;;     (try-font "-*-*-*-r-*-*-*-120-*-*-m-*-iso8859-*" screen)
+;;     (try-font "-*-*-*-r-*-*-*-120-*-*-c-*-iso8859-*" screen)
+;;     (try-font "-*-*-*-r-*-*-*-120-*-*-*-*-iso8859-*" screen)
+     (try-font "-*-*-medium-r-*-*-*-120-*-*-m-*-*-*" screen)
+     (try-font "-*-*-medium-r-*-*-*-120-*-*-c-*-*-*" screen)
+     (try-font "-*-*-*-r-*-*-*-120-*-*-m-*-*-*" screen)
+     (try-font "-*-*-*-r-*-*-*-120-*-*-c-*-*-*" screen)
+     (try-font "-*-*-*-r-*-*-*-120-*-*-*-*-*-*" screen)
+     ;; if we get to here we're screwed, and faces.c will fatal()...
+     )))
+  ;;
+  ;; If the "default" face didn't have both colors specified, then pick
+  ;; some, taking into account the "reverseVideo" resource, as well as
+  ;; whether one of the colors was specified.  
+  ;;
+  (let ((fg (face-foreground 'default screen))
+	(bg (face-background 'default screen)))
+    (if (not (and fg bg))
+	(if (or (and fg (equal (downcase (pixel-name fg)) "white"))
+		(and bg (equal (downcase (pixel-name bg)) "black"))
+		(car (x-get-resource "reverseVideo" "ReverseVideo"
+				     'boolean screen)))
+	    (progn
+	      (or fg (set-face-foreground 'default "white" screen))
+	      (or bg (set-face-background 'default "black" screen)))
+	  (or fg (set-face-foreground 'default "black" screen))
+	  (or bg (set-face-background 'default "white" screen)))))
+  ;;
+  ;; Now let's try to pick some reasonable defaults for a few other faces.
+  ;; This kind of stuff should normally go on the create-screen-hook, but
+  ;; this way we won't be in danger of the user screwing things up by not
+  ;; adding hooks in a safe way.
+  ;;
+  (let ((pre-display-buffer-function nil) ; we're on thin ice here...
+	(stack-trace-on-error nil)
+	(debug-on-error nil))
+    (x-initialize-other-random-faces screen)
+    (x-initialize-pointer-shape screen)  ; from x-mouse.el
+    ))
 
+(defvar x-inhibit-font-complaints nil
+  "Whether to suppress complaints about incomplete sets of fonts.")
 
 (defun x-complain-about-font (face)
   (if (symbolp face) (setq face (symbol-name face)))
-  (princ (format "%s: couldn't deduce %s %s version of %S\n"
-		 invocation-name
-		 (if (string-match "\\`[aeiouAEIOU]" face) "an" "a")
-		 face
-		 (face-font-name 'default))
-	 (function external-debugging-output)))
+  (if (not x-inhibit-font-complaints)
+      (princ (format "%s: couldn't deduce %s %s version of %S\n"
+		     invocation-name
+		     (if (string-match "\\`[aeiouAEIOU]" face) "an" "a")
+		     face
+		     (face-font-name 'default))
+	     (function external-debugging-output))))
 
 (defun x-initialize-other-random-faces (screen)
   "Initializes the colors and fonts of the bold, italic, bold-italic, 

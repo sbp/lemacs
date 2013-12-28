@@ -106,6 +106,7 @@ value of HOOK-VAR."
 loaded and the value which is restored if the marker stack underflows.
 This is usually the asterisk `*'.")
 
+;;;###autoload
 (defun dired-extra-startup ()
   "Automatically put on dired-mode-hook to get extra dired features:
 \\<dired-mode-map>

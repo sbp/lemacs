@@ -46,6 +46,27 @@
 (defvar nnspool-history-file "/usr/lib/news/history"
   "*Local news history file.")
 
+;;; lemacs addition: from Rick Sladkey <jrs@world.std.com>
+(defvar nnspool-retrieve-headers-method nil
+  "*Function to retrieve headers from articles in an nnspool directory.
+The function accepts a list of articles to retrieve the headers from where
+the articles are located in the directory nnspool-current-directory.  Three
+functions nnspool-retrieve-headers-from-overview-file, 
+nnspool-retrieve-headers-from-article-files and
+nnspool-retrieve-headers-using-gnushdrs are provided now.  For the
+latter nnspool-retrieve-headers-gnushdrs-program specifies the name
+of the program to execute (which see).  If the value is nil,
+automatically choose between the overview file and article files.")
+
+(defvar nnspool-retrieve-headers-gnushdrs-program "gnushdrs"
+  "*The name of a program used to retrieve headers from articles
+when nnspool-retrieve-headers-method is set to 
+nnspool-retrieve-headers-using-gnushdrs.  The program takes a directory
+as it first argument and the files to retrieve articles from as the
+rest of its arguments.  It must produce on its standard output an
+emacs lisp expression in the same format as the value of
+nnspool-retrieve-headers (which see).")
+
 
 
 (defconst nnspool-version "NNSPOOL 1.12"
@@ -58,6 +79,11 @@
 ;;; Replacement of Extended Command for retrieving many headers.
 ;;;
 
+;; Suggested by scalzott@netcom6.netcom.com (Todd A. Scalzott)
+(defvar nnspool-article-header-read-size 1024
+  "Number of bytes to read when processing headers from NNSPOOL.")
+
+;;; lemacs change: from Rick Sladkey <jrs@world.std.com>
 (defun nnspool-retrieve-headers (sequence)
   "Return list of article headers specified by SEQUENCE of article id.
 The format of list is
@@ -66,6 +92,87 @@ If there is no References: field, In-Reply-To: field is used instead.
 Reader macros for the vector are defined as `nntp-header-FIELD'.
 Writer macros for the vector are defined as `nntp-set-header-FIELD'.
 Newsgroup must be selected before calling this."
+  (if nnspool-retrieve-headers-method
+      (funcall nnspool-retrieve-headers-method sequence)
+    (if (file-exists-p (concat nnspool-current-directory ".overview"))
+	(nnspool-retrieve-headers-from-overview-file sequence)
+      (nnspool-retrieve-headers-from-article-files sequence))))
+
+(defun nnspool-retrieve-headers-from-overview-file (sequence)
+  "A method for nnspool-retrieve-headers that uses .overview files."
+  (save-excursion
+    (set-buffer nntp-server-buffer)
+    (let ((next nil)
+	  (article 0)
+	  (subject nil)
+	  (message-id nil)
+	  (from nil)
+	  (xref nil)
+	  (lines nil)
+	  (date nil)
+	  (references nil)
+	  (headers nil))
+      (erase-buffer)
+      (insert-file-contents (concat nnspool-current-directory ".overview"))
+      (goto-char (point-min))
+      (while sequence
+	(setq article (car sequence)
+	      sequence (cdr sequence))
+	(if (and (re-search-forward (format "^%d\t" article) nil t)
+		 (looking-at "\\([^\t\n]*\\)\t\\([^\t\n]*\\)\t\\([^\t\n]*\\)\t\\([^\t\n]*\\)\t\\([^\t\n]*\\)\t\\([^\t\n]*\\)\t\\([^\t\n]*\\)\t?\\([^\t\n]*\\)"))
+	    (progn
+	      (setq subject (buffer-substring (match-beginning 1)
+					      (match-end 1))
+		    from (buffer-substring (match-beginning 2)
+					   (match-end 2))
+		    date (buffer-substring (match-beginning 3)
+					   (match-end 3))
+		    message-id (buffer-substring (match-beginning 4)
+						 (match-end 4))
+		    references (buffer-substring (match-beginning 5)
+						 (match-end 5))
+		    lines (string-to-int
+			   (buffer-substring (match-beginning 7)
+					     (match-end 7)))
+		    xref (and (/= (match-beginning 8) (match-end 8))
+			      (buffer-substring (+ (match-beginning 8) 6)
+						(match-end 8)))
+		    headers (progn
+			      (and (string= references "")
+				   (setq references nil))
+			      (cons (vector article subject from
+					    xref lines date
+					    message-id references) headers)))
+	      (end-of-line)
+	      (forward-char 1))
+	  (and (looking-at "^\\([0-9]+\\)\t")
+	       (setq next (string-to-int (buffer-substring (match-beginning 1)
+							   (match-end 1))))
+	       (while (and sequence
+			   (< (car sequence) next))
+		 (setq sequence (cdr sequence))))))
+      (nreverse headers))))
+
+(defun nnspool-retrieve-headers-using-gnushdrs (sequence)
+  "A method for nnspool-retrieve-headers that uses the program gnushdrs."
+  (save-excursion
+    (let ((msg (and (numberp nntp-large-newsgroup)
+		    (> (length sequence) nntp-large-newsgroup))))
+      (set-buffer nntp-server-buffer)
+      (erase-buffer)
+      (let ((process-connection-type nil))
+	(apply 'call-process nnspool-retrieve-headers-gnushdrs-program
+	       nil t nil nnspool-current-directory
+	       (mapcar 'int-to-string sequence))
+	(and msg (message "NNSPOOL: parsing headers..."))
+	(goto-char (point-min))
+	(prog1
+	    (read nntp-server-buffer)
+	  (erase-buffer)
+	  (and msg (message "NNSPOOL: parsing headers...done.")))))))
+
+(defun nnspool-retrieve-headers-from-article-files (sequence)
+  "A method for nnspool-retrieve-headers that only uses Emacs Lisp."
   (save-excursion
     (set-buffer nntp-server-buffer)
     ;;(erase-buffer)
@@ -90,7 +197,8 @@ Newsgroup must be selected before calling this."
 		 (not (file-directory-p file)))
 	    (progn
 	      (erase-buffer)
-	      (insert-file-contents file)
+	      (insert-file-contents file
+				    nil 0 nnspool-article-header-read-size)
 	      ;; Make message body invisible.
 	      (goto-char (point-min))
 	      (search-forward "\n\n" nil 'move)
@@ -335,11 +443,12 @@ in the current news group."
     ;; Initialize communication buffer.
     (setq nntp-server-buffer (get-buffer-create " *nntpd*"))
     (set-buffer nntp-server-buffer)
-    (buffer-flush-undo (current-buffer))
+    (buffer-disable-undo (current-buffer))
     (erase-buffer)
     (kill-all-local-variables)
     (setq case-fold-search t)		;Should ignore case.
-    (setq nntp-server-process nil)
+    (if  (boundp 'nntp-server-process)
+	(setq nntp-server-process nil))
     (setq nntp-server-name host)
     ;; It is possible to change kanji-fileio-code in this hook.
     (run-hooks 'nntp-server-hook)
@@ -353,10 +462,32 @@ in the current news group."
   (if nntp-server-buffer
       (kill-buffer nntp-server-buffer))
   (setq nntp-server-buffer nil)
-  (setq nntp-server-process nil))
+  (if (boundp 'nntp-server-process)
+      (setq nntp-server-process nil)))
 
 (defun nnspool-find-article-by-message-id (id)
   "Return full pathname of an article identified by message-ID."
+  (if (file-exists-p (concat nnspool-current-directory ".overview"))
+      (nnspool-find-article-by-message-id-from-overview-file id)
+    (nnspool-find-article-by-message-id-from-history-file id)))
+
+(defun nnspool-find-article-by-message-id-from-overview-file (id)
+  ;; Look up article by message-id in the overview file.
+  (save-excursion
+    (set-buffer nntp-server-buffer)
+    (erase-buffer)
+    (insert-file-contents (concat nnspool-current-directory ".overview"))
+    (goto-char (point-min))
+    (if (re-search-forward (concat "^\\([^\t\n]*\\)\t[^\t\n]*\t[^\t\n]*\t[^\t\n]*\t"
+				   (regexp-quote id)
+				   "\t") nil t)
+	(concat nnspool-current-directory (buffer-substring (match-beginning 1)
+							    (match-end 1)))
+      ;; The parent might be in a different newsgroup.
+      (nnspool-find-article-by-message-id-from-history-file id))))
+    
+(defun nnspool-find-article-by-message-id-from-history-file (id)
+  ;; Look up article by message-id in the history file.
   (save-excursion
     (let ((buffer (get-file-buffer nnspool-history-file)))
       (if buffer

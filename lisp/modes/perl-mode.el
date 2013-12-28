@@ -132,7 +132,7 @@ The expansion is entirely correct because it uses the C preprocessor."
   (setq perl-mode-syntax-table (make-syntax-table (standard-syntax-table)))
   (modify-syntax-entry ?\n ">" perl-mode-syntax-table)
   (modify-syntax-entry ?# "<" perl-mode-syntax-table)
-  (modify-syntax-entry ?$ "/" perl-mode-syntax-table)
+  (modify-syntax-entry ?$ "\\" perl-mode-syntax-table)
   (modify-syntax-entry ?% "." perl-mode-syntax-table)
   (modify-syntax-entry ?& "." perl-mode-syntax-table)
   (modify-syntax-entry ?\' "\"" perl-mode-syntax-table)
@@ -173,6 +173,10 @@ already, create a new comment.")
 
 (defconst perl-nochange ";?#\\|\f\\|\\s(\\|\\(\\w\\|\\s_\\)+:"
   "*Lines starting with this regular expression will not be auto-indented.")
+
+(defvar perl-mode-hook nil
+  "Invoked on entry to perl-mode.")
+
 
 ;;;###autoload
 (defun perl-mode ()

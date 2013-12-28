@@ -21,7 +21,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #ifndef _EMACS_KEYMAP_H_
 #define _EMACS_KEYMAP_H_
 
-extern const struct lrecord_implementation lrecord_keymap[];
+extern CONST struct lrecord_implementation lrecord_keymap[];
 
 #define CHECK_KEYMAP(x, i) CHECK_RECORD ((x), lrecord_keymap, Qkeymapp, (i))
 #define KEYMAPP(x) RECORD_TYPEP ((x), lrecord_keymap)

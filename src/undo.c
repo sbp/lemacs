@@ -19,8 +19,10 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 
 #include "config.h"
+#include "intl.h"
 #include "lisp.h"
 #include "buffer.h"
+#include "extents.h"
 
 /* Extent code needs to know about undo because the behavior of insert()
    with regard to extents varies depending on whether we are inside
@@ -130,10 +132,17 @@ record_delete (int beg, int length)
     sbeg = make_number (beg);
 
   {
-    int speccount = specpdl_depth ();
-    record_unwind_protect (restore_inside_undo, make_number (inside_undo));
-    inside_undo = 1;
-
+/*
+ * record_delete is called from many places other than undo so why this was
+ * being marked as being inside_undo is beyond me.  It had the effect of
+ * overriding the duplicable flag on extents making all extents appear
+ * to be duplicable.
+ */
+/*
+ *  int speccount = specpdl_depth ();
+ *  record_unwind_protect (restore_inside_undo, make_number (inside_undo));
+ *  inside_undo = 1;
+ */
     /* If point isn't at start of deleted range, record where it is.  */
     if (PT != XFASTINT (sbeg))
       current_buffer->undo_list
@@ -144,8 +153,57 @@ record_delete (int beg, int length)
 		      sbeg),
                current_buffer->undo_list);
 
-    unbind_to (speccount, Qnil);
+/*  unbind_to (speccount, Qnil); */
   }
+}
+
+/* Record that an EXTENT is about to be attached or detached in its buffer.
+   This works much like a deletion or insertion, except that there's no string.
+   The tricky part is that the buffer we operate on comes from EXTENT.
+   Most extent changes happen as a side effect of string insertion and
+   deletion; this call is solely for Fdetach_extent() and Finsert_extent().
+   */
+
+void
+record_extent (Lisp_Object extent, int attached)
+{
+  Lisp_Object buffer = Fextent_buffer (extent);
+  Lisp_Object token;
+
+  if (XBUFFER (buffer) != current_buffer)
+    {
+      /* Temporarily switch buffers. */
+      Lisp_Object current = Fcurrent_buffer ();
+      Fset_buffer (buffer);
+      record_extent (extent, attached);
+      Fset_buffer (current);
+      return;
+    }
+
+  if (current_buffer != XBUFFER (last_undo_buffer))
+    Fundo_boundary ();
+  XSETR (last_undo_buffer, Lisp_Buffer, current_buffer);
+
+  if (EQ (current_buffer->undo_list, Qt))
+    return;
+
+#if 0 /* ?? */
+  if (MODIFF <= current_buffer->save_modified)
+    record_first_change ();
+#endif
+
+  if (attached)
+    token = extent;
+  else
+    {
+      Lisp_Object xbeg, xend;
+      xbeg = Fextent_start_position (extent);
+      xend = Fextent_end_position (extent);
+      XSETEXTENT (token,
+		  make_extent_replica (extent, XINT (xbeg), XINT (xend)));
+    }
+
+  current_buffer->undo_list = Fcons (token, current_buffer->undo_list);
 }
 
 /* Record that a replacement is about to take place,
@@ -226,6 +284,9 @@ truncate_undo_list (list, minsize, maxsize)
   Lisp_Object prev, next, last_boundary;
   int size_so_far = 0;
 
+  if (!(minsize > 0 || maxsize > 0))
+    return list;
+
   prev = Qnil;
   next = list;
   last_boundary = Qnil;
@@ -279,10 +340,10 @@ truncate_undo_list (list, minsize, maxsize)
 	 the higher threshold MAXSIZE as well, we truncate before it.  */
       if (NILP (elt))
 	{
-	  if (size_so_far > maxsize)
+	  if (size_so_far > maxsize && maxsize > 0)
 	    break;
 	  last_boundary = prev;
-	  if (size_so_far > minsize)
+	  if (size_so_far > minsize && minsize > 0)
 	    break;
 	}
 
@@ -406,7 +467,7 @@ Return what remains of the list.")
 
 		  if (XINT (car) < BEGV
 		      || XINT (cdr) > ZV)
-		    error ("Changes to be undone are outside visible portion of buffer");
+		    error (GETTEXT ("Changes to be undone are outside visible portion of buffer"));
 		  /* Set point first thing, so that undoing this undo
 		     does not send point back to where it is now.  */
 		  Fgoto_char (car);
@@ -421,14 +482,14 @@ Return what remains of the list.")
 		  if (pos < 0)
 		    {
 		      if (-pos < BEGV || -pos > ZV)
-			error ("Changes to be undone are outside visible portion of buffer");
+			error (GETTEXT ("Changes to be undone are outside visible portion of buffer"));
 		      SET_PT (-pos);
 		      Finsert (1, &membuf);
 		    }
 		  else
 		    {
 		      if (pos < BEGV || pos > ZV)
-			error ("Changes to be undone are outside visible portion of buffer");
+			error (GETTEXT ("Changes to be undone are outside visible portion of buffer"));
 		      SET_PT (pos);
 
 		      /* Insert before markers so that if the mark is
@@ -454,12 +515,24 @@ Return what remains of the list.")
 		  goto rotten;
 		}
 	    }
+	  else if (EXTENTP (next))
+	    Fdetach_extent (next);
+	  else if (EXTENT_REPLICA_P (next))
+	    {
+	       Lisp_Object extent_obj, start, end;
+
+	       extent_obj = Fextent_replica_extent (next);
+	       start = Fextent_replica_start (next);
+	       end = Fextent_replica_end (next);
+
+	       Fset_extent_endpoints (extent_obj, start, end);
+	     }
           else
 	    {
 	    rotten:
 	      Fsignal (Qerror,
 		       list2 (build_string
-			      ("Something rotten in the state of undo:"),
+			      (GETTEXT ("Something rotten in the state of undo:")),
 			      next));
 	    }
         }

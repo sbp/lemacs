@@ -131,7 +131,9 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
        of the current screen */
     MARKED_SLOT (dedicated_screen);
 
-    /* Widths of the annotation margins in characters (em's). */
+    /* Widths of the annotation margins in characters (em's).
+       #### Do these really need to be Lisp_Objects??
+     */
     MARKED_SLOT (left_outside_margin_width);
     MARKED_SLOT (right_outside_margin_width);
     MARKED_SLOT (use_left_overflow);

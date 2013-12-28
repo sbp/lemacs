@@ -1,9 +1,10 @@
-;;; nntp.el --- NNTP (RFC977) Interface for GNU Emacs
+;;; nntp.el --- GNUS interface to NNTP servers
 
-;; Copyright (C) 1987, 1988, 1989, 1990, 1992, 1993 Free Software Foundation, Inc.
-
-;; Author: Masanobu UMEDA <umerin@flab.flab.fujitsu.junet>
-;; Keywords: news
+;;; Copyright (C) 1993, 1994 Free Software Foundation, Inc.
+;;;
+;; Author: Felix Lee <flee@cse.psu.edu>
+;; Version: !Id: nntp.el,v 1.10 1993/02/04 18:23:39 flee Exp !
+;; Modified by jwz.
 
 ;; This file is part of GNU Emacs.
 
@@ -21,710 +22,577 @@
 ;; along with GNU Emacs; see the file COPYING.  If not, write to
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
-
-;;; Commentary:
-
-;; This implementation is tested on both 1.2a and 1.5 version of the
-;; NNTP package.
-
-;; Troubleshooting of NNTP
-;;
-;; (1) Select routine may signal an error or fall into infinite loop
-;;  while waiting for the server response. In this case, you'd better
-;;  not use byte-compiled codes but original source. If you still have
-;;  a problems with it, set the variable `nntp-buggy-select' to T.
-;;
-;; (2) Emacs may hang up while retrieving headers since too many
-;;  requests have been sent to the NNTP server without reading their
-;;  replies. In this case, reduce the number of the requests sent to
-;;  the server at one time by setting the variable
-;;  `nntp-maximum-request' to a lower value.
-;;
-;; (3) If the TCP/IP stream (open-network-stream) is not supported by
-;;  emacs, compile and install `tcp.el' and `tcp.c' which is an
-;;  emulation program of the stream. If you modified `tcp.c' for your
-;;  system, please send me the diffs. I'll include some of them in the
-;;  future releases.
-
 ;;; Code:
 
-(defvar nntp-server-hook nil
-  "*Hooks for the NNTP server.
-If the kanji code of the NNTP server is different from the local kanji
-code, the correct kanji code of the buffer associated with the NNTP
-server must be specified as follows:
+(defvar nntp/rcs-revision (purecopy "!Revision: 1.10 !"))
 
-(setq nntp-server-hook
-      (function
-       (lambda ()
-	 ;; Server's Kanji code is EUC (NEmacs hack).
-	 (make-local-variable 'kanji-fileio-code)
-	 (setq kanji-fileio-code 0))))
+(provide 'nntp)
+;;(require 'backquote) ; not used here
+(require 'chat)
+(or (fboundp 'open-network-stream) (require 'tcp))
 
-If you'd like to change something depending on the server in this
-hook, use the variable `nntp-server-name'.")
+(defun nntp-last (x)
+  "Returns the last link in the list LIST."
+  (while (cdr x)
+    (setq x (cdr x)))
+  x)
 
-(defvar nntp-large-newsgroup 50
-  "*The number of the articles which indicates a large newsgroup.
-If the number of the articles is greater than the value, verbose
-messages will be shown to indicate the current status.")
+(defvar nntp/default-nntp-port (purecopy "nntp")
+  "The default tcp port to use for nntp connections.")
 
-(defvar nntp-buggy-select (memq system-type '(usg-unix-v fujitsu-uts))
-  "*T if your select routine is buggy.
-If the select routine signals error or fall into infinite loop while
-waiting for the server response, the variable must be set to t.  In
-case of Fujitsu UTS, it is set to T since `accept-process-output'
-doesn't work properly.")
+;;;;;;;;;;;;;;;;
+;;; NNTP state.
 
-(defvar nntp-maximum-request 400
-  "*The maximum number of the requests sent to the NNTP server at one time.
-If Emacs hangs up while retrieving headers, set the variable to a
-lower value.")
+;; Right now, we're assuming we only talk to one NNTP server at a
+;; time.  It might be nice to do multiple NNTP connections, but
+;; there's no point in doing this from the bottom up.
 
-(defvar nntp-debug-read 10000
-  "*Display '...' every 10Kbytes of a message being received if it is non-nil.
-If it is a number, dots are displayed per the number.")
+;; (To handle multiple connections, you need to create connection
+;; handles that you pass around.  Ideally, nnspool et al would be
+;; just different types of connection handles.)
 
-
-(defconst nntp-version "NNTP 3.12"
-  "Version numbers of this version of NNTP.")
+(defvar nntp/connection nil
+  "The current NNTP connection.")
 
-(defvar nntp-server-name nil
-  "The name of the host running NNTP server.")
+;; lemacs addition
+(defvar nntp/group nil
+  "The most-recently-selected NNTP group.")
+
+;;; jwz: call this nntp-status-string instead of nntp/error-message because
+;;; existing code uses that variable (in particular, nnspool.el and mhspool.el
+;;; set it.)
+(defvar nntp-status-string nil
+  "The error message from the last NNTP command.  'nil if no error.
+Don't use this, call the function `nntp-status-message' instead.")
+
+(defvar nntp/can-xover t
+  "Does this server understand the XOVER command?")
+
+;;;;;;;;;;;;;;;;
+;;; The GNUS interface.
+
+;; These are the symbols that GNUS knows about and expects.
+
+;; The interaction between GNUS and nntp.el (or nnspool.el) is a
+;; little messy and not particularly well defined.
+
+(defvar nntp-version
+  (purecopy
+   (concat "flee/nntp/Lucid " (substring nntp/rcs-revision 11 -2))))
 
 (defvar nntp-server-buffer nil
-  "Buffer associated with NNTP server process.")
+  "Buffer that GNUS looks at when it wants data.")
 
-(defvar nntp-server-process nil
-  "The NNTP server process.
-You'd better not use this variable in NNTP front-end program but
-instead use `nntp-server-buffer'.")
+;; lemacs addition
+(defvar nntp-authinfo-string nil
+  "*String sent to NNTP server if the connection fails.")
 
-(defvar nntp-status-string nil
-  "Save the server response message.
-You'd better not use this variable in NNTP front-end program but
-instead call function `nntp-status-message' to get status message.")
+(defun nntp-open-server (host service)
+  "Start a connection to the given HOST and SERVICE.  Returns true
+if successful."
+  ;; XXX already open?
+  (or service (setq service nntp/default-nntp-port))
+  (setq nntp-status-string nil)
+  (setq nntp/can-xover t)
+  (setq nntp-server-buffer (generate-new-buffer "*nntp*"))
+  ;;(buffer-flush-undo nntp-server-buffer)
+  (buffer-disable-undo nntp-server-buffer)
+  (setq nntp/group nil) ; lemacs addition
+  (setq nntp/connection
+	(open-network-stream "nntp" nntp-server-buffer host service))
+  (set-process-sentinel nntp/connection 'nntp/sentinel)
+  (process-kill-without-query nntp/connection)
 
-;;;
-;;; Extended Command for retrieving many headers.
-;;;
-;; Retrieving lots of headers by sending command asynchronously.
-;; Access functions to headers are defined as macro.
+  (let ((code (nntp/response)))
 
-(defmacro nntp-header-number (header)
-  "Return article number in HEADER."
-  (` (aref (, header) 0)))
+    ;; lemacs addition: with some INN servers, we need to do this to convince
+    ;; it to behave in the conventional way and not assume we want to do a
+    ;; batch transfer of news.  With older NNTP servers, this will provoke a
+    ;; "500 unknown command", which we can simply ignore.
+    (nntp/command "MODE READER")
+    (nntp/response) ; ignored.
 
-(defmacro nntp-set-header-number (header number)
-  "Set article number of HEADER to NUMBER."
-  (` (aset (, header) 0 (, number))))
-
-(defmacro nntp-header-subject (header)
-  "Return subject string in HEADER."
-  (` (aref (, header) 1)))
-
-(defmacro nntp-set-header-subject (header subject)
-  "Set article subject of HEADER to SUBJECT."
-  (` (aset (, header) 1 (, subject))))
-
-(defmacro nntp-header-from (header)
-  "Return author string in HEADER."
-  (` (aref (, header) 2)))
-
-(defmacro nntp-set-header-from (header from)
-  "Set article author of HEADER to FROM."
-  (` (aset (, header) 2 (, from))))
-
-(defmacro nntp-header-xref (header)
-  "Return xref string in HEADER."
-  (` (aref (, header) 3)))
-
-(defmacro nntp-set-header-xref (header xref)
-  "Set article xref of HEADER to xref."
-  (` (aset (, header) 3 (, xref))))
-
-(defmacro nntp-header-lines (header)
-  "Return lines in HEADER."
-  (` (aref (, header) 4)))
-
-(defmacro nntp-set-header-lines (header lines)
-  "Set article lines of HEADER to LINES."
-  (` (aset (, header) 4 (, lines))))
-
-(defmacro nntp-header-date (header)
-  "Return date in HEADER."
-  (` (aref (, header) 5)))
-
-(defmacro nntp-set-header-date (header date)
-  "Set article date of HEADER to DATE."
-  (` (aset (, header) 5 (, date))))
-
-(defmacro nntp-header-id (header)
-  "Return Id in HEADER."
-  (` (aref (, header) 6)))
-
-(defmacro nntp-set-header-id (header id)
-  "Set article Id of HEADER to ID."
-  (` (aset (, header) 6 (, id))))
-
-(defmacro nntp-header-references (header)
-  "Return references (or in-reply-to) in HEADER."
-  (` (aref (, header) 7)))
-
-(defmacro nntp-set-header-references (header ref)
-  "Set article references of HEADER to REF."
-  (` (aset (, header) 7 (, ref))))
-
-(defun nntp-retrieve-headers (sequence)
-  "Return list of article headers specified by SEQUENCE of article id.
-The format of list is
- `([NUMBER SUBJECT FROM XREF LINES DATE MESSAGE-ID REFERENCES] ...)'.
-If there is no References: field, In-Reply-To: field is used instead.
-Reader macros for the vector are defined as `nntp-header-FIELD'.
-Writer macros for the vector are defined as `nntp-set-header-FIELD'.
-Newsgroup must be selected before calling this."
-  (save-excursion
-    (set-buffer nntp-server-buffer)
-    (erase-buffer)
-    (let ((number (length sequence))
-	  (last-point (point-min))
-	  (received 0)
-	  (count 0)
-	  (headers nil)			;Result list.
-	  (article 0)
-	  (subject nil)
-	  (message-id)
-	  (from nil)
-	  (xref nil)
-	  (lines 0)
-	  (date nil)
-	  (references nil))
-      ;; Send HEAD command.
-      (while sequence
-	(nntp-send-strings-to-server "HEAD" (car sequence))
-	(setq sequence (cdr sequence))
-	(setq count (1+ count))
-	;; Every 400 header requests we have to read stream in order
-	;;  to avoid deadlock.
-	(if (or (null sequence)		;All requests have been sent.
-		(zerop (% count nntp-maximum-request)))
-	    (progn
-	      (accept-process-output)
-	      (while (progn
-		       (goto-char last-point)
-		       ;; Count replies.
-		       (while (re-search-forward "^[0-9]" nil t)
-			 (setq received (1+ received)))
-		       (setq last-point (point))
-		       (< received count))
-		;; If number of headers is greater than 100, give
-		;;  informative messages.
-		(and (numberp nntp-large-newsgroup)
-		     (> number nntp-large-newsgroup)
-		     (zerop (% received 20))
-		     (gnus-lazy-message "NNTP: Receiving headers... %d%%"
-					(/ (* received 100) number)))
-		(nntp-accept-response))
-	      ))
-	)
-      ;; Wait for text of last command.
-      (goto-char (point-max))
-      (re-search-backward "^[0-9]" nil t)
-      (if (looking-at "^[23]")
-	  (while (progn
-		   (goto-char (- (point-max) 3))
-		   (not (looking-at "^\\.\r$")))
-	    (nntp-accept-response)))
-      (and (numberp nntp-large-newsgroup)
-	   (> number nntp-large-newsgroup)
-	   (message "NNTP: Receiving headers... done"))
-      ;; Now all of replies are received.
-      (setq received number)
-      ;; First, fold continuation lines.
-      (goto-char (point-min))
-      (while (re-search-forward "\\(\r?\n[ \t]+\\)+" nil t)
-        (replace-match " " t t))
-      ;;(delete-non-matching-lines
-      ;; "^Subject:\\|^Xref:\\|^From:\\|^Lines:\\|^Date:\\|^References:\\|^[23]")
-      (and (numberp nntp-large-newsgroup)
-	   (> number nntp-large-newsgroup)
-	   (message "NNTP: Parsing headers..."))
-      ;; Then examines replies.
-      (goto-char (point-min))
-      (while (not (eobp))
-	(cond ((looking-at "^[23][0-9][0-9][ \t]+\\([0-9]+\\)[ \t]+\\(<[^>]+>\\)")
-	       (setq article
-		     (string-to-int
-		      (buffer-substring (match-beginning 1) (match-end 1))))
-	       (setq message-id
-		     (buffer-substring (match-beginning 2) (match-end 2)))
-	       (forward-line 1)
-	       ;; Set default value.
-	       (setq subject nil)
-	       (setq xref nil)
-	       (setq from nil)
-	       (setq lines 0)
-	       (setq date nil)
-	       (setq references nil)
-	       ;; Thanks go to mly@AI.MIT.EDU (Richard Mlynarik)
-	       (while (and (not (eobp))
-			   (not (memq (following-char) '(?2 ?3))))
-		 (if (looking-at "\\(From\\|Subject\\|Date\\|Lines\\|Xref\\|References\\|In-Reply-To\\):[ \t]+\\([^ \t\n]+.*\\)\r$")
-		     (let ((s (buffer-substring
-			       (match-beginning 2) (match-end 2)))
-			   (c (char-after (match-beginning 0))))
-		       ;; We don't have to worry about letter case.
-		       (cond ((char-equal c ?F)	;From:
-			      (setq from s))
-			     ((char-equal c ?S)	;Subject:
-			      (setq subject s))
-			     ((char-equal c ?D)	;Date:
-			      (setq date s))
-			     ((char-equal c ?L)	;Lines:
-			      (setq lines (string-to-int s)))
-			     ((char-equal c ?X)	;Xref:
-			      (setq xref s))
-			     ((char-equal c ?R)	;References:
-			      (setq references s))
-			     ;; In-Reply-To: should be used only when
-			     ;; there is no References: field.
-			     ((and (char-equal c ?I) ;In-Reply-To:
-				   (null references))
-			      (setq references s))
-			     )))
-		 (forward-line 1))
-	       ;; Finished to parse one header.
-	       (if (null subject)
-		   (setq subject "(None)"))
-	       (if (null from)
-		   (setq from "(Unknown User)"))
-	       ;; Collect valid article only.
-	       (and article
-		    message-id
-		    (setq headers
-			  (cons (vector article subject from
-					xref lines date
-					message-id references) headers)))
-	       )
-	      (t (forward-line 1))
-	      )
-	(setq received (1- received))
-	(and (numberp nntp-large-newsgroup)
-	     (> number nntp-large-newsgroup)
-	     (zerop (% received 20))
-	     (gnus-lazy-message "NNTP: Parsing headers... %d%%"
-				(/ (* received 100) number)))
-	)
-      (and (numberp nntp-large-newsgroup)
-	   (> number nntp-large-newsgroup)
-	   (message "NNTP: Parsing headers... done"))
-      (nreverse headers)
-      )))
-
-
-;;;
-;;; Raw Interface to Network News Transfer Protocol (RFC977).
-;;;
-
-(defun nntp-open-server (host &optional service)
-  "Open news server on HOST.
-If HOST is nil, use value of environment variable `NNTPSERVER'.
-If optional argument SERVICE is non-nil, open by the service name."
-  (let ((host (or host (getenv "NNTPSERVER")))
-	(status nil))
-    (setq nntp-status-string "")
-    (cond ((and host (nntp-open-server-internal host service))
-	   (setq status (nntp-wait-for-response "^[23].*\r$"))
-	   ;; Do check unexpected close of connection.
-	   ;; Suggested by feldmark@hanako.stars.flab.fujitsu.junet.
-	   (if status
-	       (set-process-sentinel nntp-server-process
-				     'nntp-default-sentinel)
-	     ;; We have to close connection here, since function
-	     ;;  `nntp-server-opened' may return incorrect status.
-	     (nntp-close-server-internal)
-	     ))
-	  ((null host)
-	   (setq nntp-status-string "NNTP server is not specified."))
-	  )
-    status
-    ))
-
-(defun nntp-close-server ()
-  "Close news server."
-  (unwind-protect
-      (progn
-	;; Un-set default sentinel function before closing connection.
-	(and nntp-server-process
-	     (eq 'nntp-default-sentinel
-		 (process-sentinel nntp-server-process))
-	     (set-process-sentinel nntp-server-process nil))
-	;; We cannot send QUIT command unless the process is running.
-	(if (nntp-server-opened)
-	    (nntp-send-command nil "QUIT"))
-	)
-    (nntp-close-server-internal)
-    ))
-
-(fset 'nntp-request-quit (symbol-function 'nntp-close-server))
+    (or (eq code 200) (eq code 201)
+	;; lemacs change: if it fails, send AUTHINFO and try once more.
+	(and nntp-authinfo-string
+	     (progn
+	       (nntp/command "AUTHINFO" nntp-authinfo-string)
+	       (setq code (nntp/response))
+	       (or (eq code 200) (eq code 201)))))))
+	       
 
 (defun nntp-server-opened ()
-  "Return server process status, T or NIL.
-If the stream is opened, return T, otherwise return NIL."
-  (and nntp-server-process
-       (memq (process-status nntp-server-process) '(open run))))
+  "Are we currently connected?"
+  (and nntp/connection
+       (memq (process-status nntp/connection) '(run open))))
+;; XXX should we add stopped to this list?
+
+(defun nntp-close-server ()
+  "Terminate the connection.  Returns nothing."
+  (let ((proc nntp/connection)
+	(buffer nntp-server-buffer))
+    (setq nntp/connection nil)
+    (setq nntp/group nil) ; lemacs addition
+    (setq nntp-server-buffer nil)
+    (and proc (delete-process proc))
+    (and buffer (kill-buffer buffer))))
 
 (defun nntp-status-message ()
-  "Return server status response as string."
-  (if (and nntp-status-string
-	   ;; NNN MESSAGE
-	   (string-match "[0-9][0-9][0-9][ \t]+\\([^\r]*\\).*$"
-			 nntp-status-string))
-      (substring nntp-status-string (match-beginning 1) (match-end 1))
-    ;; Empty message if nothing.
-    ""
-    ))
-
-(defun nntp-request-article (id)
-  "Select article by message ID (or number)."
-  (prog1
-      ;; If NEmacs, end of message may look like: "\256\215" (".^M")
-      (nntp-send-command "^\\.\r$" "ARTICLE" id)
-    (nntp-decode-text)
-    ))
-
-(defun nntp-request-body (id)
-  "Select article body by message ID (or number)."
-  (prog1
-      ;; If NEmacs, end of message may look like: "\256\215" (".^M")
-      (nntp-send-command "^\\.\r$" "BODY" id)
-    (nntp-decode-text)
-    ))
-
-(defun nntp-request-head (id)
-  "Select article head by message ID (or number)."
-  (prog1
-      (nntp-send-command "^\\.\r$" "HEAD" id)
-    (nntp-decode-text)
-    ))
-
-(defun nntp-request-stat (id)
-  "Select article by message ID (or number)."
-  (nntp-send-command "^[23].*\r$" "STAT" id))
-
-(defun nntp-request-group (group)
-  "Select news GROUP."
-  ;; 1.2a NNTP's group command is buggy. "^M" (\r) is not appended to
-  ;;  end of the status message.
-  (nntp-send-command "^[23].*$" "GROUP" group))
+  "Returns the error message from the last NNTP request."
+  ;; jwz: return "" instead of "okay" just in case old code expected that.
+  (or nntp-status-string ""))
 
 (defun nntp-request-list ()
-  "List active newsgroups."
-  (prog1
-      (nntp-send-command "^\\.\r$" "LIST")
-    (nntp-decode-text)
-    ))
+  "Retrieve the list of newsgroups into 'nntp-server-buffer.
+Returns true if successful."
+  (nntp/command "LIST")
+  (if (eq (nntp/response) 215)
+      ;; We don't do any text format conversion here.  It's wasted
+      ;; effort, since the text needs to be parsed by GNUS anyway.
+      (nntp/wait-for-text)))
+
+(defun nntp-request-group (group)
+  "Select group GROUP.  Returns true if successful."
+  (nntp/command "GROUP" group)
+  (if (not (eq (nntp/response) 211))
+      nil
+    (setq nntp/group group) ; lemacs addition
+    t))
+
+(defun nntp-request-article (id)
+  "Retrieve article ID (either a number or a message-id) into
+'nntp-server-buffer.  Returns true if successful."
+  (nntp/command "ARTICLE" id)
+  (if (eq (nntp/response) 220)
+      (nntp/get-text)))
+
+(defun nntp-request-post ()
+  "Modify and post the current buffer.  Returns true if successful."
+  ;; The trick here is we want to make sure the conversation is in a
+  ;; sane state even if we're interrupted in middle of transmission.
+  ;; Right now, we just prematurely terminate the posting.  While this
+  ;; isn't ideal, it's better than continually adding junk to the end.
+  ;; The problem is NNTP doesn't let you abort a posting.
+  ;; XXX A better approach is to open a new connection for posting,
+  ;; but this is going to be slower, unless you anticipate the user by
+  ;; opening the connection early.
+  (nntp/command "POST")
+  (if (eq (nntp/response) 340)
+      (let ( (finished nil) )
+	(unwind-protect
+	    (progn
+	      (nntp/unix-to-smtp-text)
+	      (process-send-region nntp/connection (point-min) (point-max))
+	      (setq finished t)
+	      (eq (nntp/response) 240))
+	  (or finished
+	      (process-send-string nntp/connection "\r\n.\r\n")
+	      nil)))))
+
+(defun nntp-retrieve-headers (sequence)
+  "Returns the header data for SEQUENCE in the current group.
+SEQUENCE is a sorted list of article numbers.
+XXX describe the return value."
+  (and sequence
+       (let ((result nil))
+	 (message "NNTP: retrieving headers...")
+	 (if nntp/can-xover
+	     (setq result (nntp/try-xover sequence)))
+	 (if (not nntp/can-xover)
+	     (setq result (nntp/headers sequence)))
+	 (message "NNTP: retrieving headers...done")
+	 result)))
+
+;;;;;;;;;;;;;;;;
+;;; Talking to the NNTP server.
+
+(defun nntp/sentinel (proc delta)
+  (or (nntp-server-opened)
+      (error "NNTP connection closed.")))
+
+(defun nntp/clear ()
+  ;; XXX This resynchronization is imperfect, but is probably good
+  ;; enough for normal use.
+  (chat/delete-pending-data nntp/connection))
+
+(defun nntp/command (&rest strings)
+  "Start a new NNTP command."
+  (nntp/clear)
+  (process-send-string
+   nntp/connection
+   (concat (mapconcat 'identity strings " ") "\r\n")))
+
+;;;;;;;;;;;;;;;;
+;;; Reading from the NNTP server.
+
+;; This is almost 4x faster than (string-to-int (buffer-substring ... ))
+;; primarily because of garbage collection.  -jwz
+(defmacro nntp/read-integer (&optional point move-p)
+  (` ((, (if move-p 'progn 'save-excursion))
+      (,@ (if point (list (list 'goto-char point))))
+      (if (and (<= (following-char) ?9)
+	       (>= (following-char) ?0))
+	  (read (current-buffer))
+	0))))
+
+(defun nntp/response ()
+  "Wait for an NNTP response and return the response code.  Also sets
+'nntp-status-string."
+  ;; XXX Emacs 18.xx has a bug that turns undo back on after a gc, so
+  ;; we continually flush undo here.
+  ;;(buffer-flush-undo nntp-server-buffer)
+  (chat/with-data-until-string "\n" nntp/connection
+    (let ((code (nntp/read-integer (point-min))))
+      ;; Codes 400 and up are error conditions.
+      (setq nntp-status-string
+	    (and (<= 400 code)
+		 (buffer-substring (+ (point-min) 4) (- (point-max) 2))))
+      code)))
+
+(defun nntp/wait-for-text ()
+  "Wait for an NNTP text response.  Returns true."
+  (chat/wait-for-dot-crlf nntp/connection))
+
+(defun nntp/get-text ()
+  "Wait for an NNTP text response and convert it to Unix text format.
+Returns true."
+  (nntp/wait-for-text)
+  (save-excursion
+    (set-buffer nntp-server-buffer)
+    (nntp/smtp-to-unix-text))
+  t)
+
+;;;;;;;;;;;;;;;;
+;;; Handling the funny dot-CRLF text format used by SMTP/NNTP.
+
+(defun nntp/smtp-to-unix-text ()
+  "Convert the current buffer from SMTP text format to Unix text
+format.  Modifies point.  Returns nothing."
+  (goto-char (point-min))
+  (while (not (eobp))
+    (if (eq (following-char) ?.)
+	(delete-char 1))
+    (end-of-line)
+    (if (eq (preceding-char) ?\r)
+	(delete-char -1))
+    (forward-char))
+  ;; Delete the last line, which had the dot-crlf terminator.
+  (backward-char)
+  (if (eq (preceding-char) ?\n)
+      (delete-char 1))
+  )
+
+(defun nntp/unix-to-smtp-text ()
+  "Convert the current buffer form Unix text format to SMTP text
+format.  Modifies point.  Returns nothing."
+  (goto-char (point-min))
+  (while (not (eobp))
+    (if (eq (following-char) ?.)
+	(insert ?.))
+    (end-of-line)
+    (insert ?\r)
+    (forward-line))
+  ;; Add the terminator, but first insert a CRLF if necessary.
+  (or (bobp)
+      (eq (preceding-char) ?\n)
+      (insert "\r\n"))
+  (insert ".\r\n"))
+
+;;;;;;;;;;;;;;;;
+;;; Fetch headers using XOVER.
+
+;; XXX We could probably try splitting a sequence into segments and
+;; sending multiple XOVER commands, one for each segment.  However,
+;; this is a little more expensive for the news server to process, and
+;; mostly just reduces network traffic.  There isn't much difference
+;; in response, unless you're in the habit of leaving 100+ article
+;; gaps.  A couple hundred extra overview lines are unnoticeable on a
+;; Sun SLC.
+
+;; XXX In general, maybe we should have a gap threshhold: if a gap is
+;; larger than N, split it into two XOVER requests, but the actual
+;; tradeoffs are more complex than that.  This is really a flaw in
+;; XOVER; you should be able to give XOVER a monotonically increasing
+;; sequence of ranges, which is something that can be processed
+;; efficiently.
+
+;; XXX There's an unhappy synchronization problem here with C News.
+;; The bounds in the active file are updated before the overview data
+;; is updated, which may not happen until minutes later.  If you read
+;; the active file and enter a newsgroup soon after it receives new
+;; articles, then the overview fetch will leave out the new articles.
+;; GNUS will wrongly conclude that the articles don't exist, mark them
+;; as read, and you'll never see them.
+
+(defun nntp/try-xover (sequence)
+  "Try using the XOVER command to retrieve headers."
+  (let ( (lo (car sequence))
+	 (hi (car (nntp-last sequence))) )
+    (nntp/command "XOVER" (concat (int-to-string lo) "-" (int-to-string hi)))
+    (if (eq (nntp/response) 224)
+	(chat/with-data-until-dot-crlf nntp/connection
+	  (nov/parse sequence))
+      (setq nntp/can-xover nil)
+      nil)))
+
+;;;;;;;;;;;;;;;;
+;;; News overview parsing.
+
+;; XXX This section isn't really nntp-specific.  It probably could be
+;; a separate module by itself.
+
+;; Small changes to this code can have large impact on performance.
+
+;; You'd think that using skip-chars-forward would be faster than
+;; search-forward, but for some reason it ends up marginally slower.
+;; I suspect it's because the setup overhead for both is about the
+;; same, but the inner loop for search-forward is much more carefully
+;; coded.
+
+(defmacro nov/skip-field ()
+  '(search-forward "\t" eol 'end))
+
+(defmacro nov/field ()
+  '(buffer-substring
+    (point)
+    (progn (nov/skip-field) (1- (point)))))
+
+(defun nov/parse (sequence)
+  "Parse the news overview data in the current buffer, and return a
+list of headers that match SEQUENCE (see 'nntp-retrieve-headers)."
+  (let ( (number nil)
+	 (header nil)
+	 (headers nil)
+	 (eol nil) )
+    (goto-char (point-min))
+    (while (and sequence (not (eobp)))
+      (setq number (nntp/read-integer nil t))
+
+      (if (not (= (following-char) ?\t))
+	  (progn
+	    ;; INN can report XOVER information *if* it is set up to do so.
+	    ;; However, if it is not configured to do so, instead of replying
+	    ;; to XOVER with some status code that we can detect, it responds
+	    ;; with 224.  However, the data that it returns is useless to us:
+	    ;; it's just a list of article numbers, with no other fields
+	    ;; present.
+	    ;;
+	    ;; So, if after reading the number, the next character is not a
+	    ;; tab, we must be in this state.  At that point, give up and
+	    ;; return nil.
+	    ;;
+	    (setq sequence nil
+		  headers nil
+		  nntp/can-xover nil)
+	    (goto-char (point-max))
+	    )
+	;; else, the XOVER data appears to be for real.
+
+	(while (and sequence (< (car sequence) number))
+	  (setq sequence (cdr sequence)))
+	(if (and sequence (eq number (car sequence)))
+	    (progn
+	      (setq sequence (cdr sequence))
+	      (save-excursion
+		(end-of-line)
+		(setq eol (point)))
+	      ;; header: [num subject from xref lines date id refs]
+	      ;; overview: [num subject from date id refs lines chars misc]
+	      (setq header (make-vector 8 nil))
+	      (aset header 0 number)
+	      (forward-char)		; move past the "\t"
+	      (aset header 1 (nov/field))
+	      (aset header 2 (nov/field))
+	      (aset header 5 (nov/field))
+	      (aset header 6 (nov/field))
+	      (aset header 7 (nov/field))
+	      (nov/skip-field)
+	      ;; #### this could benefit from using nntp/read-integer
+	      (aset header 4 (string-to-int (nov/field)))
+	      (backward-char)
+	      (if (search-forward "\txref: " eol t)
+		  (aset header 3 (nov/field)))
+	      (setq headers (cons header headers))
+	      ))
+	(forward-line)
+	)
+      )
+    (setq headers (nreverse headers))
+    headers))
+
+;;;;;;;;;;;;;;;;
+;;; A workaround for missing Xrefs in the overview data.
+
+;(defun nntp/add-to-hook (hook-name value)
+;  (let ((hook nil))
+;    (if (boundp hook-name)
+;	(setq hook (symbol-value hook-name)))
+;    (if (or (subrp hook)
+;	    (and hook (symbolp hook))
+;	    (and (listp hook) (eq (car hook) 'lambda)))
+;	(setq hook (list hook)))
+;    (or (memq value hook)
+;	(setq hook (cons value hook)))
+;    (set hook-name hook)))
+
+;(nntp/add-to-hook
+; 'gnus-Article-prepare-hook
+; 'nntp/article-get-xrefs)
+
+(add-hook 'gnus-article-prepare-hook 'nntp/article-get-xrefs)
+
+
+(defvar gnus-current-headers nil)	; from gnus.el
+
+(defun nntp/article-get-xrefs ()
+  "Fill in the Xref value in 'gnus-current-headers, if necessary.
+This is meant to be called in 'gnus-Article-prepare-hook."
+  (or (aref gnus-current-headers 3)
+      (let ( (case-fold-search nil) )
+	(goto-char (point-min))
+	(search-forward "\n\n" nil 'end)
+	(save-restriction
+	  (narrow-to-region (point-min) (point))
+	  (goto-char (point-min))
+	  (if (or (and (eq (downcase (following-char)) ?x)
+		       (looking-at "Xref:"))
+		  (search-forward "\nXref:" nil t))
+	      (progn
+		(goto-char (match-end 0))
+		(forward-char)
+		(aset gnus-current-headers 3
+		      (buffer-substring
+		       (point) (progn (end-of-line) (point))))
+		))))))
+
+;;;;;;;;;;;;;;;;
+;;; Fetch headers using HEAD.
+
+(defun nntp/headers (sequence)
+  (nntp/clear)
+  (nntp/send-head-requests sequence)
+  (nntp/parse-headers sequence))
+
+(defun nntp/send-head-requests (sequence)
+  (message "NNTP: requesting headers...")
+  (let ((L (length sequence))
+	(count 0))
+    (while sequence
+      (accept-process-output)
+      (process-send-string
+       nntp/connection
+       (concat "HEAD " (car sequence) "\r\n"))
+      (if (= 0 (% count 5000))
+	  (gnus-lazy-message "NNTP: requesting headers... %d%%" (/ count L)))
+      (setq count (+ count 100))
+      (setq sequence (cdr sequence))))
+  )
+
+(defun nntp/parse-headers (sequence)
+  (message "NNTP: parsing headers...")
+  (let ((headers nil)
+	(code nil)
+	(L (length sequence))
+	(count 0))
+    (while sequence
+      (chat/with-data-until-string "\n" nntp/connection
+	(setq code (nntp/read-integer (point-min))))
+      (if (eq code 221)
+	  (chat/with-data-until-dot-crlf nntp/connection
+	    (setq headers (cons (nntp/parse-header (car sequence)) headers)))
+	(chat/with-buffer-of nntp/connection		; jwz: added this
+          (forward-line)))
+      (if (= 0 (% count 5000))
+	  (gnus-lazy-message "NNTP: parsing headers... %d%%" (/ count L)))
+      (setq count (+ count 100))
+      (setq sequence (cdr sequence)))
+    (nreverse headers)))
+
+;;; #### should this be inline?
+(defun nntp/header-value ()
+  (goto-char (match-end 0))
+  (skip-chars-forward "\t ")
+  (buffer-substring
+   (point)
+   (progn
+     (while
+	 (progn
+	   (end-of-line)
+	   (if (eq (preceding-char) ?\r)
+	       (delete-char -1))
+	   (forward-char)
+	   (memq (following-char) '(?\t ? )))
+       (delete-char -1)
+       (delete-char 1)
+       (insert ? ))
+     (1- (point))))
+  )
+
+(defun nntp/parse-header (number)
+  (let ((header (make-vector 8 nil))
+	(case-fold-search t)
+	char)
+    ;; The old nntp.el used to always use 0 as the message number of
+    ;; articles which were requested by message-id.  It might make more
+    ;; sense to put the message-id in there, but it breaks things.  --jwz
+    (aset header 0 (if (numberp number) number 0))
+
+    (aset header 4 0)
+    (while (not (eobp))
+      ;; header: [num subject from xref lines date id refs]
+      (if (not (looking-at "subject:\\|from:\\|xref:\\|lines:\\|date:\\|message-id:\\|references:"))
+	  (forward-line)
+	(setq char (downcase (following-char))) ; lemacs addition
+	(cond
+	 ((eq char ?s)
+	  (aset header 1 (nntp/header-value)))
+	 ((eq char ?f)
+	  (aset header 2 (nntp/header-value)))
+	 ((eq char ?x)
+	  (aset header 3 (nntp/header-value)))
+	 ((eq char ?l)
+	  ;; #### this could benefit from using nntp/read-integer
+	  (aset header 4 (string-to-int (nntp/header-value))))
+	 ((eq char ?d)
+	  (aset header 5 (nntp/header-value)))
+	 ((eq char ?m)
+	  (aset header 6 (nntp/header-value)))
+	 ((eq char ?r)
+	  (aset header 7 (nntp/header-value)))
+	 ))
+      )
+    ;; lemacs addition: if this article was requested by message id, try to
+    ;; figure out what its article number in the current group is.  This can
+    ;; only succeed if the article is a crosspost, or if this NNTP server adds
+    ;; an "Xref:" field to all articles (some do.)  In any event, if this can
+    ;; succeed, it returns a more meaningful result, so give it a try.  The
+    ;; consing and funcalls in here are not a big deal because the only time
+    ;; articles are retrieved by message-id is when we're only getting a
+    ;; single article.
+    (and (not (numberp number))
+	 (stringp (aref header 3))
+	 nntp/group
+	 (string-match (concat "[ \t]"
+			       (regexp-quote nntp/group)
+			       ":\\([0-9]+\\)")
+		       (aref header 3))
+	 (aset header 0 (car (read-from-string (aref header 3)
+					       (match-beginning 1)
+					       (match-end 1)))))
+    header))
+
+;;; ADDED for gnus3.15
 
 (defun nntp-request-list-newsgroups ()
   "List newsgroups (defined in NNTP2)."
-  (prog1
-      (nntp-send-command "^\\.\r$" "LIST NEWSGROUPS")
-    (nntp-decode-text)
-    ))
+  (nntp/command "LIST NEWSGROUPS")
+  (if (eq (nntp/response) 215)
+      (nntp/wait-for-text)))
 
 (defun nntp-request-list-distributions ()
   "List distributions (defined in NNTP2)."
-  (prog1
-      (nntp-send-command "^\\.\r$" "LIST DISTRIBUTIONS")
-    (nntp-decode-text)
-    ))
-
-(defun nntp-request-last ()
-  "Set current article pointer to the previous article
-in the current news group."
-  (nntp-send-command "^[23].*\r$" "LAST"))
-
-(defun nntp-request-next ()
-  "Advance current article pointer."
-  (nntp-send-command "^[23].*\r$" "NEXT"))
-
-(defun nntp-request-post ()
-  "Post a new news in current buffer."
-  ;; Some hosts take forever to post, so I added more status msgs. -- jwz
-  (message "NNTP: awaiting POST connection...")
-  (if (nntp-send-command "^[23].*\r$" "POST")
-      (progn
-	(message "NNTP: got POST connection; encoding text...")
-	(nntp-encode-text)
-	(message "NNTP: got POST connection; sending text...")
-	(nntp-send-region-to-server (point-min) (point-max))
-	;; 1.2a NNTP's post command is buggy. "^M" (\r) is not
-	;;  appended to end of the status message.
-	(message "NNTP: text sent; awaiting response...")
-	(prog1
-	    (nntp-wait-for-response "^[23].*$")
-	  (message "NNTP: post complete.")))))
-
-(defun nntp-default-sentinel (proc status)
-  "Default sentinel function for NNTP server process."
-  (if (and nntp-server-process
-	   (not (nntp-server-opened)))
-      (error "NNTP: Connection closed.")
-    ))
-
-;; Encoding and decoding of NNTP text.
-
-(defun nntp-decode-text ()
-  "Decode text transmitted by NNTP.
-0. Delete status line.
-1. Delete `^M' at end of line.
-2. Delete `.' at end of buffer (end of text mark).
-3. Delete `.' at beginning of line."
-  (save-excursion
-    (set-buffer nntp-server-buffer)
-    ;; Insert newline at end of buffer.
-    (goto-char (point-max))
-    (if (not (bolp))
-	(insert "\n"))
-    ;; Delete status line.
-    (goto-char (point-min))
-    (delete-region (point) (progn (forward-line 1) (point)))
-    ;; Delete `^M' at end of line.
-    ;; (replace-regexp "\r$" "")
-    (while (not (eobp))
-      (end-of-line)
-      (if (= (preceding-char) ?\r)
-	  (delete-char -1))
-      (forward-line 1)
-      )
-    ;; Delete `.' at end of buffer (end of text mark).
-    (goto-char (point-max))
-    (forward-line -1)			;(beginning-of-line)
-    (if (looking-at "^\\.$")
-	(delete-region (point) (progn (forward-line 1) (point))))
-    ;; Replace `..' at beginning of line with `.'.
-    (goto-char (point-min))
-    ;; (replace-regexp "^\\.\\." ".")
-    (while (search-forward "\n.." nil t)
-      (delete-char -1))
-    ))
-
-(defun nntp-encode-text ()
-  "Encode text in current buffer for NNTP transmission.
-1. Insert `.' at beginning of line.
-2. Insert `.' at end of buffer (end of text mark)."
-  (save-excursion
-    ;; Insert newline at end of buffer.
-    (goto-char (point-max))
-    (if (not (bolp))
-	(insert "\n"))
-    ;; Replace `.' at beginning of line with `..'.
-    (goto-char (point-min))
-    ;; (replace-regexp "^\\." "..")
-    (while (search-forward "\n." nil t)
-      (insert "."))
-    ;; Insert `.' at end of buffer (end of text mark).
-    (goto-char (point-max))
-    (insert ".\n")
-    ))
-
-
-;;;
-;;; Synchronous Communication with NNTP Server.
-;;;
-
-(defun nntp-send-command (response cmd &rest args)
-  "Wait for server RESPONSE after sending CMD and optional ARGS to server."
-  (save-excursion
-    ;; Clear communication buffer.
-    (set-buffer nntp-server-buffer)
-    (erase-buffer)
-    (apply 'nntp-send-strings-to-server cmd args)
-    (if response
-	(nntp-wait-for-response response)
-      t)
-    ))
-
-(defun nntp-wait-for-response (regexp)
-  "Wait for server response which matches REGEXP."
-  (save-excursion
-    (let ((status t)
-	  (wait t)
-	  (dotnum 0)			;Number of "." being displayed.
-	  (dotsize			;How often "." displayed.
-	   (if (numberp nntp-debug-read) nntp-debug-read 10000)))
-      (set-buffer nntp-server-buffer)
-      ;; Wait for status response (RFC977).
-      ;; 1xx - Informative message.
-      ;; 2xx - Command ok.
-      ;; 3xx - Command ok so far, send the rest of it.
-      ;; 4xx - Command was correct, but couldn't be performed for some
-      ;;       reason.
-      ;; 5xx - Command unimplemented, or incorrect, or a serious
-      ;;       program error occurred.
-      (nntp-accept-response)
-      (while wait
-	(goto-char (point-min))
-	(cond ((looking-at "[23]")
-	       (setq wait nil))
-	      ((looking-at "[45]")
-	       (setq status nil)
-	       (setq wait nil))
-	      (t (nntp-accept-response))
-	      ))
-      ;; Save status message.
-      (end-of-line)
-      (setq nntp-status-string
-	    (buffer-substring (point-min) (point)))
-      (if status
-	  (progn
-	    (setq wait t)
-	    (while wait
-	      (goto-char (point-max))
-	      (forward-line -1)		;(beginning-of-line)
-	      ;;(message (buffer-substring
-	      ;;	 (point)
-	      ;;	 (save-excursion (end-of-line) (point))))
-	      (if (looking-at regexp)
-		  (setq wait nil)
-		(if nntp-debug-read
-		    (let ((newnum (/ (buffer-size) dotsize)))
-		      (if (not (= dotnum newnum))
-			  (progn
-			    (setq dotnum newnum)
-			    (gnus-lazy-message "NNTP: Reading %s"
-					       (make-string dotnum ?.))))))
-		(nntp-accept-response)
-		;;(if nntp-debug-read (message ""))
-		))
-	    ;; Remove "...".
-	    (if (and nntp-debug-read (> dotnum 0))
-		(message ""))
-	    ;; Successfully received server response.
-	    t
-	    ))
-      )))
-
-
-;;;
-;;; Low-Level Interface to NNTP Server.
-;;; 
-
-(defun nntp-send-strings-to-server (&rest strings)
-  "Send list of STRINGS to news server as command and its arguments."
-  (let ((cmd (car strings))
-	(strings (cdr strings)))
-    ;; Command and each argument must be separated by one or more spaces.
-    (while strings
-      (setq cmd (concat cmd " " (car strings)))
-      (setq strings (cdr strings)))
-    ;; Command line must be terminated by a CR-LF.
-    (process-send-string nntp-server-process (concat cmd "\r\n"))
-    ))
-
-(defun nntp-send-region-to-server (begin end)
-  "Send current buffer region (from BEGIN to END) to news server."
-  (save-excursion
-    ;; We have to work in the buffer associated with NNTP server
-    ;;  process because of NEmacs hack.
-    (copy-to-buffer nntp-server-buffer begin end)
-    (set-buffer nntp-server-buffer)
-    (setq begin (point-min))
-    (setq end (point-max))
-    ;; `process-send-region' does not work if text to be sent is very
-    ;;  large. I don't know maximum size of text sent correctly.
-    (let* ((last nil)
-	   (size 100)			;Size of text sent at once.
-	   (total (/ (- end begin) size))
-	   (sent 0))
-      (save-restriction
-	(narrow-to-region begin end)
-	(goto-char begin)
-	(while (not (eobp))
-	  (gnus-lazy-message "NNTP: got POST connection; sending text...(%d%%)"
-			     (/ (* 100 sent) total))
-	  (setq sent (+ sent 1))
-	  ;;(setq last (min end (+ (point) size)))
-	  ;; NEmacs gets confused if character at `last' is Kanji.
-	  (setq last (save-excursion
-		       (goto-char (min end (+ (point) size)))
-		       (or (eobp) (forward-char 1)) ;Adjust point
-		       (point)))
-	  (process-send-region nntp-server-process (point) last)
-	  ;; I don't know whether the next codes solve the known
-	  ;;  problem of communication error of GNU Emacs.
-	  (accept-process-output)
-	  ;;(sit-for 0)
-	  (goto-char last)
-	  )))
-    ;; We cannot erase buffer, because reply may be received.
-    (delete-region begin end)
-    ))
-
-(defun nntp-open-server-internal (host &optional service)
-  "Open connection to news server on HOST by SERVICE (default is nntp)."
-  (save-excursion
-    ;; Use TCP/IP stream emulation package if needed.
-    (or (fboundp 'open-network-stream)
-	(require 'tcp))
-    ;; Initialize communication buffer.
-    (setq nntp-server-buffer (get-buffer-create " *nntpd*"))
-    (set-buffer nntp-server-buffer)
-    (buffer-flush-undo (current-buffer))
-    (erase-buffer)
-    (kill-all-local-variables)
-    (setq case-fold-search t)		;Should ignore case.
-    (setq nntp-server-process
-	  (open-network-stream "nntpd" (current-buffer)
-			       host (or service "nntp")))
-    (setq nntp-server-name host)
-    ;; It is possible to change kanji-fileio-code in this hook.
-    (run-hooks 'nntp-server-hook)
-    ;; Kill this process without complaint when exiting Emacs
-    ;; (the .newsrc file is the interesting part, not the connection.)
-    (process-kill-without-query nntp-server-process)
-    ;; Return the server process.
-    nntp-server-process
-    ))
-
-(defun nntp-close-server-internal ()
-  "Close connection to news server."
-  (if nntp-server-process
-      (delete-process nntp-server-process))
-  (if nntp-server-buffer
-      (kill-buffer nntp-server-buffer))
-  (setq nntp-server-buffer nil)
-  (setq nntp-server-process nil))
-
-(defun nntp-accept-response ()
-  "Read response of server.
-It is well-known that the communication speed will be much improved by
-defining this function as macro."
-  ;; To deal with server process exiting before
-  ;;  accept-process-output is called.
-  ;; Suggested by Jason Venner <jason@violet.berkeley.edu>.
-  ;; This is a copy of `nntp-default-sentinel'.
-  (or (memq (process-status nntp-server-process) '(open run))
-      (error "NNTP: Connection closed."))
-  (if nntp-buggy-select
-      (progn
-	;; We cannot use `accept-process-output'.
-	;; Fujitsu UTS requires messages during sleep-for. I don't know why.
-	(gnus-lazy-message "NNTP: Reading...")
-	(sleep-for 1)
-	(message ""))
-    (condition-case errorcode
-	(accept-process-output nntp-server-process)
-      (error
-       (cond ((string-equal "select error: Invalid argument" (nth 1 errorcode))
-	      ;; Ignore select error.
-	      nil
-	      )
-	     (t
-	      (signal (car errorcode) (cdr errorcode))))
-       ))
-    ))
-
-(provide 'nntp)
+  (nntp/command "LIST DISTRIBUTIONS")
+  (if (eq (nntp/response) 215)
+      (nntp/wait-for-text)))
 
 ;;; nntp.el ends here

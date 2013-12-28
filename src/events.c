@@ -1,5 +1,5 @@
 /* Events: printing them, converting them to and from characters.
-   Copyright (C) 1991, 1992, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1991, 1992, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -282,7 +282,7 @@ format_event_object (buf, event, brief)
     }
   else if (SYMBOLP (key))
     {
-      const char *str = 0;
+      CONST char *str = 0;
       if (brief)
 	{
 	  if (EQ (key, QKlinefeed)) str = "LFD";
@@ -314,7 +314,7 @@ format_event_object (buf, event, brief)
 
 
 static void
-print_event_1 (const char *str, Lisp_Object obj, Lisp_Object printcharfun)
+print_event_1 (CONST char *str, Lisp_Object obj, Lisp_Object printcharfun)
 {
   char buf[255];
   write_string_1 (str, -1, printcharfun);
@@ -596,25 +596,31 @@ DEFUN ("event-button", Fevent_button, Sevent_button, 1, 1, 0,
 
 DEFUN ("event-modifier-bits", Fevent_modifier_bits, Sevent_modifier_bits,
        1, 1, 0,
-       "Returns a number representing the modifier keys which were down \n\
+       "Returns a number representing the modifier keys which were down\n\
 when the given mouse or keyboard event was produced.  See also the function\n\
 event-modifiers.")
      (event)
   Lisp_Object event;
 {
+ again:
   CHECK_EVENT_SAFE (event, 0);
-  if (XEVENT (event)->event_type != key_press_event &&
-      XEVENT (event)->event_type != button_press_event &&
-      XEVENT (event)->event_type != button_release_event)
-    wrong_type_argument (intern ("key-or-mouse-event-p"), event);
-  return make_number((XEVENT (event)->event_type != key_press_event)
-		     ? XEVENT (event)->event.key.modifiers
-		     : XEVENT (event)->event.button.modifiers);
+  if (XEVENT (event)->event_type == key_press_event)
+    return make_number (XEVENT (event)->event.key.modifiers);
+  else if (XEVENT (event)->event_type == button_press_event ||
+	   XEVENT (event)->event_type == button_release_event)
+    return make_number (XEVENT (event)->event.button.modifiers);
+  else if (XEVENT (event)->event_type == pointer_motion_event)
+    return make_number (XEVENT (event)->event.motion.modifiers);
+  else
+    {
+      event = wrong_type_argument (intern ("key-or-mouse-event-p"), event);
+      goto again;
+    }
 }
 
 DEFUN ("event-modifiers", Fevent_modifiers, Sevent_modifiers, 1, 1, 0,
-       "Returns a list of symbols, the names of the modifier keys which \n\
-were down when the given mouse or keyboard event was produced.\n\
+       "Returns a list of symbols, the names of the modifier keys\n\
+which were down when the given mouse or keyboard event was produced.\n\
 See also the function event-modifier-bits.")
      (event)
   Lisp_Object event;
@@ -701,6 +707,28 @@ event_pixel_translation (event, char_x, char_y, w, bufp, class)
     *bufp = 0;
   else if (*w && NILP ((*w)->buffer))
     *w = 0; /* Why does this happen? */
+
+
+  /* #### Kludge Kludge Kludge
+     pixel_to_glyph_translation() sometimes returns these bogus objects
+     that are supposed to be extents but are pointers to blocks of memory
+     that are all 0, like
+
+       (gdb) p *((struct extent*)v2.gu.val)
+       $1 = {
+	  lheader = {
+	    implementation = 0x0;
+	  }; 
+	  ehead = {
+	    start = 0; 
+	    end = 0; 
+       ...
+
+     I don't understand how to fix this, but for now, just avoid a crash.
+     If `class' is an lrecord, but has no `implementation', set it to nil.
+   */
+  if (RECORD_TYPEP (*class, 0))
+    *class = Qnil;
 }
 
 

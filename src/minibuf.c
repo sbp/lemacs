@@ -42,9 +42,6 @@ int completion_ignore_case;
 /* Width in columns of current minibuffer prompt.  */
 extern int minibuf_prompt_width;
 
-/* Width in pixels of current minibuffer prompt.  */
-extern int minibuf_prompt_pix_width;
-
 
 DEFUN ("minibuffer-depth", Fminibuffer_depth, Sminibuffer_depth, 0, 0, 0,
   "Return current depth of activations of minibuffer, a nonnegative integer.")
@@ -69,8 +66,7 @@ read_minibuffer_internal_unwind (Lisp_Object unwind_data)
   XWINDOW (minibuf_window)->last_facechange = Qzero;
   Vminibuf_prompt = Felt (unwind_data, Qzero);
   minibuf_prompt_width = XINT (Felt (unwind_data, make_number (1)));
-  minibuf_prompt_pix_width = XINT (Felt (unwind_data, make_number (2)));
-  minibuf_level = XINT (Felt (unwind_data, make_number (3)));
+  minibuf_level = XINT (Felt (unwind_data, make_number (2)));
   while (CONSP (unwind_data))
   {
     Lisp_Object victim = unwind_data;
@@ -93,9 +89,8 @@ DEFUN ("read-minibuffer-internal",
   CHECK_STRING (prompt, 0);
 
   record_unwind_protect (read_minibuffer_internal_unwind,
-                         list4 (Vminibuf_prompt,
+                         list3 (Vminibuf_prompt,
                                 make_number (minibuf_prompt_width),
-                                make_number (minibuf_prompt_pix_width),
                                 make_number (minibuf_level)));
   Vminibuf_prompt = prompt;
   minibuf_level++;
@@ -129,7 +124,7 @@ DEFUN ("read-minibuffer-internal",
 
 int
 scmp (s1, s2, len)
-     register const unsigned char *s1, *s2;
+     register CONST unsigned char *s1, *s2;
      int len;
 {
   register int l = len;

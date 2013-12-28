@@ -57,10 +57,10 @@ Lisp_Object Qask_user_about_supersession_threat;
 Lisp_Object Qask_user_about_lock;
 
 static void fill_in_lock_file_name (char *lockfile, Lisp_Object fn);
-static void lock_superlock (const char *lfname);
+static void lock_superlock (CONST char *lfname);
 
 static Lisp_Object
-lock_file_owner_name (const char *lfname)
+lock_file_owner_name (CONST char *lfname)
 {
   struct stat s;
   struct passwd *the_pw = 0;
@@ -92,8 +92,8 @@ lock_file_owner_name (const char *lfname)
    and put in the Emacs lock directory.  */
 /* (ie., /ka/king/junk.tex -> /!/!ka!king!junk.tex). */
 
-static int lock_file_1 (const char *lfname, int mode);
-static int lock_if_free (const char *lfname);
+static int lock_file_1 (CONST char *lfname, int mode);
+static int lock_if_free (CONST char *lfname);
 
 void
 lock_file (fn)
@@ -174,7 +174,7 @@ fill_in_lock_file_name (char *lockfile, Lisp_Object fn)
    Return 1 if successful, 0 if not.  */
 
 static int
-lock_file_1 (const char *lfname, int mode)
+lock_file_1 (CONST char *lfname, int mode)
 {
   register int fd;
   char buf[20];
@@ -195,7 +195,7 @@ lock_file_1 (const char *lfname, int mode)
     return 0;
 }
 
-static int current_lock_owner (const char *);
+static int current_lock_owner (CONST char *);
 
 /* Lock the lock named LFNAME if possible.
    Return 0 in that case.
@@ -203,7 +203,7 @@ static int current_lock_owner (const char *);
    Return -1 if cannot lock for any other reason.  */
 
 static int
-lock_if_free (const char *lfname)
+lock_if_free (CONST char *lfname)
 {
   register int clasher;
 
@@ -221,14 +221,14 @@ lock_if_free (const char *lfname)
   return 0;
 }
 
-static int current_lock_owner_1 (const char *);
+static int current_lock_owner_1 (CONST char *);
 
 /* Return the pid of the process that claims to own the lock file LFNAME,
    or 0 if nobody does or the lock is obsolete,
    or -1 if something is wrong with the locking mechanism.  */
 
 static int
-current_lock_owner (const char *lfname)
+current_lock_owner (CONST char *lfname)
 {
   int owner = current_lock_owner_1 (lfname);
   if (owner == 0 && errno == ENOENT)
@@ -242,7 +242,7 @@ current_lock_owner (const char *lfname)
 }
 
 static int
-current_lock_owner_1 (const char *lfname)
+current_lock_owner_1 (CONST char *lfname)
 {
   register int fd;
   char buf[20];
@@ -281,7 +281,7 @@ unlock_file (fn)
 
 static void
 lock_superlock (lfname)
-     const char *lfname;
+     CONST char *lfname;
 {
   register int i, fd;
 

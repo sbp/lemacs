@@ -20,12 +20,13 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #ifndef _EMACS_MEM_LIMITS_H_
 #define _EMACS_MEM_LIMITS_H_
 
-#if defined(__osf__) && (defined(__mips) || defined(mips))
+/* __alpha added here by grunwald@foobar.cs.colorado.edu for lemacs */
+#if defined(__osf__) && (defined(__mips) || defined(mips) || defined(__alpha))
 #include <sys/time.h>
 #include <sys/resource.h>
 #endif
 
-#ifdef __bsdi__
+#if defined(__bsdi__) || defined(__NetBSD__)
 #define BSD4_2
 #endif
 

@@ -37,6 +37,7 @@ whitespace is considered to match, and is skipped.")
 ignores case differences.  Some useful settings: nil, t or 'case-fold-search,
 meaning to track the value of the `case-fold-search' variable.")
 
+;;;###autoload
 (defun compare-windows (&optional ignore-whitespace)
   "Compare text in current window with text in next window.
 Compares the text starting at point in each window,

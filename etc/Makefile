@@ -61,6 +61,7 @@ INSTALLABLE_SCRIPTS = rcs-checkin
 # which should not be installed in bindir.
 UTILITIES= test-distrib make-path wakeup make-docfile digest-doc sorted-doc \
 	movemail cvtmail fakemail yow env emacsserver hexl
+#	make-msgfile make-po
 
 # Like UTILITIES, but they're not system-dependent, and should not be
 # deleted by the distclean target.
@@ -74,7 +75,7 @@ SOURCES = COPYING ChangeLog Makefile.in README aixcc.lex emacs.csh \
 ### We need to #define emacs to get the right versions of some files.
 ### Some other files - those shared with other GNU utilities - need
 ### HAVE_CONFIG_H #defined before they know they can take advantage of
-### the information in ../src/config.h.
+### the information in ${srcdir}/../src/config.h.
 ALL_CFLAGS = ${C_SWITCH_SYSTEM} -Demacs -DHAVE_CONFIG_H \
    -I${srcdir} -I${srcdir}/../src -I. -I../src ${CFLAGS}
 CPP_CFLAGS = ${C_SWITCH_SYSTEM} -Demacs -DHAVE_CONFIG_H \
@@ -142,10 +143,10 @@ uninstall:
 	 rm -f ${UTILITIES} ${INSTALLABLES} ${SCRIPTS} ${INSTALLABLE_SCRIPTS})
 
 clean mostlyclean:
-	-rm -f ${INSTALLABLES} ${UTILITIES} core *.o
+	-rm -rf ${INSTALLABLES} ${UTILITIES} core *.o .sb
 
 distclean: clean
-	-rm -f ../etc/DOC* *.tab.c *.tab.h aixcc.c TAGS
+	-rm -rf ../etc/DOC* *.tab.c *.tab.h aixcc.c TAGS .sb
 
 realclean: distclean
 	true
@@ -181,7 +182,7 @@ getopt.o: ${srcdir}/getopt.c ${srcdir}/getopt.h
 getopt1.o: ${srcdir}/getopt1.c ${srcdir}/getopt.h
 	${CC} -c ${CPP_CFLAGS} ${srcdir}/getopt1.c
 
-etags: ${srcdir}/etags.c $(GETOPTDEPS) ../src/config.h
+etags: ${srcdir}/etags.c $(GETOPTDEPS) ${srcdir}/../src/config.h
 	$(CC) ${CPP_CFLAGS} -DETAGS ${srcdir}/etags.c $(GETOPTOBJS) $(LOADLIBES) -o etags
 
 # We depend on etags to assure that parallel makes don't write two
@@ -201,36 +202,42 @@ digest-doc: ${srcdir}/digest-doc.c
 sorted-doc: ${srcdir}/sorted-doc.c ${ALLOCA}
 	$(CC) ${CPP_CFLAGS} ${srcdir}/sorted-doc.c ${ALLOCA} $(LOADLIBES) -o sorted-doc
 
-b2m: ${srcdir}/b2m.c ../src/config.h
+b2m: ${srcdir}/b2m.c ${srcdir}/../src/config.h
 	$(CC) -I${srcdir}/../src ${CPP_CFLAGS} ${srcdir}/b2m.c $(LOADLIBES) -o b2m 
 
-movemail: ${srcdir}/movemail.c ../src/config.h
+movemail: ${srcdir}/movemail.c ${srcdir}/../src/config.h
 	$(CC) -I${srcdir}/../src ${CPP_CFLAGS} ${srcdir}/movemail.c $(LOADLIBES) -o movemail
 
 cvtmail: ${srcdir}/cvtmail.c
 	$(CC) ${CPP_CFLAGS} ${srcdir}/cvtmail.c $(LOADLIBES) -o cvtmail
 
-fakemail: ${srcdir}/fakemail.c ../src/config.h
+fakemail: ${srcdir}/fakemail.c ${srcdir}/../src/config.h
 	$(CC) -I${srcdir}/../src ${CPP_CFLAGS} ${srcdir}/fakemail.c $(LOADLIBES) -o fakemail
 
-yow: ${srcdir}/yow.c ../src/paths.h
+yow: ${srcdir}/yow.c ${srcdir}/../src/paths.h
 	$(CC) ${CPP_CFLAGS} ${srcdir}/yow.c $(LOADLIBES) -o yow
 
-env: ${srcdir}/env.c ../src/config.h
+env: ${srcdir}/env.c ${srcdir}/../src/config.h
 	$(CC) -DEMACS -I${srcdir}/../src ${CPP_CFLAGS} ${srcdir}/env.c $(LOADLIBES) -o env
 
-emacsserver: ${srcdir}/emacsserver.c ../src/config.h
+emacsserver: ${srcdir}/emacsserver.c ${srcdir}/../src/config.h
 	$(CC) -I${srcdir}/../src ${CPP_CFLAGS} ${srcdir}/emacsserver.c $(LOADLIBES) -o emacsserver
 
-emacsclient: ${srcdir}/emacsclient.c ../src/config.h
+emacsclient: ${srcdir}/emacsclient.c ${srcdir}/../src/config.h
 	$(CC) -I${srcdir}/../src ${CPP_CFLAGS} ${srcdir}/emacsclient.c $(LOADLIBES) -o emacsclient
 
 hexl: ${srcdir}/hexl.c
 	$(CC) ${CPP_CFLAGS} ${srcdir}/hexl.c $(LOADLIBES) -o hexl
 
+make-msgfile: ${srcdir}/make-msgfile.c
+	$(CC) ${CPP_CFLAGS} ${srcdir}/make-msgfile.c $(LOADLIBES) -o make-msgfile
+
+make-po: ${srcdir}/make-po.c
+	$(CC) ${CPP_CFLAGS} ${srcdir}/make-po.c $(LOADLIBES) -o make-po
+
 
 TIMEROBJS=getdate.o timer.o $(ALLOCA)
-getdate.o: ${srcdir}/getdate.y ../src/config.h
+getdate.o: ${srcdir}/getdate.y ${srcdir}/../src/config.h
 	${YACC} ${YFLAGS} ${srcdir}/getdate.y
 	$(CC) -I${srcdir}/../src $(CPP_CFLAGS) -c y.tab.c
 	mv y.tab.o getdate.o
@@ -243,7 +250,7 @@ make-path: ${srcdir}/make-path.c
 	$(CC) $(CPP_CFLAGS) ${srcdir}/make-path.c -o make-path
 
 # These are NOT included in INSTALLABLES or UTILITIES.
-# See ../src/ymakefile.
+# See ${srcdir}/../src/ymakefile.
 emacstool: ${srcdir}/emacstool.c
 	$(CC) ${srcdir}/emacstool.c -o emacstool ${CPP_CFLAGS} \
 	  -lsuntool -lsunwindow -lpixrect $(LOADLIBES)

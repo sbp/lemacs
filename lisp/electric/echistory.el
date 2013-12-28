@@ -97,6 +97,7 @@ With prefix argument NOCONFIRM, execute current line as-is without editing."
 (defvar electric-command-history-hook nil
   "If non-nil, its value is called by `electric-command-history'.")
 
+;;;###autoload
 (defun electric-command-history ()
   "\\<electric-history-map>Major mode for examining and redoing commands from `command-history'.
 This pops up a window with the Command History listing.

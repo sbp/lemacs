@@ -3,7 +3,7 @@
 
 typedef struct
 {
-  const void *key;
+  CONST void *key;
   void	     *contents;
 } hentry;
 
@@ -14,8 +14,8 @@ struct _C_hashtable
   void		*zero_entry;
   unsigned int	size;		/* size of the hasharray */
   unsigned int	fullness;	/* number of entries in the hashtable */
-  unsigned long (*hash_function) (const void *);
-  int		(*test_function) (const void *, const void *);
+  unsigned long (*hash_function) (CONST void *);
+  int		(*test_function) (CONST void *, CONST void *);
 #ifdef emacs
   Lisp_Object elisp_table;
 #endif
@@ -28,8 +28,8 @@ typedef struct _C_hashtable *c_hashtable;
 extern c_hashtable make_hashtable (unsigned int size);
 
 extern c_hashtable make_general_hashtable 
-  (unsigned int hsize, unsigned long (*hash_function) (const void *),
-   int (*test_function)(const void *, const void *));
+  (unsigned int hsize, unsigned long (*hash_function) (CONST void *),
+   int (*test_function)(CONST void *, CONST void *));
 
 extern c_hashtable make_strings_hashtable (unsigned int hsize);
 
@@ -40,19 +40,19 @@ extern void clrhash (c_hashtable hash);
 extern void free_hashtable (c_hashtable hash);
 
 /* returns a hentry whose key is 0 if the entry does not exist in hashtable */
-extern const void* gethash (const void* key, c_hashtable hash, 
-                            const void** ret_value);
+extern CONST void* gethash (CONST void* key, c_hashtable hash, 
+                            CONST void** ret_value);
 
 /* key should be different from 0 */
-extern void puthash (const void* key, void* contents, c_hashtable hash);
+extern void puthash (CONST void* key, void* contents, c_hashtable hash);
 
 /* delete the entry which key is key */
-extern void remhash (const void* key, c_hashtable hash);
+extern void remhash (CONST void* key, c_hashtable hash);
 
-typedef void (*maphash_function) (const void* key, void* contents, 
+typedef void (*maphash_function) (CONST void* key, void* contents, 
                                   void* arg);
 
-typedef int (*remhash_predicate) (const void* key, const void* contents,
+typedef int (*remhash_predicate) (CONST void* key, CONST void* contents,
                                   void* arg);
 
 typedef void (*generic_hashtable_op) (c_hashtable table, 

@@ -1487,7 +1487,9 @@ an undefined location.
 ;;; Menus for bibtex mode
 
 (defconst bibtex-menu
-  '("Entry Types"
+  '("BibTeX Commands"
+    "Entry Types"
+    "---"
     ["Article in Conference Proceedings" bibtex-InProceedings		t]
     ["Article in Journal"		bibtex-Article			t]
     ["Book"				bibtex-Book			t]
@@ -1522,7 +1524,7 @@ an undefined location.
 
 (defun bibtex-menu ()
   (interactive)
-  (popup-menu (nconc (list (car bibtex-menu) (car bibtex-menu) "---")
-		     (cdr bibtex-menu))))
+  (let ((popup-menu-titles nil))
+    (popup-menu bibtex-menu)))
 
 ;;; bibtex.el ends here

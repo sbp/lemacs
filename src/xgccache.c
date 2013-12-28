@@ -90,7 +90,7 @@ struct gc_cache {
 
 #ifdef GCCACHE_HASH
 static unsigned long 
-gc_cache_hash (const void *arg)
+gc_cache_hash (CONST void *arg)
 {
   struct gcv_and_mask *gcvm = (struct gcv_and_mask *) arg;
   register unsigned long *longs = (unsigned long *) &gcvm->gcv;
@@ -109,7 +109,7 @@ gc_cache_hash (const void *arg)
 #endif /* GCCACHE_HASH */
 
 static int 
-gc_cache_eql (const void *arg1, const void *arg2)
+gc_cache_eql (CONST void *arg1, CONST void *arg2)
 {
   /* See comment in gc_cache_hash */
   return (!memcmp (arg1, arg2, sizeof (struct gcv_and_mask)));

@@ -57,7 +57,8 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define TERMINFO
 
 /* Define sizes of portions of a Lisp_Object.  */
-/* yuck, is this really necessary?? -jwz */
+/* I'm certain none of this works with lemacs. -jwz */
+#error fixme
 #define VALBITS 22
 #define GCTYPEBITS 5
 

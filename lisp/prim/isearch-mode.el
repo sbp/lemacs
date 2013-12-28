@@ -435,7 +435,7 @@ is treated as a regexp.  See \\[isearch-forward] for more info."
 
 	  isearch-old-pre-command-hook pre-command-hook
 
-	  isearch-mode " Isearch"
+	  isearch-mode (gettext " Isearch")
 	  )
     (add-hook 'pre-command-hook 'isearch-pre-command-hook)
     (set-buffer-modified-p (buffer-modified-p)) ; update modeline
@@ -494,7 +494,9 @@ is treated as a regexp.  See \\[isearch-forward] for more info."
 	(if isearch-other-end
 	    (if (< isearch-other-end (point))
 		(isearch-highlight isearch-other-end (point))
-	      (isearch-highlight (point) isearch-other-end)))
+	      (isearch-highlight (point) isearch-other-end))
+	  (if (extentp isearch-extent)
+	      (isearch-dehighlight nil)))
 	))
   (setq ;; quit-flag nil  not for isearch-mode
    isearch-adjusted nil
@@ -811,11 +813,7 @@ If no previous match was done, just beep."
 		  (buffer-substring
 		   (point)
 		   (save-excursion
-		     (cond
-		      ((eq chunk 'word)
-		       (forward-word 1))
-		      ((eq chunk 'line)
-		       (end-of-line)))
+		     (funcall chunk)
 		     (point)))))))
     ;; if configured so that typing upper-case characters turns off case
     ;; folding, then downcase the string so that yanking an upper-case
@@ -836,12 +834,17 @@ If no previous match was done, just beep."
 (defun isearch-yank-word ()
   "Pull next word from buffer into search string."
   (interactive)
-  (isearch-yank 'word))
+  (isearch-yank (function (lambda () (forward-word 1)))))
 
 (defun isearch-yank-line ()
   "Pull rest of line from buffer into search string."
   (interactive)
-  (isearch-yank 'line))
+  (isearch-yank 'end-of-line))
+
+(defun isearch-yank-sexp ()
+  "Pull next expression from buffer into search string."
+  (interactive)
+  (isearch-yank 'forward-sexp))
 
 (defun isearch-yank-x-selection ()
   "Pull the current X selection into the search string."
@@ -1048,13 +1051,13 @@ Default nil means edit the string from the search ring first.")
 	  (= 0 (length isearch-string))) ; shouldnt have to say this
       (if (equal completion isearch-string)  ;; no extension?
 	  (if completion-auto-help
-	      (with-output-to-temp-buffer "*Isearch completions*"
+	      (with-output-to-temp-buffer (gettext "*Isearch completions*")
 		(display-completion-list 
 		 (all-completions isearch-string alist))))
 	(setq isearch-string completion))
       t)
      (t
-      (temp-minibuffer-message "No completion")
+      (temp-minibuffer-message (gettext "No completion"))
       nil))))
 
 (defun isearch-complete ()
@@ -1130,15 +1133,94 @@ If there is no completion possible, say so and continue searching."
 	   (progn (re-search-forward isearch-string (point) t)
 		  (setq isearch-invalid-regexp nil))
 	 (error nil)))
-  (let ((m (concat (if isearch-success "" "failing ")
-		   (if isearch-wrapped "wrapped ")
-		   (if isearch-word "word " "")
-		   (if isearch-regexp "regexp " "")
-		   (if nonincremental "search" "I-search")
-		   (if isearch-forward ": " " backward: ")
-		   )))
-    (aset m 0 (upcase (aref m 0)))
-    m))
+
+  ;; This is the simple, English-centric way:
+  ;;  (let ((m (concat (if isearch-success "" "failing ")
+  ;;		   (if isearch-wrapped "wrapped ")
+  ;;		   (if isearch-word "word " "")
+  ;;		   (if isearch-regexp "regexp " "")
+  ;;		   (if nonincremental "search" "I-search")
+  ;;		   (if isearch-forward ": " " backward: ")
+  ;;		   )))
+  ;;    (aset m 0 (upcase (aref m 0)))
+  ;;    m)
+
+  ;; But we have to do it in this much harier way to allow the strings to
+  ;; be correctly translated into arbitrary languages, which may have
+  ;; completely different sentence structures/word orderings.
+
+  (let ((i (logior (if isearch-success 32 0)
+		   (if isearch-wrapped 16 0)
+		   (if isearch-word     8 0)
+		   (if isearch-regexp   4 0)
+		   (if nonincremental   2 0)
+		   (if isearch-forward  1 0))))
+    (cond
+     ((= i 63) (gettext "Wrapped word regexp search: "))	       ; 111111
+     ((= i 62) (gettext "Wrapped word regexp search backward: "))      ; 111110
+     ((= i 61) (gettext "Wrapped word regexp I-search: "))	       ; 111101
+     ((= i 60) (gettext "Wrapped word regexp I-search backward: "))    ; 111100
+     ((= i 59) (gettext "Wrapped word search: "))		       ; 111011
+     ((= i 58) (gettext "Wrapped word search backward: "))	       ; 111010
+     ((= i 57) (gettext "Wrapped word I-search: "))		       ; 111001
+     ((= i 56) (gettext "Wrapped word I-search backward: "))	       ; 111000
+     ((= i 55) (gettext "Wrapped regexp search: "))		       ; 110111
+     ((= i 54) (gettext "Wrapped regexp search backward: "))	       ; 110110
+     ((= i 53) (gettext "Wrapped regexp I-search: "))		       ; 110101
+     ((= i 52) (gettext "Wrapped regexp I-search backward: "))	       ; 110100
+     ((= i 51) (gettext "Wrapped search: "))			       ; 110011
+     ((= i 50) (gettext "Wrapped search backward: "))		       ; 110010
+     ((= i 49) (gettext "Wrapped I-search: "))			       ; 110001
+     ((= i 48) (gettext "Wrapped I-search backward: "))		       ; 110000
+     ((= i 47) (gettext "Word regexp search: "))		       ; 101111
+     ((= i 46) (gettext "Word regexp search backward: "))	       ; 101110
+     ((= i 45) (gettext "Word regexp I-search: "))		       ; 101101
+     ((= i 44) (gettext "Word regexp I-search backward: "))	       ; 101100
+     ((= i 43) (gettext "Word search: "))			       ; 101011
+     ((= i 42) (gettext "Word search backward: "))		       ; 101010
+     ((= i 41) (gettext "Word I-search: "))			       ; 101001
+     ((= i 40) (gettext "Word I-search backward: "))		       ; 101000
+     ((= i 39) (gettext "Regexp search: "))			       ; 100111
+     ((= i 38) (gettext "Regexp search backward: "))		       ; 100110
+     ((= i 37) (gettext "Regexp I-search: "))			       ; 100101
+     ((= i 36) (gettext "Regexp I-search backward: "))		       ; 100100
+     ((= i 35) (gettext "Search: "))				       ; 100011
+     ((= i 34) (gettext "Search backward: "))			       ; 100010
+     ((= i 33) (gettext "I-search: "))				       ; 100001
+     ((= i 32) (gettext "I-search backward: "))			       ; 100000
+     ((= i 31) (gettext "Failing wrapped word regexp search: "))       ; 011111
+     ((= i 30) (gettext "Failing wrapped word regexp search backward: ")) ; 011110
+     ((= i 29) (gettext "Failing wrapped word regexp I-search: "))     ; 011101
+     ((= i 28) (gettext "Failing wrapped word regexp I-search backward: ")) ; 011100
+     ((= i 27) (gettext "Failing wrapped word search: "))	       ; 011011
+     ((= i 26) (gettext "Failing wrapped word search backward: "))     ; 011010
+     ((= i 25) (gettext "Failing wrapped word I-search: "))	       ; 011001
+     ((= i 24) (gettext "Failing wrapped word I-search backward: "))   ; 011000
+     ((= i 23) (gettext "Failing wrapped regexp search: "))	       ; 010111
+     ((= i 22) (gettext "Failing wrapped regexp search backward: "))   ; 010110
+     ((= i 21) (gettext "Failing wrapped regexp I-search: "))	       ; 010101
+     ((= i 20) (gettext "Failing wrapped regexp I-search backward: ")) ; 010100
+     ((= i 19) (gettext "Failing wrapped search: "))		       ; 010011
+     ((= i 18) (gettext "Failing wrapped search backward: "))	       ; 010010
+     ((= i 17) (gettext "Failing wrapped I-search: "))		       ; 010001
+     ((= i 16) (gettext "Failing wrapped I-search backward: "))	       ; 010000
+     ((= i 15) (gettext "Failing word regexp search: "))	       ; 001111
+     ((= i 14) (gettext "Failing word regexp search backward: "))      ; 001110
+     ((= i 13) (gettext "Failing word regexp I-search: "))	       ; 001101
+     ((= i 12) (gettext "Failing word regexp I-search backward: "))    ; 001100
+     ((= i 11) (gettext "Failing word search: "))		       ; 001011
+     ((= i 10) (gettext "Failing word search backward: "))	       ; 001010
+     ((= i  9) (gettext "Failing word I-search: "))		       ; 001001
+     ((= i  8) (gettext "Failing word I-search backward: "))	       ; 001000
+     ((= i  7) (gettext "Failing regexp search: "))		       ; 000111
+     ((= i  6) (gettext "Failing regexp search backward: "))	       ; 000110
+     ((= i  5) (gettext "Failing regexp I-search: "))		       ; 000101
+     ((= i  4) (gettext "Failing regexp I-search backward: "))	       ; 000100
+     ((= i  3) (gettext "Failing search: "))			       ; 000011
+     ((= i  2) (gettext "Failing search backward: "))		       ; 000010
+     ((= i  1) (gettext "Failing I-search: "))			       ; 000001
+     ((= i  0) (gettext "Failing I-search backward: "))		       ; 000000
+     (t (error "Something's rotten")))))
 
 
 (defun isearch-message-suffix (&optional c-q-hack)
@@ -1163,6 +1245,7 @@ If there is no completion possible, say so and continue searching."
 (put 'isearch-printing-char			'isearch-command t)
 (put 'isearch-yank-word				'isearch-command t)
 (put 'isearch-yank-line				'isearch-command t)
+(put 'isearch-yank-sexp				'isearch-command t)
 (put 'isearch-*-char				'isearch-command t)
 (put 'isearch-*-char				'isearch-command t)
 (put 'isearch-|-char				'isearch-command t)
@@ -1249,38 +1332,37 @@ currently matches the search-string.")
 ;; this face is initialized by x-faces.el since isearch is preloaded.
 (make-face 'isearch)
 
-(defun isearch-highlight (begin end)
-  (if (null isearch-highlight)
-      nil
-    (if (and (extentp isearch-extent)
-	     (eq (extent-buffer isearch-extent) (current-buffer)))
-	(set-extent-endpoints isearch-extent begin end)
-      (if (and (extentp isearch-extent)
-	       (bufferp (extent-buffer isearch-extent))
-	       (buffer-name (extent-buffer isearch-extent)))
-	  (delete-extent isearch-extent))
-      (setq isearch-extent (make-extent begin end (current-buffer))))
+(defun isearch-make-extent (begin end)
+  (let ((x (make-extent begin end (current-buffer))))
     ;; make the isearch extent always take prescedence over any mouse-
     ;; highlighted extents we may be passing through, since isearch, being
     ;; modal, is more interesting (there's nothing they could do with a
     ;; mouse-highlighted extent while in the midst of a search anyway.)
-    (set-extent-priority isearch-extent (1+ mouse-highlight-priority))
-    (set-extent-face isearch-extent 'isearch)))
+    (set-extent-priority x (1+ mouse-highlight-priority))
+    (set-extent-face x 'isearch)
+    (setq isearch-extent x)))
+
+(defun isearch-highlight (begin end)
+  (if (null isearch-highlight)
+      nil
+    ;; make sure isearch-extent is in the current buffer
+    (cond ((not (extentp isearch-extent))
+	   (isearch-make-extent begin end))
+	  ((not (eq (extent-buffer isearch-extent) (current-buffer)))
+	   (delete-extent isearch-extent)
+	   (isearch-make-extent begin end)))
+    (set-extent-endpoints isearch-extent begin end)))
 
 (defun isearch-dehighlight (totally)
   (if (and isearch-highlight isearch-extent)
       (if totally
 	  (let ((inhibit-quit t))
-	    (if (and (extentp isearch-extent)
-		     (bufferp (extent-buffer isearch-extent))
-		     (buffer-name (extent-buffer isearch-extent)))
+	    (if (extentp isearch-extent)
 		(delete-extent isearch-extent))
 	    (setq isearch-extent nil))
-	(if (and (extentp isearch-extent)
-		 (bufferp (extent-buffer isearch-extent))
-		 (buffer-name (extent-buffer isearch-extent)))
-	    (set-extent-face isearch-extent 'default)
-	  (isearch-dehighlight t)))))
+	(if (extentp isearch-extent)
+	    (detach-extent isearch-extent)
+	  (setq isearch-extent nil)))))
 
 
 ;;;========================================================
@@ -1329,7 +1411,7 @@ currently matches the search-string.")
      (if (string-match
 	  "\\`Premature \\|\\`Unmatched \\|\\`Invalid "
 	  isearch-invalid-regexp)
-	 (setq isearch-invalid-regexp "incomplete input"))))
+	 (setq isearch-invalid-regexp (gettext "incomplete input")))))
 
   (if isearch-success
       nil

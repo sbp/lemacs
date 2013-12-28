@@ -150,6 +150,7 @@ This is to be set by set-c-style, and used by the mode line.")
 		   ;; use undocumented feature
 		   '((c-style-name c-style-name))))))
 
+;;;###autoload
 (defun set-c-style (&optional style)
   "Set up the c-mode style variables from STYLE if it is given, or
 default-c-style otherwise.  It makes the c indentation style variables

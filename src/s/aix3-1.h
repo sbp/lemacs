@@ -167,6 +167,7 @@ and this notice must be preserved on all copies.  */
 
 /* Special itemss needed to make Emacs run on this system.  */
 
+#if 0 /* jwz: dkeller@vnet.IBM.COM says take this out; it's in syssignal.h */
 /*
  *	Make the sigsetmask function go away.  Don't know what the
  *	ramifications of this are, but doesn't seem possible to
@@ -174,6 +175,7 @@ and this notice must be preserved on all copies.  */
  */
 
 #define sigsetmask(mask)	/* Null expansion */
+#endif /* 0 */
 
 /* setjmp and longjmp can safely replace _setjmp and _longjmp,
    but they will run slower.  */

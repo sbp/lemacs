@@ -35,7 +35,8 @@
 #undef static
 
 /* Don't try to use SIGIO or FIONREAD even though they are defined.  */
-#undef SIGIO
+/* #undef SIGIO		use BROKEN_SIGIO instead of this kludge -- jwz */
+#define BROKEN_SIGIO
 #define BROKEN_FIONREAD
 
 /* Describe special kernel features.  */

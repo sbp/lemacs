@@ -3,7 +3,7 @@
 ;; Copyright (C) 1989, 1990, 1993 Free Software Foundation, Inc.
 
 ;; Author: Masanobu UMEDA <umerin@flab.flab.fujitsu.junet>
-;; Version: $Header: /cadillac-inferno-5/cvs-master/lemacs/lisp/gnus/gnuspost.el,v 1.4 1993/07/30 07:10:32 jwz Exp $
+;; Version: !Header: /home/fsf/rms/e19/lisp/RCS/gnuspost.el,v 1.16 1993/11/22 06:44:12 rms Exp !
 ;; Keywords: news
 
 ;; This file is part of GNU Emacs.
@@ -270,6 +270,7 @@ original message into it."
 	  (and subject
 	       (setq subject
 		     (concat "Re: " (gnus-simplify-subject subject 're-only))))
+	  ;; change by jwz: encourage people to pick meaningful subjects
 	  (and subject
 	       (setq subject
 		     (read-from-minibuffer "Subject: " subject)))
@@ -546,7 +547,8 @@ Signature file is specified by the variable gnus-signature-file."
 	      (if (file-exists-p signature)
 		  (progn
 		    (goto-char (point-max))
-		    (insert "--\n")
+		    ;; change by jwz: the standard delimiter is "-- \n"
+		    (insert "-- \n")
 		    (insert-file-contents signature)))
 	      ))))))
 
@@ -594,10 +596,12 @@ a program specified by the rest of the value."
 		(t
 		 ;; Suggested by hyoko@flab.fujitsu.junet.
 		 ;; Save article in Unix mail format by default.
-		 (let ((rmail-delete-after-output nil))
-		   ;; #### need to synchronize rmail-output with fsf version...
-		   (funcall (or gnus-author-copy-saver 'rmail-output)
-			    1 fcc-file))
+		 (if (and gnus-author-copy-saver
+			  (not (eq gnus-author-copy-saver 'rmail-output)))
+		     (funcall gnus-author-copy-saver fcc-file)
+		   (if (and (file-readable-p fcc-file) (rmail-file-p fcc-file))
+		       (gnus-output-to-rmail fcc-file)
+		     (rmail-output fcc-file 1 t t)))
 		 ))
 	  )
 	))

@@ -1,5 +1,5 @@
 /* env - manipulate environment and execute a program in that environment
-   Copyright (C) 1986 Free Software Foundation, Inc.
+   Copyright (C) 1986, 1993 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -79,12 +79,17 @@
 #include "../src/config.h"
 #endif /* EMACS */
 
+#if __STDC__
+#include <stdlib.h>
+#include <string.h>
+#endif
+
 #include <stdio.h>
 
 extern int execvp ();
 
-char *xmalloc (), *xrealloc ();
-char *concat ();
+static void *xmalloc (), *xrealloc ();
+static char *concat ();
 
 extern char **environ;
 
@@ -92,9 +97,9 @@ char **nenv;
 int nenv_size;
 
 char *progname;
-void setenv ();
-void fatal ();
-char *myindex ();
+static void my_setenv ();
+static void fatal ();
+static char *myindex ();
 
 void
 main (argc, argv, envp)
@@ -126,7 +131,7 @@ main (argc, argv, envp)
 	if (tem)
 	  {
 	    *tem = '\000';
-	    setenv (*envp, tem + 1);
+	    my_setenv (*envp, tem + 1);
 	  }
       }
 
@@ -137,7 +142,7 @@ main (argc, argv, envp)
 	/* If arg contains a "=" it specifies to set a variable */
 	{
 	  *tem = '\000';
-	  setenv (*argv, tem + 1);
+	  my_setenv (*argv, tem + 1);
 	  argc--;
 	  argv++;
 	  continue;
@@ -155,7 +160,7 @@ main (argc, argv, envp)
 	{
 	  argc--;
 	  argv++;
-	  setenv (*argv, (char *) 0);
+	  my_setenv (*argv, (char *) 0);
 	  argc--;
 	  argv++;
 	}
@@ -170,7 +175,7 @@ main (argc, argv, envp)
 	    fatal ("no value specified for variable \"%s\"", tem);
 	  argc--;
 	  argv++;
-	  setenv (tem, *argv);
+	  my_setenv (tem, *argv);
 	  argc--;
 	  argv++;
 	}
@@ -210,8 +215,8 @@ main (argc, argv, envp)
     }
 }
 
-void
-setenv (var, val)
+static void
+my_setenv (var, val)
      register char *var, *val;
 {
   register char **e;
@@ -259,7 +264,7 @@ set:
   return;
 }
 
-void
+static void
 fatal (msg, arg1, arg2)
      char *msg, *arg1, *arg2;
 {
@@ -270,15 +275,13 @@ fatal (msg, arg1, arg2)
 }
 
 
-extern char *malloc (), *realloc ();
-
-void
+static void
 memory_fatal ()
 {
   fatal ("virtual memory exhausted");
 }
 
-char *
+static void *
 xmalloc (size)
      int size;
 {
@@ -289,7 +292,7 @@ xmalloc (size)
   return (value);
 }
 
-char *
+static void *
 xrealloc (ptr, size)
      char *ptr;
      int size;
@@ -304,7 +307,7 @@ xrealloc (ptr, size)
 /* Return a newly-allocated string whose contents concatenate
    those of S1, S2, S3.  */
 
-char *
+static char *
 concat (s1, s2, s3)
      char *s1, *s2, *s3;
 {
@@ -322,7 +325,7 @@ concat (s1, s2, s3)
 /* Return a pointer to the first occurrence in STR of C,
    or 0 if C does not occur.  */
 
-char *
+static char *
 myindex (str, c)
      char *str;
      char c;

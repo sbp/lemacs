@@ -1,5 +1,5 @@
 ;; Lisp interface to the c "face" structure.
-;; Copyright (C) 1992, 1993 Free Software Foundation, Inc.
+;; Copyright (C) 1992, 1993, 1994 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -17,84 +17,36 @@
 ;; along with GNU Emacs; see the file COPYING.  If not, write to
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
-(defsubst facep (x)
-  (and (vectorp x) (= (length x) 8) (eq (aref x 0) 'face)))
-
-(defmacro check-face (face)
-  (` (while (not (facep (, face)))
-       (setq (, face) (signal 'wrong-type-argument (list 'facep (, face)))))))
-
-
-(defvar global-face-data nil "do not use this")
-(defvar face-id-tick 0 "don't even think of using this")
-
-(defun list-faces ()
-  "Returns a list of the names of all of the defined faces."
-  (mapcar 'car global-face-data))
-
-(defun find-face (name &optional screen)
-  "Retrieve the face of the given name.
-If NAME is a symbol and SCREEN is provided, the face is looked up on
-that screen; otherwise, the selected screen is used.
-If there is no such face, returns nil.
-If SCREEN is the symbol t, then the global, non-screen face is returned.
-If NAME is already a face, it is simply returned."
-  (if (and (eq screen t) (not (symbolp name)))
-      (setq name (face-name name)))
-  (if (symbolp name)
-      (cdr (assq name
-		 (if (eq screen t)
-		     global-face-data
-		   (screen-face-alist (or screen (selected-screen))))))
-    (check-face name)
-    name))
-
-(defun get-face (name &optional screen)
-  "Retrieve the face of the given name.
-If NAME is a symbol and SCREEN is provided, the face is looked up on
-that screen; otherwise, the selected screen is used.
-If there is no such face, an error is signalled.  See also `find-face'.
-If SCREEN is the symbol t, then the global, non-screen face is returned.
-If NAME is already a face, it is simply returned."
-  (or (find-face name screen)
-      (check-face name)))
-
-(defsubst face-name (face)
-  "Returns the name of the given face."
-  (aref (get-face face) 1))
-
-(defsubst face-id (face)
-  "Returns the internal ID number of the given face."
-  (aref (get-face face) 2))
-
-(defsubst face-font (face &optional screen)
-  "Returns the font of the given face, or nil if it is unspecified."
-  (aref (get-face face screen) 3))
-
-(defsubst face-foreground (face &optional screen)
-  "Returns the foreground color of the given face, or nil if unspecified."
-  (aref (get-face face screen) 4))
-
-(defsubst face-background (face &optional screen)
-  "Returns the background color name of the given face, or nil if unspecified."
-  (aref (get-face face screen) 5))
-
-(defsubst face-background-pixmap (face &optional screen)
- "Returns the background pixmap of the given face, or nil if unspecified."
- (aref (get-face face screen) 6))
-
-(defsubst face-underline-p (face &optional screen)
- "Returns whether the given face is underlined."
- (aref (get-face face screen) 7))
+(eval-when-compile
+ ;; these used to be defsubsts, now they're subrs.  Avoid losing if we're
+ ;; being compiled with an emacs that has the old interpretation.
+ ;; (Warning, proclaim-notinline seems to be broken in 19.8.)
+ (remprop 'facep 'byte-optimizer)
+ (remprop 'face-name 'byte-optimizer)
+ (remprop 'face-id 'byte-optimizer)
+ (remprop 'face-font 'byte-optimizer)
+ (remprop 'face-foreground 'byte-optimizer)
+ (remprop 'face-background 'byte-optimizer)
+ (remprop 'face-background-pixmap 'byte-optimizer)
+ (remprop 'face-underline-p 'byte-optimizer)
+ (remprop 'face-font-name 'byte-optimizer)
+ (remprop 'set-face-font 'byte-optimizer)
+ (remprop 'set-face-foreground 'byte-optimizer)
+ (remprop 'set-face-background 'byte-optimizer)
+ (remprop 'set-face-background-pixmap 'byte-optimizer)
+ (remprop 'set-face-underline-p 'byte-optimizer)
+ )
 
 (defun face-font-name (face &optional screen)
   "Returns the font name of the given face, or nil if it is unspecified."
   (let ((f (face-font face screen)))
     (and f (font-name f))))
 
-(defun set-face-1 (face name value index screen)
-  ;; If the argument to the set-face- functions was a string, do the
-  ;; obvious conversion.
+(defun set-face-2 (face name value screen)
+  ;; This maps set-face-attribute-internal over the face on the appropriate
+  ;; screens, does some implicit type-conversion of the new value, and
+  ;; maybe updates the nonscreen face data as well.
+
   (if (stringp value)
       (let ((screen (if (eq screen 't) nil screen)))
 	(cond
@@ -103,32 +55,48 @@ If NAME is already a face, it is simply returned."
 	 ((eq name 'background) (setq value (make-pixel value screen)))
 	 ((eq name 'background-pixmap) (setq value (make-pixmap value screen)))
 	 )))
+
   (let ((inhibit-quit t))
     ;; If screen is nil, do it to all screens.
     (if (null screen)
 	(let ((screens (screen-list)))
 	  (while screens
-	    (set-face-1 (face-name face) name value index (car screens))
+	    (set-face-2 (face-name face) name value (car screens))
 	    (setq screens (cdr screens)))
-	  (aset (get-face (if (symbolp face) face (face-name face)) t)
-		index value)
+	  ;; set it in the default set too.
+	  (set-face-attribute-internal (get-face face t) name value)
 	  value)
-      (or (eq screen t)
-	  (set-face-attribute-internal (face-id face) name value screen))
-      (aset (get-face face screen) index value))
+      ;; otherwise screen is a screen, or t (the default, non-screen faces)
+      (set-face-attribute-internal (get-face face screen) name value))
+
     ;; If the default, non-screen face doesn't have a value for this attribute
     ;; yet, use this one.  This is kind of a kludge, and I'm not sure it's the
     ;; right thing, but otherwise new screens tend not to get any attributes
     ;; set on them in, for example, Info and Webster.
-    (or (aref (get-face face t) index)
-	(aset (get-face face t) index value))
+    (let ((def (get-face face t)))
+      (or (funcall (cond
+		    ((eq name 'font) 'face-font)
+		    ((eq name 'foreground) 'face-foreground)
+		    ((eq name 'background) 'face-background)
+		    ((eq name 'background-pixmap) 'face-background-pixmap)
+		    ((eq name 'underline) 'face-underline-p)
+		    (t "internal error in set-face-2"))
+		   def)
+	  (set-face-attribute-internal def name value)))
     )
   value)
 
+;;; Prior to 19.9, set-face-font and friends were defsubsts that called
+;;; set-face-1.  Well, things have changed, but that interface is retained
+;;; for compatibility, because otherwise all callers of set-face-* would
+;;; need to be recompiled.  They're not defsubsts any more, so code compiled
+;;; in the new world will still work in the old.
+(defun set-face-1 (face name value ignored-index screen)
+  (set-face-2 face name value screen))
 
 (defun read-face-name (prompt)
   (let (face)
-    (while (= (length face) 0)
+    (while (= (length face) 0) ; nil or ""
       (setq face (completing-read prompt
 				  (mapcar '(lambda (x) (list (symbol-name x)))
 					  (list-faces))
@@ -137,15 +105,15 @@ If NAME is already a face, it is simply returned."
 
 (defun face-interactive (what &optional bool)
   (let* ((fn (intern (concat "face-" what)))
-	 (prompt (concat "Set " what " of face"))
-	 (face (read-face-name (concat prompt ": ")))
+	 (face (read-face-name (format "Set %s of face: " what)))
 	 (default (if (fboundp fn)
 		      (or (funcall fn face (selected-screen))
 			  (funcall fn 'default (selected-screen)))))
 	 (value (if bool
-		    (y-or-n-p (concat "Should face " (symbol-name face)
-				      " be " bool "? "))
-		  (read-string (concat prompt " " (symbol-name face) " to: ")
+		    (y-or-n-p (format "Should face %s be %s? "
+				      (symbol-name face) bool))
+		  (read-string (format "Set %s of face %s to: "
+				       what (symbol-name face))
 		   (cond ((fontp default) (font-name default))
 			 ((pixelp default) (pixel-name default))
 			 ((pixmapp default) (pixmap-file-name default))
@@ -153,72 +121,52 @@ If NAME is already a face, it is simply returned."
     (list face (if (equal value "") nil value))))
 
 
-(defsubst set-face-font (face font &optional screen)
-  "Change the font of the given face.  The font should be a string, the name
-string, the name of the font.  If the optional SCREEN argument is provided, 
-this face will be changed only in that screen\; otherwise it will be changed
-in all screens."
+(defun set-face-font (face font &optional screen)
+  "Change the font of the given face.
+The font should be a string, the name string, the name of the font, or a
+ font object as returned by `make-font'.
+If the optional SCREEN argument is provided, this face will be changed only
+ in that screen\; otherwise it will be changed in all screens."
   (interactive (face-interactive "font"))
-  (set-face-1 face 'font font 3 screen))
+  (set-face-2 face 'font font screen))
 
-(defsubst set-face-foreground (face color &optional screen)
-  "Change the foreground color of the given face.  The color should be a 
-string, the name of a color.  If the optional SCREEN argument is provided, 
-this face will be changed only in that screen; otherwise it will be changed 
-in all screens."
+(defun set-face-foreground (face color &optional screen)
+  "Change the foreground color of the given face.
+The color should be a string, the name of a color, or a `pixel' object
+ as returned by `make-pixel'.
+If the optional SCREEN argument is provided, this face will be changed only
+ in that screen; otherwise it will be changed in all screens."
   (interactive (face-interactive "foreground"))
-  (set-face-1 face 'foreground color 4 screen))
+  (set-face-2 face 'foreground color screen))
 
-(defsubst set-face-background (face color &optional screen)
-  "Change the background color of the given face.  The color should be a 
-string, the name of a color.  If the optional SCREEN argument is provided, 
-this face will be changed only in that screen; otherwise it will be changed 
-in all screens."
+(defun set-face-background (face color &optional screen)
+  "Change the background color of the given face.
+The color should be a string, the name of a color, or a `pixel' object
+ as returned by `make-pixel'.
+If the optional SCREEN argument is provided, this face will be changed only
+in that screen; otherwise it will be changed in all screens."
   (interactive (face-interactive "background"))
-  (set-face-1 face 'background color 5 screen))
+  (set-face-2 face 'background color screen))
 
-(defsubst set-face-background-pixmap (face name &optional screen)
-  "Change the background pixmap of the given face.  The pixmap name should be
-a string, the name of a file of pixmap data.  The directories listed in the
-x-bitmap-file-path variable will be searched.  The bitmap may also be a list
-of the form (width height data) where width and height are the size in pixels,
-and data is a string, containing the raw bits of the bitmap.  
+(defun set-face-background-pixmap (face name &optional screen)
+  "Change the background pixmap of the given face.  
+The pixmap name should be a string, the name of a file of pixmap data.  
+The directories listed in the x-bitmap-file-path variable will be searched.
+The bitmap may also be a list of the form (width height data) where width and
+ height are the size in pixels, and data is a string, containing the raw bits
+ of the bitmap.  
 If the optional SCREEN argument is provided, this face will be changed only
 in that screen\; otherwise it will be changed in all screens."
   (interactive (face-interactive "background-pixmap"))
-  (set-face-1 face 'background-pixmap name 6 screen))
+  (set-face-2 face 'background-pixmap name screen))
 
-(defsubst set-face-underline-p (face underline-p &optional screen)
+(defun set-face-underline-p (face underline-p &optional screen)
   "Change whether the given face is underlined.  
 If the optional SCREEN argument is provided, this face will be changed only
 in that screen\; otherwise it will be changed in all screens."
   (interactive (face-interactive "underline-p" "underlined"))
-  (set-face-1 face 'underline underline-p 7 screen))
+  (set-face-2 face 'underline underline-p screen))
 
-
-(defun make-face (name)
-  "Defines and returns a new FACE on all screens.  
-You can modify the font, color, etc of this face with the set-face- functions.
-If the face already exists, it is unmodified."
-  (or (find-face name)
-      (let ((face (make-vector 8 nil)))
-	(aset face 0 'face)
-	(aset face 1 name)
-	(let* ((screens (screen-list))
-	       (inhibit-quit t)
-	       (id face-id-tick))
-	  (make-face-internal name face id) ; may error
-	  (setq face-id-tick (1+ face-id-tick)) ; now it's safe
-	  (while screens
-	    (aset (get-face name (car screens)) 2 id)
-	    (setq screens (cdr screens)))
-	  (setq face (copy-sequence face))
-	  (aset face 2 id)
-	  (setq global-face-data (cons (cons name face) global-face-data)))
-	;; when making a face after screens already exist
-	(if (eq window-system 'x)
-	    (x-resource-face face))
-	face)))
 
 (defun copy-face (old-face new-name &optional screen)
   "Defines and returns a new face which is a copy of an existing one,
@@ -242,21 +190,6 @@ or makes an already-existing face be exactly like another."
 			    screen))
     new-face))
 
-(defun set-extent-face (extent face)
-  "Make the given EXTENT have the graphic attributes specified by FACE."
-  (set-extent-attribute extent (face-id face)))
-
-(defun extent-face (extent)
-  "Returns the name of the face in which EXTENT is displayed."
-  (let ((id (extent-attributes extent t))
-	(rest global-face-data)
-	face)
-    (if (= id -1) (setq id 0))
-    (while rest
-      (if (= id (face-id (cdr (car rest))))
-	  (setq face (car (car rest)) rest nil))
-      (setq rest (cdr rest)))
-    (or face (error "unknown face??"))))
 
 
 (defun face-equal (face1 face2 &optional screen)
@@ -298,7 +231,7 @@ is displayed on top of."
 If the face doesn't specify both foreground and background, then
 its foreground and background are set to the background and
 foreground of the default face."
-  (interactive (list (read-face-name "Invert face: ")))
+  (interactive (list (read-face-name (gettext "Invert face: "))))
   (setq face (get-face face screen))
   (let ((fg (face-foreground face screen))
 	(bg (face-background face screen)))
@@ -314,8 +247,8 @@ foreground of the default face."
 (defun set-default-font (font)
   "Sets the font used for normal text and the modeline to FONT in all screens.
 For finer-grained control, use set-face-font."
-  (interactive (list (read-string "Set default font: "
-				  (face-font 'default (selected-screen)))))
+  (interactive (list (read-string (gettext "Set default font: ")
+				  (font-name (face-font 'default (selected-screen))))))
   (set-face-font 'default font)
   (set-face-font 'modeline font))
 
@@ -325,29 +258,27 @@ For finer-grained control, use set-face-font."
   (set-face-font face font screen))
 
 
-;;; This is called from make-screen (well, x-create-screen) just before
-;;; the create-screen-hook is run.  This is responsible for making sure
-;;; that the "default" and "modeline" faces for this screen have enough
-;;; attributes specified for emacs to be able to display anything on it.
-;;; This had better not signal an error.
+;;; make-screen-initial-faces is responsible for initializing the 
+;;; newly-created faces on a newly-created screen.  It does this by
+;;; calling out to window-system-specific code.
+;;;
+;;; It is called from init_screen_faces() called from Fx_create_screen().
+;;;
+;;; This had better not signal an error.  The screen is in an intermediate
+;;; state where signalling an error or entering the debugger would likely
+;;; result in a crash.
 
-(defun make-screen-initial-faces ()
-  (let* ((faces (copy-alist global-face-data))
-	 (screen (selected-screen))
-	 (rest faces)
-	 default modeline)
-    (set-screen-face-alist screen faces)
-    (while rest
-      (setcdr (car rest) (copy-sequence (cdr (car rest))))
-      (if (eq window-system 'x)
-	  (x-resource-face (cdr (car rest)) screen t))
-      (setq rest (cdr rest)))
-
-    (setq default (get-face 'default screen)
-	  modeline (get-face 'modeline screen))
-	
-    (if (eq window-system 'x)
-	(x-initialize-screen-faces screen))
+(defun make-screen-initial-faces (screen)
+  (let ((default (get-face 'default screen))
+	(modeline (get-face 'modeline screen)))
+    
+    (cond ((eq 'x (screenp screen))
+	   ;; First read the resource database for the faces on this screen...
+	   (let ((faces (list-faces)))
+	     (x-resource-face (car faces) screen)
+	     (setq faces (cdr faces)))
+	   ;; Then ensure that the default and modeline faces are sensible.
+	   (x-initialize-screen-faces screen)))
     ;;
     ;; If the "default" face and the "modeline" face would display the same
     ;; (meaning they have the same values, or the modeline values are

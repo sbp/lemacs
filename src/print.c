@@ -1,5 +1,6 @@
 /* Lisp object printing and output streams.
-   Copyright (C) 1985, 1986, 1988, 1992, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1988, 1992, 1993, 1994
+   Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -22,6 +23,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include <stdio.h>
 
 #include "lisp.h"
+#include "intl.h"
 
 #ifndef standalone
 #include "buffer.h"
@@ -38,6 +40,7 @@ Lisp_Object Vstandard_output, Qstandard_output;
 /* The subroutine object for external-debugging-output is kept here
    for the convenience of the debugger.  */
 Lisp_Object Qexternal_debugging_output;
+Lisp_Object Qalternate_debugging_output;
  
 /* Avoid actual stack overflow in print.  */
 static int print_depth;
@@ -117,7 +120,8 @@ print_output_stream (Lisp_Object obj, Lisp_Object printcharfun, int escapeflag)
   /* This should NEVER be called, since these streams don't (yet) actually
      escape to Lisp from the confines of the printer */
   char buf[100];
-  sprintf (buf, "#<output-stream 0x%x>", XOUTPUTSTREAM (obj)->header.uid);
+  sprintf (buf, GETTEXT ("#<output-stream 0x%x>"),
+	   XOUTPUTSTREAM (obj)->header.uid);
   write_string_1 (buf, -1, printcharfun);
 }
 
@@ -135,7 +139,7 @@ finalise_output_stream (void *header, int for_disksave)
 /* Object-oriented programming at its finest! */
 static void
 miscellaneous_output_kludges (Lisp_Object function,
-                              const char *str, int len,
+                              CONST char *str, int len,
                               /* So we can note its relocation if necessary */
                               Lisp_Object string_or_zero)
 {
@@ -212,16 +216,17 @@ miscellaneous_output_kludges (Lisp_Object function,
 
       if (!buf)
 	signal_error (Qerror, 
-		      list2 (build_string ("Marker does not point anywhere"),
+		      list2 (build_string
+			     (GETTEXT ("Marker does not point anywhere")),
 			     function));
 
       set_buffer_internal (buf);
-      op = point;
+      op = PT;
       SET_PT (marker_position (function));
-      sp = point;
+      sp = PT;
       insert_relocatable_raw_string (str, len, string_or_zero);
       if (op > sp)
-	SET_PT (point + op - sp);
+	SET_PT (PT + op - sp);
       set_buffer_internal (old);
     }
   else if (SCREENP (function))
@@ -432,7 +437,7 @@ print_finish (Lisp_Object stream)
  *  (ie Qnil means stdout, not Vstandard_output, etc)
  */
 void
-write_string_1 (const char *str, int size, Lisp_Object stream)
+write_string_1 (CONST char *str, int size, Lisp_Object stream)
 {
   if (size < 0)
     size = strlen (str);
@@ -460,7 +465,7 @@ STREAM defaults to the value of `standard-output' (which see).")
 #ifndef standalone
 
 void
-temp_output_buffer_setup (const char *bufname)
+temp_output_buffer_setup (CONST char *bufname)
 {
   register struct buffer *old = current_buffer;
   Lisp_Object buf;
@@ -477,7 +482,7 @@ temp_output_buffer_setup (const char *bufname)
 }
 
 Lisp_Object
-internal_with_output_to_temp_buffer (const char *bufname, 
+internal_with_output_to_temp_buffer (CONST char *bufname, 
                                      Lisp_Object (*function) (Lisp_Object arg),
                                      Lisp_Object arg, 
                                      Lisp_Object same_screen)
@@ -688,9 +693,7 @@ float_to_string (char *buf, double data)
 	goto lose;
 
       cp += 2;
-      for (width = 0;
-	   ((c = *cp) >= '0' && c <= '9');
-	   cp++)
+      for (width = 0; (c = *cp, isdigit (c)); cp++)
 	{
 	  width *= 10;
 	  width += c - '0';
@@ -719,7 +722,7 @@ float_to_string (char *buf, double data)
     for (; *s; s++)
       /* if there's a non-digit, then there is a decimal point, or
 	 it's in exponential notation, both of which are ok. */
-      if (*s < '0' || *s > '9')
+      if (!isdigit (*s))
 	goto DONE;
     /* otherwise, we need to hack it. */
     *s++ = '.';
@@ -740,23 +743,32 @@ float_to_string (char *buf, double data)
 #endif /* LISP_FLOAT_TYPE */
 
 static void
-print_vector_internal (const char *start, const char *end,
+print_vector_internal (CONST char *start, CONST char *end,
                        Lisp_Object obj, 
                        Lisp_Object printcharfun, int escapeflag)
 {
   register int i;
   int len = vector_length (XVECTOR (obj));
+  int last = len;
   struct gcpro gcpro1, gcpro2;
   GCPRO2 (obj, printcharfun);
 
+  if (FIXNUMP (Vprint_length))
+    {
+      int max = XINT (Vprint_length);
+      if (max < len) last = max;
+    }
+
   write_string_1 (start, -1, printcharfun);
-  for (i = 0; i < len; i++)
+  for (i = 0; i < last; i++)
     {
       register Lisp_Object elt = XVECTOR (obj)->contents[i];
       if (i != 0) write_char_internal (" ", printcharfun);
       print_internal (elt, printcharfun, escapeflag);
     }
   UNGCPRO;
+  if (last != len)
+    write_string_1 (" ...", 4, printcharfun);
   write_string_1 (end, -1, printcharfun);
 }
 
@@ -766,7 +778,10 @@ print_internal (obj, printcharfun, escapeflag)
      Lisp_Object printcharfun;
      int escapeflag;
 {
-  char buf[30];
+  char buf[256];
+#ifdef I18N4
+  int obj_type;
+#endif
 
   QUIT;
 
@@ -776,7 +791,7 @@ print_internal (obj, printcharfun, escapeflag)
   print_depth++;
 
   if (print_depth > 200)
-    error ("Apparently circular structure being printed");
+    error (GETTEXT ("Apparently circular structure being printed"));
 #ifdef MAX_PRINT_CHARS
   if (max_print > 0 && OUTPUTSTREAMP (printcharfun))
   {
@@ -788,24 +803,41 @@ print_internal (obj, printcharfun, escapeflag)
   }
 #endif /* MAX_PRINT_CHARS */
 
-  switch (XTYPE (obj))
-    {
-#ifdef LISP_FLOAT_TYPE
-#ifndef LRECORD_FLOAT
-    case Lisp_Float:
-      {
-        print_float (obj, printcharfun, escapeflag);
-        break;
-      }
-#endif
-#endif /* LISP_FLOAT_TYPE */
+#ifdef I18N4
+  /* This is a terrible kludge, necessary until certain issues are
+     resolved.  In the SunOS 5.0 wide character model, two-byte
+     multi-byte characters of the form 1xxxxxxx 1yyyyyyy have the
+     following wide character representation:
 
+		 00110000 00000000 00xxxxxx xyyyyyyy
+
+     But since Lisp objects have their type encoded in the top 6 bits,
+     the type is interpreted as 001100, or Lisp_Process.  We will
+     kluge around this for now by assuming that all real Lisp_Process
+     objects point to a memory location greater than 0x3fff. */
+
+  if (XUINT(obj) >> 14 == 0xc000)
+    obj_type = -1;
+  else
+    obj_type = XTYPE (obj);
+  switch (obj_type)
+#else /* not I18N4 */
+  switch (XTYPE (obj))
+#endif /* I18N4 */
+    {
     case Lisp_Int:
       {
 	sprintf (buf, "%d", XINT (obj));
 	write_string_1 (buf, -1, printcharfun);
 	break;
       }
+
+#ifdef I18N4
+    case -1:
+      sprintf (buf, "%d", XFASTINT (obj));
+      write_string_1 (buf, -1, printcharfun);
+      break;
+#endif
 
     case Lisp_String:
       {
@@ -927,18 +959,18 @@ print_internal (obj, printcharfun, escapeflag)
 
     case Lisp_Vector:
       {
+	/* If deeper than spec'd depth, print placeholder.  */
+	if (FIXNUMP (Vprint_level)
+	    && print_depth > XINT (Vprint_level))
+	  {
+	    write_string_1 ("...", 3, printcharfun);
+	    break;
+	  }
+
 	/* God intended that this be #(...), you know. */
 	print_vector_internal ("[", "]", obj, printcharfun, escapeflag);
 	break;
       }
-
-#ifndef LRECORD_BYTECODE
-    case Lisp_Compiled:
-      {
-        print_bytecode (obj, printcharfun, escapeflag);
-        break;
-      }
-#endif /* !LRECORD_BYTECODE */
 
 #ifndef LRECORD_SYMBOL
     case Lisp_Symbol:
@@ -959,24 +991,13 @@ print_internal (obj, printcharfun, escapeflag)
 	break;
       }
 
-#ifndef standalone
-#ifndef LRECORD_EXTENT
-    case Lisp_Extent:
-      {
-	struct gcpro gcpro1, gcpro2;
-	GCPRO2 (obj, printcharfun);
-	print_extent_or_replica (obj, printcharfun, escapeflag);
-	UNGCPRO;
-	break;
-      }
-#endif /* !LRECORD_EXENT */
-#endif /* standalone */
     default:
       {
 	/* We're in trouble if this happens!
 	   Probably should just abort () */
 	if (print_readably)
-	  error ("printing illegal data type #o%03o", (int) XTYPE (obj));
+	  error (GETTEXT ("printing illegal data type #o%03o"),
+		 (int) XTYPE (obj));
 	write_string_1 ("#<EMACS BUG: ILLEGAL DATATYPE ", -1,
 			printcharfun);
 	sprintf (buf, "(#o%3o)", (int) XTYPE (obj));
@@ -990,11 +1011,8 @@ print_internal (obj, printcharfun, escapeflag)
   print_depth--;
 }
 
-#ifndef LRECORD_BYTECODE
-#define print_bytecode_internal print_vector_internal
-#else
 static void
-print_bytecode_internal (const char *start, const char *end,
+print_bytecode_internal (CONST char *start, CONST char *end,
                          Lisp_Object obj, 
                          Lisp_Object printcharfun, int escapeflag)
 {
@@ -1006,7 +1024,7 @@ print_bytecode_internal (const char *start, const char *end,
   GCPRO2 (obj, printcharfun);
 
   write_string_1 (start, -1, printcharfun);
-  /* COMPILED_ARGSLIST = 0 */
+  /* COMPILED_ARGLIST = 0 */
   print_internal (b->arglist, printcharfun, escapeflag);
   /* COMPILED_BYTECODE = 1 */
   write_char_internal (" ", printcharfun);
@@ -1019,28 +1037,19 @@ print_bytecode_internal (const char *start, const char *end,
   write_string_1 (buf, -1, printcharfun);
   /* COMPILED_DOC_STRING = 4 */
   if (docp || intp)
-  {
-    write_char_internal (" ", printcharfun);
-    print_internal (((!docp) 
-                     ? Qnil
-                     : ((!intp)
-                        ? b->doc_and_interactive
-                        : Fcar (b->doc_and_interactive))),
-                    printcharfun, escapeflag);
-  }
+    {
+      write_char_internal (" ", printcharfun);
+      print_internal (bytecode_documentation (b), printcharfun, escapeflag);
+    }
   /* COMPILED_INTERACTIVE = 5 */
   if (intp)
-  {
-    write_char_internal (" ", printcharfun);
-    print_internal (((!docp)
-                     ? b->doc_and_interactive
-                     : Fcdr (b->doc_and_interactive)),
-                    printcharfun, escapeflag);
-  }
+    {
+      write_char_internal (" ", printcharfun);
+      print_internal (bytecode_interactive (b), printcharfun, escapeflag);
+    }
   UNGCPRO;
   write_string_1 (end, -1, printcharfun);
 }
-#endif /* LRECORD_BYTECODE */
 
 void
 print_bytecode (Lisp_Object obj, Lisp_Object printcharfun, int escapeflag)
@@ -1095,8 +1104,7 @@ print_symbol (Lisp_Object obj, Lisp_Object printcharfun, int escapeflag)
 	write_string_1 ("#:", 2, printcharfun);
     }
 
-  /* Does it look like an integer?
-   *  (Don't worry about floats -- we always escape #\. */
+  /* Does it look like an integer or a float? */
   {
     int confusing = 0;
 
@@ -1106,13 +1114,17 @@ print_symbol (Lisp_Object obj, Lisp_Object printcharfun, int escapeflag)
 	for (i = 1, confusing = 1; i < size; i++)
 	  { 
 	    register unsigned char c = name->data[i];
-	    if (c < '0' || c > '9')
+	    if (!isdigit (c))
 	      {
 		confusing = 0;
 		break;
 	      }
 	  }
       }
+#ifdef LISP_FLOAT_TYPE
+    if (!confusing)
+      confusing = isfloat_string ((char *) name->data);
+#endif
     if (confusing)
       write_char_internal ("\\", printcharfun);
   }
@@ -1150,6 +1162,23 @@ print_symbol (Lisp_Object obj, Lisp_Object printcharfun, int escapeflag)
 }
 
 
+int alternate_do_pointer = 0;
+char alternate_do_string[5000];
+
+DEFUN ("alternate-debugging-output", Falternate_debugging_output,
+       Salternate_debugging_output, 1, 1, 0,
+  "Append output to the array `alternate_do_string'.  This can be used\n\
+in place of `external-debugging-output' as a function to be passed to\n\
+`print'.  Before calling `print', set `alternate_do_pointer' to 0.\n")
+  (character)
+     Lisp_Object character;
+{
+  CHECK_FIXNUM (character, 0);
+  alternate_do_string[alternate_do_pointer++] = (char) (XINT (character));
+  alternate_do_string[alternate_do_pointer] = 0;
+  return character;
+}
+
 DEFUN ("external-debugging-output", Fexternal_debugging_output,
        Sexternal_debugging_output, 1, 1, 0,
   "Write CHARACTER to stderr.\n\
@@ -1186,7 +1215,8 @@ debug_print (Lisp_Object debug_print_obj)
   GCPRO2 (old_print_level, old_print_length);
 
   if (gc_in_progress)
-    fprintf (stderr, "** gc-in-progress!  Bad idea to print anything! **\n");
+    fprintf (stderr,
+	     GETTEXT ("** gc-in-progress!  Bad idea to print anything! **\n"));
 
   max_print = 0;
   print_depth = 0;
@@ -1269,18 +1299,27 @@ A value of nil means no limit.");
   DEFVAR_BOOL ("print-readably", &print_readably,
     "If non-nil, then all objects will be printed in a readable form.\n\
 If an object has no readable representation, then an error is signalled.\n\
-When this is true, compiled-function objects will be written in #[...] form\n\
-instead of in #<byte-code [...]> form.\n\
+When print-readably is true, compiled-function objects will be written in\n\
+ #[...] form instead of in #<byte-code [...]> form, and two-element lists\n\
+ of the form (quote object) will be written as the equivalent 'object.\n\
 Do not SET this variable; bind it instead.");
   print_readably = 0;
 
   DEFVAR_BOOL ("print-gensym", &print_gensym,
-    "If non-nil, then uninterned symbols (those made with `make-symbol'\n\
-instead of `intern') will be preceeded by \"#:\", which tells the reader to\n\
-create a new symbol instead of interning.  Beware: the #: syntax creates a\n\
-new symbol each time it is seen, so if you print an object which contains\n\
-two pointers to the same uninterned symbol, `read' will not duplicate that\n\
-structure.");
+    "If non-nil, then uninterned symbols will be printed specially.\n\
+Uninterned symbols are those which are not present in `obarray', that is,\n\
+those which were made with `make-symbol' or by calling `intern' with a\n\
+second argument.\n\
+\n\
+When print-gensym is true, such symbols will be preceeded by \"#:\", which\n\
+causes the reader to create a new symbol instead of interning and returning\n\
+an existing one.  Beware: the #: syntax creates a new symbol each time it is\n\
+seen, so if you print an object which contains two pointers to the same\n\
+uninterned symbol, `read' will not duplicate that structure.\n\
+\n\
+Also, since emacs has no real notion of packages, there is no way for the\n\
+printer to distinguish between symbols interned in no obarray, and symbols\n\
+interned in an alternate obarray.");
   print_gensym = 0;
 
   /* prin1_to_string_buffer initialized in init_buffer_once in buffer.c */
@@ -1292,6 +1331,8 @@ structure.");
   defsubr (&Sprint);
   defsubr (&Sterpri);
   defsubr (&Swrite_char);
+  defsubr (&Salternate_debugging_output);
+  defsymbol (&Qalternate_debugging_output, "alternate-debugging-output");
   defsubr (&Sexternal_debugging_output);
   defsymbol (&Qexternal_debugging_output, "external-debugging-output");
 #ifndef standalone

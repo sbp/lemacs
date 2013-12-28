@@ -2,7 +2,7 @@
 ;;; Copyright (C) 1985-1993 Free Software Foundation, Inc.
 ;;; Created: 19 oct 90, Jamie Zawinski <jwz@lucid.com>
 ;;; Modified: 5 apr 92, Roland McGrath <roland@gnu.ai.mit.edu>
-;;; Last change  1-jul-93. jwz
+;;; Last change 30-dec-93. jwz
 
 ;;; This file is part of GNU Emacs.
 
@@ -142,6 +142,7 @@
 
 (require 'sendmail)
 
+;;;###autoload
 (defvar mail-abbrev-mailrc-file nil
   "Name of file with mail aliases.   If nil, ~/.mailrc is used.")
 
@@ -151,6 +152,7 @@
 	     (or (getenv "MAILRC") "~/.mailrc"))))
 
 ;; originally defined in sendmail.el - used to be an alist, now is a table.
+;;;###autoload
 (defvar mail-aliases nil
   "Word-abbrev table of mail address aliases.
 If this is nil, it means the aliases have not yet been initialized and
@@ -489,6 +491,36 @@ characters which may be a part of the name of a mail-alias.")
 	(setq abbrev-start-location (point)  ; This is the trick.
 	      abbrev-start-location-buffer (current-buffer))
 	)))
+
+
+;;; Reading addresses from the minibuffer; by David Hughes <djh@Harston.CV.COM>
+
+(defun mail-abbrev-minibuffer-setup-hook ()
+  ;; Use as the value of minibuffer-setup-hook when reading addresses
+  ;; from the minibuffer, as in:
+  ;;  (let ((minibuffer-setup-hook 'mail-abbrev-minibuffer-setup-hook))
+  ;;    (read-string "Who: "))
+  (if (and (not (vectorp mail-aliases))
+	   (file-exists-p (mail-abbrev-mailrc-file)))
+      (build-mail-aliases))
+  (make-local-variable 'pre-abbrev-expand-hook)
+  (setq pre-abbrev-expand-hook
+	(function
+	 (lambda ()
+	   (setq local-abbrev-table mail-aliases)
+	   (set-syntax-table mail-mode-header-syntax-table)
+	   (or (and last-command-char
+		    (eq (char-syntax last-command-char) ?_))
+	       (let ((pre-abbrev-expand-hook nil)) ; That's us; don't loop.
+		 ;; Use this table so that abbrevs can have hyphens in them.
+		 (set-syntax-table mail-abbrev-syntax-table)
+		 (expand-abbrev)
+		 ;; Now set it back to what it was before.
+		 (set-syntax-table mail-mode-header-syntax-table)))
+	   (setq abbrev-start-location (point)  ; This is the trick.
+		 abbrev-start-location-buffer (current-buffer)))))
+  (abbrev-mode 1))
+
 
 ;;; utilities
 

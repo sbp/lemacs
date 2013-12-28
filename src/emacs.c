@@ -1,5 +1,6 @@
 /* Fully extensible Emacs, running on Unix, intended for GNU.
-   Copyright (C) 1985, 1986, 1987, 1992, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1987, 1992, 1993, 1994
+   Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -19,16 +20,24 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include "config.h"
 #include "lisp.h"
+#include "intl.h"
 
-#include <signal.h>
 #include <errno.h>
 #include <stdarg.h>
 
 #include <stdio.h>
 
+#if defined (I18N2) || defined (I18N3) || defined (I18N4)
+#include <locale.h>
+#endif
+
 #include <sys/types.h>
 #include <sys/file.h>
 #include <sys/stat.h>
+
+#ifdef TOOLTALK
+#include <tt_c.h>
+#endif
 
 #ifdef VMS
 #include <ssdef.h>
@@ -45,13 +54,17 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #endif
 
 #include "commands.h"
-
 #include "process.h"
-
 #include "systty.h"
 #include "syssignal.h"
-
 #include "sysdep.h"
+
+
+/* Whether usage tracking is turned on (Sun only) */
+Lisp_Object Vusage_tracking;
+#ifdef USAGE_TRACKING
+#include <ut.h>
+#endif
 
 #ifndef O_RDWR
 #define O_RDWR 2
@@ -134,6 +147,7 @@ extern void init_filelock (void), syms_of_filelock (void);
 extern void init_floatfns (void), syms_of_floatfns (void);
 extern void syms_of_fns (void);
 extern void syms_of_font_lock (void);
+extern void syms_of_intl (void);
 extern void syms_of_indent (void);
 extern void init_keyboard (void), syms_of_keyboard (void);
 extern void syms_of_keymap (void);
@@ -148,7 +162,9 @@ extern void keys_of_keymap (void);
 extern void syms_of_print (void);
 extern void init_process (void), syms_of_process (void);
 extern void syms_of_screen (void);
+extern void syms_of_scrollbar (void);
 extern void syms_of_search (void);
+extern void syms_of_sparcworks (void), syms_of_tooltalk (void);
 extern void syms_of_syntax (void), init_syntax_once (void);
 extern void init_sys_modes (void);
 extern void syms_of_undo (void);
@@ -157,10 +173,15 @@ extern void init_xdisp (void), syms_of_xdisp (void);
 extern void syms_of_xfns (void), syms_of_xobjs (void);
 extern void syms_of_xselect (void);
 #ifdef EMACS_BTL
-extern void syms_of_cadillac_btl_emacs (void);
+extern void syms_of_btl (void);
 #endif
 #ifdef ENERGIZE
 extern void syms_of_editorside (void);
+#endif
+#ifdef DRAGNDROP
+extern void syms_of_opaque (void);
+extern void init_xtfunc (void), syms_of_xtfunc (void);
+extern void syms_of_dragndrop (void);
 #endif
 
 Lisp_Object Qkill_emacs_hook;
@@ -207,7 +228,7 @@ fatal_error_signal (sig)
 /* dump an error message; called like printf */
 
 DOESNT_RETURN
-error (const char *fmt, ...)
+error (CONST char *fmt, ...)
 {
   char buf[200];
   va_list args;
@@ -222,7 +243,7 @@ error (const char *fmt, ...)
 }
 
 DOESNT_RETURN
-fatal (const char *fmt, ...)
+fatal (CONST char *fmt, ...)
 {
   va_list args;
   va_start (args, fmt);
@@ -337,11 +358,7 @@ main_1 (int argc, char **argv, char **envp)
 
 #ifdef BSD
   {
-#ifdef OSF1
-    inherited_pgroup = getpgrp ();
-#else
-    inherited_pgroup = getpgrp (0);
-#endif
+    inherited_pgroup = EMACS_GETPGRP (0);
     setpgrp (0, getpid ());
   }
 #endif /* BSD */
@@ -391,21 +408,17 @@ main_1 (int argc, char **argv, char **envp)
       result = emacs_open (argv[skip_args], O_RDWR, 2 );
       if (result < 0)
 	{
-	  const char *errstring;
+	  CONST char *errstring;
 
 	  if (errno >= 0 && errno < sys_nerr)
 	    errstring = sys_errlist[errno];
 	  else
 	    errstring = "undocumented error code";
-	  fprintf (stderr, "emacs: %s: %s\n", argv[skip_args], errstring);
-	  exit (1);
+	  fatal ("%s: %s\n", argv[skip_args], errstring);
 	}
       dup (0);
       if (! isatty (0))
-	{
-	  fprintf (stderr, "emacs: %s: not a tty\n", argv[skip_args]);
-	  exit (1);
-	}
+	fatal ("%s: not a tty\n", argv[skip_args]);
 
       fprintf (stderr, "Using %s\n", ttyname (0));
 #if 0
@@ -425,7 +438,9 @@ main_1 (int argc, char **argv, char **envp)
 
   /* Handle the -batch switch, which means don't do interactive display.  */
   noninteractive = 0;
-  if (skip_args + 1 < argc && !strcmp (argv[skip_args + 1], "-batch"))
+  if (skip_args + 1 < argc &&
+      (!strcmp (argv[skip_args + 1], "-batch") ||
+       !strcmp (argv[skip_args + 1], "--batch")))
     {
       skip_args += 1;
       noninteractive = 1;
@@ -436,7 +451,9 @@ main_1 (int argc, char **argv, char **envp)
    */
   if (skip_args + 1 < argc &&
       (!strcmp (argv[skip_args + 1], "-version") ||
-       !strcmp (argv[skip_args + 1], "-help")))
+       !strcmp (argv[skip_args + 1], "--version") ||
+       !strcmp (argv[skip_args + 1], "-help") ||
+       !strcmp (argv[skip_args + 1], "--help")))
     noninteractive = 1;
 
 #ifdef POSIX_SIGNALS
@@ -486,12 +503,14 @@ main_1 (int argc, char **argv, char **envp)
       signal (20, fatal_error_signal);
       signal (21, fatal_error_signal);
       signal (22, fatal_error_signal);
-      signal (23, fatal_error_signal);
       signal (24, fatal_error_signal);
+#if 0 /* mvn@library.ucla.edu says these are SIGIO on AIX 3.2.4.  */
+      signal (23, fatal_error_signal);
 #ifdef SIGIO
       signal (SIGAIO, fatal_error_signal);
       signal (SIGPTY, fatal_error_signal);
 #endif
+#endif /* 0 */
 #ifndef _I386
       signal (SIGIOINT, fatal_error_signal);
 #endif
@@ -522,12 +541,18 @@ main_1 (int argc, char **argv, char **envp)
     }
 
   init_alloc ();
-#ifdef MAINTAIN_ENVIRONMENT
-  init_environ ();
-#endif
+  init_callproc ();	/* Must be called before egetenv(). */
   init_eval ();
   init_data ();
   init_lread ();
+
+#if defined (I18N2) || defined (I18N3) || defined (I18N4)
+  setlocale (LC_ALL, "");
+#endif
+
+#ifdef I18N3
+  textdomain ("emacs");
+#endif
 
   init_cmdargs (argc, argv, skip_args);	/* Create list Vcommand_line_args */
   init_buffer ();	/* Init default directory of main buffer */
@@ -541,7 +566,6 @@ main_1 (int argc, char **argv, char **envp)
       init_display ();
     }
   init_keyboard ();	/* This too must precede init_sys_modes */
-  init_callproc ();	/* And this too. */
 #ifdef VMS
   init_vmsproc ();	/* And this too. */
   init_vmsfns ();
@@ -557,6 +581,9 @@ main_1 (int argc, char **argv, char **envp)
 #ifdef CLASH_DETECTION
   init_filelock ();
 #endif /* CLASH_DETECTION */
+#ifdef DRAGNDROP
+  init_xtfunc ();
+#endif
 
 /* Intern the names of all standard functions and variables; define standard keys */
 
@@ -567,9 +594,6 @@ main_1 (int argc, char **argv, char **envp)
 	 for the sake of symbols like error-message */
       syms_of_data ();
       syms_of_alloc ();
-#ifdef MAINTAIN_ENVIRONMENT
-      syms_of_environ ();
-#endif /* MAINTAIN_ENVIRONMENT */
       syms_of_symbols ();
       syms_of_lread ();
       syms_of_print ();
@@ -596,6 +620,7 @@ main_1 (int argc, char **argv, char **envp)
 #ifdef CLASH_DETECTION
       syms_of_filelock ();
 #endif /* CLASH_DETECTION */
+      syms_of_intl ();
       syms_of_indent ();
       syms_of_keyboard ();
       syms_of_keymap ();
@@ -622,6 +647,7 @@ main_1 (int argc, char **argv, char **envp)
       syms_of_xobjs ();
       syms_of_xselect ();
       syms_of_menubar ();
+      syms_of_scrollbar ();
 #endif /* HAVE_X_WINDOWS */
       syms_of_faces ();
       syms_of_events ();
@@ -638,7 +664,7 @@ main_1 (int argc, char **argv, char **envp)
 #endif
 
 #ifdef EMACS_BTL
-      syms_of_cadillac_btl_emacs ();  /* #### rename me */
+      syms_of_btl (); 
 #endif
 
 #ifdef ENERGIZE
@@ -647,6 +673,20 @@ main_1 (int argc, char **argv, char **envp)
 
 #ifdef FREE_CHECKING
       syms_of_free_hook();
+#endif
+
+#ifdef TOOLTALK
+      syms_of_tooltalk ();
+#endif
+
+#ifdef SPARCWORKS
+      syms_of_sparcworks ();
+#endif
+
+#ifdef DRAGNDROP
+      syms_of_opaque ();
+      syms_of_xtfun ();
+      syms_of_dragndrop ();
 #endif
 
       keys_of_keymap ();
@@ -695,6 +735,17 @@ main_1 (int argc, char **argv, char **envp)
     }
 
   initialized = 1;
+
+#ifdef USAGE_TRACKING
+  if (!noninteractive) {
+    Vusage_tracking = Qt;
+    ut_initialize(NULL, NULL, NULL);
+  } else {
+    Vusage_tracking = Qnil;
+  }
+#else
+  Vusage_tracking = Qnil;
+#endif
 
   /* This never returns.  */
   initial_command_loop (load_me);
@@ -848,16 +899,9 @@ shut_down_emacs (int sig, int no_x, Lisp_Object stuff)
   /* If we are controlling the terminal, reset terminal modes */
 #ifdef EMACS_HAVE_TTY_PGRP
   {
-#ifdef USG
-    int pgrp = getpgrp ();
-#else
-#ifdef OSF1
-    int pgrp = getpgrp ();
-#else
-    int pgrp = getpgrp (0);
-#endif
-#endif
+    int pgrp = EMACS_GETPGRP (0);
     int tpgrp;
+
     if (EMACS_GET_TTY_PGRP (0, &tpgrp) != -1
 	&& tpgrp == pgrp)
     {
@@ -879,6 +923,15 @@ shut_down_emacs (int sig, int no_x, Lisp_Object stuff)
 
 #ifdef CLASH_DETECTION
   unlock_all_files ();
+#endif
+
+#ifdef TOOLTALK
+#ifdef SPARCWORKS
+  quit_tt();
+#else
+  tt_session_quit (tt_default_session());
+  tt_close();
+#endif
 #endif
 
 #ifdef VMS
@@ -1019,10 +1072,10 @@ and announce itself normally when it is run.")
 #endif
 
 Lisp_Object
-decode_env_path (const char *evarname, const char *defalt)
+decode_env_path (CONST char *evarname, CONST char *defalt)
 {
-  register const char *path = 0;
-  register const char *p;
+  register CONST char *path = 0;
+  register CONST char *p;
   Lisp_Object lpath = Qnil;
 
   if (evarname)
@@ -1093,6 +1146,11 @@ This is the same as `(file-name-nondirectory execution-path)'.");
 
   DEFVAR_BOOL ("noninteractive", &noninteractive1,
     "Non-nil means Emacs is running without interactive terminal.");
+
+/* What is this? -jwz
+ *  DEFVAR_LISP ("usage-tracking", &Vusage_tracking,
+ *    "Whether usage tracking is turned on (Sun only).");
+ *  Vusage_tracking = Qnil; */
 
   DEFVAR_INT ("emacs-priority", &emacs_priority,
     "Priority for Emacs to run at.\n\

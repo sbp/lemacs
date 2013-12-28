@@ -1,5 +1,5 @@
 /* Buffer manipulation primitives for GNU Emacs.
-   Copyright (C) 1985, 1986, 1987, 1988, 1989, 1992, 1993
+   Copyright (C) 1985, 1986, 1987, 1988, 1989, 1992, 1993, 1994
 	Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
@@ -20,6 +20,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 
 #include "config.h"
+#include "intl.h"
 
 #include <stdio.h>		/* For sprintf */
 #include <sys/types.h>
@@ -133,6 +134,7 @@ int find_file_compare_truenames;
 int find_file_use_truenames;
 
 
+static void reset_buffer (struct buffer *);
 static Lisp_Object mark_buffer (Lisp_Object, void (*) (Lisp_Object));
 static void print_buffer (Lisp_Object, Lisp_Object, int);
 static int sizeof_buffer (void *);
@@ -140,7 +142,10 @@ DEFINE_LRECORD_IMPLEMENTATION (lrecord_buffer,
                                mark_buffer, print_buffer,
                                0, sizeof_buffer, 0);
 
-/* extern void mark_extent_list (Lisp_Object extent); */
+#ifdef ENERGIZE
+extern void mark_energize_buffer_data (struct buffer *b,
+				       void (*markobj) (Lisp_Object));
+#endif
 
 static Lisp_Object
 mark_buffer (Lisp_Object obj, void (*markobj) (Lisp_Object))
@@ -157,7 +162,7 @@ mark_buffer (Lisp_Object obj, void (*markobj) (Lisp_Object))
 #undef MARKED_SLOT
 
 #ifdef ENERGIZE
-  mark_energize_buffer_data (obj, markobj);
+  mark_energize_buffer_data (XBUFFER (obj), markobj);
 #endif
 
   return (Qnil);
@@ -171,16 +176,16 @@ print_buffer (Lisp_Object obj, Lisp_Object printcharfun, int escapeflag)
   if (print_readably) 
     {
       if (NILP (b->name))
-	error ("printing unreadable object #<killed buffer>");
+	error (GETTEXT ("printing unreadable object #<killed buffer>"));
       else
-	error ("printing unreadable object #<buffer %s>", 
+	error (GETTEXT ("printing unreadable object #<buffer %s>"), 
 	       XSTRING (b->name)->data);
     }
   else if (NILP (b->name))
-    write_string_1 ("#<killed buffer>", -1, printcharfun);
+    write_string_1 (GETTEXT ("#<killed buffer>"), -1, printcharfun);
   else if (escapeflag)
     {
-      write_string_1 ("#<buffer ", -1, printcharfun);
+      write_string_1 (GETTEXT ("#<buffer "), -1, printcharfun);
       print_internal (b->name, printcharfun, 1);
       write_string_1 (">", -1, printcharfun);
     }
@@ -218,9 +223,10 @@ nsberror (spec)
      Lisp_Object spec;
 {
   if (STRINGP (spec))
-    error ("No buffer named %s", XSTRING (spec)->data);
+    error (GETTEXT ("No buffer named %s"), XSTRING (spec)->data);
   signal_error (Qerror,
-		list2 (build_string ("Invalid buffer argument"), spec));
+		list2 (build_string (GETTEXT ("Invalid buffer argument")),
+		       spec));
 }
 
 DEFUN ("buffer-list", Fbuffer_list, Sbuffer_list, 0, 1, 0,
@@ -363,16 +369,6 @@ delete_from_buffer_alist (buf)
 }
 
 
-static void
-reset_buffer_1 (struct buffer *b)
-{
-#define MARKED_SLOT(x) (b->x = Qzero);
-#include "bufslots.h"
-#undef MARKED_SLOT
-  reset_buffer (b);
-}
-
-
 DEFUN ("get-buffer-create", Fget_buffer_create, Sget_buffer_create, 1, 1, 0,
   "Return the buffer named NAME, or create such a buffer and return it.\n\
 A new buffer is created if there is no live buffer named NAME.\n\
@@ -392,16 +388,17 @@ The value is never nil.")
 
   b = alloc_lcrecord (sizeof (struct buffer), lrecord_buffer);
   XSETR (buf, Lisp_Buffer, b);
-  reset_buffer_1 (b);
+  reset_buffer (b);
 
   BUF_GAP_SIZE (b) = 20;
   BLOCK_INPUT;
-  BUFFER_ALLOC (BUF_BEG_ADDR (b), BUF_GAP_SIZE (b));
+  (void) BUFFER_ALLOC (BUF_BEG_ADDR (b), BUF_GAP_SIZE (b));
   UNBLOCK_INPUT;
   if (! BUF_BEG_ADDR (b))
     memory_full ();
 
-  BUF_PT (b) = 1;
+  /*BUF_PT (b) = 1;*/	/* no longer an lvalue */
+  b->text.pt = 1;
   BUF_GPT (b) = 1;
   BUF_BEGV (b) = 1;
   BUF_ZV (b) = 1;
@@ -456,8 +453,7 @@ The value is never nil.")
 
 
 static void
-reset_buffer_local_variables (b)
-     register struct buffer *b;
+reset_buffer_local_variables_1 (struct buffer *b)
 {
   /* Reset the major mode to Fundamental, together with all the
      things that depend on the major mode.
@@ -472,20 +468,21 @@ reset_buffer_local_variables (b)
   b->upcase_table = Vascii_upcase_table;
   b->case_canon_table = Vascii_downcase_table;
   b->case_eqv_table = Vascii_upcase_table;
-#if 0
-  b->sort_table = XSTRING (Vascii_sort_table);
-  b->folding_sort_table = XSTRING (Vascii_folding_sort_table);
-#endif /* 0 */
 
   b->syntax_table = Vstandard_syntax_table;
 
   /* Reset all per-buffer variables to their defaults.  */
   b->local_var_alist = Qnil;
   b->local_var_flags = 0;
+}
+
+static void
+reset_buffer_local_variables (struct buffer *b)
+{
+  reset_buffer_local_variables_1 (b);
 
   /* For each slot that has a default value,
      copy that into the slot.  */
-
   {
     struct buffer *def = XBUFFER (Vbuffer_defaults);
     int tem;
@@ -500,29 +497,22 @@ reset_buffer_local_variables (b)
 
 /* Reinitialize everything about a buffer except its name and contents.  */
 
-void
-reset_buffer (b)
-     register struct buffer *b;
+static void
+reset_buffer (struct buffer *b)
 {
-  b->filename = Qnil;
-  b->truename = Qnil;
+  /* First set all slots to nil */
+#define MARKED_SLOT(x) (b->x = Qnil);
+#include "bufslots.h"
+#undef MARKED_SLOT
+
+  /* Then set selected slots to something else... */
   b->directory = (current_buffer) ? current_buffer->directory : Qnil;
   b->modtime = 0;
   b->save_modified = 1;
-  b->save_length = Qzero;
+  b->save_length = Qzero; /* Lisp_Object because lisp code wants int-or-nil */
   b->last_window_start = 1;
-  b->backed_up = Qnil;
   b->auto_save_modified = 0;
-  b->auto_save_file_name = Qnil;
-  b->read_only = Qnil;
-  b->extents = Qnil;
-#if 0 /* RMSmacs */
-  b->overlays_before = Qnil;
-  b->overlays_after = Qnil;
-  b->overlay_center = Qone;
-  b->mark_active = Qnil;
-#endif
-  b->dedicated_screen = Qnil;
+  /* #### Do these really need to be Lisp_Objects?? */
   b->left_outside_margin_width = Qzero;
   b->right_outside_margin_width = Qzero;
   reset_buffer_local_variables (b);
@@ -748,6 +738,7 @@ No argument or nil as argument means use current buffer as BUFFER.")
     struct buffer *syms = XBUFFER (Vbuffer_local_symbols);
 #define MARKED_SLOT(slot) \
     mask = *((int *) &(buffer_local_flags.slot)); \
+    if (!SYMBOLP (syms->slot)) abort (); \
     if ((mask == -1 || (buf->local_var_flags & mask)) && !NILP (syms->slot)) \
       result = Fcons (Fcons (syms->slot, buf->slot), result);
 #include "bufslots.h"
@@ -911,7 +902,7 @@ This does not change the name of the visited file (if any).")
       if (!NILP (unique))
 	name = Fgenerate_new_buffer_name (name, current_buffer->name);
       else
-	error ("Buffer name \"%s\" is in use", XSTRING (name)->data);
+	error (GETTEXT ("Buffer name \"%s\" is in use"), XSTRING (name)->data);
     }
 
   current_buffer->name = name;
@@ -1034,7 +1025,6 @@ with `delete-process'.")
 {
   Lisp_Object buf;
   register struct buffer *b;
-  register Lisp_Object tem;
   struct gcpro gcpro1, gcpro2;
 
   if (NILP (bufname))
@@ -1056,12 +1046,13 @@ with `delete-process'.")
   if (INTERACTIVE && !NILP (b->filename)
       && BUF_MODIFF (b) > b->save_modified)
     {
+      Lisp_Object killp;
       GCPRO2 (buf, bufname);
-      tem = call1 (Qyes_or_no_p,
-                   (format1 ("Buffer %s modified; kill anyway? ",
-                             XSTRING (b->name)->data)));
+      killp = call1 (Qyes_or_no_p,
+		     (format1 (GETTEXT ("Buffer %s modified; kill anyway? "),
+			       XSTRING (b->name)->data)));
       UNGCPRO;
-      if (NILP (tem))
+      if (NILP (killp))
 	return Qnil;
       b = XBUFFER (buf);        /* Hypothetical relocating GC. */
     }
@@ -1102,8 +1093,7 @@ with `delete-process'.")
      and give up if so.  */
   if (b == current_buffer)
     {
-      tem = Fother_buffer (buf, Qnil);
-      Fset_buffer (tem);
+      Fset_buffer (Fother_buffer (buf, Qnil));
       if (b == current_buffer)
 	return Qnil;
     }
@@ -1115,43 +1105,47 @@ with `delete-process'.")
   unlock_buffer (b);
 #endif /* CLASH_DETECTION */
 
-  kill_buffer_processes (buf);
-
-  tem = Vinhibit_quit;
-  Vinhibit_quit = Qt;
-  delete_from_buffer_alist (buf);
-  Freplace_buffer_in_windows (buf);
-  Vinhibit_quit = tem;
-
-  /* Delete any auto-save file.  */
-  if (STRINGP (b->auto_save_file_name))
-    {
-      Lisp_Object tem;
-      tem = Fsymbol_value (Qdelete_auto_save_files);
-      if (! NILP (tem))
-	unlink ((char *) XSTRING (b->auto_save_file_name)->data);
-    }
-
-  /* Unchain all markers of this buffer
-     and leave them pointing nowhere.  */
   {
-    register struct Lisp_Marker *m, *next;
-    for (m = b->markers; m; m = next)
-      {
-	m->buffer = 0;
-	next = marker_next (m);
-	marker_next (m) = 0;
-      }
-    b->markers = 0;
-  }
-  b->name = Qnil;
-  BLOCK_INPUT;
-  BUFFER_FREE (BUF_BEG_ADDR (b));
-  UNBLOCK_INPUT;
-  b->undo_list = Qnil;
-  free_buffer_cached_stack (b);
-  detach_buffer_extents (b);
+    int speccount = specpdl_depth ();
+    specbind (Qinhibit_quit, Qt);
 
+    kill_buffer_processes (buf);
+
+    /* #### This is a problem if this buffer is in a dedicated window.
+       Need to undedicate any windows of this buffer first (and delete them?)
+       */
+    Freplace_buffer_in_windows (buf);
+
+    delete_from_buffer_alist (buf);
+
+    /* Delete any auto-save file.  */
+    if (STRINGP (b->auto_save_file_name))
+      {
+	if (! NILP (Fsymbol_value (Qdelete_auto_save_files)))
+	  unlink ((char *) XSTRING (b->auto_save_file_name)->data);
+      }
+
+    /* Unchain all markers of this buffer
+       and leave them pointing nowhere.  */
+    {
+      register struct Lisp_Marker *m, *next;
+      for (m = b->markers; m; m = next)
+	{
+	  m->buffer = 0;
+	  next = marker_next (m);
+	  marker_next (m) = 0;
+	}
+      b->markers = 0;
+    }
+    b->name = Qnil;
+    BLOCK_INPUT;
+    BUFFER_FREE (BUF_BEG_ADDR (b));
+    UNBLOCK_INPUT;
+    b->undo_list = Qnil;
+    free_buffer_cached_stack (b);
+    detach_buffer_extents (b);
+    unbind_to (speccount, Qnil);
+  }
   return Qt;
 }
 
@@ -1219,10 +1213,10 @@ the window-buffer correspondences.")
   Lisp_Object tem;
 
   if (EQ (minibuf_window, selected_window))
-    error ("Cannot switch buffers in minibuffer window");
+    error (GETTEXT ("Cannot switch buffers in minibuffer window"));
   tem = Fwindow_dedicated_p (selected_window);
   if (!NILP (tem))
-    error ("Cannot switch buffers in a dedicated window");
+    error (GETTEXT ("Cannot switch buffers in a dedicated window"));
 
   if (NILP (bufname))
     buf = Fother_buffer (Fcurrent_buffer (), Qnil);
@@ -1344,7 +1338,7 @@ Use `switch-to-buffer' or `pop-to-buffer' to switch buffers permanently.")
 
   buffer = get_buffer (bufname, 1);
   if (NILP (XBUFFER (buffer)->name))
-    error ("Selecting deleted buffer");
+    error (GETTEXT ("Selecting deleted buffer"));
   set_buffer_internal (XBUFFER (buffer));
   return buffer;
 }
@@ -1499,57 +1493,30 @@ a non-nil `permanent-local' property are not eliminated by this function.")
 void
 init_buffer_once ()
 {
-  register Lisp_Object tem;
-  struct buffer *def = alloc_lcrecord (sizeof (struct buffer),
-                                       lrecord_buffer);
 
-  XSETR (Vbuffer_defaults, Lisp_Buffer, def);
   /* Make sure all markable slots in buffer_defaults
-     are initialized reasonably, so mark_buffer won't choke.  */
-  reset_buffer_1 (def);
+     are initialized reasonably, so mark_buffer won't choke.
+   */
+  struct buffer *defs = alloc_lcrecord (sizeof(struct buffer), lrecord_buffer);
+  struct buffer *syms = alloc_lcrecord (sizeof(struct buffer), lrecord_buffer);
+  XSETR (Vbuffer_defaults, Lisp_Buffer, defs);
+  XSETR (Vbuffer_local_symbols, Lisp_Buffer, syms);
 
-  /* Allocate and initialise Vbuffer_local_symbols */
-  {
-    struct buffer *s = alloc_lcrecord (sizeof (struct buffer), lrecord_buffer);
+# define MARKED_SLOT(x)	defs->x = Qnil; syms->x = Qnil;
+#  include "bufslots.h"
+# undef MARKED_SLOT
 
-    XSETR (Vbuffer_local_symbols, Lisp_Buffer, s);
-    reset_buffer_1 (s);
-  }
-
-#ifdef MULTI_SCREEN
-  Vscreen_list = Qnil;
-#endif
-
-  /* Set up the default values of various buffer slots.  */
-  /* Must do these before making the first buffer! */
-
-  /* real setup is done in loaddefs.el */
-  def->mode_line_format = build_string ("%-");
-  def->abbrev_mode = Qnil;
-  def->overwrite_mode = Qnil;
-  def->case_fold_search = Qt;
-  def->auto_fill_function = Qnil;
-  def->selective_display = Qnil;
-  def->selective_display_ellipses = Qt;
-  def->abbrev_table = Qnil;
-  def->display_table = Qnil;
-  def->undo_list = Qnil;
-
-#if 0 /* RMSmacs */
-  def->mark_active = Qnil;
-  def->overlays_before = Qnil;
-  def->overlays_after = Qnil;
-  def->overlay_center = Qone;
-#endif
-
-  def->tab_width = make_number (8);
-  def->truncate_lines = Qnil;
-  def->ctl_arrow = Qt;
-
-  def->fill_column = make_number (70);
-  def->left_margin = Qzero;
-
-  def->use_left_overflow = Qnil;
+  /* Set up the non-nil default values of various buffer slots.
+     Must do these before making the first buffer.
+   */
+  reset_buffer_local_variables_1 (defs);
+  defs->mode_line_format = build_string ("%-");  /* reset in loaddefs.el */
+  defs->case_fold_search = Qt;
+  defs->selective_display_ellipses = Qt;
+  defs->tab_width = make_number (8);
+  defs->ctl_arrow = Qt;
+  defs->fill_column = make_number (70);
+  defs->left_margin = Qzero;
 
   /* Assign the local-flags to the slots that have default values.
      The local flag is a bit that is used in the buffer
@@ -1595,23 +1562,28 @@ init_buffer_once ()
   Vbuffer_alist = Qnil;
   current_buffer = 0;
 
+#ifdef MULTI_SCREEN
+  Vscreen_list = Qnil;
+#endif
+
   QSFundamental = Fpurecopy (build_string ("Fundamental"));
   QSscratch = Fpurecopy (build_string ("*scratch*"));
 
   defsymbol (&Qfundamental_mode, "fundamental-mode");
-  def->major_mode = Qfundamental_mode;
+  defs->major_mode = Qfundamental_mode;
 
   Vprin1_to_string_buffer
     = Fget_buffer_create (Fpurecopy (build_string (" prin1")));
-  /* magic invisible buffer */
+  /* Reset Vbuffer_alist again so that the above buf is magically invisible */
   Vbuffer_alist = Qnil;
   /* Want no undo records for prin1_to_string_buffer */
   Fbuffer_disable_undo (Vprin1_to_string_buffer);
 
-  tem = Fset_buffer (Fget_buffer_create (QSscratch));
-  /* Want no undo records for *scratch*
-     until after Emacs is dumped */
-  Fbuffer_disable_undo (tem);
+  {
+    Lisp_Object scratch = Fset_buffer (Fget_buffer_create (QSscratch));
+    /* Want no undo records for *scratch* until after Emacs is dumped */
+    Fbuffer_disable_undo (scratch);
+  }
 }
 
 void
@@ -1643,7 +1615,7 @@ init_buffer ()
     {
       /* PWD env var didn't work for us */
       if (getwd (buf) == 0)
-	fatal ("`getwd' failed: %s.\n", buf);
+	fatal (GETTEXT ("`getwd' failed: %s.\n"), buf);
     }
 
 #ifndef VMS
@@ -1660,7 +1632,7 @@ init_buffer ()
 /* Renamed from DEFVAR_PER_BUFFER because FSFmacs D_P_B takes
  *  a bogus extra arg, which confuses an otherwise identical make-docfile.c */
 #define DEFVAR_BUFFER_LOCAL(lname, field_name, doc)  \
- do { static const struct symbol_value_forward I_hate_C \
+ do { static CONST struct symbol_value_forward I_hate_C \
        = { { { { lrecord_symbol_value_forward }, \
                (void *) &(buffer_local_flags.field_name), 69 }, \
              current_buffer_forward } }; \
@@ -1668,8 +1640,8 @@ init_buffer ()
  } while (0)
 
 static void
-defvar_buffer_local (const char *namestring, 
-                     const struct symbol_value_forward *m)
+defvar_buffer_local (CONST char *namestring, 
+                     CONST struct symbol_value_forward *m)
 {
   int offset = ((char *)symbol_value_forward_forward (m)
                 - (char *)&buffer_local_flags);
@@ -1688,7 +1660,7 @@ defvar_buffer_local (const char *namestring,
 /* DOC is ignored because it is snagged and recorded externally 
  *  by make-docfile */
 #define DEFVAR_BUFFER_DEFAULTS(lname, field_name, doc)  \
- do { static const struct symbol_value_forward I_hate_C \
+ do { static CONST struct symbol_value_forward I_hate_C \
        = { { { { lrecord_symbol_value_forward }, \
                (void *) &(buffer_local_flags.field_name), 69 }, \
              default_buffer_forward } }; \
@@ -1724,7 +1696,7 @@ syms_of_buffer ()
   pure_put (Qprotected_field, Qerror_conditions,
 	    list2 (Qprotected_field, Qerror));
   pure_put (Qprotected_field, Qerror_message,
-	    build_string ("Attempt to modify a protected field"));
+	    build_string (DEFER_GETTEXT ("Attempt to modify a protected field")));
 
   DEFVAR_BUFFER_DEFAULTS ("default-mode-line-format", mode_line_format,
     "Default value of `mode-line-format' for buffers that don't override it.\n\
@@ -1786,7 +1758,7 @@ A string is printed verbatim in the mode line except for %-constructs:\n\
    or when it is found in a cons-cell or a list)\n\
   %b -- print buffer name.      %f -- print visited file name.\n\
   %* -- print *, % or hyphen.   %m -- print value of mode-name (obsolete).\n\
-  %s -- print process status.   %M -- print value of global-mode-string. (obs)\n\
+  %s -- print process status.   %l -- print the current line number.\n\
   %S -- print name of selected screen (only meaningful under X Windows).\n\
   %p -- print percent of buffer above top of window, or top, bot or all.\n\
   %n -- print Narrow if appropriate.\n\
@@ -1919,7 +1891,7 @@ If `overwrite-mode-binary', self-insertion replaces newlines and tabs too.\n\
 Automatically becomes buffer-local when set in any fashion.");
 
 #if 0
-  DEFVAR_BUFFER_LOCAL ("buffer-display-table", display_table,
+  xxxDEFVAR_BUFFER_LOCAL ("buffer-display-table", display_table,
     "Display table that controls display of the contents of current buffer.\n\
 Automatically becomes buffer-local when set in any fashion.\n\
 The display table is a vector created with `make-display-table'.\n\
@@ -1940,7 +1912,7 @@ Each window can have its own, overriding display table.");
 #endif
 
 #if 0
-  DEFVAR_BUFFER_LOCAL ("buffer-field-list", fieldlist,
+  xxxDEFVAR_BUFFER_LOCAL ("buffer-field-list", fieldlist,
     "List of fields in the current buffer.  See `add-field'.");
 #endif
 

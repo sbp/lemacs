@@ -5,6 +5,9 @@
 
 #include "bsd4-2.h"
 
+#define HAVE_RINT
+#define HAVE_LOGB
+
 #ifndef HAVE_SYS_TIME_H
 #define HAVE_SYS_TIME_H
 #endif
@@ -36,12 +39,16 @@
 
 #define RUN_TIME_REMAP
 
+/* SunOS provides strcoll() and setlocale(). */
+#define I18N2
+
 /* these don't matter, but we have to define something to keep
    sysdep.c from introducing bogus symbols */
 #define TEXT_START 0
 #define DATA_START 0
 
 #ifndef THIS_IS_YMAKEFILE
+#ifdef __STDC__
 /* Sun's headers are categorically losing.
    Mly uses broken-sun.h to get the protos for this, but lcc provides all
    of the prototypes for the ANSI routines.  So I'm just going to put the
@@ -53,6 +60,10 @@ extern int setpgrp ();
 extern char *strdup ();
 extern char *ttyname (int);
 extern void tzsetwall (void);
+extern int getpagesize (void);
+#endif /* __STDC__ */
+
+#define LOCALTIME_CACHE
 
 # ifdef __GNUC__
   /* gcc has the bug that it claims to conform the the ANSI C standard

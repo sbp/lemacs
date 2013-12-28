@@ -1,5 +1,5 @@
-This is Info file ilisp.info, produced by Makeinfo-1.49 from the input
-file ilisp.texi.
+This is Info file ../info/ilisp.info, produced by Makeinfo-1.55 from
+the input file ilisp.texinfo.
 
    This file documents ILISP.
 
@@ -66,8 +66,8 @@ prevent others from further sharing any version of ILISP that they might
 get from you.  The precise conditions appears following this section.
 
    The easiest way to get a copy of ILISP is from someone else who has
-it. You need not ask for permission to do so, or tell any one else; just
-copy it.
+it.  You need not ask for permission to do so, or tell any one else;
+just copy it.
 
    If you do start using the package, please send mail to
 `ilisp-request@darwin.bu.edu' so that I can keep a mailing list of
@@ -276,7 +276,7 @@ reside to your `load-path'.  There is an example of this in
 `ilisp.emacs'
 
    The first time a dialect is started, the interface files will
-complain about not being compiled, just hit `i' to ignore the message. 
+complain about not being compiled, just hit `i' to ignore the message.
 Once a lisp dialect is started up, you should execute the command
 `ilisp-compile-inits' which will compile the `*.lisp' files and write
 them to the same directory as the ilisp files.
@@ -579,7 +579,7 @@ Buffers used by ILISP, and their commands
 `*DIALECT*'
      The Lisp listener buffer.  Forms can be entered in this buffer in,
      and they will be sent to lisp when you hit return if the form is
-     complete. This buffer is in ilisp-mode, which is built on top of
+     complete.  This buffer is in ilisp-mode, which is built on top of
      comint-mode, and all comint commands such as history mechanism and
      job control are available.
 
@@ -592,7 +592,7 @@ Buffers used by ILISP, and their commands
 
 ``*Completions*''
      Used for listing completions of symbols or files by the completion
-     commands. *Note Completion::.
+     commands.  *Note Completion::.
 
 `*Aborted Commands*'
      *Note Interrupts::.
@@ -633,7 +633,7 @@ set `window-min-height' to the number of lines desired plus one.
 names that will be displayed in the pop-up window.  By default only
 `*Typeout-window*' and `*Completions*' will be displayed in the pop-up
 window (remember to include the leading space in a buffer name if it
-has it). If you want all temporary windows to use the pop-up window,
+has it).  If you want all temporary windows to use the pop-up window,
 set `popper-pop-buffers' to `t'.
 
    The variable `popper-buffers-to-skip' has a list of the buffer names
@@ -651,7 +651,7 @@ popper window will be selected.
 
 `C-z G   (popper-grow-output)'
      will grow the output window if showing by the prefix number of
-     lines. Otherwise, it will pop the window up.
+     lines.  Otherwise, it will pop the window up.
 
    If you are running `epoch', the popper window will be in a separate
 X window that is not automatically grown or shrunk.  The variable
@@ -660,7 +660,7 @@ that window.
 
    An alternative to popper windows is to always have the inferior LISP
 buffer visible and have all output go there.  Setting `lisp-no-popper'
-to `t' will cause all output to go to the inferior LISP buffer. 
+to `t' will cause all output to go to the inferior LISP buffer.
 Setting `lisp-no-popper' to `'message' will make output of one line go
 to the message window. Setting `comint-always-scroll' to `t' will cause
 process output to always be visible.  If a command gets an error, you
@@ -685,7 +685,7 @@ Switching buffers
 `C-z b   (switch-to-lisp)'
      will pop to the current ILISP buffer or if already in an ILISP
      buffer, it will return to the buffer that last switched to an
-     ILISP buffer. With a prefix, it will also go to the end of the
+     ILISP buffer.  With a prefix, it will also go to the end of the
      buffer.  If you do not want it to pop, set `pop-up-windows' to nil.
 
 `M-C-l   (previous-buffer-lisp)'
@@ -742,12 +742,12 @@ the corresponding symbol will be unbound and the value assigned again.
 progress of the command.  In a lisp mode buffer the light will reflect
 the status of the currently selected inferior LISP unless
 `lisp-show-status' is nil.  If you want to find out what command is
-currently running, use the command `C-z s' (status-lisp). If you call
+currently running, use the command `C-z s' (status-lisp).  If you call
 it with a prefix, the pending commands will be displayed as well.
 
    Note that in this table as elsewhere, the key C-z (ilisp-prefix) is
 used as a prefix character for ILISP commands, though this may be
-changed. For a full list of key-bindings, use `M-x describe-mode' or
+changed.  For a full list of key-bindings, use `M-x describe-mode' or
 `M-x describe-bindings' while in an ILISP-mode buffer.
 
    The eval/compile commands verify that their expressions are balanced
@@ -809,7 +809,7 @@ asynchronously and the results will be brought up only if there is more
 than one line or there is an error.  In this case, you will be given
 the option of ignoring the error, keeping it in another buffer or
 keeping it and aborting all pending sends.  If there is not a command
-already running in the inferior LISP, you can preserve the break loop. 
+already running in the inferior LISP, you can preserve the break loop.
 If called with a negative prefix, the sense of `lisp-wait-p' will be
 inverted for the next command.
 
@@ -836,9 +836,9 @@ the start of the current list.
      inserted into the buffer.
 
 `C-z d   (documentation-lisp)'
-     Infers whether function or variable documentation is desired. 
+     Infers whether function or variable documentation is desired.
      With a negative prefix, you can specify the type of documentation
-     as well. With a positive prefix the documentation of the current
+     as well.  With a positive prefix the documentation of the current
      function call is inserted into the buffer.
 
 `C-z i   (describe-lisp)'
@@ -899,9 +899,9 @@ Mode buffer, the package will be determined by using the regular
 expression `ilisp-package-regexp' to find a package sexp and then
 passing that sexp to the inferior LISP through `ilisp-package-command'.
 For the `clisp' dialect, this will find the first `(in-package
-PACKAGE)' form in the file. A buffer's package will be displayed in the
-mode line. If a buffer has no specification, forms will be evaluated in
-the current inferior LISP package.
+PACKAGE)' form in the file.  A buffer's package will be displayed in
+the mode line.  If a buffer has no specification, forms will be
+evaluated in the current inferior LISP package.
 
    Buffer package caching can be turned off by setting the variable
 `lisp-dont-cache-package' to `T'.  This will force ILISP to search for
@@ -939,7 +939,7 @@ first applicable rule is used:
    `M-x lisp-directory' defines a set of files to be searched by the
 source code commands.  It prompts for a directory and sets the source
 files to be those in the directory that match entries in
-`auto-mode-alist' for modes in `lisp-source-modes'. With a positive
+`auto-mode-alist' for modes in `lisp-source-modes'.  With a positive
 prefix, the files are appended.  With a negative prefix, all current
 buffers that are in one of `lisp-source-modes' will be searched.  This
 is also what happens by default.  Using this command stops using a tags
@@ -953,9 +953,9 @@ entering an expression in the minibuffer, all of the normal ILISP
 commands like `arglist-lisp' also work.
 
    `edit-definitions-lisp' (`M-.') will find a particular type of
-definition for a symbol.  It tries to use the rules described above. 
+definition for a symbol.  It tries to use the rules described above.
 The files to be searched are listed in the buffer `*Edit-Definitions*'.
- If `lisp-edit-files' is nil, no search will be done if not found
+If `lisp-edit-files' is nil, no search will be done if not found
 through the inferior LISP.  The variable `ilisp-locator' contains a
 function that when given the name and type should be able to find the
 appropriate definition in the file.  There is often a flag to cause
@@ -1025,15 +1025,15 @@ commands are always executed asynchronously.
 
    `mark-change-lisp' (`C-z SPC') marks the current defun as being
 changed.  A prefix causes it to be unmarked.  `clear-changes-lisp'
-(`C-z * 0') will clear all of the changes. `list-changes-lisp' (`C-z *
+(`C-z * 0') will clear all of the changes.  `list-changes-lisp' (`C-z *
 l') will show the forms currently marked.
 
    `eval-changes-lisp' (`C-z * e'), or `compile-changes-lisp' (`C-z *
-c') will evaluate or compile these changes as appropriate. If called
-with a positive prefix, the changes will be kept. If there is an error,
-the process will stop and show the error and all remaining changes will
-remain in the list.  All of the results will be kept in the buffer
-`*Last-Changes*'.
+c') will evaluate or compile these changes as appropriate.  If called
+with a positive prefix, the changes will be kept.  If there is an
+error, the process will stop and show the error and all remaining
+changes will remain in the list.  All of the results will be kept in
+the buffer `*Last-Changes*'.
 
 Summary:
 
@@ -1143,9 +1143,9 @@ top-level so that it will no longer be in a break loop.
 
    If `lisp-wait-p' is `nil'  (the default), all sends are done
 asynchronously and the results will be brought up only if there is more
-than one line or there is an error. In case, you will be given the
+than one line or there is an error.  In case, you will be given the
 option of ignoring the error, keeping it in another buffer or keeping
-it and aborting all pending sends. If there is not a command already
+it and aborting all pending sends.  If there is not a command already
 running in the inferior LISP, you can preserve the break loop.  If
 called with a negative prefix, the sense of `lisp-wait-p' will be
 inverted for the next command.
@@ -1195,22 +1195,22 @@ Completion
 
 `M-TAB   (complete-lisp)'
      will try to complete the previous symbol in the current inferior
-     LISP. Partial completion is supported unless `ilisp-prefix-match'
-     is set to `t'. (If you set it to `t', inferior LISP completions
+     LISP.  Partial completion is supported unless `ilisp-prefix-match'
+     is set to `t'.  (If you set it to `t', inferior LISP completions
      will be faster.) With partial completion, `p--n' would complete to
-     `position-if-not' in Common LISP. If the symbol follows a left
+     `position-if-not' in Common LISP.  If the symbol follows a left
      paren or a `#'', only symbols with function cells will be
-     considered. If the symbol starts with a `*' or you call with a
-     positive prefix all possible completions will be considered. Only
+     considered.  If the symbol starts with a `*' or you call with a
+     positive prefix all possible completions will be considered.  Only
      external symbols are considered if there is a package qualification
-     with only one colon. The first time you try to complete a string
+     with only one colon.  The first time you try to complete a string
      the longest common substring will be inserted and the cursor will
-     be left on the point of ambiguity. If you try to complete again,
-     you can see the possible completions. If you are in a string, then
-     filename completion will be done instead. And if you try to
+     be left on the point of ambiguity.  If you try to complete again,
+     you can see the possible completions.  If you are in a string,
+     then filename completion will be done instead.  And if you try to
      complete a filename twice, you will see a list of possible
-     completions. Filename components are completed individually, so
-     `/u/mi/' could expand to `/usr/misc/'. If you complete with a
+     completions.  Filename components are completed individually, so
+     `/u/mi/' could expand to `/usr/misc/'.  If you complete with a
      negative prefix, the most recent completion (symbol or filename)
      will be undone.
 
@@ -1424,4 +1424,3 @@ Notes:
    * Eval/compile commands should use `eval-region-lisp' or
      `compile-region-lisp'.
 
-

@@ -19,6 +19,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #ifdef emacs
 #include "config.h"
+#include "intl.h"
 #include "lisp.h"
 extern char *elisp_hvector_malloc (unsigned int, Lisp_Object);
 extern void elisp_hvector_free (void *ptr, Lisp_Object table);
@@ -34,7 +35,7 @@ extern void elisp_hvector_free (void *ptr, Lisp_Object table);
 #include <string.h>
 #include "hash.h"
 
-static const int 
+static CONST int 
 primes []={
   13,
   29, 37, 47, 59, 71, 89, 107, 131, 163, 197, 239, 293, 353, 431, 521, 631, 
@@ -49,11 +50,11 @@ primes []={
 
 /* from base/generic-hash.cc, and hence from Dragon book, p436 */
 static unsigned long
-string_hash (const void *xv)
+string_hash (CONST void *xv)
 { 
   unsigned int h = 0;
   unsigned int g;
-  unsigned const char *x = (unsigned const char *) xv;
+  unsigned CONST char *x = (unsigned CONST char *) xv;
 
   if (!x) return 0;
 
@@ -69,10 +70,10 @@ string_hash (const void *xv)
 
 static int 
 string_eq (st1v, st2v)
-     const void *st1v, *st2v;
+     CONST void *st1v, *st2v;
 {
-  const char *st1 = (const char *)st1v;
-  const char *st2 = (const char *)st2v;
+  CONST char *st1 = (CONST char *)st1v;
+  CONST char *st2 = (CONST char *)st2v;
 
   if (!st1)
     return (st2)?0:1;
@@ -88,7 +89,7 @@ prime_size (size)
      unsigned int size;
 {
   unsigned int i;
-  const int lim = countof (primes);
+  CONST int lim = countof (primes);
   for (i = 0; i < lim; i++)
     if (size <= primes [i]) return primes [i];
   return primes [lim - 1];
@@ -99,9 +100,9 @@ static void rehash (hentry *harray, c_hashtable ht, unsigned int size);
 #define KEYS_DIFFER_P(old, new, testfun) \
   ((testfun)?(((old) == (new))?0:(!(testfun ((old), new)))):((old) != (new)))
 
-const void *
+CONST void *
 gethash (key, hash, ret_value)
-     const void *key; c_hashtable hash; const void **ret_value;
+     CONST void *key; c_hashtable hash; CONST void **ret_value;
 {
   hentry *harray = hash->harray;
   int (*test_function)() = hash->test_function;
@@ -110,7 +111,7 @@ gethash (key, hash, ret_value)
     (hash->hash_function)?(hash->hash_function(key)):((unsigned long) key);
   unsigned int hcode = hcode_initial % hsize;
   hentry *e = &harray [hcode];
-  const void *e_key = e->key;
+  CONST void *e_key = e->key;
 
   if (!key) 
     {
@@ -179,8 +180,8 @@ make_hashtable (hsize)
 
 c_hashtable
 make_general_hashtable (unsigned int hsize,
-			unsigned long (*hash_function) (const void *),
-			int (*test_function) (const void *, const void *))
+			unsigned long (*hash_function) (CONST void *),
+			int (*test_function) (CONST void *, CONST void *))
 {
   c_hashtable res = (c_hashtable) xmalloc (sizeof (struct _C_hashtable));
   memset (res, 0, sizeof (struct _C_hashtable));
@@ -220,7 +221,7 @@ copy_hash (dest, src)
   /* if these are not the same, then we are losing here */
   if ((NILP (dest->elisp_table)) != (NILP (src->elisp_table)))
     {
-      error ("Incompatible hashtable types to copy_hash.");
+      error (GETTEXT ("Incompatible hashtable types to copy_hash."));
       return;
     }
 #endif
@@ -293,7 +294,7 @@ grow_hashtable (hash, new_size)
 
 void 
 puthash (key, cont, hash)
-     const void *key; 
+     CONST void *key; 
      void *cont; 
      c_hashtable hash;
 {
@@ -301,14 +302,14 @@ puthash (key, cont, hash)
   int (*test_function)() = hash->test_function;
   unsigned int fullness = hash->fullness;
   hentry *harray;
-  const void *e_key;
+  CONST void *e_key;
   hentry *e;
   unsigned int hcode_initial = 
     (hash->hash_function)?(hash->hash_function(key)):((unsigned long) key);
   unsigned int hcode;
   unsigned int incr = 0;
   unsigned int h2;
-  const void *oldcontents;
+  CONST void *oldcontents;
 
   if (!key) 
     {
@@ -390,16 +391,16 @@ rehash (harray, hash, size)
 
 void 
 remhash (key, hash)
-     const void *key; c_hashtable hash;
+     CONST void *key; c_hashtable hash;
 {
   hentry *harray = hash->harray;
-  int (*test_function) (const void*, const void*) = hash->test_function;
+  int (*test_function) (CONST void*, CONST void*) = hash->test_function;
   unsigned int hsize = hash->size;
   unsigned int hcode_initial = 
     (hash->hash_function)?(hash->hash_function(key)):((unsigned long) key);
   unsigned int hcode = hcode_initial % hsize;
   hentry *e = &harray [hcode];
-  const void *e_key = e->key;
+  CONST void *e_key = e->key;
 
   if (!key) 
     {

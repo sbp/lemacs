@@ -45,8 +45,8 @@ struct symbol_value_magic
    && (XRECORD_LHEADER ((x))->implementation->printer \
        == print_symbol_value_magic))
 extern void print_symbol_value_magic (Lisp_Object, Lisp_Object, int);
-extern const struct lrecord_implementation lrecord_symbol_value_forward[];
-extern const struct lrecord_implementation lrecord_symbol_value_buffer_local[];
+extern CONST struct lrecord_implementation lrecord_symbol_value_forward[];
+extern CONST struct lrecord_implementation lrecord_symbol_value_buffer_local[];
 
 
 struct symbol_value_forward
@@ -55,7 +55,7 @@ struct symbol_value_forward
   /* void *forward; -- use magic.lcheader.next instead */
 };
 #define XSYMBOL_VALUE_FORWARD(v) \
-	((const struct symbol_value_forward *) XPNTR(v))
+	((CONST struct symbol_value_forward *) XPNTR(v))
 #define symbol_value_forward_forward(m) ((void *)((m)->magic.lcheader.next))
 
 struct symbol_value_buffer_local

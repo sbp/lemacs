@@ -1,5 +1,5 @@
 ;; Mouse support for X window system.
-;; Copyright (C) 1985, 1992, 1993 Free Software Foundation, Inc.
+;; Copyright (C) 1985, 1992, 1993, 1994 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -17,7 +17,27 @@
 ;; along with GNU Emacs; see the file COPYING.  If not, write to
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
-(provide 'x-mouse)
+
+(eval-when-compile
+ ;; these used to be defsubsts, now they're subrs.  Avoid losing if we're
+ ;; being compiled with an emacs that has the old interpretation.
+ ;; (Warning, proclaim-notinline seems to be broken in 19.8.)
+ (remprop 'facep 'byte-optimizer)
+ (remprop 'face-name 'byte-optimizer)
+ (remprop 'face-id 'byte-optimizer)
+ (remprop 'face-font 'byte-optimizer)
+ (remprop 'face-foreground 'byte-optimizer)
+ (remprop 'face-background 'byte-optimizer)
+ (remprop 'face-background-pixmap 'byte-optimizer)
+ (remprop 'face-underline-p 'byte-optimizer)
+ (remprop 'face-font-name 'byte-optimizer)
+ (remprop 'set-face-font 'byte-optimizer)
+ (remprop 'set-face-foreground 'byte-optimizer)
+ (remprop 'set-face-background 'byte-optimizer)
+ (remprop 'set-face-background-pixmap 'byte-optimizer)
+ (remprop 'set-face-underline-p 'byte-optimizer)
+ )
+
 (require 'mouse)
 
 (define-key global-map 'button2 'x-set-point-and-insert-selection)
@@ -76,6 +96,38 @@ to the cut buffer"
       (x-store-cutbuffer
        (buffer-substring (extent-start-position primary-selection-extent)
 			 (extent-end-position primary-selection-extent)))))))
+
+
+;;; OpenWindows-like "find" processing.
+
+;; #### This keybinding is a Sun-ism, but it's hard to isolate it...
+;; #### It's totally bogus that we're binding `f19' to this intead of `Find'
+;; #### but that's what the X server calls that key; once key-translation-map
+;; #### exists, this should change.
+(global-set-key 'f19 'ow-find)
+(global-set-key '(shift f19) 'ow-find-backward)
+
+(defvar ow-find-last-string nil)
+
+(defun ow-find (&optional backward-p)
+  "Search forward the next occurence of the text of the selection."
+  (interactive)
+  (let ((text (or (condition-case () (x-get-selection) (error nil))
+		  ow-find-last-string
+		  (error "No selection"))))
+    (setq ow-find-last-string text)
+    (cond (backward-p
+	   (search-backward text)
+	   (set-mark (+ (point) (length text))))
+	  (t
+	   (search-forward text)
+	   (set-mark (- (point) (length text)))))
+    (zmacs-activate-region)))
+
+(defun ow-find-backward ()
+  "Search backward the previous occurence of the text of the selection."
+  (interactive)
+  (ow-find t))
 
 
 ;;; Pointer shape.
@@ -156,7 +208,7 @@ will be used.")
 		    (t (cond (x-mode-pointer-shape 'x-mode-pointer-shape)
 			     (x-nontext-pointer-shape 'x-nontext-pointer-shape)
 			     (x-pointer-shape 'x-pointer-shape)))))
-	 pointer)
+	 pointer scrollbar-pointer)
     (condition-case c
 	(progn
 	  (setq pointer (x-pointer-cache (symbol-value var)
@@ -166,6 +218,19 @@ will be used.")
 	  (x-set-screen-pointer screen pointer))
       (error
        (x-track-pointer-damage-control c var)))
+    (condition-case c
+	(progn
+	  (setq scrollbar-pointer
+		(if x-scrollbar-pointer-shape
+		    (x-pointer-cache x-scrollbar-pointer-shape
+				     x-pointer-foreground-color
+				     x-pointer-background-color
+				     screen)
+		  pointer))
+	  (x-set-scrollbar-pointer screen scrollbar-pointer))
+      (error
+       (x-track-pointer-damage-control c 'x-scrollbar-pointer-shape)))
+
     (if extent
 	(highlight-extent extent t)
       (highlight-extent nil nil))
@@ -187,7 +252,9 @@ will be used.")
   ;; When x-set-screen-pointer signals an error, this function tries to figure
   ;; out why, and undo the damage so that an error isn't signalled every time
   ;; the mouse moves.
-  (cond ((string= (nth 1 c) "unknown cursor")
+  (cond ((and (stringp (nth 1 c))
+	      (or (string= (nth 1 c) "unknown cursor")
+		  (string-match "xpm\\|XPM\\|pixmap\\|bitmap" (nth 1 c))))
 	 (set var nil)
 	 (error "%S was %S, which is an invalid X cursor name.  Reset."
 		var (nth 2 c)))
@@ -203,7 +270,7 @@ will be used.")
 	((eq (car c) 'wrong-type-argument)
 	 (let ((rest '(x-pointer-foreground-color x-pointer-background-color
 		       x-pointer-shape x-nontext-pointer-shape
-		       x-mode-pointer-shape)))
+		       x-mode-pointer-shape x-scrollbar-pointer-shape)))
 	   (while rest
 	     (if (and (symbol-value (car rest))
 		      (not (stringp (symbol-value (car rest)))))
@@ -228,7 +295,7 @@ will be used.")
 					  x-pointer-background-color
 					  (selected-screen)))
       (error
-       (beep)
+       ;;(beep)
        (setq gc-message "Garbage collecting... ERROR setting GC pointer!")))))
 
 (add-hook 'pre-gc-hook 'x-set-pointer-for-gc)
@@ -256,8 +323,14 @@ database."
     (setq x-gc-pointer-shape
 	  (or (x-get-resource "gcPointer" "Cursor" 'string screen)
 	      "watch"))
+    (setq x-scrollbar-pointer-shape
+	  (or (x-get-resource "scrollbarPointer" "Cursor" 'string screen)
+	      "top_left_arrow"))
     (setq x-pointer-foreground-color
 	  (x-get-resource "pointerColor" "Foreground" 'string screen))
     (setq x-pointer-background-color
 	  (x-get-resource "pointerBackground" "Background" 'string screen))
     (setq x-pointers-initialized t)))
+
+
+(provide 'x-mouse)

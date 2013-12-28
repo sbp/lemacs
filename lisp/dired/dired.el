@@ -69,7 +69,7 @@ match the value of --suffix or -S in the GZIP environment variable if it
 exists and \".gz\" if it does not.")
 
 ;;;###autoload
-(defvar dired-listing-switches "-al"
+(defvar dired-listing-switches (purecopy "-al")
   "*Switches passed to ls for dired. MUST contain the `l' option.
 Can contain even `F', `b', `i' and `s'.")
 
@@ -79,12 +79,13 @@ Can contain even `F', `b', `i' and `s'.")
 
 ;;;###autoload
 (defvar dired-chown-program
-  (if (memq system-type '(dgux-unix hpux usg-unix-v silicon-graphics-unix))
-      "chown" "/etc/chown")
+  (purecopy
+   (if (memq system-type '(dgux-unix hpux usg-unix-v silicon-graphics-unix))
+       "chown" "/etc/chown"))
   "*Name of chown command (usully `chown' or `/etc/chown').")
 
 ;;;###autoload
-(defvar dired-ls-program "ls"
+(defvar dired-ls-program (purecopy "ls")
   "*Absolute or relative name of the ls program used by dired.")
 
 ;;;###autoload
@@ -102,7 +103,7 @@ don't care about symbolic links which really end in a @, you can
 always set this variable to t.")
 
 ;;;###autoload
-(defvar dired-trivial-filenames "^\\.\\.?$\\|^#"
+(defvar dired-trivial-filenames (purecopy "^\\.\\.?$\\|^#")
   "*Regexp of files to skip when moving point to the first file of a new directory listing.
 Nil means move to the subdir line, t means move to first file.")
 
@@ -922,14 +923,14 @@ Optional prefix ARG says how many lines to unflag; default is one line."
 (defun dired-next-line (arg)
   "Move down lines then position at filename.
 Optional prefix ARG says how many lines to move; default is one line."
-  (interactive "p")
+  (interactive "_p")
   (next-line arg)
   (dired-move-to-filename))
 
 (defun dired-previous-line (arg)
   "Move up lines then position at filename.
 Optional prefix ARG says how many lines to move; default is one line."
-  (interactive "p")
+  (interactive "_p")
   (previous-line arg)
   (dired-move-to-filename))
 
@@ -949,7 +950,8 @@ Creates a buffer if necessary."
 (defun dired-find-file ()
   "In dired, visit the file or directory named on this line."
   (interactive)
-  (find-file (dired-get-filename)))
+  (let ((find-file-run-dired t))
+    (find-file (dired-get-filename))))
 
 (defun dired-view-file ()
   "In dired, examine a file in view mode, returning to dired when done.
@@ -1864,7 +1866,7 @@ This calls chmod, thus symbolic modes like `g+w' are allowed."
 
 (defun dired-next-dirline (arg &optional opoint)
   "Goto ARG'th next directory file line."
-  (interactive "p")
+  (interactive "_p")
   (dired-check-ls-l)
   (or opoint (setq opoint (point)))
   (if (if (> arg 0)
@@ -1877,7 +1879,7 @@ This calls chmod, thus symbolic modes like `g+w' are allowed."
 
 (defun dired-prev-dirline (arg)
   "Goto ARG'th previous directory file line."
-  (interactive "p")
+  (interactive "_p")
   (dired-next-dirline (- arg)))
 
 (defun dired-unflag-all-files (flag &optional arg)
@@ -2105,7 +2107,7 @@ Use \\[dired-unflag-all-files] to remove all flags."
 
 (defun dired-next-marked-file (arg &optional wrap opoint)
   "Move to the next marked file, wrapping around the end of the buffer."
-  (interactive "p\np")
+  (interactive "_p\np")
   (or opoint (setq opoint (point)));; return to where interactively started
   (if (if (> arg 0)
 	  (re-search-forward dired-re-mark nil t arg)
@@ -2122,7 +2124,7 @@ Use \\[dired-unflag-all-files] to remove all flags."
 
 (defun dired-prev-marked-file (arg &optional wrap)
   "Move to the previous marked file, wrapping around the end of the buffer."
-  (interactive "p\np")
+  (interactive "_p\np")
   (dired-next-marked-file (- arg) wrap))
 
 (defun dired-file-marker (file)
@@ -3118,7 +3120,7 @@ The next char is either \\n, or \\r if DIR is hidden."
   ;; Use 0 arg to go to this directory's header line.
   ;; NO-SKIP prevents moving to end of header line, returning whatever
   ;; position was found in dired-subdir-alist.
-  (interactive "p")
+  (interactive "_p")
   (let ((this-dir (dired-current-directory))
 	pos index)
     ;; nth with negative arg does not return nil but the first element
@@ -3137,7 +3139,7 @@ The next char is either \\n, or \\r if DIR is hidden."
 (defun dired-prev-subdir (arg &optional no-error-if-not-found no-skip)
   "Go to previous subdirectory, regardless of level.
 When called interactively and not on a subdir line, go to this subdir's line."
-  ;;(interactive "p")
+  ;;(interactive "_p")
   (interactive
    (list (if current-prefix-arg
 	     (prefix-numeric-value current-prefix-arg)
@@ -3147,7 +3149,7 @@ When called interactively and not on a subdir line, go to this subdir's line."
 
 (defun dired-tree-up (arg)
   "Go up ARG levels in the dired tree."
-  (interactive "p")
+  (interactive "_p")
   (let ((dir (dired-current-directory)))
     (while (>= arg 1)
       (setq arg (1- arg)
@@ -3158,7 +3160,7 @@ When called interactively and not on a subdir line, go to this subdir's line."
 
 (defun dired-tree-down ()
   "Go down in the dired tree."
-  (interactive)
+  (interactive "_")
   (let ((dir (dired-current-directory)) ; has slash
 	pos case-fold-search)		; filenames are case sensitive
     (let ((rest (reverse dired-subdir-alist)) elt)
@@ -3740,5 +3742,8 @@ With a prefix argument you can edit the current listing switches instead."
 
 (if (eq system-type 'vax-vms)
     (load "dired-vms"))
+
+(if (string-match "Lucid" emacs-version)
+    (load "dired-lucid"))
 
 (run-hooks 'dired-load-hook)		; for your customizations

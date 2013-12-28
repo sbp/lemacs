@@ -39,11 +39,11 @@ Such a \"function\" cannot be called from Lisp, but it is a valid
 editor command."
   (interactive "SName for last kbd macro: ")
   (or last-kbd-macro
-      (error "No keyboard macro defined"))
+      (error (gettext "No keyboard macro defined")))
   (and (fboundp symbol)
        (not (stringp (symbol-function symbol)))
        (not (vectorp (symbol-function symbol)))
-       (error "Function %s is already defined and not a keyboard macro."
+       (error (gettext "Function %s is already defined and not a keyboard macro.")
 	      symbol))
   (fset symbol last-kbd-macro))
 
@@ -134,7 +134,7 @@ Your options are: \\<query-replace-map>
   (interactive "P")
   (or executing-macro
       defining-kbd-macro
-      (error "Not defining or executing kbd macro"))
+      (error (gettext "Not defining or executing kbd macro")))
   (if flag
       (let (executing-macro defining-kbd-macro)
 	(recursive-edit))
@@ -142,8 +142,8 @@ Your options are: \\<query-replace-map>
 	nil
       (let ((loop t)
 	    (msg (substitute-command-keys
-                  "Proceed with macro?\\<query-replace-map>\
- (\\[act], \\[skip], \\[exit], \\[recenter], \\[edit]) ")))
+                  (gettext "Proceed with macro?\\<query-replace-map>\
+ (\\[act], \\[skip], \\[exit], \\[recenter], \\[edit]) "))))
 	(while loop
 	  (let ((key (let ((executing-macro nil)
 			    (defining-kbd-macro nil))
@@ -170,7 +170,7 @@ Your options are: \\<query-replace-map>
 		  (t
 		   (or (eq def 'help)
 		       (ding))
-		   (with-output-to-temp-buffer "*Help*"
+		   (with-output-to-temp-buffer (gettext "*Help*")
 		     (princ
 		      (substitute-command-keys
 		       "Specify how to proceed with keyboard macro execution.

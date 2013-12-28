@@ -34,7 +34,7 @@
 (require 'pcl-cvs)
 
 (defvar cvs-menu
-  '("CVS"
+  '("CVS Commands"
     ["Find File"			cvs-mode-find-file		t]
     ["Find File Other Window"		cvs-mode-find-file-other-window	t]
     ["Interactively Merge (emerge)"	cvs-mode-emerge			t]

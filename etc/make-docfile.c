@@ -1,5 +1,5 @@
 /* Generate doc-string file for GNU Emacs from source files.
-   Copyright (C) 1985, 1986, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1992, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -32,8 +32,19 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
  */
 
 #include <stdio.h>
+#if __STDC__
+#include <stdlib.h>
+#endif
 
-FILE *outfile;
+static FILE *outfile;
+
+static int scan_file ();
+static int read_c_string ();
+static void write_c_args ();
+static int scan_c_file ();
+static void skip_white ();
+static void read_lisp_symbol ();
+static int scan_lisp_file ();
 
 main (argc, argv)
      int argc;
@@ -67,6 +78,7 @@ main (argc, argv)
 /* Read file FILENAME and output its doc strings to stdout.  */
 /* Return 1 if file is not found, 0 if it is found.  */
 
+static int
 scan_file (filename)
      char *filename;
 {
@@ -88,6 +100,7 @@ char buf[128];
  Convert escape sequences \n and \t to newline and tab;
  discard \ followed by newline.  */
 
+static int
 read_c_string (infile, printflag)
      FILE *infile;
      int printflag;
@@ -138,6 +151,7 @@ read_c_string (infile, printflag)
 /* Write to file OUT the argument names of the function whose text is in BUF.
    MINARGS and MAXARGS are the minimum and maximum number of arguments.  */
 
+static void
 write_c_args (out, buf, minargs, maxargs)
      FILE *out;
      char *buf;
@@ -191,6 +205,7 @@ write_c_args (out, buf, minargs, maxargs)
    Looks for DEFUN constructs such as are defined in ../src/lisp.h.
    Accepts any word starting DEF... so it finds DEFSIMPLE and DEFPRED.  */
 
+static int
 scan_c_file (filename)
      char *filename;
 {
@@ -374,7 +389,7 @@ scan_c_file (filename)
  An entry is output only if DOCSTRING has \ newline just after the opening "
  */
 
-void
+static void
 skip_white (infile)
      FILE *infile;
 {
@@ -384,7 +399,7 @@ skip_white (infile)
   ungetc (c, infile);
 }
 
-void
+static void
 read_lisp_symbol (infile, buffer)
      FILE *infile;
      char *buffer;
@@ -397,7 +412,7 @@ read_lisp_symbol (infile, buffer)
     {
       c = getc (infile);
       if (c == '\\')
-	*(++fillp) = getc (infile);
+	*fillp++ = getc (infile);
       else if (c == ' ' || c == '\t' || c == '\n' || c == '(' || c == ')')
 	{
 	  ungetc (c, infile);
@@ -415,6 +430,7 @@ read_lisp_symbol (infile, buffer)
 }
 
 
+static int
 scan_lisp_file (filename)
      char *filename;
 {

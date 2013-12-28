@@ -1,5 +1,5 @@
 /* Lisp functions for making directory listings.
-   Copyright (C) 1985, 1986, 1992, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1992, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -63,6 +63,7 @@ extern struct direct *readdir ();
 #endif
 
 #include "lisp.h"
+#include "intl.h"
 #include "buffer.h"
 #include "commands.h"
 
@@ -131,6 +132,20 @@ If FILES-ONLY is the symbol t, then only the \"files\" in the directory\n\
   dirname = Fexpand_file_name (dirname, Qnil);
   dirfilename = Fdirectory_file_name (dirname);
 
+  {
+    /* Lemacs: this should come before the opendir() because it might error. */
+    /*>>> need more gcpro's */
+    Lisp_Object name_as_dir = Ffile_name_as_directory (dirname);
+    CHECK_STRING (name_as_dir, 0);
+    memcpy (statbuf, ((char *) XSTRING (name_as_dir)->data),
+           XSTRING (name_as_dir)->size);
+    statbuf_tail = statbuf + XSTRING (name_as_dir)->size;
+  }
+
+  /* Lemacs: this must come after Ffile_name_as_directory() or searchbuf
+     gets smashed.   This should come before the opendir() because it
+     might signal an error.
+   */
   if (!NILP (match))
     {
       CHECK_STRING (match, 3);
@@ -149,22 +164,14 @@ If FILES-ONLY is the symbol t, then only the \"files\" in the directory\n\
   /* Now searchbuf is the compiled form of MATCH; don't call anything
      which might compile a new regexp until we're done with the loop!  */
 
+
   /* Do this opendir after anything which might signal an error; if
      an error is signalled while the directory stream is open, we
      have to make sure it gets closed, and setting up an
      unwind_protect to do so would be a pain.  */
   d = opendir ((char *) XSTRING (dirfilename)->data);
   if (! d)
-    report_file_error ("Opening directory", list1 (dirname));
-
-  {
-    /*>>> need more gcpro's */
-    Lisp_Object name_as_dir = Ffile_name_as_directory (dirname);
-    CHECK_STRING (name_as_dir, 0);
-    memcpy (statbuf, ((char *) XSTRING (name_as_dir)->data),
-           XSTRING (name_as_dir)->size);
-    statbuf_tail = statbuf + XSTRING (name_as_dir)->size;
-  }
+    report_file_error (GETTEXT ("Opening directory"), list1 (dirname));
 
   list = Qnil;
   tail_cons = Qnil;
@@ -367,7 +374,7 @@ file_name_completion (file, dirname, all_flag, ver_flag)
     {
       d = opendir ((char *) XSTRING (Fdirectory_file_name (dirname))->data);
       if (!d)
-	report_file_error ("Opening directory", list1 (dirname));
+	report_file_error (GETTEXT ("Opening directory"), list1 (dirname));
 
       /* Loop reading blocks */
       /* (att3b compiler bug requires do a null comparison this way) */
@@ -466,6 +473,37 @@ file_name_completion (file, dirname, all_flag, ver_flag)
 
 		  if (matchsize < 0)
 		    matchsize = compare;
+		  if (completion_ignore_case)
+		    {
+		      /* If this is an exact match except for case,
+			 use it as the best match rather than one that is not
+			 an exact match.  This way, we get the case pattern
+			 of the actual match.  */
+		      if ((matchsize == len
+			   && matchsize + !!directoryp 
+			      < XSTRING (bestmatch)->size)
+			  ||
+			  /* If there is no exact match ignoring case,
+			     prefer a match that does not change the case
+			     of the input.  */
+			  (((matchsize == len)
+			    ==
+			    (matchsize + !!directoryp 
+			     == string_length (XSTRING (bestmatch))))
+			   /* If there is more than one exact match aside from
+			      case, and one of them is exact including case,
+			      prefer that one.  */
+			   && !memcmp (p2, XSTRING (file)->data,
+				       string_length (XSTRING (file)))
+			   && memcmp (p1, XSTRING (file)->data,
+				      string_length (XSTRING (file)))))
+			{
+			  bestmatch = make_string (dp->d_name, len);
+			  if (directoryp)
+			    bestmatch = Ffile_name_as_directory (bestmatch);
+			}
+		    }
+
 		  /* If this dirname all matches,
 		     see if implicit following slash does too.  */
 		  if (directoryp
@@ -473,7 +511,7 @@ file_name_completion (file, dirname, all_flag, ver_flag)
 		      && bestmatchsize > matchsize
 		      && p1[matchsize] == '/')
 		    matchsize++;
-		  bestmatchsize = min (matchsize, bestmatchsize);
+		  bestmatchsize = matchsize;
 		}
 	    }
 	}
@@ -540,6 +578,16 @@ Returns nil if the file cannot be opened or if there is no version limit.")
 #endif /* VMS */
 
 
+static Lisp_Object
+wasteful_word_to_lisp (unsigned int item)
+{
+  /* Compatibility: in other versions, file-attributes returns a LIST
+     of two 16 bit integers... */
+  Lisp_Object cons = word_to_lisp (item);
+  XCONS (cons)->cdr = Fcons (XCONS (cons)->cdr, Qnil);
+  return cons;
+}
+
 DEFUN ("file-attributes", Ffile_attributes, Sfile_attributes, 1, 1, 0,
   "Return a list of attributes of file FILENAME.\n\
 Value is nil if specified file cannot be opened.\n\
@@ -552,7 +600,7 @@ Otherwise, list elements are:\n\
   First integer has high-order 16 bits of time, second has low 16 bits.\n\
  5. Last modification time, likewise.\n\
  6. Last status change time, likewise.\n\
- 7. Size in bytes.\n\
+ 7. Size in bytes. (-1, if number is out of range).\n\
  8. File modes, as a string of ten letters or dashes as in ls -l.\n\
  9. t iff file's gid would change if file were deleted and recreated.\n\
 10. inode number.\n\
@@ -603,15 +651,18 @@ If file does not exist, returns nil.")
   values[1] = make_number (s.st_nlink);
   values[2] = make_number (s.st_uid);
   values[3] = make_number (s.st_gid);
-  values[4] = word_to_lisp (s.st_atime);
-  values[5] = word_to_lisp (s.st_mtime);
-  values[6] = word_to_lisp (s.st_ctime);
-  /* perhaps we should set this to most-positive-fixnum if it is too large? */
+  values[4] = wasteful_word_to_lisp (s.st_atime);
+  values[5] = wasteful_word_to_lisp (s.st_mtime);
+  values[6] = wasteful_word_to_lisp (s.st_ctime);
   values[7] = make_number (s.st_size);
+  /* If the size is out of range, give back -1.  */
+  /* >>> Fix when Emacs gets bignums! */
+  if (XINT (values[7]) != s.st_size)
+    XSETINT (values[7], -1);
   filemodestring (&s, modes);
   values[8] = make_string (modes, 10);
 #ifdef BSD4_3 /* Gross kludge to avoid lack of "#if defined(...)" in VMS */
-#define BSD4_2 /* A new meaning to the term `backwards compatability' */
+#define BSD4_2 /* A new meaning to the term `backwards compatibility' */
 #endif
 #ifdef BSD4_2			/* file gid will be dir gid */
   {

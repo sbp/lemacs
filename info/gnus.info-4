@@ -1,0 +1,847 @@
+This is Info file ../info/gnus.info, produced by Makeinfo-1.55 from the
+input file gnus.texinfo.
+
+   This file documents GNUS, the GNU Emacs newsreader.
+
+   Copyright (C) 1989 Fujitsu Laboratories LTD.  Copyright (C) 1990
+Masanobu UMEDA.
+
+   Permission is granted to make and distribute verbatim copies of this
+manual provided the copyright notice and this permission notice are
+preserved on all copies.
+
+   Permission is granted to copy and distribute modified versions of
+this manual under the conditions for verbatim copying, provided also
+that the sections entitled "Distribution" and "GNUS General Public
+License" are included exactly as in the original, and provided that the
+entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+
+   Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that the sections entitled "Distribution" and "GNUS
+General Public License" may be included in a translation approved by
+the author instead of in the original English.
+
+
+File: gnus.info,  Node: Key Index,  Next: Command Index,  Prev: Reporting Bugs,  Up: Top
+
+Key (Character) Index
+*********************
+
+* Menu:
+
+* & (Subject Mode):                     Searching Articles.
+* & (Subject Mode):                     Searching Articles.
+* . (Subject Mode):                     Moving Among Articles.
+* / (Group Mode):                       Browsing Newsgroups.
+* / (Subject Mode):                     Browsing Headers.
+* < (Group Mode):                       Browsing Newsgroups.
+* < (Subject Mode):                     Scrolling.
+* = (Group Mode):                       Selecting a Newsgroup.
+* = (Group Mode):                       Selecting a Newsgroup.
+* = (Group Mode):                       Selecting a Newsgroup.
+* = (Subject Mode):                     Browsing Headers.
+* = (Subject Mode):                     Browsing Headers.
+* > (Group Mode):                       Browsing Newsgroups.
+* > (Subject Mode):                     Scrolling.
+* ? (Article Mode):                     Article Commands.
+* ? (Group Mode):                       Other Newsgroup Commands.
+* ? (Subject Mode):                     Other Subject Commands.
+* a (Group Mode):                       Other Newsgroup Commands.
+* a (Subject Mode):                     Followup and Reply.
+* a (Subject Mode):                     Followup and Reply.
+* b (Group Mode):                       Maintenance.
+* b (Group Mode):                       Maintenance.
+* C (Group Mode):                       Maintenance.
+* C (Group Mode):                       Maintenance.
+* c (Group Mode):                       Maintenance.
+* c (Group Mode):                       Maintenance.
+* C (Subject Mode):                     Followup and Reply.
+* c (Subject Mode):                     Marking Articles.
+* C (Subject Mode):                     Followup and Reply.
+* c (Subject Mode):                     Maintenance.
+* c (Subject Mode):                     Exiting Newsgroup.
+* c (Subject Mode):                     Exiting Newsgroup.
+* C-c C-a (KILL-File Mode):             Editing KILL Files.
+* C-c C-a (KILL-File Mode):             Editing KILL Files.
+* C-c C-c (KILL-File Mode):             Editing KILL Files.
+* C-c C-e (KILL-File Mode):             Editing KILL Files.
+* C-c C-e (KILL-File Mode):             Editing KILL Files.
+* C-c C-f (Subject Mode):               Followup and Reply.
+* C-c C-i:                              Texinfo Manual.
+* C-c C-i (Article Mode):               Article Commands.
+* C-c C-i (Group Mode):                 Other Newsgroup Commands.
+* C-c C-i (KILL-File Mode):             Editing KILL Files.
+* C-c C-i (Subject Mode):               Other Subject Commands.
+* C-c C-k C-a (KILL-File Mode):         Editing KILL Files.
+* C-c C-k C-a (KILL-File Mode):         Editing KILL Files.
+* C-c C-k C-s (KILL-File Mode):         Editing KILL Files.
+* C-c C-k C-s (KILL-File Mode):         Editing KILL Files.
+* C-c C-n (Subject Mode):               Digest Articles.
+* C-c C-n (Subject Mode):               Digest Articles.
+* C-c C-p (Subject Mode):               Digest Articles.
+* C-c C-p (Subject Mode):               Digest Articles.
+* C-c C-r (Subject Mode):               Scrolling.
+* C-c C-r (Subject Mode):               Scrolling.
+* C-c C-s a (Subject Mode):             Sorting Headers.
+* C-c C-s C-a (Subject Mode):           Sorting Headers.
+* C-c C-s C-d (Subject Mode):           Sorting Headers.
+* C-c C-s C-n (Subject Mode):           Sorting Headers.
+* C-c C-s C-s (Subject Mode):           Sorting Headers.
+* C-c C-s d (Subject Mode):             Sorting Headers.
+* C-c C-s n (Subject Mode):             Sorting Headers.
+* C-c C-s s (Subject Mode):             Sorting Headers.
+* C-c C-y (Group Mode):                 Maintenance.
+* C-c C-y (Group Mode):                 Maintenance.
+* C-c C-y (Mail Mode):                  Followup and Reply.
+* C-c C-y (mh-e letter Mode):           Followup and Reply.
+* C-c C-y (News Mode):                  Followup and Reply.
+* C-d (Subject Mode):                   Digest Articles.
+* C-d (Subject Mode):                   Digest Articles.
+* C-h m:                                Followup and Reply.
+* C-k (Group Mode):                     Maintenance.
+* C-k (Group Mode):                     Startup File.
+* C-k (Group Mode):                     Maintenance.
+* C-k (Subject Mode):                   Marking Articles.
+* C-n (Group Mode):                     Browsing Newsgroups.
+* C-n (Subject Mode):                   Browsing Headers.
+* C-o (Subject Mode):                   Saving Articles.
+* C-p (Group Mode):                     Browsing Newsgroups.
+* C-p (Subject Mode):                   Browsing Headers.
+* C-t (Subject Mode):                   Browsing Headers.
+* C-t (Subject Mode):                   Browsing Headers.
+* C-u M-x gnus:                         Getting Started.
+* C-w (Group Mode):                     Maintenance.
+* C-w (Group Mode):                     Startup File.
+* C-w (Group Mode):                     Maintenance.
+* C-x 1:                                Browsing Headers.
+* C-x w:                                Browsing Newsgroups.
+* C-y (Browse-Killed Mode):             Maintenance.
+* C-y (Group Mode):                     Maintenance.
+* C-y (Group Mode):                     Maintenance.
+* d (Subject Mode):                     Marking Articles.
+* D (Subject Mode):                     Marking Articles.
+* DEL (Article Mode):                   Article Commands.
+* DEL (Group Mode):                     Browsing Newsgroups.
+* DEL (Subject Mode):                   Scrolling.
+* F (Subject Mode):                     Followup and Reply.
+* f (Subject Mode):                     Followup and Reply.
+* F (Subject Mode):                     Followup and Reply.
+* f (Subject Mode):                     Followup and Reply.
+* g (Group Mode):                       Maintenance.
+* g (Group Mode):                       Maintenance.
+* g (Group Mode):                       Exiting GNUS.
+* G (Subject Mode):                     Exiting Newsgroup.
+* g (Subject Mode):                     Scrolling.
+* g (Subject Mode):                     Referencing Articles.
+* G (Subject Mode):                     Exiting Newsgroup.
+* g (Subject Mode):                     Browsing Headers.
+* h (Article Mode):                     Article Commands.
+* j (Group Mode):                       Browsing Newsgroups.
+* j (Group Mode):                       Browsing Newsgroups.
+* j (Subject Mode):                     Browsing Headers.
+* J (Subject Mode):                     Moving Among Articles.
+* k (Subject Mode):                     Marking Articles.
+* L (Group Mode):                       Maintenance.
+* l (Group Mode):                       Maintenance.
+* L (Group Mode):                       Maintenance.
+* l (Subject Mode):                     Moving Among Articles.
+* m (Subject Mode):                     Followup and Reply.
+* M-C-b (Subject Mode):                 Thread-based Reading.
+* M-C-d (Subject Mode):                 Thread-based Reading.
+* M-C-f (Subject Mode):                 Thread-based Reading.
+* M-C-h (Subject Mode):                 Thread-based Reading.
+* M-C-h (Subject Mode):                 Thread-based Reading.
+* M-C-k (Subject Mode):                 Thread-based Reading.
+* M-C-k (Subject Mode):                 Thread-based Reading.
+* M-C-n (Subject Mode):                 Moving Among Articles.
+* M-C-p (Subject Mode):                 Moving Among Articles.
+* M-C-s (Subject Mode):                 Thread-based Reading.
+* M-C-s (Subject Mode):                 Thread-based Reading.
+* M-C-t (Subject Mode):                 Thread-based Reading.
+* M-C-t (Subject Mode):                 Thread-based Reading.
+* M-C-u (Subject Mode):                 Thread-based Reading.
+* M-K (Group Mode):                     Editing KILL Files.
+* M-k (Group Mode):                     Editing KILL Files.
+* M-K (Group Mode):                     Other Newsgroup Commands.
+* M-k (Group Mode):                     Other Newsgroup Commands.
+* M-K (Subject Mode):                   Editing KILL Files.
+* M-k (Subject Mode):                   Editing KILL Files.
+* M-k (Subject Mode):                   Other Subject Commands.
+* M-K (Subject Mode):                   Other Subject Commands.
+* M-n (Subject Mode):                   Browsing Headers.
+* M-p (Subject Mode):                   Browsing Headers.
+* M-r (Subject Mode):                   Referencing Articles.
+* M-r (Subject Mode):                   Referencing Articles.
+* M-S (Subject Mode):                   Searching Articles.
+* M-s (Subject Mode):                   Searching Articles.
+* M-S (Subject Mode):                   Searching Articles.
+* M-s (Subject Mode):                   Searching Articles.
+* M-U (Subject Mode):                   Marking Articles.
+* M-u (Subject Mode):                   Marking Articles.
+* M-x gnus:                             Getting Started.
+* M-x gnus:                             Getting Started.
+* n (Group Mode):                       Browsing Newsgroups.
+* N (Group Mode):                       Browsing Newsgroups.
+* n (Subject Mode):                     Moving Among Articles.
+* N (Subject Mode):                     Moving Among Articles.
+* N (Subject Mode):                     Moving Among Articles.
+* n (Subject Mode):                     Moving Among Articles.
+* N (Subject Mode):                     Variables.
+* o (Article Mode):                     Article Commands.
+* o (Article Mode):                     Article Commands.
+* o (Subject Mode):                     Saving Articles.
+* o (Subject Mode):                     Saving Articles.
+* p (Group Mode):                       Browsing Newsgroups.
+* P (Group Mode):                       Browsing Newsgroups.
+* P (Subject Mode):                     Moving Among Articles.
+* p (Subject Mode):                     Moving Among Articles.
+* P (Subject Mode):                     Moving Among Articles.
+* P (Subject Mode):                     Variables.
+* p (Subject Mode):                     Moving Among Articles.
+* Q (Group Mode):                       Exiting GNUS.
+* q (Group Mode):                       Exiting GNUS.
+* Q (Group Mode):                       Exiting GNUS.
+* q (Group Mode):                       Exiting GNUS.
+* q (Subject Mode):                     Exiting Newsgroup.
+* Q (Subject Mode):                     Exiting Newsgroup.
+* r (Article Mode):                     Article Commands.
+* r (Article Mode):                     Article Commands.
+* r (Group Mode):                       Browsing Newsgroups.
+* r (Group Mode):                       Browsing Newsgroups.
+* R (Group Mode):                       Maintenance.
+* R (Group Mode):                       Startup File.
+* R (Group Mode):                       Maintenance.
+* R (Subject Mode):                     Followup and Reply.
+* r (Subject Mode):                     Followup and Reply.
+* R (Subject Mode):                     Followup and Reply.
+* r (Subject Mode):                     Followup and Reply.
+* RET (Subject Mode):                   Scrolling.
+* s (Article Mode):                     Article Commands.
+* s (Group Mode):                       Exiting GNUS.
+* s (Subject Mode):                     Searching Articles.
+* s (Subject Mode):                     Searching Articles.
+* SPC (Article Mode):                   Article Commands.
+* SPC (Group Mode):                     Selecting a Newsgroup.
+* SPC (Group Mode):                     Selecting a Newsgroup.
+* SPC (Group Mode):                     Selecting a Newsgroup.
+* SPC (Group Mode):                     Selecting a Newsgroup.
+* SPC (Subject Mode):                   Scrolling.
+* SPC (Subject Mode):                   Scrolling.
+* SPC (Subject Mode):                   Browsing Headers.
+* t (Subject Mode):                     Scrolling.
+* t (Subject Mode):                     Scrolling.
+* u (Group Mode):                       Maintenance.
+* U (Group Mode):                       Maintenance.
+* U (Group Mode):                       Maintenance.
+* U (Group Mode):                       Variables.
+* U (Group Mode):                       Startup File.
+* u (Subject Mode):                     Marking Articles.
+* U (Subject Mode):                     Marking Articles.
+* V (Group Mode):                       Other Newsgroup Commands.
+* V (Subject Mode):                     Other Subject Commands.
+* v (Subject Mode):                     Scrolling.
+* w (Subject Mode):                     Scrolling.
+* x (Group Mode):                       Exiting GNUS.
+* x (Subject Mode):                     Marking Articles.
+* x (Subject Mode):                     Marking Articles.
+* X (Subject Mode):                     Marking Articles.
+* X (Subject Mode):                     Marking Articles.
+* y (Browse-Killed Mode):               Maintenance.
+* z (Group Mode):                       Exiting GNUS.
+* z (Group Mode):                       Exiting GNUS.
+* ^ (Subject Mode):                     Referencing Articles.
+* ^ (Subject Mode):                     Referencing Articles.
+* ^ (Subject Mode):                     Referencing Articles.
+* | (Subject Mode):                     Saving Articles.
+
+
+File: gnus.info,  Node: Command Index,  Next: Variable Index,  Prev: Key Index,  Up: Top
+
+Command and Function Index
+**************************
+
+* Menu:
+
+* define-service-kanji-code:            NEmacs3.
+* delete-other-windows:                 Browsing Headers.
+* describe-mode:                        Followup and Reply.
+* gnus:                                 Getting Started.
+* gnus-apply-kill-file:                 Advanced Kills.
+* gnus-Article-describe-briefly:        Article Commands.
+* gnus-Article-next-page:               Article Commands.
+* gnus-Article-pop-article:             Article Commands.
+* gnus-Article-pop-article:             Article Commands.
+* gnus-Article-prev-page:               Article Commands.
+* gnus-Article-refer-article:           Article Commands.
+* gnus-Article-refer-article:           Article Commands.
+* gnus-Article-show-subjects:           Article Commands.
+* gnus-batch-kill:                      Background Kills.
+* gnus-Browse-killed-groups:            Maintenance.
+* gnus-Browse-killed-groups:            Maintenance.
+* gnus-Browse-killed-yank:              Maintenance.
+* gnus-date-lessp:                      Hooks.
+* gnus-expunge:                         Advanced Kills.
+* gnus-expunge:                         Example of a KILL File.
+* gnus-expunge:                         Making a KILL File.
+* gnus-fetch-field:                     Hooks.
+* gnus-Folder-save-name:                Variables.
+* gnus-folder-save-name:                Variables.
+* gnus-Group-catch-up:                  Maintenance.
+* gnus-Group-catch-up:                  Maintenance.
+* gnus-Group-catch-up-all:              Maintenance.
+* gnus-Group-catch-up-all:              Maintenance.
+* gnus-Group-check-bogus-groups:        Maintenance.
+* gnus-Group-check-bogus-groups:        Maintenance.
+* gnus-Group-describe-briefly:          Other Newsgroup Commands.
+* gnus-Group-edit-global-kill:          Other Newsgroup Commands.
+* gnus-Group-edit-global-kill:          Editing KILL Files.
+* gnus-Group-edit-local-kill:           Other Newsgroup Commands.
+* gnus-Group-edit-local-kill:           Editing KILL Files.
+* gnus-Group-exit:                      Exiting GNUS.
+* gnus-Group-exit:                      Exiting GNUS.
+* gnus-Group-force-update:              Exiting GNUS.
+* gnus-Group-get-new-news:              Exiting GNUS.
+* gnus-Group-get-new-news:              Maintenance.
+* gnus-Group-get-new-news:              Maintenance.
+* gnus-Group-jump-to-group:             Browsing Newsgroups.
+* gnus-Group-jump-to-group:             Browsing Newsgroups.
+* gnus-Group-kill-group:                Startup File.
+* gnus-Group-kill-group:                Maintenance.
+* gnus-Group-kill-group:                Maintenance.
+* gnus-Group-kill-region:               Maintenance.
+* gnus-Group-kill-region:               Maintenance.
+* gnus-Group-kill-region:               Startup File.
+* gnus-Group-list-all-groups:           Maintenance.
+* gnus-Group-list-all-groups:           Maintenance.
+* gnus-Group-list-groups:               Maintenance.
+* gnus-Group-next-group:                Browsing Newsgroups.
+* gnus-Group-next-unread-group:         Browsing Newsgroups.
+* gnus-Group-post-news:                 Other Newsgroup Commands.
+* gnus-Group-prev-group:                Browsing Newsgroups.
+* gnus-Group-prev-unread-group:         Browsing Newsgroups.
+* gnus-Group-quit:                      Exiting GNUS.
+* gnus-Group-quit:                      Exiting GNUS.
+* gnus-Group-read-group:                Selecting a Newsgroup.
+* gnus-Group-read-group:                Selecting a Newsgroup.
+* gnus-Group-read-group:                Selecting a Newsgroup.
+* gnus-Group-read-group:                Selecting a Newsgroup.
+* gnus-Group-restart:                   Maintenance.
+* gnus-Group-restart:                   Startup File.
+* gnus-Group-restart:                   Maintenance.
+* gnus-Group-restrict-groups:           Browsing Newsgroups.
+* gnus-Group-restrict-groups:           Browsing Newsgroups.
+* gnus-Group-select-group:              Selecting a Newsgroup.
+* gnus-Group-select-group:              Selecting a Newsgroup.
+* gnus-Group-select-group:              Selecting a Newsgroup.
+* gnus-Group-suspend:                   Exiting GNUS.
+* gnus-Group-suspend:                   Exiting GNUS.
+* gnus-Group-unsubscribe-current-group: Maintenance.
+* gnus-Group-unsubscribe-group:         Startup File.
+* gnus-Group-unsubscribe-group:         Variables.
+* gnus-Group-unsubscribe-group:         Maintenance.
+* gnus-Group-unsubscribe-group:         Maintenance.
+* gnus-Group-yank-group:                Maintenance.
+* gnus-Group-yank-group:                Maintenance.
+* gnus-header-FIELD:                    Variables.
+* gnus-header-FIELD:                    Variables.
+* gnus-header-date:                     Hooks.
+* gnus-header-subject:                  Hooks.
+* gnus-header-subject:                  Hooks.
+* gnus-header-subject:                  Hooks.
+* gnus-Info-find-node:                  Other Newsgroup Commands.
+* gnus-Info-find-node:                  Texinfo Manual.
+* gnus-Info-find-node:                  Editing KILL Files.
+* gnus-Info-find-node:                  Article Commands.
+* gnus-Info-find-node:                  Other Subject Commands.
+* gnus-kill:                            Hooks.
+* gnus-kill:                            Example of a KILL File.
+* gnus-kill:                            Advanced Kills.
+* gnus-kill:                            Making a KILL File.
+* gnus-Kill-file-apply-buffer:          Editing KILL Files.
+* gnus-Kill-file-apply-buffer:          Editing KILL Files.
+* gnus-Kill-file-apply-last-sexp:       Editing KILL Files.
+* gnus-Kill-file-apply-last-sexp:       Editing KILL Files.
+* gnus-Kill-file-exit:                  Editing KILL Files.
+* gnus-Kill-file-kill-by-author:        Editing KILL Files.
+* gnus-Kill-file-kill-by-author:        Editing KILL Files.
+* gnus-Kill-file-kill-by-subject:       Editing KILL Files.
+* gnus-Kill-file-kill-by-subject:       Editing KILL Files.
+* gnus-kill-newsgroup:                  Variables.
+* gnus-mail-forward-using-mail:         Variables.
+* gnus-mail-forward-using-mhe:          Variables.
+* gnus-mail-other-window-using-mail:    Variables.
+* gnus-mail-other-window-using-mhe:     Variables.
+* gnus-mail-other-window-using-mhe:     Followup and Reply.
+* gnus-mail-reply-using-mail:           Variables.
+* gnus-mail-reply-using-mhe:            Followup and Reply.
+* gnus-mail-reply-using-mhe:            Variables.
+* gnus-newsgroup-kill-file:             Advanced Kills.
+* gnus-newsgroup-kill-file:             Advanced Kills.
+* gnus-numeric-save-name:               Variables.
+* gnus-Numeric-save-name:               Variables.
+* gnus-optional-lines:                  Hooks.
+* gnus-optional-lines:                  Variables.
+* gnus-optional-lines-and-from:         Hooks.
+* gnus-optional-lines-and-from:         Variables.
+* gnus-plain-save-name:                 Variables.
+* gnus-Plain-save-name:                 Variables.
+* gnus-simplify-subject:                Hooks.
+* gnus-simplify-subject:                Hooks.
+* gnus-sort-headers:                    Hooks.
+* gnus-string-lessp:                    Hooks.
+* gnus-Subject-beginning-of-article:    Scrolling.
+* gnus-Subject-caesar-message:          Scrolling.
+* gnus-Subject-caesar-message:          Scrolling.
+* gnus-Subject-cancel-article:          Followup and Reply.
+* gnus-Subject-cancel-article:          Followup and Reply.
+* gnus-Subject-catch-up:                Marking Articles.
+* gnus-Subject-catch-up-all:            Marking Articles.
+* gnus-Subject-catch-up-all-and-exit:   Marking Articles.
+* gnus-Subject-catch-up-all-and-exit:   Exiting Newsgroup.
+* gnus-Subject-catch-up-and-exit:       Exiting Newsgroup.
+* gnus-Subject-catch-up-and-exit:       Marking Articles.
+* gnus-Subject-catch-up-and-exit:       Maintenance.
+* gnus-Subject-clear-mark-backward:     Marking Articles.
+* gnus-Subject-clear-mark-forward:      Marking Articles.
+* gnus-Subject-delete-marked-as-read:   Marking Articles.
+* gnus-Subject-delete-marked-as-read:   Marking Articles.
+* gnus-Subject-delete-marked-with:      Marking Articles.
+* gnus-Subject-delete-marked-with:      Marking Articles.
+* gnus-Subject-describe-briefly:        Other Subject Commands.
+* gnus-Subject-down-thread:             Thread-based Reading.
+* gnus-Subject-edit-global-kill:        Editing KILL Files.
+* gnus-Subject-edit-global-kill:        Other Subject Commands.
+* gnus-Subject-edit-local-kill:         Editing KILL Files.
+* gnus-Subject-edit-local-kill:         Other Subject Commands.
+* gnus-Subject-end-of-article:          Scrolling.
+* gnus-Subject-execute-command:         Searching Articles.
+* gnus-Subject-execute-command:         Searching Articles.
+* gnus-Subject-exit:                    Exiting Newsgroup.
+* gnus-Subject-expand-window:           Browsing Headers.
+* gnus-Subject-expand-window:           Browsing Headers.
+* gnus-Subject-first-unread-article:    Moving Among Articles.
+* gnus-Subject-goto-article:            Moving Among Articles.
+* gnus-Subject-goto-last-article:       Moving Among Articles.
+* gnus-Subject-goto-subject:            Browsing Headers.
+* gnus-Subject-hide-all-threads:        Thread-based Reading.
+* gnus-Subject-hide-thread:             Thread-based Reading.
+* gnus-Subject-hide-thread:             Thread-based Reading.
+* gnus-Subject-isearch-article:         Searching Articles.
+* gnus-Subject-isearch-article:         Searching Articles.
+* gnus-Subject-kill-same-subject:       Marking Articles.
+* gnus-Subject-kill-same-subject-and-select: Marking Articles.
+* gnus-Subject-kill-thread:             Thread-based Reading.
+* gnus-Subject-kill-thread:             Thread-based Reading.
+* gnus-Subject-mail-forward:            Followup and Reply.
+* gnus-Subject-mail-other-window:       Followup and Reply.
+* gnus-Subject-mail-reply:              Followup and Reply.
+* gnus-Subject-mail-reply:              Followup and Reply.
+* gnus-Subject-mail-reply-with-original: Followup and Reply.
+* gnus-Subject-mail-reply-with-original: Followup and Reply.
+* gnus-Subject-mark-as-read:            Making a KILL File.
+* gnus-Subject-mark-as-read:            Hooks.
+* gnus-Subject-mark-as-read-backward:   Marking Articles.
+* gnus-Subject-mark-as-read-forward:    Marking Articles.
+* gnus-Subject-mark-as-read-forward:    Making a KILL File.
+* gnus-Subject-mark-as-unread:          Hooks.
+* gnus-Subject-mark-as-unread-backward: Marking Articles.
+* gnus-Subject-mark-as-unread-forward:  Marking Articles.
+* gnus-Subject-next-article:            Moving Among Articles.
+* gnus-Subject-next-article:            Moving Among Articles.
+* gnus-Subject-next-article:            Variables.
+* gnus-Subject-next-digest:             Digest Articles.
+* gnus-Subject-next-digest:             Digest Articles.
+* gnus-Subject-next-digest:             Variables.
+* gnus-Subject-next-group:              Hooks.
+* gnus-Subject-next-group:              Exiting Newsgroup.
+* gnus-Subject-next-page:               Scrolling.
+* gnus-Subject-next-page:               Scrolling.
+* gnus-Subject-next-page:               Browsing Headers.
+* gnus-Subject-next-same-subject:       Moving Among Articles.
+* gnus-Subject-next-subject:            Browsing Headers.
+* gnus-Subject-next-thread:             Thread-based Reading.
+* gnus-Subject-next-unread-article:     Moving Among Articles.
+* gnus-Subject-next-unread-article:     Moving Among Articles.
+* gnus-Subject-next-unread-same-subject: Moving Among Articles.
+* gnus-Subject-next-unread-subject:     Browsing Headers.
+* gnus-Subject-pipe-output:             Saving Articles.
+* gnus-Subject-post-news:               Followup and Reply.
+* gnus-Subject-post-news:               Followup and Reply.
+* gnus-Subject-post-reply:              Followup and Reply.
+* gnus-Subject-post-reply:              Followup and Reply.
+* gnus-Subject-post-reply-with-original: Followup and Reply.
+* gnus-Subject-post-reply-with-original: Followup and Reply.
+* gnus-Subject-prev-article:            Variables.
+* gnus-Subject-prev-article:            Moving Among Articles.
+* gnus-Subject-prev-article:            Moving Among Articles.
+* gnus-Subject-prev-digest:             Digest Articles.
+* gnus-Subject-prev-digest:             Digest Articles.
+* gnus-Subject-prev-digest:             Variables.
+* gnus-Subject-prev-group:              Hooks.
+* gnus-Subject-prev-group:              Exiting Newsgroup.
+* gnus-Subject-prev-page:               Scrolling.
+* gnus-Subject-prev-same-subject:       Moving Among Articles.
+* gnus-Subject-prev-subject:            Browsing Headers.
+* gnus-Subject-prev-thread:             Thread-based Reading.
+* gnus-Subject-prev-unread-article:     Moving Among Articles.
+* gnus-Subject-prev-unread-article:     Moving Among Articles.
+* gnus-Subject-prev-unread-same-subject: Moving Among Articles.
+* gnus-Subject-prev-unread-subject:     Browsing Headers.
+* gnus-Subject-quit:                    Exiting Newsgroup.
+* gnus-Subject-refer-article:           Referencing Articles.
+* gnus-Subject-refer-article:           Referencing Articles.
+* gnus-Subject-refer-parent-article:    Referencing Articles.
+* gnus-Subject-refer-parent-article:    Referencing Articles.
+* gnus-Subject-refer-parent-article:    Referencing Articles.
+* gnus-Subject-reselect-current-group:  Exiting Newsgroup.
+* gnus-Subject-reselect-current-group:  Exiting Newsgroup.
+* gnus-Subject-rmail-digest:            Variables.
+* gnus-Subject-rmail-digest:            Variables.
+* gnus-Subject-rmail-digest:            Hooks.
+* gnus-Subject-rmail-digest:            Digest Articles.
+* gnus-Subject-rmail-digest:            Digest Articles.
+* gnus-Subject-save-article:            Saving Articles.
+* gnus-Subject-save-article:            Saving Articles.
+* gnus-Subject-save-article:            Variables.
+* gnus-Subject-save-in-file:            Variables.
+* gnus-Subject-save-in-file:            Variables.
+* gnus-Subject-save-in-file:            Saving Articles.
+* gnus-Subject-save-in-file:            Saving Articles.
+* gnus-Subject-save-in-folder:          Saving Articles.
+* gnus-Subject-save-in-folder:          Variables.
+* gnus-Subject-save-in-mail:            Variables.
+* gnus-Subject-save-in-mail:            Saving Articles.
+* gnus-Subject-save-in-mail:            Variables.
+* gnus-Subject-save-in-mail:            Saving Articles.
+* gnus-Subject-save-in-rmail:           Saving Articles.
+* gnus-Subject-save-in-rmail:           Saving Articles.
+* gnus-Subject-save-in-rmail:           Saving Articles.
+* gnus-Subject-save-in-rmail:           Variables.
+* gnus-Subject-save-in-rmail:           Variables.
+* gnus-Subject-scroll-up:               Scrolling.
+* gnus-Subject-search-article-backward: Searching Articles.
+* gnus-Subject-search-article-backward: Searching Articles.
+* gnus-Subject-search-article-forward:  Searching Articles.
+* gnus-Subject-search-article-forward:  Searching Articles.
+* gnus-Subject-set-current-mark:        Hooks.
+* gnus-Subject-set-current-mark:        Hooks.
+* gnus-Subject-show-all-headers:        Scrolling.
+* gnus-Subject-show-all-threads:        Thread-based Reading.
+* gnus-Subject-show-article:            Browsing Headers.
+* gnus-Subject-show-article:            Scrolling.
+* gnus-Subject-show-article:            Referencing Articles.
+* gnus-Subject-show-thread:             Thread-based Reading.
+* gnus-Subject-show-thread:             Hooks.
+* gnus-Subject-show-thread:             Thread-based Reading.
+* gnus-Subject-show-thread:             Variables.
+* gnus-Subject-sort-by-author:          Sorting Headers.
+* gnus-Subject-sort-by-date:            Sorting Headers.
+* gnus-Subject-sort-by-number:          Sorting Headers.
+* gnus-Subject-sort-by-subject:         Sorting Headers.
+* gnus-Subject-stop-page-breaking:      Scrolling.
+* gnus-Subject-toggle-header:           Scrolling.
+* gnus-Subject-toggle-header:           Scrolling.
+* gnus-Subject-toggle-threads:          Thread-based Reading.
+* gnus-Subject-toggle-threads:          Thread-based Reading.
+* gnus-Subject-toggle-truncation:       Browsing Headers.
+* gnus-Subject-toggle-truncation:       Browsing Headers.
+* gnus-Subject-up-thread:               Thread-based Reading.
+* gnus-subscribe-alphabetically:        Variables.
+* gnus-subscribe-hierarchically:        Variables.
+* gnus-subscribe-newsgroup:             Variables.
+* gnus-subscribe-newsgroup:             Variables.
+* gnus-subscribe-newsgroup:             Variables.
+* gnus-subscribe-randomly:              Variables.
+* gnus-version:                         Other Subject Commands.
+* gnus-version:                         Other Newsgroup Commands.
+* mail-position-on-field:               Hooks.
+* mhspool-request-list:                 Directory Variables.
+* news-reply-yank-original:             Followup and Reply.
+* nnspool-request-post:                 Spool Variables.
+* nntp-header-FIELD:                    Variables.
+* nntp-header-FIELD:                    Variables.
+* nntp-set-header-subject:              Hooks.
+* open-network-stream:                  Files of GNUS.
+* open-network-stream:                  Compilation.
+* rmail-output:                         Variables.
+* rmail-output:                         Variables.
+* system-name:                          Variables.
+* system-name:                          Local News Spool.
+* system-name:                          NNTP Service.
+* system-name:                          Domain.
+* widen:                                Browsing Newsgroups.
+
+
+File: gnus.info,  Node: Variable Index,  Next: Program Index,  Prev: Command Index,  Up: Top
+
+Variable Index
+**************
+
+* Menu:
+
+* AUTHORCOPY:                           Variables.
+* case-fold-search:                     Making a KILL File.
+* case-fold-search:                     Hooks.
+* DOMAINNAME:                           Domain.
+* DOMAINNAME:                           GENERICFROM.
+* DOMAINNAME:                           Variables.
+* DOMAINNAME:                           Variables.
+* exec-path:                            Compilation.
+* global-mode-string:                   Hooks.
+* gnus-Apply-kill-hook:                 Hooks.
+* gnus-Apply-kill-hook:                 Advanced Kills.
+* gnus-Apply-kill-hook:                 Advanced Kills.
+* gnus-Apply-kill-hook:                 Advanced Kills.
+* gnus-Article-mode-hook:               Hooks.
+* gnus-Article-prepare-hook:            SX/A Emacs.
+* gnus-Article-prepare-hook:            Hooks.
+* gnus-article-save-directory:          Editing KILL Files.
+* gnus-article-save-directory:          Saving Articles.
+* gnus-article-save-directory:          Editing KILL Files.
+* gnus-article-save-directory:          Preloading.
+* gnus-article-save-directory:          Variables.
+* gnus-author-copy:                     Preloading.
+* gnus-author-copy:                     Variables.
+* gnus-author-copy-saver:               Variables.
+* gnus-author-copy-saver:               Variables.
+* gnus-auto-center-subject:             Variables.
+* gnus-auto-extend-newsgroup:           Moving Among Articles.
+* gnus-auto-extend-newsgroup:           Variables.
+* gnus-auto-select-first:               Selecting a Newsgroup.
+* gnus-auto-select-first:               Variables.
+* gnus-auto-select-next:                Moving Among Articles.
+* gnus-auto-select-next:                Variables.
+* gnus-auto-select-same:                Variables.
+* gnus-auto-select-same:                Moving Among Articles.
+* gnus-break-pages:                     Scrolling.
+* gnus-break-pages:                     Variables.
+* gnus-Browse-killed-mode-hook:         Hooks.
+* gnus-current-article (Internal):      Hooks.
+* gnus-current-article (Internal):      Hooks.
+* gnus-current-article (Internal):      Hooks.
+* gnus-current-headers (Internal):      Hooks.
+* gnus-default-article-saver:           Variables.
+* gnus-default-article-saver:           Saving Articles.
+* gnus-default-distribution:            Variables.
+* gnus-digest-separator:                Digest Articles.
+* gnus-digest-separator:                Variables.
+* gnus-digest-show-summary:             Variables.
+* gnus-digest-show-summary:             Digest Articles.
+* gnus-Exit-gnus-hook:                  Exiting GNUS.
+* gnus-Exit-gnus-hook:                  Hooks.
+* gnus-Exit-group-hook:                 Hooks.
+* gnus-file-save-name:                  Saving Articles.
+* gnus-file-save-name:                  Variables.
+* gnus-folder-save-name:                Saving Articles.
+* gnus-folder-save-name:                Variables.
+* gnus-Group-mode-hook:                 Hooks.
+* gnus-Group-prepare-hook:              Hooks.
+* gnus-ignored-headers:                 Scrolling.
+* gnus-Inews-article-hook:              Hooks.
+* gnus-Inews-article-hook:              SX/A Emacs.
+* gnus-Info-directory:                  Texinfo Manual.
+* gnus-Info-directory:                  Variables.
+* gnus-interactive-post:                Followup and Reply.
+* gnus-interactive-post:                Variables.
+* gnus-Kill-file-mode-hook:             Hooks.
+* gnus-kill-file-name:                  Variables.
+* gnus-kill-file-name:                  Editing KILL Files.
+* gnus-large-newsgroup:                 Variables.
+* gnus-large-newsgroup:                 Selecting a Newsgroup.
+* gnus-local-domain:                    Variables.
+* gnus-local-domain:                    Variables.
+* gnus-local-domain:                    Domain.
+* gnus-local-domain:                    GENERICFROM.
+* gnus-local-organization:              Domain.
+* gnus-local-organization:              Variables.
+* gnus-local-timezone:                  Variables.
+* gnus-mail-forward-method:             Followup and Reply.
+* gnus-mail-forward-method:             Variables.
+* gnus-mail-other-window-method:        Variables.
+* gnus-mail-other-window-method:        Followup and Reply.
+* gnus-mail-reply-method:               Variables.
+* gnus-mail-reply-method:               Followup and Reply.
+* gnus-mail-save-name:                  Variables.
+* gnus-mail-save-name:                  Saving Articles.
+* gnus-Mark-article-hook:               Hooks.
+* gnus-news-system:                     Variables.
+* gnus-news-system:                     Variables.
+* gnus-newsgroup-headers (Internal):    Hooks.
+* gnus-newsgroup-headers (Internal):    Hooks.
+* gnus-newsgroup-marked (Internal):     Hooks.
+* gnus-newsgroup-name (Internal):       Advanced Kills.
+* gnus-newsgroup-name (Internal):       Advanced Kills.
+* gnus-newsgroup-name (Internal):       Hooks.
+* gnus-newsgroup-name (Internal):       Hooks.
+* gnus-newsgroup-name (Internal):       Hooks.
+* gnus-newsrc-assoc (Internal):         Variables.
+* gnus-nntp-server:                     Variables.
+* gnus-nntp-server:                     Advanced Kills.
+* gnus-nntp-server:                     Example of a KILL File.
+* gnus-nntp-server:                     Preloading.
+* gnus-nntp-server:                     NNTP Server.
+* gnus-nntp-service:                    NNTP Service.
+* gnus-nntp-service:                    Local News Spool.
+* gnus-nntp-service:                    Variables.
+* gnus-novice-user:                     Followup and Reply.
+* gnus-novice-user:                     Variables.
+* gnus-Open-server-hook:                Hooks.
+* gnus-optional-headers:                Hooks.
+* gnus-optional-headers:                Subject Buffer.
+* gnus-optional-headers:                Variables.
+* gnus-page-delimiter:                  Scrolling.
+* gnus-page-delimiter:                  Variables.
+* gnus-page-delimiter:                  Variables.
+* gnus-Rmail-digest-hook:               Hooks.
+* gnus-rmail-save-name:                 Saving Articles.
+* gnus-rmail-save-name:                 Variables.
+* gnus-save-all-headers:                Saving Articles.
+* gnus-save-all-headers:                Variables.
+* gnus-Save-newsrc-hook:                Hooks.
+* gnus-Select-article-hook:             Hooks.
+* gnus-Select-article-hook:             Variables.
+* gnus-Select-article-hook:             Digest Articles.
+* gnus-Select-digest-hook:              Hooks.
+* gnus-Select-digest-hook:              Digest Articles.
+* gnus-Select-group-hook:               Sorting Headers.
+* gnus-Select-group-hook:               Selecting a Newsgroup.
+* gnus-Select-group-hook:               Hooks.
+* gnus-show-all-headers:                Variables.
+* gnus-show-threads:                    Thread-based Reading.
+* gnus-show-threads:                    Variables.
+* gnus-signature-file:                  Variables.
+* gnus-startup-file:                    Startup File.
+* gnus-startup-file:                    Variables.
+* gnus-Startup-hook:                    Hooks.
+* gnus-Subject-mode-hook:               Hooks.
+* gnus-Subject-prepare-hook:            Hooks.
+* gnus-subscribe-newsgroup-method:      Variables.
+* gnus-subscribe-newsgroup-method:      Startup File.
+* gnus-Suspend-gnus-hook:               Exiting GNUS.
+* gnus-Suspend-gnus-hook:               Hooks.
+* gnus-thread-hide-killed:              Variables.
+* gnus-thread-hide-killed:              Thread-based Reading.
+* gnus-thread-hide-subject:             Variables.
+* gnus-thread-hide-subtree:             Variables.
+* gnus-thread-hide-subtree:             Thread-based Reading.
+* gnus-thread-ignore-subject:           Variables.
+* gnus-thread-indent-level:             Variables.
+* gnus-use-cross-reference:             Variables.
+* gnus-use-followup-to:                 Variables.
+* gnus-use-full-window:                 Variables.
+* gnus-use-generic-from:                GENERICFROM.
+* gnus-use-generic-from:                Variables.
+* gnus-use-generic-path:                Variables.
+* gnus-use-generic-path:                GENERICPATH.
+* gnus-use-long-file-name:              Variables.
+* gnus-use-long-file-name:              Variables.
+* gnus-use-long-file-name:              Editing KILL Files.
+* gnus-user-full-name:                  Variables.
+* gnus-user-login-name:                 Variables.
+* gnus-window-configuration:            Buffers of GNUS.
+* gnus-window-configuration:            Variables.
+* gnus-window-configuration:            Scrolling.
+* Info-directory:                       Variables.
+* Info-directory:                       Texinfo Manual.
+* load-path:                            Compilation.
+* LOGNAME:                              Variables.
+* mhspool-list-directory-switches:      Directory Variables.
+* NAME:                                 Variables.
+* news-inews-program:                   Spool Variables.
+* news-path:                            Spool Variables.
+* nnspool-active-file:                  Spool Variables.
+* nnspool-history-file:                 Spool Variables.
+* nnspool-inews-program:                Spool Variables.
+* nnspool-inews-switches:               Spool Variables.
+* nnspool-spool-directory:              Spool Variables.
+* nntp-buggy-select:                    NNTP Variables.
+* nntp-buggy-select:                    NNTP Problems.
+* nntp-debug-read:                      NNTP Variables.
+* nntp-large-newsgroup:                 NNTP Variables.
+* nntp-maximum-request:                 NNTP Problems.
+* nntp-maximum-request:                 NNTP Variables.
+* nntp-server-hook:                     Hooks.
+* nntp-server-hook:                     NEmacs2.
+* nntp-server-name:                     NEmacs2.
+* nntp-server-name:                     Hooks.
+* NNTPSERVER:                           NNTP Server.
+* NNTPSERVER:                           Variables.
+* ORGANIZATION:                         Domain.
+* ORGANIZATION:                         Variables.
+* SAVEDIR:                              Variables.
+* SAVEDIR:                              Saving Articles.
+* tcp-program-name:                     NNTP Variables.
+* USER:                                 Variables.
+
+
+File: gnus.info,  Node: Program Index,  Next: Concept Index,  Prev: Variable Index,  Up: Top
+
+Program Index
+*************
+
+* Menu:
+
+* Bnews:                                Startup File.
+* Bnews:                                GENERICFROM.
+* Bnews:                                GENERICPATH.
+* Bnews:                                Startup File.
+* Bnews:                                Spool Variables.
+* Bnews:                                Spool Variables.
+* Bnews:                                Variables.
+* Bnews:                                Variables.
+* Bnews:                                Variables.
+* Bnews:                                Variables.
+* Cnews:                                Variables.
+* Cnews:                                Variables.
+* gnus.el:                              Preloading.
+* gnus.el:                              Compilation.
+* gnus.el:                              Files of GNUS.
+* gnus.texinfo:                         Texinfo Manual.
+* gnus.texinfo:                         Files of GNUS.
+* gnusmail.el:                          Files of GNUS.
+* gnusmail.el:                          Compilation.
+* gnusmisc.el:                          Compilation.
+* gnusmisc.el:                          Files of GNUS.
+* gnuspost.el:                          Compilation.
+* gnuspost.el:                          Files of GNUS.
+* inews:                                Variables.
+* inews:                                Spool Variables.
+* inews:                                Spool Variables.
+* inews:                                Hooks.
+* ls:                                   Directory Variables.
+* make:                                 Files of GNUS.
+* make:                                 Compilation.
+* Makefile:                             Files of GNUS.
+* MH:                                   Saving Articles.
+* MH:                                   Variables.
+* MH:                                   NNTP Server.
+* MH:                                   Private Directory.
+* MH:                                   Variables.
+* mh-e:                                 Followup and Reply.
+* mh-e:                                 Variables.
+* mh-e:                                 Variables.
+* mh-e:                                 Variables.
+* mhspool.el:                           Compilation.
+* mhspool.el:                           Files of GNUS.
+* nkf:                                  SX/A Emacs.
+* nnspool.el:                           Compilation.
+* nnspool.el:                           Files of GNUS.
+* nntp.el:                              Compilation.
+* nntp.el:                              Files of GNUS.
+* rcvstore:                             Variables.
+* rn:                                   Moving Among Articles.
+* rn:                                   Introduction.
+* rn:                                   Variables.
+* rrn:                                  Introduction.
+* tcp.c:                                Compilation.
+* tcp.c:                                Files of GNUS.
+* tcp.c:                                NNTP Variables.
+* tcp.c:                                Compilation.
+* tcp.el:                               Compilation.
+* tcp.el:                               Files of GNUS.
+* timezone.el:                          Compilation.
+* timezone.el:                          Files of GNUS.
+* timezone.el:                          Variables.
+

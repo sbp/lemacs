@@ -26,7 +26,7 @@
 (defvar debug-function-list nil
   "List of functions currently set for debug on entry.")
 
-;;;###autoload
+;;;don't ###autoload, loadup.el does something smarter.
 (setq debugger 'debug)
 
 (defvar debugger-step-after-exit)
@@ -42,13 +42,13 @@ You may call with no args, or you may
  pass nil as the first arg and any other args you like.
  In that case, the list of args after the first will 
  be printed into the backtrace buffer."
-  (message "Entering debugger...")
+  (message (gettext "Entering debugger..."))
   (let (debugger-value
 	(debugger-match-data (match-data))
 	(debug-on-error nil)
 	(debug-on-quit nil)
 	(debugger-buffer (let ((default-major-mode 'fundamental-mode))
-			   (generate-new-buffer "*Backtrace*")))
+			   (generate-new-buffer (gettext "*Backtrace*"))))
 	(debugger-old-buffer (current-buffer))
 	(debugger-step-after-exit nil)
 	;; Don't keep reading from an executing kbd macro!
@@ -72,7 +72,7 @@ You may call with no args, or you may
 			     (point)))
 	    (debugger-reenable)
 	    (cond ((memq (car debugger-args) '(lambda debug))
-		   (insert "Entering:\n")
+		   (insert (gettext "Entering:\n"))
 		   (if (eq (car debugger-args) 'debug)
 		       (progn
 			 (backtrace-debug 4 t)
@@ -80,7 +80,7 @@ You may call with no args, or you may
 			 (insert ?*)
 			 (beginning-of-line))))
 		  ((eq (car debugger-args) 'exit)
-		   (insert "Return value: ")
+		   (insert (gettext "Return value: "))
 		   (setq debugger-value (nth 1 debugger-args))
 		   (prin1 debugger-value (current-buffer))
 		   (insert ?\n)
@@ -88,11 +88,12 @@ You may call with no args, or you may
 		   (insert ? )
 		   (beginning-of-line))
 		  ((eq (car debugger-args) 'error)
-		   (insert "Signalling: ")
+		   (insert (gettext "Signalling: "))
 		   (prin1 (nth 1 debugger-args) (current-buffer))
 		   (insert ?\n))
 		  ((eq (car debugger-args) t)
-		   (insert "Beginning evaluation of function call form:\n"))
+		   (insert
+		    (gettext "Beginning evaluation of function call form:\n")))
 		  (t
 		   (prin1 (if (eq (car debugger-args) 'nil)
 			      (cdr debugger-args) debugger-args)
@@ -126,13 +127,13 @@ You may call with no args, or you may
 Enter another debugger on next entry to eval, apply or funcall."
   (interactive)
   (setq debugger-step-after-exit t)
-  (message "Proceeding, will debug on next eval or call.")
+  (message (gettext "Proceeding, will debug on next eval or call."))
   (debugger-exit))
 
 (defun debugger-continue ()
   "Continue, evaluating this expression without stopping."
   (interactive)
-  (message "Continuing.")
+  (message (gettext "Continuing."))
   (debugger-exit))
 
 (defun debugger-return-value (val)
@@ -141,7 +142,7 @@ This is only useful when the value returned from the debugger
 will be used, such as in a debug on exit from a frame."
   (interactive "XReturn value (evaluated): ")
   (setq debugger-value val)
-  (princ "Returning " t)
+  (princ (gettext "Returning ") t)
   (prin1 debugger-value)
   (exit-recursive-edit))
 
@@ -165,7 +166,7 @@ will be used, such as in a debug on exit from a frame."
       (fset (car list)
 	    (debug-on-entry-1 (car list) (symbol-function (car list)) nil))
       (setq list (cdr list))))
-  (message "Continuing through this frame")
+  (message (gettext "Continuing through this frame"))
   (debugger-exit))
 
 (defun debugger-reenable ()
@@ -186,9 +187,9 @@ will be used, such as in a debug on exit from a frame."
 	  (count 0))
       (goto-char (point-min))
       (if (or (equal (buffer-substring (point) (+ (point) 6))
-		     "Signal")
+		     (gettext "Signal"))
 	      (equal (buffer-substring (point) (+ (point) 6))
-		     "Return"))
+		     (gettext "Return")))
 	  (progn
 	    (search-forward ":")
 	    (forward-sexp 1)))
@@ -276,7 +277,7 @@ Complete list of commands:
 \\{debugger-mode-map}"
   (kill-all-local-variables)    
   (setq major-mode 'debugger-mode)
-  (setq mode-name "Debugger")
+  (setq mode-name (gettext "Debugger"))
   (setq truncate-lines t)
   (set-syntax-table emacs-lisp-mode-syntax-table)
   (use-local-map debugger-mode-map))
@@ -292,11 +293,11 @@ Redefining FUNCTION also does that."
   (interactive "aDebug on entry (to function): ")
   (debugger-reenable)
   (if (subrp (symbol-function function))
-      (error "Function %s is a primitive" function))
+      (error (gettext "Function %s is a primitive") function))
   (or (consp (symbol-function function))
       (debug-convert-byte-code function))
   (or (consp (symbol-function function))
-      (error "Definition of %s is not a list" function))
+      (error (gettext "Definition of %s is not a list") function))
   (fset function (debug-on-entry-1 function (symbol-function function) t))
   (or (memq function debug-function-list)
       (setq debug-function-list (cons function debug-function-list)))
@@ -308,7 +309,7 @@ Redefining FUNCTION also does that."
 If argument is nil or an empty string, cancel for all functions."
   (interactive
    (list (let ((name
-                (completing-read "Cancel debug on entry (to function): "
+                (completing-read (gettext "Cancel debug on entry (to function): ")
                                  ;; Make an "alist" of the functions
 				 ;; that now have debug on entry.
 				 (mapcar 'list (mapcar 'symbol-name
@@ -322,7 +323,7 @@ If argument is nil or an empty string, cancel for all functions."
 	      (debug-on-entry-1 function (symbol-function function) nil))
 	(setq debug-function-list (delq function debug-function-list))
 	function)
-    (message "Cancelling debug-on-entry for all functions")
+    (message (gettext "Cancelling debug-on-entry for all functions"))
     (mapcar 'cancel-debug-on-entry debug-function-list)))
 
 (defun debug-convert-byte-code (function)
@@ -341,11 +342,11 @@ If argument is nil or an empty string, cancel for all functions."
 
 (defun debug-on-entry-1 (function defn flag)
   (if (subrp defn)
-      (error "%s is a built-in function" function)
+      (error (gettext "%s is a built-in function") function)
     (if (eq (car defn) 'macro)
 	(debug-on-entry-1 function (cdr defn) flag)
       (or (eq (car defn) 'lambda)
-	  (error "%s not user-defined Lisp function" function))
+	  (error (gettext "%s not user-defined Lisp function") function))
       (let (tail prec)
 	(if (stringp (car (nthcdr 2 defn)))
 	    (setq tail (nthcdr 3 defn)
@@ -361,16 +362,16 @@ If argument is nil or an empty string, cancel for all functions."
 (defun debugger-list-functions ()
   "Display a list of all the functions now set to debug on entry."
   (interactive)
-  (with-output-to-temp-buffer "*Help*"
+  (with-output-to-temp-buffer (gettext "*Help*")
     (if (null debug-function-list)
-	(princ "No debug-on-entry functions now\n")
-      (princ "Functions set to debug on entry:\n\n")
+	(princ (gettext "No debug-on-entry functions now\n"))
+      (princ (gettext "Functions set to debug on entry:\n\n"))
       (let ((list debug-function-list))
 	(while list
 	  (prin1 (car list))
 	  (terpri)
 	  (setq list (cdr list))))
-      (princ "Note: if you have redefined a function, then it may no longer\n")
-      (princ "be set to debug on entry, even if it is in the list."))))
+      (princ (gettext "Note: if you have redefined a function, then it may no longer\n"))
+      (princ (gettext "be set to debug on entry, even if it is in the list.")))))
 
 ;;; debug.el ends here

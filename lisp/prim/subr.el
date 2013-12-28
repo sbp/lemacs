@@ -45,6 +45,10 @@
 The value of this variable may be buffer-local.
 The buffer about to be killed is current when this hook is run.")
 
+(defvar kill-emacs-hook nil
+  "Function or functions to be called when `kill-emacs' is called,
+just before emacs is actually killed.")
+
 (defun generate-new-buffer (name)
   "Create and return a buffer with a name based on NAME.
 Choose the buffer's name using `generate-new-buffer-name'."
@@ -161,6 +165,23 @@ If it is a list, the elements are called, in order, with no arguments."
 ;; Tell C code how to call this function.
 (setq run-hooks 'run-hooks)
 
+(defun run-hook-with-args (hook &rest args)
+  "Runs hook with the specified arguments.
+HOOK should be a symbol, a hook variable.  If HOOK has a non-nil
+value, that value may be a function or a list of functions to be
+called to run the hook.  If the value is a function, it is called with
+the given arguments and its return value is returned.  If it is a
+list, the elements are called, in order, with the given arguments,
+and a list of the each function's return value is returned."
+  (and (boundp hook)
+       (symbol-value hook)
+       (let ((value (symbol-value hook)))
+	 (if (and (listp value) (not (eq (car value) 'lambda)))
+	     (mapcar #'(lambda (foo) (apply foo args))
+		     value)
+	   (apply value args)))))
+
+
 (defun add-hook (hook function &optional append)
   "Add to the value of HOOK the function FUNCTION.
 FUNCTION is not added if already present.
@@ -195,6 +216,34 @@ First argument HOOK (a symbol) is the name of a hook, second
 	  ((consp val)
 	   ;; don't side-effect the list
 	   (set hook (delq function (copy-sequence val)))))))
+
+;;; Temporary support for old the interface to extents.
+
+(make-obsolete 'extent-data 'extent-property)
+(make-obsolete 'set-extent-data 'set-extent-property)
+(make-obsolete 'set-extent-attribute 'set-extent-property)
+(make-obsolete 'extent-attributes 'extent-property)
+
+(defun extent-data (extent)
+  "Returns the `data' property of the given extent."
+  (extent-property extent 'data))
+
+(defun set-extent-data (extent data)
+  "Sets the `data' property of the given extent."
+  (set-extent-property extent 'data data))
+
+(defun set-extent-attribute (extent attr &optional clearp)
+  (cond ((eq attr 'write-protected)
+	 (set-extent-property extent 'read-only t))
+	((eq attr 'unhighlight)
+	 (set-extent-property extent 'highlight nil))
+	((eq attr 'writable)
+	 (set-extent-property extent 'read-only nil))
+	((eq attr 'visible)
+	 (set-extent-property extent 'invisible nil))
+	(t
+	 (set-extent-property extent attr t))))
+
 
 ;;;; Miscellanea.
 

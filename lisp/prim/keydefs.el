@@ -45,6 +45,11 @@ The normal global definition of the character C-x indirects to this keymap.")
 Keymap for subcommands of C-x 4")
 (define-key global-map "\C-x4" 'ctl-x-4-prefix)
 
+;(define-prefix-command 'ctl-x-5-prefix t)
+;(defvar ctl-x-5-map (symbol-function 'ctl-x-5-prefix) "\
+;Keymap for subcommands of C-x 5")
+;(define-key global-map "\C-x5" 'ctl-x-5-prefix)
+
 (define-prefix-command 'mode-specific-command-prefix t)
 (defvar mode-specific-map (symbol-function 'mode-specific-command-prefix) "\
 Keymap for characters following C-c.")
@@ -104,6 +109,13 @@ Keymap for characters following C-c.")
 (define-key global-map "\C-x}" 'enlarge-window-horizontally)
 (define-key global-map "\C-x{" 'shrink-window-horizontally)
 
+;; >>> FSF19 new keyboard assignments
+;(define-key global-map "\C-x5b" 'switch-to-buffer-other-frame)
+;(define-key global-map "\C-x5f" 'find-file-other-frame)
+;(define-key global-map "\C-x5\C-f" 'find-file-other-frame)
+;(define-key global-map "\C-x5r" 'find-file-read-only-other-frame)
+;(define-key global-map "\C-x5m" 'mail-other-frame)
+
 (define-key global-map "\C-xo" 'other-window)
 (define-key global-map "\C-x^" 'enlarge-window)
 (define-key global-map "\C-x<" 'scroll-left)
@@ -129,6 +141,16 @@ Keymap for characters following C-c.")
 (define-key global-map "\M-'" 'abbrev-prefix-mark)
 (define-key global-map "\C-x'" 'expand-abbrev)
 
+;; >>> FSF19 new keyboard assignments
+;(define-key global-map "\C-xal" 'add-mode-abbrev)
+;(define-key global-map "\C-xa\C-a" 'add-mode-abbrev)
+;(define-key global-map "\C-xag" 'add-global-abbrev)
+;(define-key global-map "\C-xa+" 'add-mode-abbrev)
+;(define-key global-map "\C-xaig" 'inverse-add-global-abbrev)
+;(define-key global-map "\C-xail" 'inverse-add-mode-abbrev)
+;(define-key global-map "\C-xa-" 'inverse-add-global-abbrev)
+;(define-key global-map "\C-xae" 'expand-abbrev)
+;(define-key global-map "\C-xa'" 'expand-abbrev)
 
 (define-key global-map "\C-xb" 'switch-to-buffer)
 (define-key global-map "\C-xk" 'kill-buffer)
@@ -138,16 +160,18 @@ Keymap for characters following C-c.")
 (define-key global-map "\C-x\(" 'start-kbd-macro)
 (define-key global-map "\C-x\)" 'end-kbd-macro)
 
-
-(define-key global-map "\C-x4a" 'add-change-log-entry-other-window)
+; autoloaded
+;(define-key global-map "\C-x4a" 'add-change-log-entry-other-window)
 
 (define-key global-map "\C-x`" 'next-error)
 
 (define-key global-map "\M-/" 'dabbrev-expand)
 
-(define-key global-map "\C-xd" 'dired)
+; autoloaded
+;(define-key global-map "\C-xd" 'dired)
 
-(define-key global-map "\C-x4d" 'dired-other-window)
+; autoloaded
+;(define-key global-map "\C-x4d" 'dired-other-window)
 
 (define-key global-map "\M-$" 'ispell-word)
 
@@ -202,6 +226,23 @@ Keymap for characters following C-c.")
 (define-key global-map "\C-xg" 'insert-register)
 (define-key global-map "\C-xr" 'copy-rectangle-to-register)
 
+;; >>> FSF19 new keyboard assignments
+;(define-key global-map "\C-xr\C-@" 'point-to-register)
+;(define-key global-map "\C-xr " 'point-to-register)
+;(define-key global-map "\C-xrj" 'jump-to-register)
+;(define-key global-map "\C-xrs" 'copy-to-register)
+;(define-key global-map "\C-xrx" 'copy-to-register)
+;(define-key global-map "\C-xri" 'insert-register)
+;(define-key global-map "\C-xrg" 'insert-register)
+;(define-key global-map "\C-xrr" 'copy-rectangle-to-register)
+;(define-key global-map "\C-xrc" 'clear-rectangle)
+;(define-key global-map "\C-xrk" 'kill-rectangle)
+;(define-key global-map "\C-xry" 'yank-rectangle)
+;(define-key global-map "\C-xro" 'open-rectangle)
+;(define-key global-map "\C-xrt" 'string-rectangle)
+;(define-key global-map "\C-xrw" 'window-configuration-to-register)
+;(define-key global-map "\C-xrf" 'frame-configuration-to-register)
+
 (define-key global-map "\M-q" 'fill-paragraph)
 (define-key global-map "\M-g" 'fill-region)
 (define-key global-map "\C-x." 'set-fill-prefix)
@@ -228,10 +269,10 @@ Keymap for characters following C-c.")
 (define-key global-map "\C-xw" 'widen)
 
 ;; >>> FSF19 new keyboard assignments
-;;(define-key global-map "\C-xn" (make-sparse-keymap))
-;;(define-key global-map "\C-xr" (make-sparse-keymap))
-;;(define-key global-map "\C-xnn" 'narrow-to-region)
-;;(define-key global-map "\C-xnw" 'widen)
+;(define-key global-map "\C-xn" (make-sparse-keymap))
+;(define-key global-map "\C-xr" (make-sparse-keymap))
+;(define-key global-map "\C-xnn" 'narrow-to-region)
+;(define-key global-map "\C-xnw" 'widen)
 
 
 (define-key global-map "\C-j" 'newline-and-indent)
@@ -252,6 +293,8 @@ Keymap for characters following C-c.")
 (define-key global-map "\C-x\e" 'repeat-complex-command)
 (define-key global-map "\C-xu" 'advertised-undo)
 (define-key global-map "\C-_" 'undo)
+;; Many people are used to typing C-/ on X terminals and getting C-_.
+(define-key global-map '(control |) 'undo)
 (define-key global-map "\M-!" 'shell-command)
 (define-key global-map "\M-|" 'shell-command-on-region)
 
@@ -330,3 +373,28 @@ Keymap for characters following C-c.")
 (define-key global-map '(control meta backspace) '[(control meta delete)])
 
 (define-key global-map '(control h) 'help-command)
+
+
+;;; Other FSFmacs bindings to deal with once we have key-translation-map
+
+;(define-key global-map [home]		'beginning-of-buffer)
+;(define-key global-map [left]		'backward-char)
+;(define-key global-map [up]		'previous-line)
+;(define-key global-map [right]		'forward-char)
+;(define-key global-map [down]		'next-line)
+;(define-key global-map [prior]		'scroll-down)
+;(define-key global-map [next]		'scroll-up)
+;(define-key global-map [M-next]		'scroll-other-window)
+;(define-key global-map [end]		'end-of-buffer)
+;(define-key global-map [begin]		'beginning-of-buffer)
+;;; (define-key global-map [select]		'function-key-error)
+;;; (define-key global-map [print]		'function-key-error)
+;(define-key global-map [execute]	'execute-extended-command)
+;(define-key global-map [insert]		'overwrite-mode)
+;(define-key global-map [undo]		'undo)
+;(define-key global-map [redo]		'repeat-complex-command)
+;;; (define-key global-map [clearline]	'function-key-error)
+;(define-key global-map [insertline]	'open-line)
+;(define-key global-map [deleteline]	'kill-line)
+;;; (define-key global-map [insertchar]	'function-key-error)
+;(define-key global-map [deletechar]	'delete-char)

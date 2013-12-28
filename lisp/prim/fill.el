@@ -45,8 +45,8 @@ and reinserts the fill prefix in each resulting line."
   (if (equal fill-prefix "")
       (setq fill-prefix nil))
   (if fill-prefix
-      (message "fill-prefix: \"%s\"" fill-prefix)
-    (message "fill-prefix cancelled")))
+      (message (gettext "fill-prefix: \"%s\"") fill-prefix)
+    (message (gettext "fill-prefix cancelled"))))
 
 (defvar adaptive-fill-mode t
   "*Non-nil means determine a paragraph's fill prefix from its text.")
@@ -100,7 +100,8 @@ From program, pass args FROM, TO and JUSTIFY-FLAG."
 	(and fpre
 	     (progn
 	       (if (>= (length fill-prefix) fill-column)
-		   (error "fill-prefix too long for specified width"))
+		   (error
+		    (gettext "fill-prefix too long for specified width")))
 	       (goto-char (point-min))
 	       (forward-line 1)
 	       (while (not (eobp))

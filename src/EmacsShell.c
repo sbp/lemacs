@@ -1,54 +1,197 @@
-/* This is just like the regular Shell widget except that it knows how to
-   deal with managing itself on an externally-provided window which was
-   created by someone else (possibly another process).
+/* Emacs shell widget.
+   Copyright (C) 1993 Free Software Foundation, Inc.
 
-   This is not actually emacs-specific, and this extra feature is not
-   currently used (19.8).  A better name for this widget might be 
-   ExternalShell.  But perhaps it should advertise its name as "Shell"
-   to make user resources simpler.
+This file is part of GNU Emacs.
+
+GNU Emacs is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
+
+GNU Emacs is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with GNU Emacs; see the file COPYING.  If not, write to
+the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+
+*/
+
+/* Completely rewritten by Ben Wing, September 1993. */
+
+/* This is a special Shell that is designed to use an externally-
+   provided window created by someone else (possibly another process).
+   That other window should have an associated widget of class
+   EmacsClient.  The two widgets communicate with each other using
+   ClientMessage events and properties on the external window.
+
+   Ideally this feature should be independent of Emacs.  Unfortunately
+   there are lots and lots of specifics that need to be dealt with
+   for this to work properly, and some of them can't conveniently
+   be handled within the widget's methods.  Some day the code may
+   be rewritten so that the embedded-widget feature can be used by
+   any application, with appropriate entry points that are called
+   at specific points within the application.
+
+   This feature is similar to the OLE (Object Linking & Embedding)
+   feature provided by MS Windows.
  */
+
+#include "config.h"
+
+#ifndef EXTERNAL_WIDGET
+ERROR!  This ought not be getting compiled if EXTERNAL_WIDGET is undefined
+#endif
 
 #include <stdio.h>
 #include <string.h>
 #include <X11/StringDefs.h>
-#include <X11/IntrinsicP.h>
+#include "xintrinsicp.h"
 #include <X11/Shell.h>
 #include <X11/ShellP.h>
 #include <X11/Vendor.h>
 #include <X11/VendorP.h>
 #include "EmacsShellP.h"
 
-#ifndef XtCXtToolkitError
-#define XtCXtToolkitError "XtToolkitError"
+/* Communication between this shell and the client widget:
+
+   Communication is through ClientMessage events with message_type
+   EMACS_NOTIFY and format 32.  Both the shell and the client widget
+   communicate with each other by sending the message to the same
+   window (the "external window" below), and the data.l[0] value is
+   used to determine who sent the message.
+
+   The data is formatted as follows:
+
+   data.l[0] = who sent this message: emacs_shell_send (0) or
+               emacs_client_send (1)
+   data.l[1] = message type (see enum en_emacs_notify below)
+   data.l[2-4] = data associated with this message
+
+   EventHandler() handles messages from the other side.
+
+   send_notify_3() sends a message to the other side.  Macros
+      send_notify_0(), send_notify_1(), and send_notify_2() call
+      this function with fewer data arguments.
+
+   send_geometry_value() is used when an XtWidgetGeometry structure
+      needs to be sent.  This is too much data to fit into a
+      ClientMessage, so the data is stored in a property and then
+      send_notify_*() is called.
+
+   get_geometry_value() receives an XtWidgetGeometry structure from a
+      property.
+
+   _wait_for_response() is used when a response to a sent message
+      is expected.  It looks for a matching event within a
+      particular timeout.
+
+   The particular message types are as follows:
+
+1) emacs_notify_init (event_window, event_mask)
+
+   This is sent from the shell to the client after the shell realizes
+   its EmacsScreen widget on the client's "external window".  This
+   tells the client that it should start passing along events of the
+   types specified in event_mask.  event_window specifies the window
+   of the EmacsScreen widget, which is a child of the client's
+   external window.
+
+2) emacs_notify_end ()
+
+   This is sent from the shell to the client when the shell's
+   EmacsScreen widget is destroyed, and tells the client to stop
+   passing events along.
+
+3) emacs_notify_qg (result)
+
+   This is sent from the client to the shell when a QueryGeometry
+   request is received on the client.  The XtWidgetGeometry structure
+   specified in the QueryGeometry request is passed on in the
+   EMACS_QUERY_GEOMETRY property (of type EMACS_WIDGET_GEOMETRY) on the
+   external window.  result is unused.
+
+   In response, the shell passes the QueryGeometry request down the
+   widget tree, and when a response is received, sends a message of
+   type emacs_notify_qg back to the client, with result specifying the
+   GeometryResult value.  If this value is XtGeometryAlmost, the
+   returned XtWidgetGeometry structure is stored into the same property
+   as above. [BPW is there a possible race condition here?]
+
+4) emacs_notify_gm (result)
+
+   A very similar procedure to that for emacs_notify_qg is followed
+   when the shell's RootGeometryManager method is called, indicating
+   that a child widget wishes to change the shell's geometry.  The
+   XtWidgetGeometry structure is stored in the EMACS_GEOMETRY_MANAGER
+   property.
+  
+*/
+
+#ifdef DEBUG_WIDGET
+extern int debug_widget;
 #endif
 
-static void emacsShellInitialize ();
-static void emacsShellRealize ();
-static void EvaluateWMHints ();
-static void ComputeWMSizeHints();
-static void ComputeWMSizeHints ();
-static void Destroy (Widget w);
-#define BIGSIZE ((Dimension)32767)  /* from Shell.c */
+#define EMACS_ME emacs_shell_send
+#define EMACS_YOU emacs_client_send
+
+#define DECL_WIN(w) Window win = (w)->emacsShell.external_window
+#define TIMEOUT(w) ((w)->emacsShell.client_timeout)
+
+#define WIDGET_TYPE EmacsShellWidget
+
+#include "commoncom.c"
+
+static void EmacsShellInitialize (Widget req, Widget new, ArgList args,
+				  Cardinal *num_args);
+static void EmacsShellRealize (Widget wid, Mask *vmask, XSetWindowAttributes
+			       *attr);
+static void EmacsShellDestroy (Widget w);
+static XtGeometryResult EmacsShellRootGeometryManager(Widget gw,
+  XtWidgetGeometry *request, XtWidgetGeometry *reply);
+static void EventHandler(Widget wid, XtPointer closure, XEvent *event,
+			 Boolean *continue_to_dispatch);
+
+#ifndef DEFAULT_WM_TIMEOUT
+# define DEFAULT_WM_TIMEOUT 5000
+#endif
+
+void EmacsShellUnrealize(Widget w);
 
 static XtResource resources[] = {
 #define offset(field) XtOffset(EmacsShellWidget, emacsShell.field)
-  {XtNwindow, XtCWindow, XtRString, sizeof (char*),
+  {XtNwindow, XtCWindow, XtRWindow, sizeof (Window),
      offset (external_window), XtRImmediate, (XtPointer)0},
+  { XtNclientTimeout, XtCClientTimeout, XtRInt, sizeof(int),
+      offset(client_timeout), XtRImmediate,(XtPointer)DEFAULT_WM_TIMEOUT},
+  { XtNdeadClient, XtCDeadClient, XtRBoolean, sizeof(Boolean),
+      offset(dead_client), XtRImmediate, (XtPointer)False},
+};
+
+
+static ShellClassExtensionRec shellClassExtRec = {
+    NULL,
+    NULLQUARK,
+    XtShellExtensionVersion,
+    sizeof(ShellClassExtensionRec),
+    EmacsShellRootGeometryManager
 };
 
 EmacsShellClassRec emacsShellClassRec = {
     { /*
        *	core_class fields
        */
-    /* superclass	  */	(WidgetClass) &applicationShellClassRec,
+    /* superclass	  */	(WidgetClass) &shellClassRec,
     /* class_name	  */	"EmacsShell",
     /* size		  */	sizeof(EmacsShellRec),
     /* Class Initializer  */	NULL,
     /* class_part_initialize*/	NULL, /* XtInheritClassPartInitialize, */
     /* Class init'ed ?	  */	FALSE,
-    /* initialize	  */	emacsShellInitialize,
+    /* initialize	  */	EmacsShellInitialize,
     /* initialize_notify  */	NULL,
-    /* realize		  */	emacsShellRealize,
+    /* realize		  */	EmacsShellRealize,
     /* actions		  */	NULL,
     /* num_actions	  */	0,
     /* resources	  */	resources,
@@ -58,7 +201,7 @@ EmacsShellClassRec emacsShellClassRec = {
     /* compress_exposure  */	TRUE,
     /* compress_enterleave*/	FALSE,
     /* visible_interest	  */	TRUE,
-    /* destroy		  */	Destroy, /* XtInheritDestroy, */
+    /* destroy		  */	EmacsShellDestroy, /* XtInheritDestroy, */
     /* resize		  */	XtInheritResize,
     /* expose		  */	NULL,
     /* set_values	  */	NULL, /* XtInheritSetValues, */
@@ -79,129 +222,169 @@ EmacsShellClassRec emacsShellClassRec = {
     /* delete_child	  */	XtInheritDeleteChild,
     /* extension	  */	NULL
   },{ /* Shell */
-    /* extension	  */	NULL /* (XtPointer)&shellClassExtRec */
+    /* extension	  */	(XtPointer)&shellClassExtRec
   }
 };
 
 WidgetClass emacsShellWidgetClass = (WidgetClass) &emacsShellClassRec;
 
-static void emacsShellInitialize (req, new, args, num_args)
-     Widget req, new;
-     ArgList args;
-     Cardinal *num_args;
+static void EmacsShellInitialize (Widget req, Widget new, ArgList args,
+				  Cardinal *num_args)
 {
-/*
   XtAddEventHandler(new, NULL,
-		    TRUE, emacs_Xt_event_handler, (XtPointer) NULL);
- */
+		    TRUE, EventHandler, (XtPointer) NULL);
+  common_initialize_atoms(XtDisplay(req));
 }
 
-/* Lifted without alteration from Shell.c
- */
-static void EvaluateSizeHints(w)
-    WMShellWidget w;
+static Widget find_managed_child(CompositeWidget w)
 {
-	struct _OldXSizeHints *sizep = &w->wm.size_hints;
+  int i;
+  Widget *childP = w->composite.children;
 
-	sizep->x = w->core.x;
-	sizep->y = w->core.y;
-	sizep->width = w->core.width;
-	sizep->height = w->core.height;
-
-	if (sizep->flags & USSize) {
-	    if (sizep->flags & PSize) sizep->flags &= ~PSize;
-	} else
-	    sizep->flags |= PSize;
-
-	if (sizep->flags & USPosition) {
-	    if (sizep->flags & PPosition) sizep->flags &= ~PPosition;
-	} else if (w->shell.client_specified & _XtShellPPositionOK)
-	    sizep->flags |= PPosition;
-
-	if (sizep->min_aspect.x != XtUnspecifiedShellInt
-	    || sizep->min_aspect.y != XtUnspecifiedShellInt
-	    || sizep->max_aspect.x != XtUnspecifiedShellInt
-	    || sizep->max_aspect.y != XtUnspecifiedShellInt) {
-	    sizep->flags |= PAspect;
-	}
-	if(w->wm.base_width != XtUnspecifiedShellInt
-	   || w->wm.base_height != XtUnspecifiedShellInt) {
-	    sizep->flags |= PBaseSize;
-	    if (w->wm.base_width == XtUnspecifiedShellInt)
-		w->wm.base_width = 0;
-	    if (w->wm.base_height == XtUnspecifiedShellInt)
-		w->wm.base_height = 0;
-	}
-	if (sizep->width_inc != XtUnspecifiedShellInt
-	    || sizep->height_inc != XtUnspecifiedShellInt) {
-	    if (sizep->width_inc < 1) sizep->width_inc = 1;
-	    if (sizep->height_inc < 1) sizep->height_inc = 1;
-	    sizep->flags |= PResizeInc;
-	}
-	if (sizep->max_width != XtUnspecifiedShellInt
-	    || sizep->max_height != XtUnspecifiedShellInt) {
-	    sizep->flags |= PMaxSize;
-	    if (sizep->max_width == XtUnspecifiedShellInt)
-		sizep->max_width = BIGSIZE;
-	    if (sizep->max_height == XtUnspecifiedShellInt)
-		sizep->max_height = BIGSIZE;
-	}
-	if(sizep->min_width != XtUnspecifiedShellInt
-	   || sizep->min_height != XtUnspecifiedShellInt) {
-	    sizep->flags |= PMinSize;
-	    if (sizep->min_width == XtUnspecifiedShellInt)
-		sizep->min_width = 1;
-	    if (sizep->min_height == XtUnspecifiedShellInt)
-		sizep->min_height = 1;
-	}
+  for (i = w->composite.num_children; i; i--, childP++)
+    if (XtIsWidget(*childP) && XtIsManaged(*childP))
+      return *childP;
+  return NULL;
 }
 
+#ifndef XtCXtToolkitError
+# define XtCXtToolkitError "XtToolkitError"
+#endif
 
-/* Lifted without alteration from Shell.c
+static void EventHandler(wid, closure, event, continue_to_dispatch)
+     Widget wid;
+     XtPointer closure;	/* unused */
+     XEvent *event;
+     Boolean *continue_to_dispatch; /* unused */
+{
+  register EmacsShellWidget w = (EmacsShellWidget) wid;
+
+#ifdef DEBUG_WIDGET
+  if (debug_widget)
+    printf("received event\n");
+#endif
+
+  if(w->core.window != event->xany.window) {
+    XtAppErrorMsg(XtWidgetToApplicationContext(wid),
+		  "invalidWindow","eventHandler",XtCXtToolkitError,
+		  "Event with wrong window",
+		  (String *)NULL, (Cardinal *)NULL);
+    return;
+  }
+
+#ifdef DEBUG_WIDGET
+  if (debug_widget)
+    if (event->type == ClientMessage)
+      printf("received notify (%d, %d, %d, %d, %d) on window %x\n",
+	     event->xclient.data.l[0], event->xclient.data.l[1],
+	     event->xclient.data.l[2], event->xclient.data.l[3],
+	     event->xclient.data.l[4], event->xany.window);
+#endif
+
+  if (event->type == ClientMessage &&
+      event->xclient.data.l[0] == EMACS_YOU &&
+      event->xclient.message_type == a_EMACS_NOTIFY)
+    switch (event->xclient.data.l[1]) {
+
+    case emacs_notify_gm:
+      /* client is alive again. */
+#ifdef DEBUG_WIDGET
+      if (debug_widget)
+	printf ("server received emacs_notify_gm\n");
+#endif
+      w->emacsShell.dead_client = False;
+      break;
+
+    case emacs_notify_qg: {
+      XtWidgetGeometry xwg, xwg_return;
+      XtGeometryResult result;
+      Widget child = find_managed_child((CompositeWidget) w);
+
+      if (child) {
+	get_geometry_value(w, a_EMACS_QUERY_GEOMETRY, &xwg);
+	result = XtQueryGeometry(child, &xwg, &xwg_return);
+      } else
+	result = XtGeometryYes;
+#ifdef DEBUG_WIDGET
+      if (debug_widget) {
+	printf ("server received emacs_notify_qg\n");
+	print_geometry_result (result);
+	if (result == XtGeometryAlmost)
+	  print_geometry_structure (&xwg_return);
+      }
+#endif
+      send_geometry_value(w, a_EMACS_QUERY_GEOMETRY, emacs_notify_qg,
+			  result == XtGeometryAlmost ? &xwg_return :
+			  NULL, result);
+      break;
+    }
+
+    case emacs_notify_focus_in: {
+      XFocusChangeEvent event;
+      
+      event.type = FocusIn;
+      event.serial = LastKnownRequestProcessed (XtDisplay (wid));
+      event.send_event = True;
+      event.display = XtDisplay (wid);
+      event.window = XtWindow (wid);
+      event.mode = NotifyNormal;
+      event.detail = NotifyAncestor;
+      /* XtDispatchEvent ((XEvent *) &event); */
+      emacs_Xt_focus_event_handler ((XEvent *) &event, 0);
+      break;
+    }
+      
+    case emacs_notify_focus_out: {
+      XFocusChangeEvent event;
+      
+      event.type = FocusOut;
+      event.serial = LastKnownRequestProcessed (XtDisplay (wid));
+      event.send_event = True;
+      event.display = XtDisplay (wid);
+      event.window = XtWindow (wid);
+      event.mode = NotifyNormal;
+      event.detail = NotifyAncestor;
+      /* XtDispatchEvent ((XEvent *) &event); */
+      emacs_Xt_focus_event_handler ((XEvent *) &event, 0);
+      break;
+    }
+
+    case emacs_notify_end:
+      /* screen should be destroyed. */
+      break;
+    }
+}
+
+/* Lifted almost entirely from GetGeometry() in Shell.c
  */
 static void GetGeometry(W, child)
     Widget W, child;
 {
-    register ShellWidget w = (ShellWidget)W;
-    Boolean is_wmshell = XtIsWMShell(W);
-    int x, y, width, height, win_gravity = -1, flag;
+    register EmacsShellWidget w = (EmacsShellWidget)W;
+    int x, y, win_gravity = -1, flag;
     XSizeHints hints;
-
-    if (child != NULL) {
-	/* we default to our child's size */
-	if (is_wmshell && (w->core.width == 0 || w->core.height == 0))
-	    ((WMShellWidget)W)->wm.size_hints.flags |= PSize;
-	if (w->core.width == 0)	    w->core.width = child->core.width;
-	if (w->core.height == 0)    w->core.height = child->core.height;
+    DECL_WIN(w);
+    
+    {
+      Window dummy_root;
+      unsigned int dummy_bd_width, dummy_depth, width, height;
+      
+      /* determine the existing size of the window. */
+      XGetGeometry(XtDisplay(W), win, &dummy_root, &x, &y, &width,
+		   &height, &dummy_bd_width, &dummy_depth);
+      w->core.width = width;
+      w->core.height = height;
     }
+
     if(w->shell.geometry != NULL) {
 	char def_geom[64];
+	int width, height;
+
 	x = w->core.x;
 	y = w->core.y;
 	width = w->core.width;
 	height = w->core.height;
-	if (is_wmshell) {
-	    WMShellPart* wm = &((WMShellWidget)w)->wm;
-	    EvaluateSizeHints((WMShellWidget)w);
-	    memcpy((char*)&hints, (char*)&wm->size_hints,
-		   sizeof(struct _OldXSizeHints));
-	    hints.win_gravity = wm->win_gravity;
-	    if (wm->size_hints.flags & PBaseSize) {
-		width -= wm->base_width;
-		height -= wm->base_height;
-		hints.base_width = wm->base_width;
-		hints.base_height = wm->base_height;
-	    }
-	    else if (wm->size_hints.flags & PMinSize) {
-		width -= wm->size_hints.min_width;
-		height -= wm->size_hints.min_height;
-	    }
-	    if (wm->size_hints.flags & PResizeInc) {
-		width /= wm->size_hints.width_inc;
-		height /= wm->size_hints.height_inc;
-	    }
-	}
-	else hints.flags = 0;
+	hints.flags = 0;
 
 	sprintf( def_geom, "%dx%d+%d+%d", width, height, x, y );
 	flag = XWMGeometry( XtDisplay(W),
@@ -231,34 +414,23 @@ static void GetGeometry(W, child)
     else
 	flag = 0;
 
-    if (is_wmshell) {
-	WMShellWidget wmshell = (WMShellWidget) w;
-	if (wmshell->wm.win_gravity == XtUnspecifiedShellInt) {
-	    if (win_gravity != -1)
-		wmshell->wm.win_gravity = win_gravity;
-	    else
-		wmshell->wm.win_gravity = NorthWestGravity;
-	}
-	wmshell->wm.size_hints.flags |= PWinGravity;
-	if ((flag & (XValue|YValue)) == (XValue|YValue))
-	    wmshell->wm.size_hints.flags |= USPosition;
-	if ((flag & (WidthValue|HeightValue)) == (WidthValue|HeightValue))
-	    wmshell->wm.size_hints.flags |= USSize;
-    }
     w->shell.client_specified |= _XtShellGeometryParsed;
 }
 
-
 /* Lifted almost entirely from Realize() in Shell.c
  */
-static void _popup_set_prop();
-static void emacsShellRealize (wid, vmask, attr)
-	Widget wid;
-	Mask *vmask;
-	XSetWindowAttributes *attr;
+static void EmacsShellRealize (Widget wid, Mask *vmask, XSetWindowAttributes *attr)
 {
 	EmacsShellWidget w = (EmacsShellWidget) wid;
         Mask mask = *vmask;
+	DECL_WIN(w);
+
+	if (!win) {
+	  Cardinal count = 1;
+	  XtErrorMsg("invalidWindow","shellRealize", XtCXtToolkitError,
+		     "No external window specified for EmacsShell widget %s",
+		     &wid->core.name, &count);
+	}
 
 	if (! (w->shell.client_specified & _XtShellGeometryParsed)) {
 	    /* we'll get here only if there was no child the first
@@ -312,199 +484,153 @@ static void emacsShellRealize (wid, vmask, attr)
 		       "Shell widget %s has zero width and/or height",
 		       &wid->core.name, &count);
 	}
+	wid->core.window = win;
+#ifdef DEBUG_WIDGET
+	if (debug_widget) {
+	  printf("event_mask: %x\n", attr->event_mask);
+	  printf("select mask: %x\n", mask);
+	}
+#endif
+	XChangeWindowAttributes(XtDisplay(wid), wid->core.window,
+				mask, attr);
 
-	if (w->emacsShell.external_window != 0) {
-	   wid->core.window = w->emacsShell.external_window;
-	   XChangeWindowAttributes(XtDisplay(wid), wid->core.window,
-				   mask, attr);
-       } else {
-	  wid->core.window = XCreateWindow(XtDisplay(wid),
-	        wid->core.screen->root, (int)wid->core.x, (int)wid->core.y,
-		(unsigned int)wid->core.width, (unsigned int)wid->core.height,
-		(unsigned int)wid->core.border_width, (int) wid->core.depth,
-		(unsigned int) InputOutput, w->shell.visual,
-		mask, attr);
-       }
-	_popup_set_prop(w);
 }
 
-
-/* Lifted without alteration from Shell.c
- */
-static void EvaluateWMHints(w)
-    WMShellWidget w;
-{
-	XWMHints *hintp = &w->wm.wm_hints;
-
-	hintp->flags = StateHint | InputHint;
-
-	if (XtIsTopLevelShell((Widget)w)
-	    && ((TopLevelShellWidget)w)->topLevel.iconic) {
-	    hintp->initial_state = IconicState;
-	}
-	if (hintp->icon_x == XtUnspecifiedShellInt)
-	    hintp->icon_x = -1;
-	else
-	    hintp->flags |= IconPositionHint;
-
-	if (hintp->icon_y == XtUnspecifiedShellInt)
-	    hintp->icon_y = -1;
-	else
-	    hintp->flags |= IconPositionHint;
-
-	if (hintp->icon_pixmap) hintp->flags |= IconPixmapHint;
-	if (hintp->icon_mask)   hintp->flags |= IconMaskHint;
-	if (hintp->icon_window) hintp->flags |= IconWindowHint;
-
-	if (hintp->window_group == XtUnspecifiedWindow) {
-	    if(w->core.parent) {
-		Widget p;
-		for (p = w->core.parent; p->core.parent; p = p->core.parent);
-		if (XtIsRealized(p)) {
-		    hintp->window_group = XtWindow(p);
-		    hintp->flags |=  WindowGroupHint;
-		}
-	    }
-	} else if (hintp->window_group != XtUnspecifiedWindowGroup)
-	    hintp->flags |=  WindowGroupHint;
-}
-
-
-extern void _XtAllocError (char *);
-
-/* Lifted without alteration from Shell.c
- */
-static void _popup_set_prop(w)
-	ShellWidget w;
-{
-	Widget p;
-	WMShellWidget wmshell = (WMShellWidget) w;
-	TopLevelShellWidget tlshell = (TopLevelShellWidget) w;
-	ApplicationShellWidget appshell = (ApplicationShellWidget) w;
-	XTextProperty icon_name;
-	XTextProperty window_name;
-	char **argv;
-	int argc;
-	XSizeHints *size_hints;
-	Window window_group;
-	XClassHint classhint;
-
-	if (!XtIsWMShell((Widget)w) || w->shell.override_redirect) return;
-
-	if ((size_hints = XAllocSizeHints()) == NULL)
-	    _XtAllocError("XAllocSizeHints");
-
-	window_name.value = (unsigned char*)wmshell->wm.title;
-	window_name.encoding = wmshell->wm.title_encoding;
-	window_name.format = 8;
-	window_name.nitems = strlen((char *) window_name.value) + 1;
-
-	if (XtIsTopLevelShell((Widget)w)) {
-	    icon_name.value = (unsigned char*)tlshell->topLevel.icon_name;
-	    icon_name.encoding = tlshell->topLevel.icon_name_encoding;
-	    icon_name.format = 8;
-	    icon_name.nitems = strlen((char *) icon_name.value) + 1;
-	}
-
-	EvaluateWMHints(wmshell);
-	EvaluateSizeHints(wmshell);
-	ComputeWMSizeHints(wmshell, size_hints);
-
-	if (wmshell->wm.transient
-	    && !XtIsTransientShell((Widget)w)
-	    && (window_group = wmshell->wm.wm_hints.window_group)
-	       != XtUnspecifiedWindowGroup) {
-
-	    XSetTransientForHint(XtDisplay((Widget)w),
-				 XtWindow((Widget)w),
-				 window_group
-				 );
-	}
-
-	classhint.res_name = w->core.name;
-	/* For the class, look up to the top of the tree */
-	for (p = (Widget)w; p->core.parent != NULL; p = p->core.parent);
-	if (XtIsApplicationShell(p)) {
-	    classhint.res_class =
-		((ApplicationShellWidget)p)->application.class;
-	} else classhint.res_class = XtClass(p)->core_class.class_name;
-
-	if (XtIsApplicationShell((Widget)w)
-	    && (argc = appshell->application.argc) != -1)
-	    argv = (char**)appshell->application.argv;
-	else {
-	    argv = NULL;
-	    argc = 0;
-	}
-
-	XSetWMProperties(XtDisplay((Widget)w), XtWindow((Widget)w),
-			 &window_name,
-			 (XtIsTopLevelShell((Widget)w)) ? &icon_name : NULL,
-			 argv, argc,
-			 size_hints,
-			 &wmshell->wm.wm_hints,
-			 &classhint);
-	XFree((char*)size_hints);
-}
-
-/* Lifted without alteration from Shell.c
- */
-static void ComputeWMSizeHints(w, hints)
-    WMShellWidget w;
-    XSizeHints *hints;
-{
-    register long flags;
-    hints->flags = flags = w->wm.size_hints.flags;
-#define copy(field) hints->field = w->wm.size_hints.field
-    if (flags & (USPosition | PPosition)) {
-	copy(x);
-	copy(y);
-    }
-    if (flags & (USSize | PSize)) {
-	copy(width);
-	copy(height);
-    }
-    if (flags & PMinSize) {
-	copy(min_width);
-	copy(min_height);
-    }
-    if (flags & PMaxSize) {
-	copy(max_width);
-	copy(max_height);
-    }
-    if (flags & PResizeInc) {
-	copy(width_inc);
-	copy(height_inc);
-    }
-    if (flags & PAspect) {
-	copy(min_aspect.x);
-	copy(min_aspect.y);
-	copy(max_aspect.x);
-	copy(max_aspect.y);
-    }
-#undef copy
-#define copy(field) hints->field = w->wm.field
-    if (flags & PBaseSize) {
-	copy(base_width);
-	copy(base_height);
-    }
-    if (flags & PWinGravity)
-	copy(win_gravity);
-#undef copy
-}
-
-extern void _XtUnregisterWindow (Window, Widget);
-
-static void Destroy(wid)
+static void EmacsShellDestroy(wid)
 	Widget wid;
 {
   EmacsShellWidget w = (EmacsShellWidget)wid;
 
-  if (XtIsRealized((Widget) w) &&
-      w->core.window == w->emacsShell.external_window)
-    {
-      _XtUnregisterWindow(w->core.window, wid);
-      wid->core.window = 0;
-    }
+  if (XtIsRealized(wid))
+    EmacsShellUnrealize(wid);
+
+  send_notify_0(w, emacs_notify_end);
 }
 
+/* Based on RootGeometryManager() in Shell.c */
+
+static XtGeometryResult EmacsShellRootGeometryManager(gw, request, reply)
+    Widget gw;
+    XtWidgetGeometry *request, *reply;
+{
+    register EmacsShellWidget w = (EmacsShellWidget)gw;
+    unsigned int mask = request->request_mode;
+    XEvent event;
+    int oldx, oldy, oldwidth, oldheight, oldborder_width;
+    unsigned long request_num;
+    XtWidgetGeometry req = *request; /* don't modify caller's structure */
+
+#ifdef DEBUG_WIDGET
+    if (debug_widget) {
+      printf ("server RootGeometryManager called\n");
+      print_geometry_structure (request);
+    }
+#endif
+    oldx = w->core.x;
+    oldy = w->core.y;
+    oldwidth = w->core.width;
+    oldheight = w->core.height;
+    oldborder_width = w->core.border_width;
+
+#define PutBackGeometry() \
+	{ w->core.x = oldx; \
+	  w->core.y = oldy; \
+	  w->core.width = oldwidth; \
+	  w->core.height = oldheight; \
+	  w->core.border_width = oldborder_width; }
+
+    if (mask & CWX) {
+      if (w->core.x == request->x) mask &= ~CWX;
+      else
+	w->core.x = request->x;
+    }
+    if (mask & CWY) {
+      if (w->core.y == request->y) mask &= ~CWY;
+      else w->core.y = request->y;
+    }
+    if (mask & CWBorderWidth) {
+      if (w->core.border_width == request->border_width)
+	      mask &= ~CWBorderWidth;
+      else w->core.border_width = request->border_width;
+    }
+    if (mask & CWWidth) {
+      if (w->core.width == request->width) mask &= ~CWWidth;
+      else w->core.width = request->width;
+    }
+    if (mask & CWHeight) {
+      if (w->core.height == request->height) mask &= ~CWHeight;
+      else w->core.height = request->height;
+    }
+
+    if (!XtIsRealized((Widget)w)) return XtGeometryYes;
+
+    req.sibling = None;
+    req.request_mode = mask & ~CWSibling;
+    request_num = NextRequest(XtDisplay(w));
+    send_geometry_value(w, a_EMACS_GEOMETRY_MANAGER, emacs_notify_gm, &req, 0);
+#ifdef DEBUG_WIDGET
+    if (debug_widget)
+      printf ("sent geometry to client\n");
+#endif
+
+    if (w->emacsShell.dead_client == TRUE) {
+      /* The client is sick.  Refuse the request.
+       * If the client recovers and decides to honor the
+       * request, it will be handled by Shell's EventHandler().
+       */
+      PutBackGeometry();
+      return XtGeometryNo;
+    }
+
+    if (wait_for_response(w, &event, request_num, emacs_notify_gm)) {
+      XtGeometryResult result = (XtGeometryResult) event.xclient.data.l[2];
+
+#ifdef DEBUG_WIDGET
+      if (debug_widget)
+	print_geometry_result (result);
+#endif
+      if (result != XtGeometryYes)
+	PutBackGeometry();
+      if (result == XtGeometryAlmost) {
+	get_geometry_value(w, a_EMACS_GEOMETRY_MANAGER, reply);
+#ifdef DEBUG_WIDGET
+	if (debug_widget)
+	  print_geometry_structure (reply);
+#endif
+      }
+      return result;
+    } else {
+#ifdef DEBUG_WIDGET
+      if (debug_widget)
+	printf ("no reply from client\n");
+#endif
+      w->emacsShell.dead_client = TRUE; /* timed out; must be broken */
+      PutBackGeometry();
+      return XtGeometryNo;
+    }
+#undef PutBackGeometry
+}
+
+/* external entry points */
+
+void EmacsShellReady(Widget w, Window win, long event_mask)
+{
+  EmacsShellWidget ew = (EmacsShellWidget) w;
+
+  send_notify_2(ew, emacs_notify_init, (long) win, event_mask);
+}
+
+void EmacsShellSetFocus(Widget wid)
+{
+  EmacsShellWidget w = (EmacsShellWidget)wid;
+
+  send_notify_0(w, emacs_notify_set_focus);
+}
+
+extern void _XtUnregisterWindow (Window, Widget);
+
+void EmacsShellUnrealize(Widget w)
+{
+  _XtUnregisterWindow(w->core.window, w);
+  w->core.window = 0;
+}

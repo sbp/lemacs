@@ -18,7 +18,7 @@
 (defun vm-set-buffer-modified-p (flag &optional clear-modflags buffer)
   (save-excursion
     (and buffer (set-buffer buffer))
-    (if (eq (setq flag (not (not flag))) vm-buffer-modified-p)
+    (if (eq flag (buffer-modified-p))
 	()
       (set-buffer-modified-p flag)
       (vm-increment vm-modification-counter)
@@ -28,64 +28,53 @@
 	    (if clear-modflags
 		(while mp
 		  (vm-set-modflag-of (car mp) nil)
-		  (setq mp (cdr mp))))))
-      (setq vm-buffer-modified-p (if flag "--**-")))))
-
-(defun vm-sanity-check-modification-flag ()
-  ;; this is possible if the user used a normal buffer save command instead of
-  ;; vm-save-folder...
-  (if (not (eq (not (not vm-buffer-modified-p)) (buffer-modified-p)))
-      (vm-set-buffer-modified-p (buffer-modified-p))))
+		  (setq mp (cdr mp)))))))))
 
 (defun vm-undo-boundary ()
   (if (car vm-undo-record-list)
       (setq vm-undo-record-list (cons nil vm-undo-record-list))))
 
-(defun vm-clear-expunge-invalidated-undos (&optional real-folder)
+(defun vm-clear-expunge-invalidated-undos ()
   (let ((udp vm-undo-record-list) udp-prev)
     (while udp
       (cond ((null (car udp))
 	     (setq udp-prev udp))
 	    ((and (not (eq (car (car udp)) 'vm-set-buffer-modified-p))
-		  (vm-deleted-flag (car (cdr (car udp))))
-		  (or (null real-folder)
-		      (eq real-folder (marker-buffer
-				       (vm-start-of (car (cdr (car udp))))))))
+		  ;; delete flag == expunged is the
+		  ;; indicator of an expunged message
+		  (eq (vm-deleted-flag (car (cdr (car udp)))) 'expunged))
 	     (cond (udp-prev (setcdr udp-prev (cdr udp)))
 		   (t (setq vm-undo-record-list (cdr udp)))))
 	    (t (setq udp-prev udp)))
-      (setq udp (cdr udp)))
-    (and (null real-folder) vm-virtual-buffers
-	 (let ((b-list vm-virtual-buffers)
-	       (curbuf (current-buffer)))
-	   (save-excursion
-	     (while b-list
-	       (set-buffer (car b-list))
-	       (vm-clear-expunge-invalidated-undos curbuf)
-	       (setq b-list (cdr b-list))))))
-    (vm-clear-modification-flag-undos real-folder)))
+      (setq udp (cdr udp))))
+  (vm-clear-modification-flag-undos))
 	    
-(defun vm-clear-modification-flag-undos (&optional real-folder)
+(defun vm-clear-virtual-quit-invalidated-undos ()
   (let ((udp vm-undo-record-list) udp-prev)
     (while udp
       (cond ((null (car udp))
 	     (setq udp-prev udp))
-	    ((and (eq (car (car udp)) 'vm-set-buffer-modified-p)
-		  (or (null real-folder)
-		      (eq real-folder (vm-last (car udp)))))
+	    ((and (not (eq (car (car udp)) 'vm-set-buffer-modified-p))
+		  ;; message-id-number == 0 is the
+		  ;; indicator of a dead message
+		  (= (vm-message-id-number-of (car (cdr (car udp)))) 0))
+	     (cond (udp-prev (setcdr udp-prev (cdr udp)))
+		   (t (setq vm-undo-record-list (cdr udp)))))
+	    (t (setq udp-prev udp)))
+      (setq udp (cdr udp))))
+  (vm-clear-modification-flag-undos))
+	    
+(defun vm-clear-modification-flag-undos ()
+  (let ((udp vm-undo-record-list) udp-prev)
+    (while udp
+      (cond ((null (car udp))
+	     (setq udp-prev udp))
+	    ((eq (car (car udp)) 'vm-set-buffer-modified-p)
 	     (cond (udp-prev (setcdr udp-prev (cdr udp)))
 		   (t (setq vm-undo-record-list (cdr udp)))))
 	    (t (setq udp-prev udp)))
       (setq udp (cdr udp)))
-    (vm-squeeze-consecutive-undo-boundaries)
-    (and (null real-folder) vm-virtual-buffers
-	 (let ((b-list vm-virtual-buffers)
-	       (curbuf (current-buffer)))
-	   (save-excursion
-	     (while b-list
-	       (set-buffer (car b-list))
-	       (vm-clear-modification-flag-undos curbuf)
-	       (setq b-list (cdr b-list))))))))
+    (vm-squeeze-consecutive-undo-boundaries)))
 
 ;; squeeze out consecutive record separators left by record deletions
 (defun vm-squeeze-consecutive-undo-boundaries ()
@@ -109,8 +98,7 @@ the undos themselves become undoable."
   (interactive)
   (vm-select-folder-buffer)
   (vm-check-for-killed-summary)
-  (let ((inhibit-quit t)
-	(modified (buffer-modified-p)))
+  (let ((modified (buffer-modified-p)))
     (if (not (eq last-command 'vm-undo))
 	(setq vm-undo-record-pointer vm-undo-record-list))
     (if (not vm-undo-record-pointer)
@@ -126,52 +114,40 @@ the undos themselves become undoable."
     (vm-update-summary-and-mode-line)))
 
 (defun vm-set-xxxx-flag (m flag norecord function attr-index)
-  (let* ((inhibit-quit t) m-list modflag-buffer mirror
-	 (virtual (not (eq m (vm-real-message-of m))))
-	 (read-only (save-excursion
+  (let ((m-list nil) vmp)
+    (cond
+     ((and (not vm-folder-read-only)
+	   (or (not (vm-virtual-messages-of m))
+	       (not (save-excursion
 		      (set-buffer
-		       (marker-buffer (if virtual
-					 (vm-su-start-of m)
-				       (vm-start-of m))))
-		      vm-folder-read-only)))
-    (and (eq (vm-attributes-of m) (vm-attributes-of (vm-real-message-of m)))
-	 (setq m (vm-real-message-of m)
-	       mirror t))
-    (cond ((not read-only)
-	   (aset (vm-attributes-of m) attr-index flag)
-	   (vm-mark-for-display-update m)))
-    (if (and (not norecord) (not read-only))
-	(progn
+		       (marker-buffer
+			(vm-start-of
+			 (vm-real-message-of m))))
+		      vm-folder-read-only))))
+      (aset (vm-attributes-of m) attr-index flag)
+      (vm-mark-for-summary-update m)
+      (cond
+       ((not norecord)
+	(if (eq vm-flush-interval t)
+	    (vm-stuff-virtual-attributes m)
+	  (vm-set-modflag-of m t))
+	(setq vmp (vm-virtual-messages-of m))
+	(while vmp
+	  (if (eq (vm-attributes-of m) (vm-attributes-of (car vmp)))
+	      (setq m-list (cons (car vmp) m-list)))
+	  (setq vmp (cdr vmp)))
+	(if (or (not (vm-virtual-message-p m)) (null (vm-virtual-messages-of m)))
+	    (setq m-list (cons m m-list)))
+	(while m-list
 	  (save-excursion
-	    (set-buffer 
-	     (marker-buffer
-	      (if (and virtual (not mirror))
-		  (vm-su-start-of m)
-		(vm-start-of m))))
-	    (cond ((not vm-buffer-modified-p)
-		   (setq modflag-buffer (current-buffer))
+	    (set-buffer (marker-buffer (vm-start-of (car m-list))))
+	    (cond ((not (buffer-modified-p))
 		   (vm-set-buffer-modified-p t)
-		   (vm-undo-record (list 'vm-set-buffer-modified-p nil))
-		   (setq vm-totals nil)))
+		   (vm-undo-record (list 'vm-set-buffer-modified-p nil))))
 	    (vm-undo-record (list function m (not flag)))
 	    (vm-undo-boundary)
-	    (vm-increment vm-modification-counter)
-	    (if (eq vm-flush-interval t)
-		(vm-stuff-virtual-attributes m)
-	      (vm-set-modflag-of m t)))
-	  (setq m-list (vm-virtual-messages-of m))
-	  (and m-list
-	       (save-excursion
-		 (while m-list
-		   (set-buffer (marker-buffer (vm-su-start-of (car m-list))))
-		   (and modflag-buffer
-			(vm-undo-record
-			 (list 'vm-set-buffer-modified-p nil nil modflag-buffer)))
-		   (vm-undo-record (list function m (not flag)))
-		   (vm-undo-boundary)
-		   (vm-increment vm-modification-counter)
-		   (setq vm-totals nil)
-		   (setq m-list (cdr m-list)))))))))
+	    (vm-increment vm-modification-counter))
+	  (setq m-list (cdr m-list)))))))))
 
 (defun vm-set-new-flag (m flag &optional norecord)
   (vm-set-xxxx-flag m flag norecord 'vm-set-new-flag 0))
@@ -196,6 +172,6 @@ the undos themselves become undoable."
 
 ;; this is solely for the use of vm-stuff-attributes and appears here
 ;; only because this function should be grouped with others of its kind
-;; together for maintenance purposes.
+;; for maintenance purposes.
 (defun vm-set-deleted-flag-in-vector (v flag)
   (aset v 2 flag))

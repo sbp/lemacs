@@ -1,5 +1,5 @@
 /* X-specific Lisp objects: Pixmaps, Pixels, Cursors, and Fonts.
-   Copyright (C) 1993 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -18,28 +18,35 @@ along with GNU Emacs; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include "config.h"
+
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/param.h>          /* for MAXPATHLEN */
+
+#if NeXT
+/* what is needed from here?  Do others need it too? */
+# include <sys/fcntl.h>
+#endif /* NeXT */
+
+#include <X11/Xlib.h>
+#include "xintrinsic.h"		/* for XtScreen... */
+#include <X11/Xmu/Converters.h>
+#include <X11/Xmu/CurUtil.h>
+#include <X11/Xmu/Drawing.h>
+
+#ifdef HAVE_XPM
+#include <X11/xpm.h>
+#endif
+
 #include "lisp.h"
+#include "intl.h"
 #include "lrecord.h"
 #include "blockio.h"
 #include "screen.h"
 #include "xterm.h"
 #include "xobjs.h"
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/param.h>          /* for MAXPATHLEN */
-
-#include <X11/Xlib.h>
-#include <X11/Xmu/Converters.h>
-#include <X11/Xmu/CurUtil.h>
-#include <X11/Xmu/Drawing.h>
-#include <X11/Intrinsic.h>	/* for XtScreen... */
-
-#ifdef HAVE_XPM
-#include <X11/xpm.h>
-#endif
-
-#include <stdio.h>
 
 #define LISP_SCREEN_TO_X_SCREEN(l) \
   XtScreen ((get_x_screen ((l)))->display.x->widget)
@@ -51,8 +58,8 @@ finalose (void *ptr)
   XSET (obj, Lisp_Record, ptr);
 
   signal_error (Qerror, 
-		list2 (build_string ("Can't dump an emacs "
-				     "containing window system objects"),
+		list2 (build_string (GETTEXT
+			(GETTEXT ("Can't dump an emacs containing window system objects"))),
 		       obj));
 }
 
@@ -79,7 +86,7 @@ print_pixel (Lisp_Object obj, Lisp_Object printcharfun, int escapeflag)
   char buf[100];
   struct Lisp_Pixel *p = XPIXEL (obj);
   if (print_readably)
-    error ("printing unreadable object #<pixel 0x%x>",
+    error (GETTEXT ("printing unreadable object #<pixel 0x%x>"),
            p->header.uid);
   write_string_1 ("#<pixel ", -1, printcharfun);
   print_internal (p->color_name, printcharfun, 0);
@@ -147,13 +154,14 @@ these objects are GCed, the underlying X data is deallocated as well.")
   UNBLOCK_INPUT;
   if (! result)
     signal_error (Qerror,
-		  list2 (build_string ("unrecognised color"), name));
+		  list2 (build_string (GETTEXT ("unrecognised color")), name));
   BLOCK_INPUT;
   result = XAllocColor (dpy, cmap, &color);
   UNBLOCK_INPUT;
   if (! result)
     signal_error (Qerror,
-		  list2 (build_string ("couldn't allocate color"), name));
+		  list2 (build_string (GETTEXT ("couldn't allocate color")),
+			 name));
 
   {
     struct Lisp_Pixel *p = alloc_lcrecord (sizeof (struct Lisp_Pixel),
@@ -209,7 +217,8 @@ print_cursor (Lisp_Object obj, Lisp_Object printcharfun, int escapeflag)
   char buf[20];
   struct Lisp_Cursor *c = XCURSOR (obj);
   if (print_readably)
-    error ("printing unreadable object #<cursor 0x%x>", c->header.uid);
+    error (GETTEXT ("printing unreadable object #<cursor 0x%x>"),
+	   c->header.uid);
 
   write_string_1 ("#<cursor ", -1, printcharfun);
   print_internal (c->name, printcharfun, 1);
@@ -235,7 +244,7 @@ finalize_cursor (void *header, int for_disksave)
   UNBLOCK_INPUT;
 }
 
-/* Cursors are euql equal if their names are equal. */
+/* Cursors are equal if their names are equal. */
 static int
 cursor_equal (Lisp_Object o1, Lisp_Object o2, int depth)
 {
@@ -279,7 +288,7 @@ make_cursor_1 (Lisp_Object screen, Lisp_Object name)
   Screen *xs = LISP_SCREEN_TO_X_SCREEN (screen);
 
   if (PIXMAPP (name))
-    error ("no support for converting lisp pixmaps to cursors.");
+    error (GETTEXT ("no support for converting lisp pixmaps to cursors."));
   CHECK_STRING (name, 0);
 
   arg.addr = (XtPointer) &xs;
@@ -394,13 +403,13 @@ make_cursor_1 (Lisp_Object screen, Lisp_Object name)
 
       if (count != 2 && count != 4)
 	signal_error (Qerror,
-		      list2 (build_string ("invalid cursor specification"),
+		      list2 (build_string (GETTEXT ("invalid cursor specification")),
 			     name));
       BLOCK_INPUT;
       source = safe_XLoadFont (dpy, source_name);
       UNBLOCK_INPUT;
       if (! source)
-	signal_error (Qerror, list3 (build_string ("couldn't load font"),
+	signal_error (Qerror, list3 (build_string (GETTEXT ("couldn't load font")),
 				     build_string (source_name), name));
       if (count == 2)
 	mask = 0;
@@ -412,7 +421,7 @@ make_cursor_1 (Lisp_Object screen, Lisp_Object name)
 	  mask = safe_XLoadFont (dpy, mask_name);
 	  UNBLOCK_INPUT;
 	  if (! mask) /* continuable */
-	    Fsignal (Qerror, list3 (build_string ("couldn't load font"),
+	    Fsignal (Qerror, list3 (build_string (GETTEXT ("couldn't load font")),
 				    build_string (mask_name), name));
 	}
       if (! mask) mask_char = 0;
@@ -450,7 +459,7 @@ make_cursor_1 (Lisp_Object screen, Lisp_Object name)
 
       if (XPIXMAP (lsource)->depth > 1)
 	signal_error (Qerror,
-		      list3 (build_string ("cursor pixmaps must be 1 plane"),
+		      list3 (build_string (GETTEXT ("cursor pixmaps must be 1 plane")),
 			     name, lsource));
       if (!mask && STRINGP (name))
 	{
@@ -468,7 +477,7 @@ make_cursor_1 (Lisp_Object screen, Lisp_Object name)
 	      UNGCPRO;
 	      if (XPIXMAP (lmask)->depth != 0)
 		signal_error (Qerror,
-			      list3 (build_string ("mask must be 1 bit deep"),
+			      list3 (build_string (GETTEXT ("mask must be 1 bit deep")),
 				     mask_file, lmask));
 	      mask = XPIXMAP (lmask)->pixmap;
 	    }
@@ -556,7 +565,7 @@ these objects are GCed, the underlying X data is deallocated as well.")
   Cursor cursor;
 
   if ((NILP (fg)) != (NILP (bg)))
-    error ("must specify both foreground and background, or neither.");
+    error (GETTEXT ("must specify both foreground and background, or neither."));
 
   if (STRINGP (fg))
     fg = Fmake_pixel (fg, screen);
@@ -571,7 +580,7 @@ these objects are GCed, the underlying X data is deallocated as well.")
   cursor = make_cursor_1 (screen, name);
 
   if (! cursor)
-    signal_error (Qerror, list2 (build_string ("unknown cursor"), name));
+    signal_error (Qerror, list2 (build_string (GETTEXT ("unknown cursor")), name));
 
   /* Got the cursor, now color it in.
      (Either both are specified or neither.) */
@@ -638,7 +647,7 @@ static int sizeof_font (void *header) { return sizeof (struct Lisp_Font); }
 static int font_equal (Lisp_Object o1, Lisp_Object o2, int depth);
 DEFINE_LRECORD_IMPLEMENTATION (lrecord_font,
 			       mark_font, print_font, finalize_font,
-			       sizeof_font, 0);
+			       sizeof_font, font_equal);
 
 static Lisp_Object
 mark_font (Lisp_Object obj, void (*markobj) (Lisp_Object))
@@ -653,10 +662,18 @@ print_font (Lisp_Object obj, Lisp_Object printcharfun, int escapeflag)
   char buf[20];
   struct Lisp_Font *f = XFONT (obj);
   if (print_readably)
-    error ("printing unreadable object #<font 0x%x>", f->font->fid);
+#ifdef I18N4
+    error (GETTEXT ("printing unreadable object #<font set>"));
+#else
+    error (GETTEXT ("printing unreadable object #<font 0x%x>"), f->font->fid);
+#endif
   write_string_1 ("#<font ", -1, printcharfun);
   print_internal (f->name, printcharfun, 0);
+#ifdef I18N4
+  sprintf (buf, " set>");
+#else
   sprintf (buf, " 0x%x>", f->font->fid);
+#endif
   write_string_1 (buf, -1, printcharfun);
 }
 
@@ -668,7 +685,11 @@ finalize_font (void *header, int for_disksave)
     return;
   if (for_disksave) finalose (f);
   BLOCK_INPUT;
+#ifdef I18N4
+  XFreeFontSet (DisplayOfScreen (f->screen), f->font);
+#else
   XFreeFont (DisplayOfScreen (f->screen), f->font);
+#endif
   UNBLOCK_INPUT;
 }
 
@@ -699,15 +720,50 @@ these objects are GCed, the underlying X data is deallocated as well.")
   Lisp_Object name, screen;
 {
   Screen *xs;
+#ifdef I18N4
+  XFontSet xf;
+  char **missing_charset_list = 0;
+  int missing_charset_count = 0;
+  char *def_string = "";
+#else
   XFontStruct *xf;
+#endif
 
   CHECK_STRING (name, 0);
   xs = LISP_SCREEN_TO_X_SCREEN (screen);
   BLOCK_INPUT;
+#ifdef I18N4
+  xf = XCreateFontSet (DisplayOfScreen (xs), (char *) XSTRING (name)->data,
+		       &missing_charset_list, &missing_charset_count,
+		       &def_string);
+#else
   xf = XLoadQueryFont (DisplayOfScreen (xs), (char *) XSTRING (name)->data);
+#endif
   UNBLOCK_INPUT;
   if (! xf)
-    signal_error (Qerror, list2 (build_string ("couldn't load font"), name));
+#ifdef I18N4
+    {
+      if ( !missing_charset_list)
+	signal_error (Qerror,
+		      list2 (build_string (GETTEXT ("couldn't load font set")),
+			     name));
+      else
+	{
+	  Lisp_Object lost = Qnil;
+	  int i;
+	  for (i = missing_charset_count-1; i >= 0; i--)
+	    lost = Fcons (build_string (missing_charset_list[i]),
+			  lost);
+	  signal_error (Qerror,
+			list3 (build_string
+			       (GETTEXT ("couldn't load font set (missing required fonts)")),
+			       name, lost));
+	}
+    }
+#else
+    signal_error (Qerror, list2 (build_string (GETTEXT ("couldn't load font")),
+				 name));
+#endif
   
   {
     struct Lisp_Font *lf;
@@ -719,27 +775,48 @@ these objects are GCed, the underlying X data is deallocated as well.")
     lf->truename = Qnil;	/* initialized on demand */
     lf->screen = xs;
     lf->font = xf;
+#ifdef I18N4
+    lf->height = XExtentsOfFontSet(xf)->max_logical_extent.height;
+    lf->ascent = -XExtentsOfFontSet(xf)->max_logical_extent.y;
+    lf->descent = lf->height - lf->ascent;
+#else
     lf->ascent = xf->ascent;
     lf->descent = xf->descent;
     lf->height = xf->ascent + xf->descent;
+#endif
+#ifdef I18N4
+    def_char = 'N';
+    lf->width = XExtentsOfFontSet(xf)->max_logical_extent.width;
+#else
     /* Old versions of the R5 font server have garbage (>63k) as def_char. */
     def_char = ((xf->default_char >= xf->min_char_or_byte2 &&
 		 xf->default_char <= xf->max_char_or_byte2)
 		? xf->default_char
 		: 'N');
+  once_more:
     lf->width = (xf->per_char
 		 /* #### what are we supposed to do with byte1 here? */
 		 ? xf->per_char [def_char - xf->min_char_or_byte2].width
 		 : xf->max_bounds.width);
-#if 1
-    lf->proportional_p = !(xf->min_bounds.width == xf->max_bounds.width);
+
+    /* Some fonts have a default char whose width is 0.  This is no good.
+       If that's the case, first try 'N' as the default char, and if N has
+       0 width too (unlikely) then just use the max width. */
+    if (lf->width == 0)
+      {
+	if (def_char == 'N')
+	  lf->width = xf->max_bounds.width;
+	else
+	  {
+	    def_char = 'N';
+	    goto once_more;
+	  }
+      }
+#endif
+#ifdef I18N4
+    lf->proportional_p = 1;
 #else
-    /* this really means "charcell_p" I guess... */
-    lf->proportional_p = (xf->min_bounds.lbearing == xf->max_bounds.lbearing &&
-			  xf->min_bounds.rbearing == xf->max_bounds.rbearing &&
-			  xf->min_bounds.width == xf->max_bounds.width &&
-			  xf->min_bounds.ascent == xf->max_bounds.ascent &&
-			  xf->min_bounds.descent == xf->max_bounds.descent);
+    lf->proportional_p = !(xf->min_bounds.width == xf->max_bounds.width);
 #endif
     XSETR (val, Lisp_Font, lf);
     return val;
@@ -893,6 +970,23 @@ truename_via_XListFonts (Screen *xs, char *font_name)
 }
 
 
+static Lisp_Object
+x_font_truename (Screen *screen, char *name, XFontStruct *font)
+{
+  char *truename = truename_via_FONT_prop (screen, font);
+  /* check other properties next? */
+  if (!truename && name)
+    truename = truename_via_XListFonts (screen, name);
+  if (truename)
+    {
+      Lisp_Object result = build_string (truename);
+      xfree (truename);
+      return result;
+    }
+  else
+    return Qnil;
+}
+
 DEFUN ("font-truename", Ffont_truename, Sfont_truename, 1, 1, 0,
        "Returns the canonical name of the given font.\n\
 Font names are patterns which may match any number of fonts, of which\n\
@@ -905,19 +999,33 @@ but not necessarily its only unambiguous name.)")
   if (NILP (XFONT (font)->truename))
     {
       char *name = (char *) XSTRING (XFONT (font)->name)->data;
-      char *truename = truename_via_FONT_prop (XFONT (font)->screen,
-					       XFONT (font)->font);
-      /* check other proper next? */
-      if (! truename)
-	truename = truename_via_XListFonts (XFONT (font)->screen, name);
-      if (truename)
-	{
-	  XFONT (font)->truename = build_string (truename);
-	  xfree (truename);
-	}
-      else
+#ifdef I18N4
+      {
+	XFontStruct **fonts;
+	char **names;
+	int count = XFontsOfFontSet (XFONT (font)->font, &fonts, &names);
+	Lisp_Object *lnames =
+	  (Lisp_Object *) alloca (count * 2 * sizeof (Lisp_Object));
+	Lisp_Object comma = build_string (","); /* Q'ing this would be silly */
+	int i, j;
+	for (i = 0, j = 0; i < count; i++)
+	  {
+	    Lisp_Object tn = x_font_truename (XFONT (font)->screen,
+					      names [i], fonts [i]);
+	    if (NILP (tn)) tn = build_string (names [i]);
+	    if (i != 0) lnames [j++] = comma;
+	    lnames [j++] = tn;
+	  }
+	XFONT (font)->truename = Fconcat (j, lnames);
+      }
+#else
+      XFONT (font)->truename = x_font_truename (XFONT (font)->screen, name,
+						XFONT (font)->font);
+#endif
+      if (NILP (XFONT (font)->truename))
 	signal_error (Qerror,
-		      list2 (build_string ("couldn't determine font truename"),
+		      list2 (build_string
+			     (GETTEXT ("couldn't determine font truename")),
 			     font));
     }
   return (XFONT (font)->truename);
@@ -947,6 +1055,7 @@ DEFUN ("x-list-fonts", Fx_list_fonts, Sx_list_fonts, 1, 2, 0,
 }
 
 
+#ifndef I18N4
 DEFUN ("x-font-properties", Fx_font_properties, Sx_font_properties, 1, 1, 0,
        "Returns the properties (an alist) of the given font.")
   (font)
@@ -1003,6 +1112,7 @@ DEFUN ("x-font-properties", Fx_font_properties, Sx_font_properties, 1, 1, 0,
     }
   return result;
 }
+#endif
 
 Lisp_Object Qpixmapp;
 static Lisp_Object mark_pixmap (Lisp_Object, void (*) (Lisp_Object));
@@ -1029,7 +1139,7 @@ print_pixmap (Lisp_Object obj, Lisp_Object printcharfun, int escapeflag)
   struct Lisp_Pixmap *p = XPIXMAP (obj);
   char *s;
   if (print_readably)
-    error ("printing unreadable object #<pixmap 0x%x>", p->header.uid);
+    error (GETTEXT ("printing unreadable object #<pixmap 0x%x>"), p->header.uid);
 
   write_string_1 ((p->depth ? "#<pixmap " : "#<bitmap "), -1, printcharfun);
   if (STRINGP (p->file_name) &&
@@ -1308,8 +1418,13 @@ try_reading_xpm_bitmap (Lisp_Object screen, Lisp_Object name,
     xpmattrs.valuemask = XpmReturnPixels;
     if (retry_in_mono)
       {
+#ifdef XpmColorKey	/* 3.2g+ */
+	xpmattrs.valuemask |= XpmColorKey;
+	xpmattrs.color_key = XPM_MONO;
+#else /* This isn't quite right, but it comes close */
 	xpmattrs.depth = 1;
 	xpmattrs.valuemask |= XpmDepth;
+#endif
       }
 
     color_symbols = extract_xpm_color_names (&xpmattrs, screen);
@@ -1344,7 +1459,7 @@ try_reading_xpm_bitmap (Lisp_Object screen, Lisp_Object name,
     case XpmFileInvalid:
       {
 	if (raw_data_p)
-	  xpm_error (Qerror, list2 (build_string ("invalid XPM data"), name),
+	  xpm_error (Qerror, list2 (build_string (GETTEXT ("invalid XPM data")), name),
 		     &xpmattrs);
 	xpm_free (&xpmattrs);
 	return (Qnil);
@@ -1353,8 +1468,8 @@ try_reading_xpm_bitmap (Lisp_Object screen, Lisp_Object name,
       {
 	if (retry_in_mono)
 	  /* second time; blow out. */
-	  xpm_error (Qerror, list3 (build_string ("Reading pixmap file"),
-				    build_string ("color allocation failed"),
+	  xpm_error (Qerror, list3 (build_string (GETTEXT ("Reading pixmap file")),
+				    build_string (GETTEXT ("color allocation failed")),
 				    name),
 		     &xpmattrs);
 	xpm_free (&xpmattrs);
@@ -1366,35 +1481,35 @@ try_reading_xpm_bitmap (Lisp_Object screen, Lisp_Object name,
 	   colors to be substituted?
 	   */
 	if (raw_data_p)
-	  message ("color substitution performed for XPM data");
+	  message (GETTEXT ("color substitution performed for XPM data"));
 	else
-	  message ("color substitution performed for file \"%s\"", 
+	  message (GETTEXT ("color substitution performed for file \"%s\""), 
 		   XSTRING (name)->data);
 	break;
       }
     case XpmNoMemory:
       {
 	xpm_error (Qfile_error, list3 (build_string (raw_data_p
-						     ? "Parsing pixmap data"
-						     : "Reading pixmap file"),
-				       build_string ("out of memory"),
+						     ? GETTEXT ("Parsing pixmap data")
+						     : GETTEXT ("Reading pixmap file")),
+				       build_string (GETTEXT ("out of memory")),
 				       name),
 		   &xpmattrs);
       }
     case XpmOpenFailed:
       {
 	xpm_error (Qfile_error,
-		   list3 (build_string ("Opening pixmap file"),
-			  build_string ("no such file or directory"),
+		   list3 (build_string (GETTEXT ("Opening pixmap file")),
+			  build_string (GETTEXT ("no such file or directory")),
 			  name),
 		   &xpmattrs);
       }
     default:
       {
 	xpm_error (Qfile_error, list4 (build_string (raw_data_p
-						     ? "Parsing pixmap data"
-						     : "Reading pixmap file"),
-				       build_string ("unknown error code"),
+						     ? GETTEXT ("Parsing pixmap data")
+						     : GETTEXT ("Reading pixmap file")),
+				       build_string (GETTEXT ("unknown error code")),
 				       make_number (result), name),
 		   &xpmattrs);
       }
@@ -1470,8 +1585,8 @@ try_reading_Xmu_bitmap (Screen *xs, Lisp_Object name)
     case BitmapOpenFailed:
       {
 	signal_error (Qfile_error,
-		      list3 (build_string ("Opening bitmap file"),
-			     build_string ("no such file or directory"),
+		      list3 (build_string (GETTEXT ("Opening bitmap file")),
+			     build_string (GETTEXT ("no such file or directory")),
 			     name));
       }
     case BitmapFileInvalid:
@@ -1481,15 +1596,15 @@ try_reading_Xmu_bitmap (Screen *xs, Lisp_Object name)
     case BitmapNoMemory:
       {
 	signal_error (Qfile_error,
-		      list3 (build_string ("Reading bitmap file"),
-			     build_string ("out of memory"),
+		      list3 (build_string (GETTEXT ("Reading bitmap file")),
+			     build_string (GETTEXT ("out of memory")),
 			     name));
       }
     default:
       {
 	signal_error (Qfile_error,
-		      list4 (build_string ("Reading bitmap file"),
-			     build_string ("unknown error code"),
+		      list4 (build_string (GETTEXT ("Reading bitmap file")),
+			     build_string (GETTEXT ("unknown error code")),
 			     make_number (result), name));
       }
     }
@@ -1514,10 +1629,12 @@ make_pixmap_from_file (Lisp_Object name, Lisp_Object screen,
 #else
 # ifdef HAVE_XPM
       signal_error (Qerror,
-		    list2 (build_string("XPM library is too old: no raw data"),
+		    list2 (build_string
+			   (GETTEXT ("XPM library is too old: no raw data")),
 			   name));
 # else /* !XPM */
-      signal_error (Qerror, list2 (build_string ("no support for XPM data"),
+      signal_error (Qerror, list2 (build_string
+				   (GETTEXT ("no support for XPM data")),
 				   name));
 # endif /* !XPM */
 #endif /* !XPM_DOES_BUFFERS */
@@ -1527,8 +1644,8 @@ make_pixmap_from_file (Lisp_Object name, Lisp_Object screen,
       Lisp_Object file = locate_pixmap_file (name);
       if (NILP (file))
         signal_error (Qfile_error,
-		      list3 (build_string ("Opening pixmap file"),
-			     build_string ("no such file or directory"),
+		      list3 (build_string (GETTEXT ("Opening pixmap file")),
+			     build_string (GETTEXT ("no such file or directory")),
 			     name));
       name = file;
     }
@@ -1544,11 +1661,11 @@ make_pixmap_from_file (Lisp_Object name, Lisp_Object screen,
     return (result);
 
   signal_error (Qfile_error,
-                list3 (build_string ("Reading pixmap file"),
+                list3 (build_string (GETTEXT ("Reading pixmap file")),
 #ifdef HAVE_XPM
-                       build_string ("invalid pixmap or bitmap data"),
+                       build_string (GETTEXT ("invalid pixmap or bitmap data")),
 #else
-                       build_string ("invalid bitmap data"),
+                       build_string (GETTEXT ("invalid bitmap data")),
 #endif
                        name));
 }
@@ -1580,7 +1697,7 @@ make_pixmap_from_lisp_data (Lisp_Object data, Lisp_Object screen)
       !FIXNUMP (Fcar (Fcdr (data))) ||
       !STRINGP (Fcar (Fcdr (Fcdr (data)))))
     signal_error (Qerror,
-		  list2 (build_string ("must be of the form (W H \"bits\")"),
+		  list2 (build_string (GETTEXT ("must be of the form (W H \"bits\")")),
 			 data));
   w = XINT (Fcar (data));
   h = XINT (Fcar (Fcdr (data)));
@@ -1591,7 +1708,7 @@ make_pixmap_from_lisp_data (Lisp_Object data, Lisp_Object screen)
   if (((unsigned) (w * h) / 8)
       > string_length (XSTRING (Fcar (Fcdr (Fcdr (data))))))
     signal_error (Qerror,
-		  list2 (build_string ("data is too short for W and H"),
+		  list2 (build_string (GETTEXT ("data is too short for W and H")),
 			 data));
 
   bits = (char *) XSTRING (Fcar (Fcdr (Fcdr (data))))->data;
@@ -1643,6 +1760,102 @@ DEFUN ("pixmapp", Fpixmapp, Spixmapp, 1, 1, 0,
   Lisp_Object obj;
 {
   return (PIXMAPP (obj) ? Qt : Qnil);
+}
+
+DEFUN ("set-pixmap-hotspot", Fset_pixmap_hotspot, Sset_pixmap_hotspot,
+       3, 3, 0,
+       "Set the pixmap's hotspot.\n\
+This is a point relative to the origin of the pixmap.  When a pixmap is\n\
+used as a cursor or similar pointing indicator, the hotspot is the point\n\
+on the pixmap that sits over the location that the pointer points to.\n\
+This is, for example, the tip of the arrow or the center of the crosshairs.")
+     (pixmap, x, y)
+     Lisp_Object pixmap, x, y;
+{
+  struct Lisp_Pixmap *p;
+
+  CHECK_PIXMAP (pixmap, 0);
+  CHECK_FIXNUM (x, 0);
+  CHECK_FIXNUM (y, 0);
+  p = XPIXMAP (pixmap);
+  p->x = XINT (x);
+  p->y = XINT (y);
+  return Qnil;
+}
+
+DEFUN ("pixmap-hotspot-x", Fpixmap_hotspot_x, Spixmap_hotspot_x, 1, 1, 0,
+       "Returns the X coordinate of the pixmap's hotspot.\n\
+See `set-pixmap-hotspot'.")
+     (pixmap)
+     Lisp_Object pixmap;
+{
+  CHECK_PIXMAP (pixmap, 0);
+  return make_number (XPIXMAP (pixmap)->x);
+}
+
+DEFUN ("pixmap-hotspot-y", Fpixmap_hotspot_y, Spixmap_hotspot_y, 1, 1, 0,
+       "Returns the Y coordinate of the pixmap's hotspot.\n\
+See `set-pixmap-hotspot'.")
+     (pixmap)
+     Lisp_Object pixmap;
+{
+  CHECK_PIXMAP (pixmap, 0);
+  return make_number (XPIXMAP (pixmap)->y);
+}
+
+DEFUN ("pixmap-depth", Fpixmap_depth, Spixmap_depth, 1, 1, 0,
+       "Return the depth of the pixmap.\n\
+This is 0 for a bitmap, or a positive integer for a pixmap.")
+     (pixmap)
+     Lisp_Object pixmap;
+{
+  CHECK_PIXMAP (pixmap, 0);
+  return (make_number (XPIXMAP (pixmap)->depth));
+}
+
+DEFUN ("pixmap-width", Fpixmap_width, Spixmap_width, 1, 1, 0,
+       "Return the width of the pixmap, in pixels.")
+     (pixmap)
+     Lisp_Object pixmap;
+{
+  CHECK_PIXMAP (pixmap, 0);
+  return (make_number (XPIXMAP (pixmap)->width));
+}
+
+DEFUN ("pixmap-height", Fpixmap_height, Spixmap_height, 1, 1, 0,
+       "Return the height of the pixmap, in pixels.")
+     (pixmap)
+     Lisp_Object pixmap;
+{
+  CHECK_PIXMAP (pixmap, 0);
+  return (make_number (XPIXMAP (pixmap)->height));
+}
+
+DEFUN ("set-pixmap-data", Fset_pixmap_data, Sset_pixmap_data, 2, 2, 0,
+       "Set the pixmap's data.  The data must be in the form of a list;\n\
+currently only the format (width height data) is supported.  See\n\
+`make-pixmap'.")
+     (pixmap, data)
+     Lisp_Object pixmap, data;
+{
+  CHECK_PIXMAP (pixmap, 0);
+  error ("Not yet supported");
+  return Qnil;
+}
+ 
+DEFUN ("set-pixmap-mask", Fset_pixmap_mask, Sset_pixmap_mask, 2, 2, 0,
+       "Set the pixmap's mask according to the specified data.\n\
+The data must be in XY format and must be at least (width * height)\n\
+bits long, one bit per pixel in the pixmap.  When the pixmap is used\n\
+as a cursor or similar pointing indicator, the mask indicates which\n\
+pixels in the pixmap's rectangular outline are to be taken from the\n\
+pixmap and which from the background.")
+     (pixmap, data)
+     Lisp_Object pixmap, data;
+{
+  CHECK_PIXMAP (pixmap, 0);
+  error ("Not yet supported");
+  return Qnil;
 }
 
 DEFUN ("pixmap-file-name", Fpixmap_file_name, Spixmap_file_name, 1, 1, 0,
@@ -1723,11 +1936,21 @@ syms_of_xobjs ()
   defsubr (&Sfont_name);
   defsubr (&Sfont_truename);
   defsubr (&Sx_list_fonts);
+#ifndef I18N4
   defsubr (&Sx_font_properties);
+#endif
 
   defsymbol (&Qpixmapp, "pixmapp");
   defsubr (&Smake_pixmap);
   defsubr (&Spixmapp);
+  defsubr (&Sset_pixmap_hotspot);
+  defsubr (&Spixmap_hotspot_x);
+  defsubr (&Spixmap_hotspot_y);
+  defsubr (&Spixmap_depth);
+  defsubr (&Spixmap_width);
+  defsubr (&Spixmap_height);
+  defsubr (&Sset_pixmap_data);
+  defsubr (&Sset_pixmap_mask);
   defsubr (&Spixmap_file_name);
   defsubr (&Scolorize_pixmap);
 
@@ -1744,8 +1967,8 @@ environment variable XBMLANGPATH is set, it is consulted first.)");
 Elements of this list should be of the form (COLOR-NAME FORM-TO-EVALUATE).\n\
 The COLOR-NAME should be a string, which is the name of the color to define;\n\
 the FORM should evaluate to a `pixel' object, or a string to be passed to\n\
-`make-pixel'.  If a loaded XPM file references a color called COLOR-NAME, it\n\
-will display as the computed pixel instead.\n\
+`make-pixel'.  If a loaded XPM file references a symbolic color called\n\
+COLOR-NAME, it will display as the computed pixel instead.\n\
 \n\
 The default value of this variable defines the logical color names\n\
 \"foreground\" and \"background\" to be the colors of the `default' face.");

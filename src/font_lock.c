@@ -1,5 +1,5 @@
 /* Routines to compute the current syntactic context, for font-lock mode.
-   Copyright (C) 1992-1993 Free Software Foundation, Inc.
+   Copyright (C) 1992, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -39,6 +39,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
  */
 
 #include "config.h"
+#include "intl.h"
 #include "lisp.h"
 #include "buffer.h"
 #include "syntax.h"
@@ -48,6 +49,10 @@ Lisp_Object Qblock_comment;
 Lisp_Object Qbeginning_of_defun;
 Lisp_Object Qend_of_defun;      /* not used, but doesn't hurt */
 Lisp_Object Vend_of_defun_string;
+
+/* #### KLUDGE KLUDGE KLUDGE */
+Lisp_Object Qcplusplus_mode;
+Lisp_Object Qcplusplus_beginning_of_defun, Qcplusplus_end_of_defun;
 
 enum syntactic_context {
   context_none, context_string, context_comment, context_block_comment
@@ -84,7 +89,14 @@ beginning_of_defun (int pt)
   int opt = PT;
   if (pt == BEGV) return pt;
   SET_PT (pt);
-  call0 (Qbeginning_of_defun);
+  /* #### COMPLETE and UTTER KLUDGE
+     #'beginning-of-defun should run beginning-of-defun-function instead
+     of different major modes giving this a different binding.
+   */
+  if (EQ (current_buffer->major_mode, Qcplusplus_mode))
+    call0 (Qcplusplus_beginning_of_defun);
+  else
+    call0 (Qbeginning_of_defun);
   pt = PT;
   SET_PT (opt);
   return pt;
@@ -95,7 +107,15 @@ end_of_defun (int pt)
 {
   int opt = PT;
   SET_PT (pt);
-  Fre_search_forward (Vend_of_defun_string, Qnil, Qlambda, Qnil);
+  /* #### COMPLETE and UTTER KLUDGE
+     #'end-of-defun should run end-of-defun-function instead
+     of different major modes giving this a different binding.
+   */
+  if (EQ (current_buffer->major_mode, Qcplusplus_mode))
+    call0 (Qcplusplus_end_of_defun);
+  else
+    /* This is the same thing that end-of-defun does in all modes but C++ */
+    Fre_search_forward (Vend_of_defun_string, Qnil, Qlambda, Qnil);
   pt = PT;
   SET_PT (opt);
   return pt;
@@ -189,7 +209,11 @@ static void
 find_context (int pt, int end)
 {
   Lisp_Object syntax_table = current_buffer->syntax_table;
+#ifdef I18N4
+  wchar_t prev_c, c;
+#else
   unsigned char prev_c, c;
+#endif
   int target = pt;
   if (end == 0)
     find_context_start (pt, end);
@@ -418,18 +442,19 @@ DEFUN ("syntactically-sectionize", Fsyntactically_sectionize,
 Calls the given function when each extent is created with three arguments:\n\
 the extent, a symbol representing the syntactic context, and the current\n\
 depth (as returned by the functions `buffer-syntactic-context' and\n\
-`buffer-syntactic-context-depth').  If the optional arg `extent-data' is\n\
-provided, the extent will be created with that in its data slot.\n\
+`buffer-syntactic-context-depth').  If the optional arg `properties' is\n\
+provided, it is a plist of properties and values to set on the new extents.\n\
 \n\
 Warning, this may alter match-data.")
-	(start, end, function, extent_data)
-	Lisp_Object start, end, function, extent_data;
+	(start, end, function, properties)
+	Lisp_Object start, end, function, properties;
 {
   int pt, e, edepth;
   enum syntactic_context this_context;
   Lisp_Object extent = Qnil;
   struct gcpro gcpro1;
 
+  CHECK_LIST (properties, 0);
   CHECK_FIXNUM_COERCE_MARKER (start, 0);
   CHECK_FIXNUM_COERCE_MARKER (end, 0);
   pt = XINT (start);
@@ -487,8 +512,13 @@ Warning, this may alter match-data.")
       extent = Fmake_extent (make_number (estart),
 			     make_number (eend == e ? e : eend - 1),
 			     Fcurrent_buffer ());
-      if (!NILP (extent_data))
-	Fset_extent_data (extent, extent_data);
+      {
+	Lisp_Object rest;
+	for (rest = properties; !NILP (rest); rest = Fcdr (Fcdr (rest)))
+	  Fset_extent_property (extent,
+				XCONS (rest)->car,
+				Fcar (XCONS (rest)->cdr));
+      }
       call3 (function, extent, context_to_symbol (this_context),
 	     make_number (edepth));
     }
@@ -507,6 +537,11 @@ syms_of_font_lock ()
 
   Vend_of_defun_string = Fpurecopy (build_string ("\n\\s("));
   staticpro (&Vend_of_defun_string);
+
+  /* #### KLUDGE KLUDGE KLUDGE */
+  defsymbol (&Qcplusplus_mode, "c++-mode");
+  defsymbol (&Qcplusplus_beginning_of_defun, "c++-beginning-of-defun");
+  defsymbol (&Qcplusplus_end_of_defun, "c++-end-of-defun");
 
   memset (&context_cache, 0, sizeof (context_cache));
   memset (&bol_context_cache, 0, sizeof (bol_context_cache));

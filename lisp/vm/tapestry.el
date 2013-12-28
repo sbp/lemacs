@@ -20,7 +20,7 @@
 
 (provide 'tapestry)
 
-(defvar tapestry-version "1.00")
+(defvar tapestry-version "1.01")
 
 (defun tapestry-map ()
   "Returns a list containing complete information about the current
@@ -194,14 +194,14 @@ nor nil it means to not count the minibuffer window even if it is active."
   (let ((edges (tapestry-find-window-map-edges map)))
     (- (nth 3 edges) (nth 1 edges))))
 
-(defun tapestry-nullify-map-elements (map &optional buffer-file-name buffer-name
+(defun tapestry-nullify-map-elements (map &optional buf-file-name buf-name
 					window-start window-point
 					window-hscroll selected-window)
   (let (p)
     (setq p (nth 1 map))
     (while p
-      (and buffer-file-name (setcar (car p) nil))
-      (and buffer-name (setcar (cdr (car p)) nil))
+      (and buf-file-name (setcar (car p) nil))
+      (and buf-name (setcar (cdr (car p)) nil))
       (setq p (cdr p)))
     (setq p (nth 2 map))
     (while p

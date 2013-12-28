@@ -41,10 +41,12 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include "getopt.h"
 
+#ifndef __STDC__
 extern char *malloc (), *realloc ();
 extern char *getenv ();
 extern char *strcpy (), *strncpy ();
 extern int strcmp ();
+#endif
 
 char *etags_index (), *etags_rindex ();
 char *savenstr ();
@@ -147,7 +149,9 @@ struct nd_st
   struct nd_st *left, *right;	/* left and right sons		*/
 };
 
+#if !__STDC__
 long ftell ();
+#endif
 typedef struct nd_st NODE;
 
 logical header_file;            /* TRUE if .h file, FALSE o.w.  */
@@ -158,8 +162,8 @@ logical _wht[0177], _etk[0177], _itk[0177], _btk[0177];
 char *concat ();
 char *savenstr ();
 char *savestr ();
-char *xmalloc ();
-char *xrealloc ();
+static void *xmalloc ();
+static void *xrealloc ();
 int L_isdef ();
 int PF_funcs ();
 int total_size_of_entries ();
@@ -174,8 +178,8 @@ void PAS_funcs ();
 void Scheme_funcs ();
 void TEX_funcs ();
 void add_node ();
-void error ();
-void fatal ();
+static void error ();
+static void fatal ();
 void find_entries ();
 void free_tree ();
 void getit ();
@@ -345,7 +349,7 @@ long linecharno;		/* charno of start of line; not used by C, but
 				 * by every other language.
 				 */
 
-char *curfile,			/* current input file name		*/
+static char *curfile,		/* current input file name		*/
  *outfile,			/* output file				*/
  *white = " \f\t\n",		/* white chars				*/
  *endtk = " \t\n\"'#()[]{}=-+%*/&|^~!<>;,.:?",	/* token ending chars   */
@@ -2617,7 +2621,7 @@ TEX_decode_env (evarname, defenv)
   int size, i;
 
   /* Append default string to environment. */
-  env = getenv (evarname);
+  env = (char *) getenv (evarname);
   if (!env)
     env = defenv;
   else
@@ -2942,7 +2946,7 @@ etags_index (sp, c)
 /* Print error message and exit.  */
 
 /* VARARGS1 */
-void
+static void
 fatal (s1, s2)
      char *s1, *s2;
 {
@@ -2953,7 +2957,7 @@ fatal (s1, s2)
 /* Print error message.  `s1' is printf control string, `s2' is arg for it. */
 
 /* VARARGS1 */
-void
+static void
 error (s1, s2)
      char *s1, *s2;
 {
@@ -2981,22 +2985,22 @@ concat (s1, s2, s3)
 
 /* Like malloc but get fatal error if memory is exhausted.  */
 
-char *
+static void *
 xmalloc (size)
      int size;
 {
-  char *result = malloc (size);
+  char *result = (char *) malloc (size);
   if (!result)
     fatal ("virtual memory exhausted", 0);
   return result;
 }
 
-char *
+static void *
 xrealloc (ptr, size)
      char *ptr;
      int size;
 {
-  char *result = realloc (ptr, size);
+  char *result = (char *) realloc (ptr, size);
   if (!result)
     fatal ("virtual memory exhausted");
   return result;

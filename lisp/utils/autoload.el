@@ -1,6 +1,6 @@
 ;;; autoload.el --- maintain autoloads in loaddefs.el.
 
-;;; Copyright (C) 1991, 1992, 1993 Free Software Foundation, Inc.
+;;; Copyright (C) 1991, 1992, 1993, 1994 Free Software Foundation, Inc.
 ;;;
 ;; Author: Roland McGrath <roland@gnu.ai.mit.edu>
 ;; Keywords: maint
@@ -36,7 +36,7 @@ Returns nil if FORM is not a defun or defmacro."
   (let ((car (car-safe form)))
     (if (memq car '(defun defmacro))
 	(let ((macrop (eq car 'defmacro))
-              name doc)
+	      name doc)
 	  (setq form (cdr form))
 	  (setq name (car form))
 	  ;; Ignore the arguments.
@@ -95,10 +95,13 @@ the section of autoloads for a file.")
 (put 'defconst 'doc-string-elt 3)
 (put 'defmacro 'doc-string-elt 3)
 
-(defconst generated-autoload-file "loaddefs.el"
-   "*File \\[update-file-autoloads] puts autoloads into.
-A .el file can set this in its local variables section to make its
-autoloads go somewhere else.")
+(defun autoload-trim-file-name (file)
+  ;; returns a relative pathname of FILE including the last directory.
+  (setq file (expand-file-name file))
+  (file-relative-name file
+		      (file-name-directory
+		       (directory-file-name
+			(file-name-directory file)))))
 
 (defun generate-file-autoloads (file)
   "Insert at point a loaddefs autoload section for FILE.
@@ -114,7 +117,7 @@ are used."
 			 (substring name 0 (match-beginning 0))
 		       name)))
 	(print-length nil)
-	(print-readably t)
+	(print-readably t) ; lemacs
 	(float-output-format nil)
 	(done-any nil)
 	(visited (get-file-buffer file))
@@ -128,18 +131,13 @@ are used."
     ;; subdirectory of the current buffer's directory, we'll make it
     ;; relative to the current buffer's directory.
     (setq file (expand-file-name file))
-;;  (let* ((source-truename (file-truename file))
-;;         (dir-truename (file-name-as-directory
-;;                        (file-truename default-directory)))
-;;         (len (length dir-truename)))
-;;    (if (and (< len (length source-truename))
-;;             (string= dir-truename (substring source-truename 0 len)))
-;;        (setq file (substring source-truename len))))
-    (if (and (< (length default-directory) (length file))
-	     (string= default-directory
-		      (substring file 0 (length default-directory))))
-	(progn
-	  (setq file (substring file (length default-directory)))))
+    (let* ((source-truename (file-truename file))
+	   (dir-truename (file-name-as-directory
+			  (file-truename default-directory)))
+	   (len (length dir-truename)))
+      (if (and (< len (length source-truename))
+	       (string= dir-truename (substring source-truename 0 len)))
+	  (setq file (substring source-truename len))))
 
     (message "Generating autoloads for %s..." file)
     (save-excursion
@@ -178,15 +176,47 @@ are used."
 				     (elt (cdr p)))
 				(setcdr p nil)
 				(princ "\n(" outbuf)
-                                (let ((print-escape-newlines t)) ;lemacs
-                                  (mapcar (function (lambda (elt)
-                                            (prin1 elt outbuf)
-                                            (princ " " outbuf)))
-                                          autoload))
+				;; lemacs change: don't let ^^L's get into
+				;; the file or sorting is hard.
+				(let ((print-escape-newlines t)
+				      (p (save-excursion
+					   (set-buffer outbuf)
+					   (point)))
+				      p2)
+				  (mapcar (function (lambda (elt)
+						      (prin1 elt outbuf)
+						      (princ " " outbuf)))
+					  autoload)
+				  (save-excursion
+				    (set-buffer outbuf)
+				    (setq p2 (point-marker))
+				    (goto-char p)
+				    (save-match-data
+				      (while (search-forward "\^L" p2 t)
+					(delete-char -1)
+					(insert "\\^L")))
+				    (goto-char p2)
+				    ))
 				(princ "\"\\\n" outbuf)
-				(princ (substring
-					(prin1-to-string (car elt)) 1)
-				       outbuf)
+				;; lemacs change
+				(let ((p (save-excursion
+					   (set-buffer outbuf)
+					   (point))))
+				  (princ (substring
+					  (prin1-to-string (car elt)) 1)
+					 outbuf)
+				  ;; lemacs change: for the benefit of
+				  ;; forward-sexp, don't leave parens at
+				  ;; bol in the middle of a doc string...
+				  (save-excursion
+				    (set-buffer outbuf)
+				    (let ((p2 (point-marker)))
+				      (goto-char p)
+				      (while (< (point) p2)
+					(if (= (following-char) ?\()
+					    (insert "\\"))
+					(forward-line 1))
+				      (goto-char p2))))
 				(if (null (cdr elt))
 				    (princ ")" outbuf)
 				  (princ " " outbuf)
@@ -195,7 +225,23 @@ are used."
 					  1)
 					 outbuf))
 				(terpri outbuf))
-			    (print autoload outbuf)))
+			    ;; lemacs change: another fucking ^L hack
+			    (let ((p (save-excursion
+				       (set-buffer outbuf)
+				       (point)))
+				  p2)
+			      (print autoload outbuf)
+			      (save-excursion
+				(set-buffer outbuf)
+				(setq p2 (point-marker))
+				(goto-char p)
+				(save-match-data
+				  (while (search-forward "\^L" p2 t)
+				    (delete-char -1)
+				    (insert "\\^L")))
+				(goto-char p2)
+				))
+			    ))
 		      ;; Copy the rest of the line to the output.
 		      (let ((begin (point)))
 			(forward-line 1)
@@ -215,17 +261,23 @@ are used."
 	(progn
 	  (insert generate-autoload-section-header)
 	  (prin1 (list 'autoloads autoloads-done load-name
-		       (if (not (file-name-absolute-p generated-autoload-file))
-			   (file-relative-name file generated-autoload-file)
-			 file)
+		       (autoload-trim-file-name file) ;lemacs change
 		       (nth 5 (file-attributes file)))
 		 outbuf)
 	  (terpri outbuf)
-	  (insert ";;; Generated autoloads from " file "\n")
+	  (insert ";;; Generated autoloads from "
+		  (autoload-trim-file-name file) ;lemacs change
+		  "\n")
 	  (goto-char output-end)
 	  (insert generate-autoload-section-trailer)))
-    (message "Generating autoloads for %s...done" file)))
+    (or noninteractive ; jwz: only need one line in -batch mode.
+	(message "Generating autoloads for %s...done" file))))
 
+(defconst generated-autoload-file "../prim/loaddefs.el"
+   "*File \\[update-file-autoloads] puts autoloads into.
+A .el file can set this in its local variables section to make its
+autoloads go somewhere else.")
+
 ;;;###autoload
 (defun update-file-autoloads (file)
   "Update the autoloads for FILE in `generated-autoload-file'
@@ -261,8 +313,9 @@ are used."
 				 (and (= (car last-time) (car file-time))
 				      (>= (nth 1 last-time)
 					  (nth 1 file-time)))))
-			(message "Autoload section for %s is up to date."
-				 file)
+			(or noninteractive ;; jwz: too loud in -batch mode
+			    (message "Autoload section for %s is up to date."
+				     file))
 		      (search-forward generate-autoload-section-trailer)
 		      (delete-region begin (point))
 		      (generate-file-autoloads file))
@@ -276,22 +329,28 @@ are used."
 		  (save-restriction
 		    (widen)
 		    (goto-char (point-min))
-		    (search-forward generate-autoload-cookie nil t))))
+		    ;; lemacs change: reduce false positives.
+		    (search-forward (concat "\n" generate-autoload-cookie)
+				    nil t))))
 	      ;; There are autoload cookies in FILE.
 	      ;; Have the user tell us where to put the new section.
-              (progn
-                (save-window-excursion
-                  (switch-to-buffer (current-buffer))
-                  (with-output-to-temp-buffer "*Help*"
-                    (princ (substitute-command-keys
-                            (format "\
+	      (progn
+		(save-window-excursion
+		(switch-to-buffer (current-buffer))
+		;; lemacs addition
+		(if noninteractive
+		    (error "No autoload section for %s in %s"
+			   file generated-autoload-file))
+		(with-output-to-temp-buffer "*Help*"
+		  (princ (substitute-command-keys
+			  (format "\
 Move point to where the autoload section
 for %s should be inserted.
 Then do \\[exit-recursive-edit]."
-                                    file))))
-                  (recursive-edit)
-                  (beginning-of-line))
-                (generate-file-autoloads file)))))
+				  file))))
+		(recursive-edit)
+		(beginning-of-line))
+		(generate-file-autoloads file)))))
       (if (interactive-p) (save-buffer))
       (if (and (null existing-buffer)
 	       (setq existing-buffer (get-file-buffer file)))
@@ -300,8 +359,7 @@ Then do \\[exit-recursive-edit]."
 ;;;###autoload
 (defun update-autoloads-here ()
   "\
-Update sections of the current buffer generated by
-\\[update-file-autoloads]."
+Update sections of the current buffer generated by \\[update-file-autoloads]."
   (interactive)
   (let ((generated-autoload-file (buffer-file-name)))
     (save-excursion
@@ -311,19 +369,35 @@ Update sections of the current buffer generated by
 			 (read (current-buffer))
 		       (end-of-file nil)))
 	       (file (nth 3 form)))
-	  (if (and (stringp file)
-		   (or (get-file-buffer file)
-		       (file-exists-p file)))
-	      ()
-	    (setq file (if (y-or-n-p (format "Library \"%s\" (load \
+	  ;; lemacs change: if we can't find the file as specified, look
+	  ;; around a bit more.
+	  (cond ((and (stringp file)
+		      (or (get-file-buffer file)
+			  (file-exists-p file))))
+		((and (stringp file)
+		      (save-match-data
+			(let ((loc (locate-file (file-name-nondirectory file)
+						load-path)))
+			  (if (null loc)
+			      nil
+			    (setq loc (expand-file-name
+				       (autoload-trim-file-name loc)
+				       ".."))
+			    (if (or (get-file-buffer loc)
+				    (file-exists-p loc))
+				(setq file loc)
+			      nil))))))
+		(t
+		 (setq file (if (y-or-n-p (format "Library \"%s\" (load \
 file \"%s\") doesn't exist.  Remove its autoload section? "
-					     (nth 2 form) file))
-			   t
-			 (condition-case ()
-			     (read-file-name (format "Find \"%s\" load file: "
-						     (nth 2 form))
-					     nil nil t)
-			   (quit nil)))))
+						  (nth 2 form) file))
+				t
+			      (condition-case ()
+				  (read-file-name
+				   (format "Find \"%s\" load file: "
+					   (nth 2 form))
+				   nil nil t)
+				(quit nil))))))
 	  (if file
 	      (let ((begin (match-beginning 0)))
 		(search-forward generate-autoload-section-trailer)
@@ -336,7 +410,8 @@ file \"%s\") doesn't exist.  Remove its autoload section? "
   "Run \\[update-file-autoloads] on each .el file in DIR."
   (interactive "DUpdate autoloads for directory: ")
   (mapcar 'update-file-autoloads
-	  (directory-files dir t "\\.el\\'"))
+	  ;; lemacs change: use absolute paths
+	  (directory-files dir t "\\.el$"))
   (if (interactive-p)
       (save-excursion
 	(set-buffer (find-file-noselect generated-autoload-file))
@@ -352,18 +427,32 @@ For example, invoke \"emacs -batch -f batch-update-autoloads *.el\""
   (if (not noninteractive)
       (error "batch-update-autoloads is to be used only with -batch"))
   (let ((lost nil)
+	(enable-local-eval nil) ; don't query in batch mode.
 	(args command-line-args-left))
-    (while args
-      (catch 'file
-	(condition-case lossage
-	    (if (file-directory-p (expand-file-name (car args)))
-		(update-directory-autoloads (car args))
-	      (update-file-autoloads (car args)))
-	  (error (progn (message ">>Error processing %s: %s"
-				 (car args) lossage)
-			(setq lost t)
-			(throw 'file nil)))))
-      (setq args (cdr args)))
+    ;; lemacs change: rewrote this to catch errors around files when called
+    ;; with directories as arguments, instead of punting on the whole dir.
+    (message "Updating autoloads in %s..." generated-autoload-file)
+    (let ((frob (function
+		 (lambda (file)
+		   (condition-case lossage
+		       (update-file-autoloads file)
+		     (error
+		      (princ ">>Error processing ")
+		      (princ file)
+		      (princ ": ")
+		      (if (fboundp 'display-error)
+			  (display-error lossage nil)
+			(prin1 lossage))
+		      (princ "\n")
+		      (setq lost t)))))))
+      (while args
+	(if (file-directory-p (expand-file-name (car args)))
+	    (let ((rest (directory-files (car args) t "\\.el$")))
+	      (while rest
+		(funcall frob (car rest))
+		(setq rest (cdr rest))))
+	  (funcall frob (car args)))
+	(setq args (cdr args))))
     (save-some-buffers t)
     (message "Done")
     (kill-emacs (if lost 1 0))))

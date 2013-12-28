@@ -53,18 +53,48 @@ enum syntaxcode
     Smax	 /* Upper bound on codes that are meaningful */
   };
 
+#ifdef I18N4
+/* For lack of anything better, we define the syntax of wide characters
+   to be "punctuation".
+   GET_SYNTAX uses temp_c to avoid side effect, like if c is "*d++".
+*/
+extern wchar_t temp_c;
+#define GET_SYNTAX(table,c)					\
+  (temp_c = c,							\
+  IN_TABLE_DOMAIN (temp_c)					\
+    ? XINT (XVECTOR ((table))->					\
+	contents[WIDE_TO_BYTE ((unsigned char) temp_c)])	\
+    	: ((isphonogram (temp_c) || isideogram (temp_c))	\
+        ? Sword : Spunct))
+#endif
+
+#ifdef I18N4
+#define SYNTAX(table, c) \
+  ((enum syntaxcode) (GET_SYNTAX ((table), (c)) & 0177))
+#else
 #define SYNTAX(table, c) \
   ((enum syntaxcode) (XINT (XVECTOR ((table))->contents[(unsigned char) (c)]) & 0177))
+#endif
 
 /* The prefix flag bit for backward-prefix-chars is now put into bit 7. */
+#ifdef I18N4
+#define SYNTAX_PREFIX(table, c) \
+  ((GET_SYNTAX ((table),(c)) >> 7) & 1)
+#else
 #define SYNTAX_PREFIX(table, c) \
   ((XINT (XVECTOR ((table))->contents[(unsigned char) (c)]) >> 7) & 1)
+#endif
 
 /* The next 8 bits of the number is a character,
  the matching delimiter in the case of Sopen or Sclose. */
 
+#ifdef I18N4
+#define SYNTAX_MATCH(table, c) \
+  ((GET_SYNTAX ((table), (c)) >> 8) & 0377)
+#else
 #define SYNTAX_MATCH(table, c) \
   ((XINT (XVECTOR ((table))->contents[(unsigned char) (c)]) >> 8) & 0377)
+#endif
 
 /* The next 8 bits are used to implement up to two comment styles
    in a single buffer. They have the following meanings:
@@ -79,8 +109,13 @@ enum syntaxcode
   8. second of a two-character comment-end sequence of style b.
  */
 
+#ifdef I18N4
+#define SYNTAX_COMMENT_BITS(table, c) \
+  ((GET_SYNTAX ((table), (c)) >> 16) &0xff)
+#else
 #define SYNTAX_COMMENT_BITS(table, c) \
   ((XINT (XVECTOR ((table))->contents[(unsigned int) (c)]) >> 16) &0xff)
+#endif
 
 #define SYNTAX_FIRST_OF_START_A  0x80
 #define SYNTAX_FIRST_OF_START_B  0x40
@@ -153,10 +188,10 @@ enum syntaxcode
  character signifies (as a char).  For example,
  (enum syntaxcode) syntax_spec_code['w'] is Sword. */
 
-extern const unsigned char syntax_spec_code[0400];
+extern CONST unsigned char syntax_spec_code[0400];
 
 /* Indexed by syntax code, give the letter that describes it. */
 
-extern const unsigned char syntax_code_spec[13];
+extern CONST unsigned char syntax_code_spec[13];
 
 #endif /* _EMACS_SYNTAX_H_ */

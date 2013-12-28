@@ -1,5 +1,6 @@
 ;; Record version number of Emacs.
-;; Copyright (C) 1985-1993 Free Software Foundation, Inc.
+;; Copyright (C) 1985, 1991, 1992, 1992, 1993, 1994
+;; Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -20,8 +21,11 @@
 
 ;; The following line is modified automatically
 ;; by loading inc-version.el, each time a new Emacs is dumped.
-(defconst emacs-version "19.8" "\
+(defconst emacs-version "19.9.1" "\
 Version numbers of this version of Emacs.")
+
+(defconst era-version "0.88" "\
+Version numbers of this version of Era.")
 
 (setq emacs-version (purecopy (concat emacs-version " Lucid")))
 
@@ -40,8 +44,27 @@ Return string describing the version of Emacs that is running."
 	    (substring emacs-build-time 0
 		       (string-match " *[0-9]*:" emacs-build-time))
 	    (substring emacs-build-time
+		       (string-match "[0-9]*$" emacs-build-time))
+	    emacs-build-system system-type)))
+
+(defun era-version () "\
+Return string describing the version of Era that is running."
+  (interactive)
+  (if (interactive-p)
+      (message "%s" (era-version))
+    (format "Era %s of %s %s on %s (%s)"
+	    era-version
+	    (substring emacs-build-time 0
+		       (string-match " *[0-9]*:" emacs-build-time))
+	    (substring emacs-build-time
                        (string-match "[0-9]*$" emacs-build-time))
 	    emacs-build-system system-type)))
+
+;; Put the emacs version number into the `pure[]' array in a form that
+;; `what(1)' can extract from the executable or a core file.  We don't
+;; actually need this to be pointed to from lisp; pure objects can't
+;; be GCed.
+(purecopy (concat "\n@(#)" (emacs-version) "\n"))
 
 ;;Local variables:
 ;;version-control: never

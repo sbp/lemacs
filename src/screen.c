@@ -1,5 +1,5 @@
 /* Generic screen functions.
-   Copyright (C) 1989, 1992, 1993 Free Software Foundation.
+   Copyright (C) 1989, 1992, 1993, 1994 Free Software Foundation.
 
 This file is part of GNU Emacs.
 
@@ -18,6 +18,7 @@ along with GNU Emacs; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include "config.h"
+#include "intl.h"
 #include "lisp.h"
 #include "dispextern.h"
 #include "screen.h"
@@ -37,6 +38,7 @@ Lisp_Object Vglobal_minibuffer_screen;
 int allow_deletion_of_last_visible_screen;
 
 Lisp_Object Vcreate_screen_hook, Qcreate_screen_hook;
+Lisp_Object Vdelete_screen_hook, Qdelete_screen_hook;
 Lisp_Object Vmouse_enter_screen_hook, Qmouse_enter_screen_hook;
 Lisp_Object Vmouse_leave_screen_hook, Qmouse_leave_screen_hook;
 Lisp_Object Vmap_screen_hook, Qmap_screen_hook;
@@ -70,6 +72,10 @@ mark_screen (Lisp_Object obj, void (*markobj) (Lisp_Object))
   ((markobj) (s->param_alist));
   ((markobj) (s->menubar_data));
 
+  /* The scrollbars reference some Lisp_Objects.  Let them take care
+     of it cause we don't know (or care) what they are referencing. */
+  mark_scrollbar (s->scrollbar_instances, markobj);
+
 #ifdef HAVE_X_WINDOWS
   if (SCREEN_IS_X (s))
     {
@@ -82,20 +88,7 @@ mark_screen (Lisp_Object obj, void (*markobj) (Lisp_Object))
     }
 #endif
 
-  /* #### mark the lisp objects in the faces; this is gonna change */
-  {
-    struct face** faces = s->faces;
-    int i;
-    for (i = 0; i < s->n_faces; i++)
-      {
-	((markobj) (faces[i]->font));
-	((markobj) (faces[i]->foreground));
-	((markobj) (faces[i]->background));
-	((markobj) (faces[i]->back_pixmap));
-      }
-  }
-
-  return (s->face_alist);
+  return (s->face_data);
 }
 
 static void
@@ -105,10 +98,19 @@ print_screen (Lisp_Object obj, Lisp_Object printcharfun, int escapeflag)
   char buf[10];
   
   if (print_readably)
-    error ("printing unreadable object #<screen %s 0x%x>",
+    error (GETTEXT ("printing unreadable object #<screen %s 0x%x>"),
            XSTRING (scr->name)->data, scr->header.uid);
-      
-  write_string_1 ("#<screen ", -1, printcharfun);
+
+  write_string_1 ("#<", -1, printcharfun);
+  if (!SCREEN_LIVE_P (scr))
+    write_string_1 ("dead", -1, printcharfun);
+  else if (SCREEN_IS_TERMCAP (scr))
+    write_string_1 ("termcap", -1, printcharfun);
+  else if (SCREEN_IS_X (scr))
+    write_string_1 ("x", -1, printcharfun);
+  else
+    write_string_1 ("UNKNOWN", -1, printcharfun);
+  write_string_1 ("-screen ", -1, printcharfun);
   print_internal (scr->name, printcharfun, 1);
   sprintf (buf, " 0x%x>", scr->header.uid);
   write_string_1 (buf, -1, printcharfun);
@@ -145,6 +147,8 @@ make_screen (int mini_p)
   s->buffer_alist = Fcopy_sequence (Vbuffer_alist);
   s->param_alist = Qnil;
   s->menubar_data = Qnil;
+  s->scrollbar_instances = 0;
+  s->scrollbar_count = 0;
   s->output_method = output_dead_screen;
   s->display.x = 0;
   s->display_preempted = 0;
@@ -152,12 +156,13 @@ make_screen (int mini_p)
   s->iconified = 0;
   s->garbaged = 0;
   s->has_minibuffer = mini_p;
+  s->being_deleted = 0;
   s->wants_modeline = 1;
   s->no_split = 0;
   s->message_buf = 0;
   s->faces = 0;
   s->n_faces = 0;
-  s->face_alist = Qnil;
+  s->face_data = Qnil;
   s->size_change_pending = 0;
 
   /* init_screen_faces will do more, but this is needed before then */
@@ -249,9 +254,9 @@ make_screen_without_minibuffer (mini_window)
   if (NILP (mini_window))
     {
       if (!SCREENP (Vglobal_minibuffer_screen))
-	error ("global-minibuffer-screen must be set when creating minibufferless screens");
+	error (GETTEXT ("global-minibuffer-screen must be set when creating minibufferless screens"));
       if (!SCREEN_LIVE_P (XSCREEN (Vglobal_minibuffer_screen)))
-	error ("global-minibuffer-screen must be a live screen");
+	error (GETTEXT ("global-minibuffer-screen must be a live screen"));
       mini_window = XSCREEN (Vglobal_minibuffer_screen)->minibuffer_window;
     }
   else
@@ -313,7 +318,7 @@ make_terminal_screen ()
 
   Vscreen_list = Qnil;
   s = make_screen (1);
-  s->name = build_string ("terminal");
+  s->name = build_string (GETTEXT ("terminal"));
   s->visible = 1;
   s->output_method = output_termcap; /* Nonzero means screen isn't deleted.  */
   XSETR (Vterminal_screen, Lisp_Screen, s);
@@ -388,7 +393,7 @@ Value is t for a termcap screen (a character-only terminal),\n\
     case output_x_window:
       return (Qx);
     case output_dead_screen:
-      return (Qt);              /* ???! */
+      return (Qt);              /* What? */
     default:
       abort ();
     }
@@ -430,7 +435,7 @@ select_screen_internal (s)
      struct screen* s;
 {
   if (!SCREEN_LIVE_P (s))
-    error ("Cannot select a dead screen");
+    error (GETTEXT ("Cannot select a dead screen"));
   
   if (selected_screen == s)
     return;
@@ -634,6 +639,7 @@ Lisp_Object screen, miniscreen, visible_only_p;
 
 
 extern void free_screen_menubar (struct screen *s);
+extern void free_screen_scrollbars (struct screen *s);
 extern void free_display_structs (Lisp_Object win);
 extern void free_line_insertion_deletion_costs (struct screen *s);
 
@@ -672,7 +678,7 @@ A screen may not be deleted if its minibuffer is used by other screens.")
 		      (XWINDOW
 		       (SCREEN_MINIBUF_WINDOW
 			(XSCREEN (this)))))))
-	    error ("Attempt to delete a surrogate minibuffer screen");
+	    error (GETTEXT("Attempt to delete a surrogate minibuffer screen"));
 	}
     }
 #endif
@@ -687,9 +693,9 @@ A screen may not be deleted if its minibuffer is used by other screens.")
 	{
 	  Lisp_Object invisible_next = next_screen (screen, 0, 0);
 	  if (EQ (screen, invisible_next))
-	    error ("Attempt to delete the only screen");
+	    error (GETTEXT ("Attempt to delete the only screen"));
 	  else if (!allow_deletion_of_last_visible_screen)
-	    error ("Attempt to delete the only visible screen");
+	    error (GETTEXT ("Attempt to delete the only visible screen"));
 	  else
 	    next = invisible_next;
 	}
@@ -698,7 +704,7 @@ A screen may not be deleted if its minibuffer is used by other screens.")
 
   /* Don't allow the global minibuffer screen to be deleted */
   if (s == XSCREEN (Vglobal_minibuffer_screen))
-    error ("Attempt to delete the global minibuffer screen");
+    error (GETTEXT ("Attempt to delete the global minibuffer screen"));
 
   /* Don't allow minibuf_window to remain on a deleted screen.  */
   if (EQ (s->minibuffer_window, minibuf_window))
@@ -708,28 +714,39 @@ A screen may not be deleted if its minibuffer is used by other screens.")
       minibuf_window = selected_screen->minibuffer_window;
     }
 
+  /* Before here, we haven't made any dangerous changed (just checked for
+     error conditions.)  Now run the delete-screen-hook.  Remember that
+     user code there could do any number of dangerous things, including
+     signalling an error.
+   */
+
+  run_hook_with_args (Qdelete_screen_hook, 1, screen);
+
+  /* After this point, no errors must be allowed to occur.
+     Remove the screen now from the list.  This way, any events generated
+     on this screen by the maneuvers below will disperse themselves.
+   */
   Vscreen_list = Fdelq (screen, Vscreen_list);
+
 
 #ifdef HAVE_X_WINDOWS
   if (SCREEN_IS_X (s))
-    /* Minimize some display thrashing.  We could use x_make_screen_invisible
-       but that does more work (notifying the WM, etc...)  */
-    XUnmapWindow (XtDisplay (s->display.x->widget),
-		  XtWindow (s->display.x->widget));
-#endif
-  s->visible = 0;
-
-  free_screen_menubar (s);
-  free_display_structs (s->root_window);
-/*  free_line_insertion_deletion_costs (s); */
-
-  if (SCREEN_IS_X (s))
     {
+      /* #### all that UnrealizeWidget crap should be in EmacsShell.c called
+	 from x_destroy_window instead of here. */
       x_destroy_window (s);
       s->display.x = 0;
     }
+#endif
+
   s->output_method = output_dead_screen;
-  
+  s->visible = 0;
+
+  free_screen_menubar (s);
+  free_screen_scrollbars (s);
+  free_display_structs (s->root_window);
+/*  free_line_insertion_deletion_costs (s); */
+
 #if 0
   /* If we've deleted the last_nonminibuf_screen, then try to find
      another one.  */
@@ -878,7 +895,7 @@ DEFUN ("restore-screen-configuration", Frestore_screen_configuration,
   CHECK_VECTOR (config, 0);
   if (XVECTOR (config)->size != 3)
     {
-      error ("Wrong size vector passed to restore-screen-configuration");
+      error (GETTEXT ("Wrong size vector passed to restore-screen-configuration"));
     }
   screen = XVECTOR (config)->contents[0];
   CHECK_SCREEN (screen, 0);
@@ -956,7 +973,6 @@ window system, may not show at all.")
   (screen)
      Lisp_Object screen;
 {
-  int visible, iconic;
   CHECK_LIVE_SCREEN (screen, 0);
   return (XSCREEN (screen)->visible ? Qt : Qnil);
 }
@@ -973,7 +989,6 @@ screen is iconified, it will not be visible.")
   (screen)
      Lisp_Object screen;
 {
-  int visible, iconic;
   CHECK_LIVE_SCREEN (screen, 0);
   if (XSCREEN (screen)->visible)
     return Qnil;
@@ -1018,7 +1033,7 @@ get_screen_param (struct screen *screen, Lisp_Object prop)
 }
 
 void
-store_in_alist (Lisp_Object *alistptr, const char *propname, Lisp_Object val)
+store_in_alist (Lisp_Object *alistptr, CONST char *propname, Lisp_Object val)
 {
   register Lisp_Object tem;
   register Lisp_Object prop;
@@ -1047,10 +1062,10 @@ store_screen_param (struct screen *s, Lisp_Object prop, Lisp_Object val)
       && WINDOWP (val))
     {
       if (! MINI_WINDOW_P (XWINDOW (val)))
-	error ("Surrogate minibuffer windows must be minibuffer windows.");
+	error (GETTEXT ("Surrogate minibuffer windows must be minibuffer windows."));
 
       if (SCREEN_HAS_MINIBUF_P (s) || SCREEN_MINIBUF_ONLY_P (s))
-	error ("Can't change the surrogate minibuffer of a screen with its own minibuffer.");
+	error (GETTEXT ("Can't change the surrogate minibuffer of a screen with its own minibuffer."));
 
       /* Install the chosen minibuffer window, with proper buffer.  */
       s->minibuffer_window = val;
@@ -1110,7 +1125,7 @@ The meaningful PARMs depend on the kind of screen; undefined PARMs are ignored."
   s = XSCREEN (screen);
 
   if (! SCREEN_IS_X (s))
-    error ("Can only modified parameters of an X window screen");
+    error (GETTEXT ("Can only modified parameters of an X window screen"));
 
   x_set_screen_values (s, alist);
 
@@ -1447,12 +1462,20 @@ You can never delete the last screen, but setting this to t will allow you\n\
 to delete the last non-iconified screen.");
   allow_deletion_of_last_visible_screen = 0;
 
+  DEFVAR_LISP ("delete-screen-hook", &Vdelete_screen_hook,
+    "Function or functions of one argument,\
+ called with each to-be-deleted screen.");
+  Vdelete_screen_hook = Qnil;
+  defsymbol (&Qdelete_screen_hook, "delete-screen-hook");
+
   /* This is set in init_window_once. */
   staticpro (&Vscreen_list);
 
   /* defvarred in screen.el so that they can be buffer-local */
   defsymbol (&Qselect_screen_hook, "select-screen-hook");
   defsymbol (&Qdeselect_screen_hook, "deselect-screen-hook");
+
+  defsymbol (&Qdelete_screen, "delete-screen");
 
   DEFVAR_LISP ("create-screen-hook", &Vcreate_screen_hook,
 	       "Function or functions of one argument,\

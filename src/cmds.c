@@ -1,5 +1,5 @@
 /* Simple built-in editing commands.
-   Copyright (C) 1985, 1992, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1992, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -19,8 +19,8 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 
 #include "config.h"
-
 #include "lisp.h"
+#include "intl.h"
 #include "commands.h"
 #include "buffer.h"
 #include "syntax.h"
@@ -52,7 +52,7 @@ On reaching end of buffer, stop and signal error.")
      hooks, etcetera), that's not a good approach.  So we validate the
      proposed position, then set point.  */
   {
-    int new_point = point + XINT (n);
+    int new_point = PT + XINT (n);
 
     if (new_point < BEGV)
       {
@@ -97,7 +97,7 @@ With positive ARG, a non-empty line at the end counts as one line\n\
   (n)
      Lisp_Object n;
 {
-  int pos2 = point;
+  int pos2 = PT;
   int pos;
   int count, shortage, negp;
 
@@ -110,7 +110,7 @@ With positive ARG, a non-empty line at the end counts as one line\n\
     }
 
   negp = count <= 0;
-  pos = scan_buffer ('\n', pos2, count - negp, &shortage);
+  pos = scan_buffer (current_buffer, '\n', pos2, count - negp, &shortage);
   if (shortage > 0
       && (negp
 	  || (ZV > BEGV
@@ -157,7 +157,7 @@ If scan reaches end of buffer, stop there without error.")
   if (XINT (n) != 1)
     Fforward_line (make_number (XINT (n) - 1));
 
-  pos = point;
+  pos = PT;
   stop = ZV;
   while (pos < stop && FETCH_CHAR (pos) != '\n') pos++;
   SET_PT (pos);
@@ -178,17 +178,17 @@ ARG was explicitly specified.")
     {
       if (XINT (n) < 0)
 	{
-	  if (point + XINT (n) < BEGV)
+	  if (PT + XINT (n) < BEGV)
 	    signal_error (Qbeginning_of_buffer, Qnil);
 	  else
-	    del_range (point + XINT (n), point);
+	    del_range (PT + XINT (n), PT);
 	}
       else
 	{
-	  if (point + XINT (n) > ZV)
+	  if (PT + XINT (n) > ZV)
 	    signal_error (Qend_of_buffer, Qnil);
 	  else
-	    del_range (point, point + XINT (n));
+	    del_range (PT, PT + XINT (n));
 	}
     }
   else
@@ -231,7 +231,7 @@ Whichever character you type to run this command is inserted.")
   if (NILP (c))
     signal_error (Qerror,
                   list2 (build_string (
-			 "last typed character has no ASCII equivalent"),
+			 GETTEXT ("last typed character has no ASCII equivalent")),
                          Fcopy_event (Vlast_command_event, Qnil)));
 
   n = XINT (arg);
@@ -268,9 +268,9 @@ In Auto Fill mode, if no numeric arg, break the preceding line if it's long.")
      the insertion correctly.  Luckily, internal_self_insert's special
      features all do nothing in that case.  */
 
-  flag = point > BEGV && FETCH_CHAR (point - 1) == '\n';
+  flag = PT > BEGV && FETCH_CHAR (PT - 1) == '\n';
   if (flag)
-    SET_PT (point - 1);
+    SET_PT (PT - 1);
 
   while (arg > 0)
     {
@@ -282,7 +282,7 @@ In Auto Fill mode, if no numeric arg, break the preceding line if it's long.")
     }
 
   if (flag)
-    SET_PT (point + 1);
+    SET_PT (PT + 1);
 
   return Qnil;
 }
@@ -311,23 +311,23 @@ internal_self_insert (int c1, int noautofill)
 #endif
 
   if (!NILP (overwrite)
-      && point < ZV
+      && PT < ZV
       && (EQ (overwrite, Qoverwrite_mode_binary)
-	  || (c != '\n' && FETCH_CHAR (point) != '\n'))
+	  || (c != '\n' && FETCH_CHAR (PT) != '\n'))
       && (EQ (overwrite, Qoverwrite_mode_binary)
-          || FETCH_CHAR (point) != '\t'
+          || FETCH_CHAR (PT) != '\t'
 	  || XINT (current_buffer->tab_width) <= 0
 	  || XINT (current_buffer->tab_width) > 20
 	  || !((current_column () + 1) % XINT (current_buffer->tab_width))))
     {
-      del_range (point, point + 1);
+      del_range (PT, PT + 1);
       /* hairy = 1; */
     }
   if (!NILP (current_buffer->abbrev_mode)
       && SYNTAX (syntax_table, c) != Sword
       && NILP (current_buffer->read_only)
-      && point > BEGV
-      && SYNTAX (syntax_table, FETCH_CHAR (point - 1)) == Sword)
+      && PT > BEGV
+      && SYNTAX (syntax_table, FETCH_CHAR (PT - 1)) == Sword)
     {
       /* int modiff = MODIFF; */
       Fexpand_abbrev ();

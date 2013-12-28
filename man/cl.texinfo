@@ -1,5 +1,5 @@
 \input texinfo    @c -*-texinfo-*-
-@setfilename cl.info
+@setfilename ../info/cl.info
 @settitle Common Lisp Extensions
 
 @iftex

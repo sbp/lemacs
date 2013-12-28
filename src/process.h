@@ -36,7 +36,7 @@ extern void wait_without_blocking (void);
 
 /* Only process.c needs to know about the guts of this */
 struct Lisp_Process;
-extern const struct lrecord_implementation lrecord_process[];
+extern CONST struct lrecord_implementation lrecord_process[];
 #define XPROCESS(a) ((struct Lisp_Process *) XPNTR(a))
 #define CHECK_PROCESS(x, i) CHECK_RECORD ((x), lrecord_process, Qprocessp, (i))
 #define PROCESSP(x) RECORD_TYPEP ((x), lrecord_process)
@@ -58,6 +58,7 @@ extern Lisp_Object Fopen_network_stream (Lisp_Object name,
 					 Lisp_Object service);
 extern Lisp_Object Fprocess_kill_without_query (Lisp_Object, Lisp_Object);
 
+extern int connected_via_file_desc (struct Lisp_Process *p);
 extern void kill_buffer_processes (Lisp_Object buffer);
 extern void close_process_descs (void);
 
@@ -71,7 +72,7 @@ extern void set_process_filter (Lisp_Object proc,
 extern int synch_process_alive;
 
 /* Nonzero => this is a string explaining death of synchronous subprocess.  */
-extern const char *synch_process_death;
+extern CONST char *synch_process_death;
 
 /* If synch_process_death is zero,
    this is exit code of synchronous subprocess.  */
@@ -103,13 +104,13 @@ extern void deactivate_process (Lisp_Object proc);
 
 #ifdef VMS
 extern void create_process (Lisp_Object process, char **new_argv,
-                            const char *current_dir);
+                            CONST char *current_dir);
 #endif
 
 extern void child_setup (int in, int out, int err, 
                          char **new_argv, char **env,
                          int set_pgrp, 
-                         const char *current_dir);
+                         CONST char *current_dir);
 
 extern int read_process_output (Lisp_Object proc, int channel);
 

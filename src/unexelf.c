@@ -1,4 +1,4 @@
-/* Copyright (C) 1985, 1986, 1987, 1988, 1990, 1992
+/* Copyright (C) 1985, 1986, 1987, 1988, 1990, 1992, 1993
    Free Software Foundation, Inc.
 
     This program is free software; you can redistribute it and/or modify
@@ -466,10 +466,10 @@ round_up (x, y)
  * .data section, and inserting an empty .bss immediately afterwards.
  *
  */
-void
+int
 unexec (new_name, old_name, data_start, bss_start, entry_address)
      char *new_name, *old_name;
-     unsigned data_start, bss_start, entry_address;
+     unsigned int data_start, bss_start, entry_address;
 {
   extern unsigned int bss_end;
   int new_file, old_file, new_file_size;
@@ -492,7 +492,7 @@ unexec (new_name, old_name, data_start, bss_start, entry_address)
   Elf32_Off  new_data2_offset;
   Elf32_Addr new_data2_addr;
 
-  int n, nn, old_bss_index, old_data_index, new_data2_index;
+  int n, nn, old_bss_index, old_data_index;
   struct stat stat_buf;
 
   /* Open the old file & map it into the address space. */
@@ -632,8 +632,13 @@ unexec (new_name, old_name, data_start, bss_start, entry_address)
       if ((OLD_SECTION_H (old_bss_index)).sh_addralign > alignment)
 	alignment = OLD_SECTION_H (old_bss_index).sh_addralign;
 
+#ifndef __mips	/* ifndef added by jwz at suggestion of
+		   r02kar@x4u2.desy.de (Karsten Kuenne) to avoid
+		   "Program segment above .bss" when dumping.
+		 */
       if (NEW_PROGRAM_H (n).p_vaddr + NEW_PROGRAM_H (n).p_filesz > old_bss_addr)
 	fatal ("Program segment above .bss in %s\n", old_name, 0);
+#endif /*  __mips */
 
       if (NEW_PROGRAM_H (n).p_type == PT_LOAD
 	  && (round_up ((NEW_PROGRAM_H (n)).p_vaddr
@@ -784,4 +789,6 @@ unexec (new_name, old_name, data_start, bss_start, entry_address)
   stat_buf.st_mode |= 0111 & ~n;
   if (chmod (new_name, stat_buf.st_mode) == -1)
     fatal ("Can't chmod (%s): errno %d\n", new_name, errno);
+
+  return 0;
 }

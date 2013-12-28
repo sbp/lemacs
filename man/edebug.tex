@@ -1,0 +1,341 @@
+\input texinfo  @comment -*-texinfo-*-
+@comment %**start of header
+@setfilename ../info/edebug.info
+@settitle Edebug User Manual
+@comment %**end of header
+
+@comment ================================================================
+@comment This file has the same style as the GNU Emacs Lisp Reference Manual.
+@comment Run tex using version of `texinfo.tex' that comes with the elisp
+@comment manual. Also, run `makeinfo' rather than `texinfo-format-buffer'.
+@comment ================================================================
+
+@comment smallbook
+
+@comment tex
+@comment \overfullrule=0pt
+@comment end tex
+
+@comment
+@comment Combine indices.
+@syncodeindex fn cp
+@syncodeindex vr cp
+@syncodeindex ky cp
+@syncodeindex pg cp
+@syncodeindex tp cp
+@comment texinfo-format-buffer no longer ignores synindex.
+@comment
+
+@ifinfo
+This file documents Edebug
+
+This is edition 1.5 of the Edebug User Manual
+for edebug Version 3.2,
+
+Copyright (C) 1991,1992,1993 Free Software Foundation, Inc.
+
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+
+@ignore
+Permission is granted to process this file through TeX and print the
+results, provided the printed document carries copying permission
+notice identical to this one except for the removal of this paragraph
+(this paragraph not being relevant to the printed manual).
+
+@end ignore
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided that the entire
+resulting derived work is distributed under the terms of a permission
+notice identical to this one.
+
+Permission is granted to copy and distribute translations of this manual
+into another language, under the above conditions for modified versions,
+except that this permission notice may be stated in a translation approved
+by the Foundation.
+@end ifinfo
+@comment
+
+@comment
+@setchapternewpage odd
+
+@titlepage
+@title Edebug User Manual
+@subtitle A Source Level Debugger for GNU Emacs Lisp
+@subtitle Edition 1.5, August 1993
+
+@author by Daniel LaLiberte,  liberte@@cs.uiuc.edu
+@page
+@vskip 0pt plus 1filll
+Copyright @copyright{} 1991,1992,1993 Daniel LaLiberte
+
+@sp 2
+This is edition 1.5 of the @cite{Edebug User Manual}
+for edebug Version 3.2, September 1993.
+
+
+@sp 2
+
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided that the entire
+resulting derived work is distributed under the terms of a permission
+notice identical to this one.
+
+Permission is granted to copy and distribute translations of this manual
+into another language, under the above conditions for modified versions,
+except that this permission notice may be stated in a translation approved
+by this author.
+@end titlepage
+@page
+
+
+@node Top, Edebug, (dir), (dir)
+@chapter Edebug
+
+  Edebug is a source-level debugger for Emacs Lisp programs.
+
+
+@menu
+* Edebug::			Edebug
+* Bugs and Todo List::		Bugs and Todo List
+* Index::			Index
+@end menu
+
+@c from included file:
+@c @node Edebug, Bugs and Todo List, Top, Top
+@c @section Edebug
+
+@include edebug.texinfo
+
+
+@node Bugs and Todo List, Index, Edebug, Top
+@section Bugs and Todo List
+
+@cindex debugging edebug
+@cindex bugs in edebug
+If you are interested in running edebug on functions in
+@file{edebug.el}, often it is easiest to first copy a reliable version
+of @file{edebug.el} into another file, say @file{fdebug.el}, and replace
+all strings @samp{edebug} with @samp{fdebug}, then evaluate the fdebug
+buffer and run fdebug on functions in the buggy @file{edebug.el}.
+
+@vindex debug-on-error
+@vindex edebug-debugger
+If there is a bug in the runtime parts of edebug, you may simply want to
+set @code{debug-on-error} to @code{t} to get a backtrace when the error
+occurs.  For this to work, however, before executing code that causes
+the error you will also have to set the variable @code{edebug-debugger}
+to @code{debug} rather than its default value of @code{edebug}.
+
+The following is a list of things I might do in the future to edebug.
+Often I do other things not on the list as I discover the need for them.
+Send me your suggestions and priorities.
+
+@itemize @bullet
+
+@item
+@cindex buffer point
+Bug: I've noticed that the point of some buffers was reset to the point
+of some other buffer, but I haven't been able to repeat it so perhaps
+it is fixed.
+
+@item
+There may be a bug in the trace buffer display.  It should display as
+much as it can of the bottom of the buffer, but I think it scrolls off
+sometimes.
+
+There is a bug in window updating when there is both a trace buffer
+and an evaluation list - the source buffer doesnt get displayed.
+
+@item 
+Killing and reinserting an instrumented definition or parts of
+it leaves marks in the buffer which may confuse Edebug later.
+
+@item
+Defs with complex names (e.g. defmethod) will cause problems
+for remembering source code position.
+
+@item
+After some errors, with @code{debug-on-error} non-@code{nil}, continuing
+execution succeeds returning @code{nil}.
+
+@item
+A source buffer displayed in multiple windows is not handled as well as
+it could.  Edebug only cares about finding the first window that
+displays the buffer.
+
+@item
+There are no other known bugs, so if you find any, please let me know.
+There is nothing worse than a buggy debugger!
+
+@item
+"(" in the first column of doc strings messes up edebug reading.
+But no more than normal reading.
+
+@item
+There could be a command to return a value from the debugger -
+particularly useful for errors.
+
+@item
+@cindex side effects
+Let me know if you find any side effects that could or should be avoided
+or at least documented in the manual.
+Also @pxref{Side Effects}.
+
+@item
+@vindex max-lisp-eval-depth
+@vindex max-specpdl-size
+Figure out a reliable way to set @code{max-lisp-eval-depth} and
+@code{max-specpdl-size}.
+
+@item
+Remember the window configuration inside debugger between edebug calls
+and remember outside configuration on the first call to edebug after an
+interactive command at a lower level.
+
+Or remember a set of buffers/windows to display inside of edebug, but we
+would also need the window start of each such window.
+
+@item
+@cindex selective display
+Make edebug work with selective display - don't stop in hidden lines.
+
+@item
+Debug just one or selected subexpressions of a definition - the rest is
+evalled normally.
+
+@item
+Should @code{overlay-arrow-position} and @code{-string} be buffer local?
+
+@item
+Use copy of @code{current-local-map} instead of @code{emacs-lisp-mode-map}
+(but only copy the first time after lower level command - to save time).
+
+@item
+Better integration with standard debug.
+
+@item
+@vindex inhibit-quit
+Use @code{inhibit-quit} while edebugging?  
+
+@item
+@findex sit-for
+Crawl mode would @code{sit-for} 0 or 1 in the outside window configuration
+between each edebug step.
+Maybe it should be a separate option that applies to trace as well.
+
+@item
+Customizable @code{sit-for} time.  Less than a second would be nice.
+
+@item
+Generalize step, trace, Trace-fast to one command with argument for
+@code{sit-for} time.
+Generalize go, continue, Continue-fast to another command with argument
+
+@item
+@cindex counting conditions
+Counting conditions - stop after n iterations.  You can do it manually now
+with conditional breakpoints.
+
+@item
+@vindex edebug-initial-mode
+Provide a temporary @code{edebug-initial-mode} which is reset to the
+original after it is used.
+
+@item
+@cindex minibuffer
+minibuffer trace - show the current source line in the minibuffer instead
+of moving point to the expression.
+
+@item
+@cindex performance monitoring
+Performance monitoring - summarize trace data.
+
+@item
+Speed up edebug-defun and edebugging - always.
+
+@item
+@cindex preserve breakpoints
+Preserve breakpoints across instrumenting.
+You can now install calls to @code{edebug} in your code.
+
+@item
+Step into code not previously instrumented.
+Maybe restore to non-instrumented code after entered.
+Partially implemented with @code{edebug-step-in} command.
+
+@item
+@cindex replace with results
+Optionally replace expressions with results in a separate buffer from
+the source code.  This idea is based on discussions with Carl Witty
+regarding his stepper debugger.  Also, unparse code into its own buffer
+if source code is not available, or if user wishes to use
+replace-with-results mode.
+
+@item
+@cindex local variables
+@cindex variables display
+Preserve previous bindings of local variables, and allow user to jump
+back to previous frames, particularly binding frames (i.e. @code{let},
+@code{condition-case}, function and macro calls) to view values at that
+frame.  What about buffer local variables?  It would be simpler to have
+access to the Lisp stack.
+
+Variables display, like the evaluation list but automatically display
+all local variables and values.
+
+@item
+@vindex debug-on-next-call
+@findex backtrace-debug
+Investigate minimal instrumentation that doesn't call edebug functions
+but instead sets edebug index and result variables.  Stepping is done
+through standard debugger features such as setting
+@code{debug-on-next-call}.  Breakpoints are done by modifying code as
+well as calling @code{backtrace-debug} for active frames.
+
+@item
+Edebugging of uninstrumented code.  Similar to above minimal
+instrumentation but find out where we are at each edebug call by looking
+in a map from each list form in the code to its position.
+Problem is symbols are not unique.
+
+@item
+Investigate hiding debugger internal stack frames.  This is both to
+simplify the standard debugger (which currently must be byte compiled to
+work) and to better support the integration of edebug and the standard
+debugger.
+
+@item
+@vindex edebug-global-break-condition
+Although variables can't be tracked everywhere, watchpoints would be
+nice for variables that edebug can monitor.  That is, when the value of
+a specific variable changes, edebug would stop.  This can be done now
+with the @code{edebug-global-break-condition}, though it is awkward.
+
+@item
+How about a command to add the previous sexp (?) to the eval-list?
+
+@item
+Highlight all instrumented code, breakpoints, and subexpressions about
+to be evaluated or just evaluated.  This should be done in a way that
+works with Epoch, Lemacs, and Emacs 19.
+
+@end itemize
+
+
+@page
+@node Index,  , Bugs and Todo List, Top
+@section Index
+
+@printindex cp
+
+@comment To prevent the Concept Index's last page from being numbered "i".
+@page
+
+@contents
+@bye

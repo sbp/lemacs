@@ -1,6 +1,8 @@
 CPP = $(CC) -E
 # For Solaris2, use:
 # CPP = $(CC) -E -Xs
+# For LCC, use:
+# CPP = $(CC) -E -Xk
 MAKE = make  # BSD doesn't have it as a default.
 #Note: an alternative is  CPP = /lib/cpp
 
@@ -12,12 +14,12 @@ doall:
 #This is used in making a distribution.
 #Do not use it on development directories!
 distclean:
-	-rm -f paths.h config.h emacs-* xemacs temacs cemacs pure_cemacs pure_cemacs.* xmakefile core *~ \#* *.o
-	-cd lwlib && $(MAKE) clean
+	-rm -rf junk.c paths.h config.h emacs-* xemacs temacs cemacs pure_cemacs pure_cemacs.* xmakefile core *~ \#* *.o .sb ../lwlib/.sb libemacswidget*
+	-cd ../lwlib && $(MAKE) clean
 
 clean:
-	-rm -f xemacs temacs cemacs pure_cemacs pure_cemacs.* xmakefile core \#* *.o
-	-cd lwlib && $(MAKE) clean
+	-rm -rf junk.c xemacs temacs cemacs pure_cemacs pure_cemacs.* xmakefile core \#* *.o  .sb ../lwlib/.sb libemacswidget*
+	-cd ../lwlib && $(MAKE) clean
 
 xemacs: xmakefile doxemacs
 
@@ -44,8 +46,8 @@ xmakefile: ymakefile config.h
 	rm -f junk.c
 
 tags TAGS::
-	etags [a-zA-Z]*.h [a-zA-Z]*.c \
-      ./lwlib/[a-zA-Z]*.h ./lwlib/[a-zA-Z]*.c \
+	etags [a-zA-Z]*.[ch] \
+      ../lwlib/[a-zA-Z]*.[ch] \
       ../lisp/[a-z]*.el ../lisp/*/[a-z]*.el
 
 cemacs: xmakefile docemacs

@@ -64,7 +64,7 @@
 (require 'lisp-mode)
 
 
-;;;###autoload
+;;;jwz: ilisp is better, don't ###autoload
 (defvar inferior-lisp-filter-regexp "\\`\\s *\\(:\\(\\w\\|\\s_\\)\\)?\\s *\\'"
   "*What not to save on inferior Lisp's input history.
 Input matching this regexp is not saved on the input history in Inferior Lisp
@@ -140,11 +140,11 @@ mode. Default is whitespace followed by 0 or 1 single-letter colon-keyword
     'lisp-show-variable-documentation))
 
 
-;;;###autoload
+;;;jwz: ilisp is better, don't ###autoload
 (defvar inferior-lisp-program "lisp"
   "*Program name for invoking an inferior Lisp with for Inferior Lisp mode.")
 
-;;;###autoload
+;;;jwz: ilisp is better, don't ###autoload
 (defvar inferior-lisp-load-command "(load \"%s\")\n"
   "*Format-string for building a Lisp expression to load a file.
 This format string should use `%s' to substitute a file name
@@ -154,7 +154,7 @@ The string \"(progn (load \\\"%s\\\" :verbose nil :print t) (values))\\\n\"
 produces cosmetically superior output for this application,
 but it works only in Common Lisp.")
 
-;;;###autoload
+;;;jwz: ilisp is better, don't ###autoload
 (defvar inferior-lisp-prompt "^[^> ]*>+:? *"
   "Regexp to recognise prompts in the Inferior Lisp mode.
 Defaults to \"^[^> ]*>+:? *\", which works pretty good for Lucid, kcl,
@@ -203,7 +203,7 @@ one process, this does the right thing.  If you run multiple
 processes, you can change `inferior-lisp-buffer' to another process
 buffer with \\[set-variable].")
 
-;;;###autoload
+;;;jwz: ilisp is better, don't ###autoload
 (defvar inferior-lisp-mode-hook '() 
   "*Hook for customizing Inferior Lisp mode.")
 
@@ -271,7 +271,7 @@ to continue it."
   "t if STR does not match `inferior-lisp-filter-regexp'."
   (not (string-match inferior-lisp-filter-regexp str)))
 
-;;;###autoload
+;;;jwz: ilisp is better, don't ###autoload
 (defun inferior-lisp (cmd)
   "Run an inferior Lisp process, input and output via buffer `*inferior-lisp*'.
 If there is a process already running in `*inferior-lisp*', just switch
@@ -291,7 +291,7 @@ of `inferior-lisp-program').  Runs the hooks from
   (setq inferior-lisp-buffer "*inferior-lisp*")
   (switch-to-buffer "*inferior-lisp*"))
 
-;;;###autoload
+;;;jwz: ilisp is better, don't ###autoload
 (define-function 'run-lisp 'inferior-lisp)
 
 ;;; Break a string up into a list of arguments.

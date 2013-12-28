@@ -1,5 +1,5 @@
 /* Extended regular expression matching and search.
-   Copyright (C) 1985, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1992, 1993 Free Software Foundation, Inc.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@ what you give them.   Help stamp out software-hoarding!  */
  that make sense only in emacs. */
 
 #include "config.h"
+#include "intl.h"
 #include "lisp.h"
 #include "buffer.h"
 #include "syntax.h"
@@ -100,12 +101,18 @@ init_syntax_once ()
    since ours (we hope) works properly with all combinations of
    machines, compilers, `char' and `unsigned char' argument types.
    (Per Bothner suggested the basic approach.)  */
+#ifdef I18N4
+#ifndef SIGN_EXTEND_CHAR
+#define SIGN_EXTEND_CHAR(x) (x)
+#endif
+#else /* not I18N4 */
 #undef SIGN_EXTEND_CHAR
 #if __STDC__
 #define SIGN_EXTEND_CHAR(c) ((signed char) (c))
 #else  /* not __STDC__ */
 /* As in Harbison and Steele.  */
 #define SIGN_EXTEND_CHAR(c) ((((unsigned char) (c)) ^ 128) - 128)
+#endif
 #endif
 
 static int obscure_syntax = 0;
@@ -144,6 +151,30 @@ re_set_syntax (syntax)
   after re_compile_pattern returns.
 */
 
+#ifdef I18N4
+
+/* DO_TRANSLATE -- Look up translation of character, checking bounds.
+   Uses temp_c to avoid side effects, like if c is "*d++".
+*/
+extern wchar_t temp_c;
+#define DO_TRANSLATE(translate, c)		\
+  (temp_c = c,					\
+   ((translate && IN_TABLE_DOMAIN (temp_c))	\
+    ? BYTE_TO_WIDE (translate[WIDE_TO_BYTE (temp_c)]) : temp_c))
+
+#define PATPUSH(ch) (*b++ = (wchar_t) (ch))
+
+#define PATFETCH(c) \
+ {if (p == pend) goto end_of_pattern; \
+  c = * (wchar_t *) p++; \
+  c = DO_TRANSLATE (translate, c); }
+
+#define PATFETCH_RAW(c) \
+ {if (p == pend) goto end_of_pattern; \
+  c = * (wchar_t *) p++; }
+
+#else /* not I18N4 */
+
 #define PATPUSH(ch) (*b++ = (char) (ch))
 
 #define PATFETCH(c) \
@@ -155,8 +186,29 @@ re_set_syntax (syntax)
  {if (p == pend) goto end_of_pattern; \
   c = * (unsigned char *) p++; }
 
+#endif /* not I18N4 */
+
 #define PATUNFETCH p--
 
+#ifdef I18N4
+#define EXTEND_BUFFER \
+  { wchar_t *old_buffer = bufp->buffer; \
+    if (bufp->allocated == (1<<16)) goto too_big; \
+    bufp->allocated *= 2; \
+    if (bufp->allocated > (1<<16)) bufp->allocated = (1<<16); \
+    if (!(bufp->buffer = (wchar_t *) xrealloc (bufp->buffer, bufp->allocated * sizeof (wchar_t)))) \
+      goto memory_exhausted; \
+    c = bufp->buffer - old_buffer; \
+    b += c; \
+    if (fixup_jump) \
+      fixup_jump += c; \
+    if (laststart) \
+      laststart += c; \
+    begalt += c; \
+    if (pending_exact) \
+      pending_exact += c; \
+  }
+#else /* not I18N4 */
 #define EXTEND_BUFFER \
   { char *old_buffer = bufp->buffer; \
     if (bufp->allocated == (1<<16)) goto too_big; \
@@ -174,39 +226,67 @@ re_set_syntax (syntax)
     if (pending_exact) \
       pending_exact += c; \
   }
+#endif /* not I18N4 */
 
-static void store_jump (), insert_jump ();
+#ifdef I18N4
+static void store_jump (wchar_t *from, char opcode, wchar_t *to);
+static void insert_jump (char op, wchar_t *from, wchar_t *to,
+			 wchar_t *current_end);
+#else
+static void store_jump (char *from, char opcode, char *to);
+static void insert_jump (char op, char *from, char *to, char *current_end);
+#endif
 
 char *
-re_compile_pattern (pattern, size, bufp)
-     char *pattern;
-     int size;
-     struct re_pattern_buffer *bufp;
+#ifdef I18N4
+re_compile_pattern (wchar_t *pattern, int size, struct re_pattern_buffer *bufp)
+#else
+re_compile_pattern (char *pattern, int size, struct re_pattern_buffer *bufp)
+#endif
 {
+#ifdef I18N4
+  register wchar_t *b = bufp->buffer;
+  register wchar_t *p = pattern;
+  wchar_t *pend = pattern + size;
+  wchar_t *p1;
+#else /* not I18N4 */
   register char *b = bufp->buffer;
   register char *p = pattern;
   char *pend = pattern + size;
-  register unsigned long c, c1;
   char *p1;
+#endif /* not I18N4 */
+  register unsigned long c, c1;
   unsigned char *translate = (unsigned char *) bufp->translate;
 
   /* address of the count-byte of the most recently inserted "exactn" command.
     This makes it possible to tell whether a new exact-match character
     can be added to that command or requires a new "exactn" command. */
      
+#ifdef I18N4
+  wchar_t *pending_exact = 0;
+#else
   char *pending_exact = 0;
+#endif
 
   /* address of the place where a forward-jump should go
     to the end of the containing expression.
     Each alternative of an "or", except the last, ends with a forward-jump
     of this sort. */
 
+#ifdef I18N4
+  wchar_t *fixup_jump = 0;
+#else
   char *fixup_jump = 0;
+#endif
 
   /* address of start of the most recently finished expression.
     This tells postfix * where to find the start of its operand. */
 
+#ifdef I18N4
+  wchar_t *laststart = 0;
+#else
   char *laststart = 0;
+#endif
 
   /* In processing a repeat, 1 means zero matches is allowed */
 
@@ -218,7 +298,11 @@ re_compile_pattern (pattern, size, bufp)
 
   /* address of beginning of regexp, or inside of last \( */
 
+#ifdef I18N4
+  wchar_t *begalt = b;
+#else
   char *begalt = b;
+#endif
 
   /* Stack of information saved by \( and restored by \).
      Four stack elements are pushed by each \(:
@@ -253,10 +337,18 @@ re_compile_pattern (pattern, size, bufp)
       bufp->allocated = 28;
       if (bufp->buffer)
 	/* EXTEND_BUFFER loses when bufp->allocated is 0 */
+#ifdef I18N4
+	bufp->buffer = (wchar_t *) xrealloc (bufp->buffer, 28 * sizeof (wchar_t));
+#else
 	bufp->buffer = (char *) xrealloc (bufp->buffer, 28);
+#endif
       else
 	/* Caller did not allocate a buffer.  Do it for him */
+#ifdef I18N4
+	bufp->buffer = (wchar_t *) xmalloc (28 * sizeof (wchar_t));
+#else
 	bufp->buffer = (char *) xmalloc (28);
+#endif
       if (!bufp->buffer) goto memory_exhausted;
       begalt = b = bufp->buffer;
     }
@@ -346,7 +438,11 @@ re_compile_pattern (pattern, size, bufp)
 	      else if ((obscure_syntax & RE_BK_PLUS_QM)
 		       && c == '\\')
 		{
+#ifdef I18N4
+		  wchar_t c1;
+#else
 		  int c1;
+#endif
 		  PATFETCH (c1);
 		  if (!(c1 == '+' || c1 == '?'))
 		    {
@@ -407,9 +503,11 @@ re_compile_pattern (pattern, size, bufp)
 	    PATPUSH (charset);
 	  p1 = p;
 
+#ifndef I18N4
 	  PATPUSH ((1 << BYTEWIDTH) / BYTEWIDTH);
 	  /* Clear the whole map */
 	  memset (b, 0, (1 << BYTEWIDTH) / BYTEWIDTH);
+#endif
 	  /* Read in characters and ranges, setting map bits */
 	  while (1)
 	    {
@@ -420,18 +518,30 @@ re_compile_pattern (pattern, size, bufp)
 		  PATFETCH (c1);
 		  PATFETCH (c1);
 		  while (c <= c1)
+#ifdef I18N4
+		    PATPUSH (c), c++;
+#else
 		    b[c / BYTEWIDTH] |= 1 << (c % BYTEWIDTH), c++;
+#endif
 		}
 	      else
 		{
+#ifdef I18N4
+		  PATPUSH (c);
+#else
 		  b[c / BYTEWIDTH] |= 1 << (c % BYTEWIDTH);
+#endif
 		}
 	    }
+#ifdef I18N4
+	  PATPUSH ('\0');
+#else
 	  /* Discard any bitmap bytes that are all 0 at the end of the map.
 	     Decrement the map-length byte too. */
 	  while ((int) b[-1] > 0 && b[b[-1] - 1] == 0)
 	    b[-1]--;
 	  b += b[-1];
+#endif
 	  break;
 
 	case '(':
@@ -601,7 +711,11 @@ re_compile_pattern (pattern, size, bufp)
 	      /* You might think it would be useful for \ to mean
 		 not to translate; but if we don't translate it
 		 it will never match anything.  */
+#ifdef I18N4
+	      c = DO_TRANSLATE (translate, c);
+#else
 	      if (translate) c = translate[c];
+#endif
 	      goto normal_char;
 	    }
 	  break;
@@ -633,34 +747,36 @@ re_compile_pattern (pattern, size, bufp)
   return 0;
 
  invalid_pattern:
-  return "Invalid regular expression";
+  return GETTEXT ("Invalid regular expression");
 
  unmatched_open:
-  return "Unmatched \\(";
+  return GETTEXT ("Unmatched \\(");
 
  unmatched_close:
-  return "Unmatched \\)";
+  return GETTEXT ("Unmatched \\)");
 
  end_of_pattern:
-  return "Premature end of regular expression";
+  return GETTEXT ("Premature end of regular expression");
 
  nesting_too_deep:
-  return "Nesting too deep";
+  return GETTEXT ("Nesting too deep");
 
  too_big:
-  return "Regular expression too big";
+  return GETTEXT ("Regular expression too big");
 
  memory_exhausted:
-  return "Memory exhausted";
+  return GETTEXT ("Memory exhausted");
 }
 
 /* Store where `from' points a jump operation to jump to where `to' points.
   `opcode' is the opcode to store. */
 
 static void
-store_jump (from, opcode, to)
-     char *from, *to;
-     char opcode;
+#ifdef I18N4
+store_jump (wchar_t *from, char opcode, wchar_t *to)
+#else
+store_jump (char *from, char opcode, char *to)
+#endif
 {
   from[0] = opcode;
   from[1] = (to - (from + 3)) & 0377;
@@ -675,12 +791,19 @@ store_jump (from, opcode, to)
    If you call this function, you must zero out pending_exact.  */
 
 static void
-insert_jump (op, from, to, current_end)
-     char op;
-     char *from, *to, *current_end;
+#ifdef I18N4
+insert_jump (char op, wchar_t *from, wchar_t *to, wchar_t *current_end)
+#else
+insert_jump (char op, char *from, char *to, char *current_end)
+#endif
 {
+#ifdef I18N4
+  register wchar_t *pto = current_end + 3;
+  register wchar_t *pfrom = current_end;
+#else
   register char *pto = current_end + 3;
   register char *pfrom = current_end;
+#endif
   while (pfrom != from)
     *--pto = *--pfrom;
   store_jump (from, op, to);
@@ -699,22 +822,41 @@ static void
 re_compile_fastmap (bufp)
      struct re_pattern_buffer *bufp;
 {
+#ifdef I18N4
+  wchar_t *pattern = bufp->buffer;
+#else
   unsigned char *pattern = (unsigned char *) bufp->buffer;
+#endif
   int size = bufp->used;
+#ifdef I18N4
+  register set_of_chars *fastmap = bufp->fastmap;
+  register wchar_t *p = pattern;
+  register wchar_t *pend = pattern + size;
+#else
   register char *fastmap = bufp->fastmap;
   register unsigned char *p = pattern;
   register unsigned char *pend = pattern + size;
+#endif
   register int j, k;
   unsigned char *translate = (unsigned char *) bufp->translate;
 
+#ifdef I18N4
+  wchar_t *stackb[NFAILURES];
+  wchar_t **stackp = stackb;
+#else
   unsigned char *stackb[NFAILURES];
   unsigned char **stackp = stackb;
+#endif
 
 #ifdef emacs
   Lisp_Object syntax_table = current_buffer->syntax_table;
 #endif
 
+#ifdef I18N4
+  empty_set_of_chars (fastmap);
+#else
   memset (fastmap, 0, (1 << BYTEWIDTH));
+#endif
   bufp->fastmap_accurate = 1;
   bufp->can_be_null = 0;
       
@@ -732,10 +874,14 @@ re_compile_fastmap (bufp)
 #endif
 	{
 	case exactn:
+#ifdef I18N4
+	  add_to_set_of_chars (fastmap, DO_TRANSLATE (translate, p[1]));
+#else
 	  if (translate)
 	    fastmap[translate[p[1]]] = 1;
 	  else
 	    fastmap[p[1]] = 1;
+#endif
 	  break;
 
         case begline:
@@ -751,10 +897,14 @@ re_compile_fastmap (bufp)
 	  continue;
 
 	case endline:
+#ifdef I18N4
+	  add_to_set_of_chars (fastmap, DO_TRANSLATE (translate, '\n'));
+#else
 	  if (translate)
 	    fastmap[translate['\n']] = 1;
 	  else
 	    fastmap['\n'] = 1;
+#endif
 	  if (bufp->can_be_null != 1)
 	    bufp->can_be_null = 2;
 	  break;
@@ -799,11 +949,19 @@ re_compile_fastmap (bufp)
 
 	case duplicate:
 	  bufp->can_be_null = 1;
+#ifdef I18N4
+	  add_to_set_of_chars (fastmap, '\n');
+#else
 	  fastmap['\n'] = 1;
+#endif
 	case anychar:
+#ifdef I18N4
+	  fastmap->anychar = TRUE;
+#else
 	  for (j = 0; j < (1 << BYTEWIDTH); j++)
 	    if (j != '\n')
 	      fastmap[j] = 1;
+#endif
 	  if (bufp->can_be_null)
 	    return;
 	  /* Don't return; check the alternative paths
@@ -813,13 +971,21 @@ re_compile_fastmap (bufp)
 	case wordchar:
 	  for (j = 0; j < (1 << BYTEWIDTH); j++)
 	    if (SYNTAX (syntax_table, j) == Sword)
+#ifdef I18N4
+	      add_to_set_of_chars (fastmap, j);
+#else
 	      fastmap[j] = 1;
+#endif
 	  break;
 
 	case notwordchar:
 	  for (j = 0; j < (1 << BYTEWIDTH); j++)
 	    if (SYNTAX (syntax_table, j) != Sword)
+#ifdef I18N4
+	      add_to_set_of_chars (fastmap, j);
+#else
 	      fastmap[j] = 1;
+#endif
 	  break;
 
 #ifdef emacs
@@ -827,18 +993,30 @@ re_compile_fastmap (bufp)
 	  k = *p++;
 	  for (j = 0; j < (1 << BYTEWIDTH); j++)
 	    if (SYNTAX (syntax_table, j) == (enum syntaxcode) k)
+#ifdef I18N4
+	      add_to_set_of_chars (fastmap, j);
+#else
 	      fastmap[j] = 1;
+#endif
 	  break;
 
 	case notsyntaxspec:
 	  k = *p++;
 	  for (j = 0; j < (1 << BYTEWIDTH); j++)
 	    if (SYNTAX (syntax_table, j) != (enum syntaxcode) k)
+#ifdef I18N4
+	      add_to_set_of_chars (fastmap, j);
+#else
 	      fastmap[j] = 1;
+#endif
 	  break;
 #endif /* emacs */
 
 	case charset:
+#ifdef I18N4
+	  for (; *p; p++)
+	    add_to_set_of_chars (fastmap, DO_TRANSLATE (translate, *p));
+#else
 	  for (j = *p++ * BYTEWIDTH - 1; j >= 0; j--)
 	    if (p[j / BYTEWIDTH] & (1 << (j % BYTEWIDTH)))
 	      {
@@ -847,16 +1025,24 @@ re_compile_fastmap (bufp)
 		else
 		  fastmap[j] = 1;
 	      }
+#endif
 	  break;
 
 	case charset_not:
+#ifndef I18N4
 	  /* Chars beyond end of map must be allowed */
 	  for (j = *p * BYTEWIDTH; j < (1 << BYTEWIDTH); j++)
 	    if (translate)
 	      fastmap[translate[j]] = 1;
 	    else
 	      fastmap[j] = 1;
+#endif
 
+#ifdef I18N4
+	  fastmap->complement = TRUE;
+	  for (; *p; p++)
+	    add_to_set_of_chars (fastmap, DO_TRANSLATE (translate, *p));
+#else
 	  for (j = *p++ * BYTEWIDTH - 1; j >= 0; j--)
 	    if (!(p[j / BYTEWIDTH] & (1 << (j % BYTEWIDTH))))
 	      {
@@ -865,7 +1051,10 @@ re_compile_fastmap (bufp)
 		else
 		  fastmap[j] = 1;
 	      }
+#endif
 	  break;
+	case unused:
+	  break;;
 	}
 
       /* Get here means we have successfully found the possible starting characters
@@ -881,13 +1070,30 @@ re_compile_fastmap (bufp)
 /* Like re_search_2, below, but only one string is specified. */
 
 int
-re_search (pbufp, string, size, startpos, range, regs)
-     struct re_pattern_buffer *pbufp;
-     char *string;
-     int size, startpos, range;
-     struct re_registers *regs;
+re_search (struct re_pattern_buffer *pbufp,
+	   char *string,
+	   int size,
+	   int startpos,
+	   int range,
+	   struct re_registers *regs)
 {
+#ifdef I18N4
+  int pos, i;
+
+  mb_substring_to_wc (string, size, &mb_buf, &wc_buf);
+  pos = re_search_2 (pbufp, 0, 0, wc_buf.data, wc_buf.in_use,
+		     startpos, range, regs, wc_buf.in_use);
+
+  /* Convert return value and search registers to multi-byte offsets. */
+  if (regs)
+    for (i = 0; i < RE_NREGS; i++) {
+      regs->start[i] = wc_offset_to_mb(string, regs->start[i]);
+      regs->end[i] = wc_offset_to_mb(string, regs->end[i]);
+    }
+  return wc_offset_to_mb (string, pos);
+#else
   return re_search_2 (pbufp, 0, 0, string, size, startpos, range, regs, size);
+#endif
 }
 
 /* Like re_match_2 but tries first a match starting at index STARTPOS,
@@ -903,16 +1109,21 @@ The value returned is the position at which the match was found,
  or -2 if error (such as failure stack overflow).  */
 
 int
-re_search_2 (pbufp, string1, size1, string2, size2, startpos, range, regs, mstop)
-     struct re_pattern_buffer *pbufp;
-     char *string1, *string2;
-     int size1, size2;
-     int startpos;
-     register int range;
-     struct re_registers *regs;
-     int mstop;
+#ifdef I18N4
+re_search_2 (struct re_pattern_buffer *pbufp, wchar_t *string1, int size1,
+	     wchar_t *string2, int size2, int startpos, register int range,
+	     struct re_registers *regs, int mstop)
+#else
+re_search_2 (struct re_pattern_buffer *pbufp, char *string1, int size1,
+	     char *string2, int size2, int startpos, register int range,
+	     struct re_registers *regs, int mstop)
+#endif
 {
+#ifdef I18N4
+  register set_of_chars *fastmap = pbufp->fastmap;
+#else
   register char *fastmap = pbufp->fastmap;
+#endif
   register unsigned char *translate = (unsigned char *) pbufp->translate;
   int total = size1 + size2;
   int val;
@@ -945,14 +1156,27 @@ re_search_2 (pbufp, string1, size1, string2, size2, startpos, range, regs, mstop
 	  if (range > 0)
 	    {
 	      register int lim = 0;
+#ifdef I18N4
+	      register wchar_t *p;
+#else
 	      register unsigned char *p;
+#endif
 	      int irange = range;
 	      if (startpos < size1 && startpos + range >= size1)
 		lim = range - (size1 - startpos);
 
+#ifdef I18N4
+	      p = &(startpos >= size1 ? string2 - size1 : string1)[startpos];
+#else
 	      p = ((unsigned char *)
 		   &(startpos >= size1 ? string2 - size1 : string1)[startpos]);
+#endif
 
+#ifdef I18N4
+	      while (range > lim &&
+		     !in_set_of_chars (fastmap, DO_TRANSLATE (translate, *p++)))
+		range--;
+#else /* not I18N4 */
 	      if (translate)
 		{
 		  while (range > lim && !fastmap[translate[*p++]])
@@ -963,17 +1187,26 @@ re_search_2 (pbufp, string1, size1, string2, size2, startpos, range, regs, mstop
 		  while (range > lim && !fastmap[*p++])
 		    range--;
 		}
+#endif /* not I18N4 */
 	      startpos += irange - range;
 	    }
 	  else
 	    {
+#ifdef I18N4
+	      register wchar_t c;
+#else
 	      register unsigned char c;
+#endif
 	      if (startpos >= size1)
 		c = string2[startpos - size1];
 	      else
 		c = string1[startpos];
 	      c &= 0xff;
+#ifdef I18N4
+	      if (!in_set_of_chars (fastmap, DO_TRANSLATE (translate, c)))
+#else
 	      if (translate ? !fastmap[translate[c]] : !fastmap[c])
+#endif
 		goto advance;
 	    }
 	}
@@ -982,8 +1215,14 @@ re_search_2 (pbufp, string1, size1, string2, size2, startpos, range, regs, mstop
 	  && fastmap && pbufp->can_be_null == 0)
 	return -1;
 
-      val = re_match_2 (pbufp, string1, size1, string2, size2, startpos, regs,
+#ifdef I18N4
+      val = re_match_2 (pbufp, string1, size1, string2, size2,
+			startpos, regs, mstop);
+#else
+      val = re_match_2 (pbufp, (unsigned char *) string1, size1,
+			(unsigned char *) string2, size2, startpos, regs,
 			mstop);
+#endif
       /* Propagate error indication if worse than mere failure.  */
       if (val == -2)
 	return -2;
@@ -1036,14 +1275,25 @@ static int bcmp_translate();
    of the substring which was matched.  */
 
 int
-re_match_2 (pbufp, string1, size1, string2, size2, pos, regs, mstop)
-     struct re_pattern_buffer *pbufp;
-     unsigned char *string1, *string2;
-     int size1, size2;
-     int pos;
-     struct re_registers *regs;
-     int mstop;
+#ifdef I18N4
+re_match_2 (struct re_pattern_buffer *pbufp, wchar_t *string1, int size1,
+	    wchar_t *string2, int size2, int pos, struct re_registers *regs,
+	    int mstop)
+#else
+re_match_2 (struct re_pattern_buffer *pbufp, unsigned char *string1, int size1,
+	    unsigned char *string2, int size2, int pos,
+	    struct re_registers *regs, int mstop)
+#endif
 {
+#ifdef I18N4
+  register wchar_t *p = pbufp->buffer;
+  register wchar_t *pend = p + pbufp->used;
+  wchar_t *end1;	/* End of first string */
+  wchar_t *end2;	/* End of second string */
+  /* Pointer just past last char to consider matching */
+  wchar_t *end_match_1, *end_match_2;
+  register wchar_t *d, *dend;
+#else /* not I18N4 */
   register unsigned char *p = (unsigned char *) pbufp->buffer;
   register unsigned char *pend = p + pbufp->used;
   /* End of first string */
@@ -1053,6 +1303,7 @@ re_match_2 (pbufp, string1, size1, string2, size2, pos, regs, mstop)
   /* Pointer just past last char to consider matching */
   unsigned char *end_match_1, *end_match_2;
   register unsigned char *d, *dend;
+#endif /* not I18N4 */
   register int mcnt;
   unsigned char *translate = (unsigned char *) pbufp->translate;
 #ifdef emacs
@@ -1067,9 +1318,15 @@ re_match_2 (pbufp, string1, size1, string2, size2, pos, regs, mstop)
     If a failure happens and the innermost failure point is dormant,
     it discards that failure point and tries the next one. */
 
+#ifdef I18N4
+  wchar_t *initial_stack[2 * NFAILURES];
+  wchar_t **stackb = initial_stack;
+  wchar_t **stackp = stackb, **stacke = &stackb[2 * NFAILURES];
+#else
   unsigned char *initial_stack[2 * NFAILURES];
   unsigned char **stackb = initial_stack;
   unsigned char **stackp = stackb, **stacke = &stackb[2 * NFAILURES];
+#endif
 
   /* Information on the "contents" of registers.
      These are pointers into the input strings; they record
@@ -1082,9 +1339,15 @@ re_match_2 (pbufp, string1, size1, string2, size2, pos, regs, mstop)
      regstart_seg1[regnum] is true iff regstart[regnum] points into string1,
      and regend_seg1[regnum] is true iff regend[regnum] points into string1.  */
 
+#ifdef I18N4
+  wchar_t *regstart[RE_NREGS];
+  wchar_t *regend[RE_NREGS];
+  wchar_t regstart_seg1[RE_NREGS], regend_seg1[RE_NREGS];
+#else
   unsigned char *regstart[RE_NREGS];
   unsigned char *regend[RE_NREGS];
   unsigned char regstart_seg1[RE_NREGS], regend_seg1[RE_NREGS];
+#endif
 
   /* Set up pointers to ends of strings.
      Don't allow the second string to be empty unless both are empty.  */
@@ -1114,7 +1377,11 @@ re_match_2 (pbufp, string1, size1, string2, size2, pos, regs, mstop)
      to mark ones that no \( or \) has been seen for.  */
 
   for (mcnt = 0; mcnt < sizeof (regend) / sizeof (*regend); mcnt++)
+#ifdef I18N4
+    regend[mcnt] = (wchar_t *) -1;
+#else
     regend[mcnt] = (unsigned char *) -1;
+#endif
 
   /* `p' scans through the pattern as `d' scans through the data.
      `dend' is the end of the input string that `d' points within.
@@ -1155,7 +1422,11 @@ re_match_2 (pbufp, string1, size1, string2, size2, pos, regs, mstop)
  		regs->end[0] = d - string2 + size1;
  	      for (mcnt = 1; mcnt < RE_NREGS; mcnt++)
 		{
+#ifdef I18N4
+		  if (regend[mcnt] == (wchar_t *) -1)
+#else
 		  if (regend[mcnt] == (unsigned char *) -1)
+#endif
 		    {
 		      regs->start[mcnt] = -1;
 		      regs->end[mcnt] = -1;
@@ -1204,12 +1475,16 @@ re_match_2 (pbufp, string1, size1, string2, size2, pos, regs, mstop)
 	case duplicate:
 	  {
 	    int regno = *p++;   /* Get which register to match against */
+#ifdef I18N4
+	    register wchar_t *d2, *dend2;
+#else
 	    register unsigned char *d2, *dend2;
+#endif
 
 	    /* Don't allow matching a register that hasn't been used.
 	       This isn't fully reliable in the current version,
 	       but it is better than crashing.  */
-	    if ((LISP_WORD_TYPE) regend[regno] <= -1)
+	    if ((int) regend[regno] <= -1)
 	      goto fail;
 
 	    d2 = regstart[regno];
@@ -1237,7 +1512,11 @@ re_match_2 (pbufp, string1, size1, string2, size2, pos, regs, mstop)
 		/* Compare that many; failure if mismatch, else skip them. */
 		if (translate
 		    ? bcmp_translate (d, d2, mcnt, translate)
+#ifdef I18N4
+		    : memcmp (d, d2, mcnt * sizeof (wchar_t)))
+#else
 		    : memcmp (d, d2, mcnt))
+#endif
 		  goto fail;
 		d += mcnt, d2 += mcnt;
 	      }
@@ -1248,7 +1527,11 @@ re_match_2 (pbufp, string1, size1, string2, size2, pos, regs, mstop)
 	  /* fetch a data character */
 	  PREFETCH;
 	  /* Match anything but a newline.  */
+#ifdef I18N4
+	  if (DO_TRANSLATE (translate, *d++) == '\n')
+#else
 	  if ((translate ? translate[*d++] : *d++) == '\n')
+#endif
 	    goto fail;
 	  break;
 
@@ -1257,23 +1540,35 @@ re_match_2 (pbufp, string1, size1, string2, size2, pos, regs, mstop)
 	  {
 	    /* Nonzero for charset_not */
 	    int not = 0;
+#ifndef I18N4
 	    register int c;
+#endif
 	    if (*(p - 1) == (unsigned char) charset_not)
 	      not = 1;
 
 	    /* fetch a data character */
 	    PREFETCH;
 
+#ifndef I18N4
 	    if (translate)
 	      c = translate [*d];
 	    else
 	      c = *d;
+#endif
 
-	    if (c <  *p * BYTEWIDTH
+#ifdef I18N4
+	    if (wschr (p, DO_TRANSLATE (translate, *d)))
+#else
+	    if (c <  (int) (*p * BYTEWIDTH)
 		&& p[1 + c / BYTEWIDTH] & (1 << (c % BYTEWIDTH)))
+#endif
 	      not = !not;
 
+#ifdef I18N4
+	    p += wslen (p) + 1;
+#else
 	    p += 1 + *p;
+#endif
 
 	    if (!not) goto fail;
 	    d++;
@@ -1309,12 +1604,22 @@ re_match_2 (pbufp, string1, size1, string2, size2, pos, regs, mstop)
 	case on_failure_jump:
 	  if (stackp == stacke)
 	    {
+#ifdef I18N4
+	      wchar_t **stackx;
+#else
 	      unsigned char **stackx;
+#endif
 	      if (stacke - stackb > re_max_failures)
 		return -2;
+#ifdef I18N4
+	      stackx = (wchar_t **) alloca (2 * (stacke - stackb)
+					 * sizeof (wchar_t *));
+	      memcpy (stackx, stackb, (stacke - stackb) * sizeof (wchar_t *));
+#else
 	      stackx = (unsigned char **) alloca (2 * (stacke - stackb)
 					 * sizeof (char *));
 	      memcpy (stackx, stackb, (stacke - stackb) * sizeof (char *));
+#endif
 	      stackp = stackx + (stackp - stackb);
 	      stacke = stackx + 2 * (stacke - stackb);
 	      stackb = stackx;
@@ -1341,8 +1646,13 @@ re_match_2 (pbufp, string1, size1, string2, size2, pos, regs, mstop)
 	  else if (*p == (unsigned char) exactn
 		   || *p == (unsigned char) endline)
 	    {
+#ifdef I18N4
+	      register wchar_t c = *p == (wchar_t) endline ? '\n' : p[2];
+	      register wchar_t *p1 = p + mcnt;
+#else
 	      register int c = *p == (unsigned char) endline ? '\n' : p[2];
 	      register unsigned char *p1 = p + mcnt;
+#endif
 	      /* p1[0] ... p1[2] are an on_failure_jump.
 		 Examine what follows that */
 	      if (p1[3] == (unsigned char) exactn && p1[5] != c)
@@ -1351,8 +1661,12 @@ re_match_2 (pbufp, string1, size1, string2, size2, pos, regs, mstop)
 		       || p1[3] == (unsigned char) charset_not)
 		{
 		  int not = p1[3] == (unsigned char) charset_not;
-		  if (c <  p1[4] * BYTEWIDTH
+#ifdef I18N4
+		  if (wschr (&p1[4], c))
+#else
+		  if (c <  (int) (p1[4] * BYTEWIDTH)
 		      && p1[5 + c / BYTEWIDTH] & (1 << (c % BYTEWIDTH)))
+#endif
 		    not = !not;
 		  /* not is 1 if c would match */
 		  /* That means it is not safe to finalize */
@@ -1384,10 +1698,17 @@ re_match_2 (pbufp, string1, size1, string2, size2, pos, regs, mstop)
 	case dummy_failure_jump:
 	  if (stackp == stacke)
 	    {
+#ifdef I18N4
+	      wchar_t **stackx
+		= (wchar_t **) alloca (2 * (stacke - stackb)
+					     * sizeof (wchar_t *));
+	      memcpy (stackx, stackb, (stacke - stackb) * sizeof (wchar_t *));
+#else
 	      unsigned char **stackx
 		= (unsigned char **) alloca (2 * (stacke - stackb)
 					     * sizeof (char *));
 	      memcpy (stackx, stackb, (stacke - stackb) * sizeof (char *));
+#endif
 	      stackp = stackx + (stackp - stackb);
 	      stacke = stackx + 2 * (stacke - stackb);
 	      stackb = stackx;
@@ -1438,17 +1759,17 @@ re_match_2 (pbufp, string1, size1, string2, size2, pos, regs, mstop)
 
 #ifdef emacs
 	case before_dot:
-	  if (PTR_CHAR_POS (d) + 1 >= point)
+	  if (PTR_CHAR_POS (d) + 1 >= PT)
 	    goto fail;
 	  break;
 
 	case at_dot:
-	  if (PTR_CHAR_POS (d) + 1 != point)
+	  if (PTR_CHAR_POS (d) + 1 != PT)
 	    goto fail;
 	  break;
 
 	case after_dot:
-	  if (PTR_CHAR_POS (d) + 1 <= point)
+	  if (PTR_CHAR_POS (d) + 1 <= PT)
 	    goto fail;
 	  break;
 
@@ -1506,7 +1827,11 @@ re_match_2 (pbufp, string1, size1, string2, size2, pos, regs, mstop)
 	      do
 		{
 		  PREFETCH;
+#ifdef I18N4
+		  if (DO_TRANSLATE (translate, *d++) != *p++) goto fail;
+#else
 		  if (translate[*d++] != *p++) goto fail;
+#endif
 		}
 	      while (--mcnt);
 	    }
@@ -1520,6 +1845,8 @@ re_match_2 (pbufp, string1, size1, string2, size2, pos, regs, mstop)
 	      while (--mcnt);
 	    }
 	  break;
+        case unused:
+          break;
 	}
       continue;    /* Successfully matched one pattern command; keep matching */
 
@@ -1544,15 +1871,27 @@ re_match_2 (pbufp, string1, size1, string2, size2, pos, regs, mstop)
 }
 
 static int
-bcmp_translate (s1, s2, len, translate)
-     unsigned char *s1, *s2;
-     register int len;
-     unsigned char *translate;
+#ifdef I18N4
+bcmp_translate (wchar_t *s1, wchar_t *s2, register int len,
+		unsigned char *translate)
+#else
+bcmp_translate (unsigned char *s1, unsigned char *s2, register int len,
+		unsigned char *translate)
+#endif
 {
+#ifdef I18N4
+  register wchar_t *p1 = s1, *p2 = s2;
+#else
   register unsigned char *p1 = s1, *p2 = s2;
+#endif
   while (len)
     {
+#ifdef I18N4
+      if (DO_TRANSLATE (translate, *p1++) != DO_TRANSLATE (translate, *p2++))
+	return 1;
+#else
       if (translate [*p1++] != translate [*p2++]) return 1;
+#endif
       len--;
     }
   return 0;
@@ -1571,17 +1910,17 @@ re_comp (s)
   if (!s)
     {
       if (!re_comp_buf.buffer)
-	return "No previous regular expression";
+	return GETTEXT ("No previous regular expression");
       return 0;
     }
 
   if (!re_comp_buf.buffer)
     {
       if (!(re_comp_buf.buffer = (char *) xmalloc (200)))
-	return "Memory exhausted";
+	return GETTEXT ("Memory exhausted");
       re_comp_buf.allocated = 200;
       if (!(re_comp_buf.fastmap = (char *) xmalloc (1 << BYTEWIDTH)))
-	return "Memory exhausted";
+	return GETTEXT ("Memory exhausted");
     }
   return re_compile_pattern (s, strlen (s), &re_comp_buf);
 }
@@ -1669,10 +2008,11 @@ main (argc, argv)
 
 	  putchar ('\n');
 
-	  printf ("%d allocated, %d used.\n", buf.allocated, buf.used);
+	  printf (GETTEXT ("%d allocated, %d used.\n"),
+		  buf.allocated, buf.used);
 
 	  re_compile_fastmap (&buf);
-	  printf ("Allowed by fastmap: ");
+	  printf (GETTEXT ("Allowed by fastmap: "));
 	  for (i = 0; i < (1 << BYTEWIDTH); i++)
 	    if (fastmap[i]) printchar (i);
 	  putchar ('\n');
@@ -1681,7 +2021,7 @@ main (argc, argv)
       gets (pat);	/* Now read the string to match against */
 
       i = re_match (&buf, pat, strlen (pat), 0, 0);
-      printf ("Match value %d.\n", i);
+      printf (GETTEXT ("Match value %d.\n"), i);
     }
 }
 
@@ -1691,23 +2031,25 @@ print_buf (bufp)
 {
   int i;
 
-  printf ("buf is :\n----------------\n");
+  printf (GETTEXT ("buf is :\n----------------\n"));
   for (i = 0; i < bufp->used; i++)
     printchar (bufp->buffer[i]);
   
-  printf ("\n%d allocated, %d used.\n", bufp->allocated, bufp->used);
+  printf (GETTEXT ("\n%d allocated, %d used.\n"), bufp->allocated, bufp->used);
   
-  printf ("Allowed by fastmap: ");
+  printf (GETTEXT ("Allowed by fastmap: "));
   for (i = 0; i < (1 << BYTEWIDTH); i++)
     if (bufp->fastmap[i])
       printchar (i);
-  printf ("\nAllowed by translate: ");
+  printf (GETTEXT ("\nAllowed by translate: "));
   if (bufp->translate)
     for (i = 0; i < (1 << BYTEWIDTH); i++)
       if (bufp->translate[i])
 	printchar (i);
-  printf ("\nfastmap is%s accurate\n", bufp->fastmap_accurate ? "" : "n't");
-  printf ("can %s be null\n----------", bufp->can_be_null ? "" : "not");
+  printf (GETTEXT ("\nfastmap is%s accurate\n"),
+	  bufp->fastmap_accurate ? "" : "n't");
+  printf (GETTEXT ("can %s be null\n----------"),
+	  bufp->can_be_null ? "" : "not");
 }
 #endif
 

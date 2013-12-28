@@ -1,5 +1,5 @@
 /* Define screen-object for GNU Emacs.
-   Copyright (C) 1988, 1992, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1988, 1992, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -30,6 +30,7 @@ enum output_method
 };
 
 #include "dispextern.h"
+#include "scrollbar.h"
 
 struct screen
 {
@@ -46,6 +47,9 @@ struct screen
 
   /* Cost of deleting n lines on this screen */
   int *delete_n_lines_cost;
+
+  /* Is screen marked for deletion?  This is used in XSetErrorHandler().  */
+  int being_deleted;
 
   /* Intended cursor position of this screen.
      Measured in characters, counting from upper left corner
@@ -101,6 +105,10 @@ struct screen
   /* Vector representing the menubar currently displayed.  See menubar.c. */
   Lisp_Object menubar_data;
 
+  /* Status information for each scrollbar on screen.  See scrollbar.c. */
+  struct scrollbar_instance *scrollbar_instances;
+  int scrollbar_count;
+
   /* The output method says how the contents of this screen
      are displayed.  It could be using termcap, or using an X window.  */
   enum output_method output_method;
@@ -142,8 +150,8 @@ struct screen
   struct face**	faces;
   int n_faces;
 
-  /* the lisp data (shadowing the C data) */
-  Lisp_Object face_alist;
+  /* the lisp data (supplementing the C data, for now) */
+  Lisp_Object face_data;
 
   /* Fast access to current cursor position */
   struct window *cur_w;
@@ -161,7 +169,7 @@ struct screen
   int update;
 };
 
-extern const struct lrecord_implementation lrecord_screen[];
+extern CONST struct lrecord_implementation lrecord_screen[];
 
 #ifdef emacs
 
@@ -202,9 +210,6 @@ extern int screen_changed;
 #define SCREEN_MINIBUF_ONLY_P(s) \
   EQ (SCREEN_ROOT_WINDOW (s), SCREEN_MINIBUF_WINDOW (s))
 #define SCREEN_HAS_MINIBUF_P(s) ((s)->has_minibuffer)
-#define SCREEN_CURRENT_GLYPHS(s) (s)->current_glyphs
-#define SCREEN_DESIRED_GLYPHS(s) (s)->desired_glyphs
-#define SCREEN_TEMP_GLYPHS(s) (s)->temp_glyphs
 #define SCREEN_HEIGHT(s) (s)->height
 #define SCREEN_WIDTH(s) (s)->width
 #define SCREEN_NEW_HEIGHT(s) (s)->new_height
@@ -219,7 +224,6 @@ extern int screen_changed;
 #define SCREEN_MINIBUF_WINDOW(s) (s)->minibuffer_window
 #define SCREEN_ROOT_WINDOW(s) (s)->root_window
 #define SCREEN_SELECTED_WINDOW(s) (s)->selected_window
-#define SET_GLYPHS_SCREEN(glyphs,screen) ((glyphs)->screen = (screen))
 #define SCREEN_INSERT_COST(s) (s)->insert_line_cost    
 #define SCREEN_DELETE_COST(s) (s)->delete_line_cost    
 #define SCREEN_INSERTN_COST(s) (s)->insert_n_lines_cost
@@ -270,9 +274,6 @@ extern int selected_screen;
 
 #define SET_SCREEN_GARBAGED(s) (screen_garbaged = 1)
 #define SCREEN_IS_TERMCAP(s) 1
-#define SCREEN_CURRENT_GLYPHS(s) current_glyphs
-#define SCREEN_DESIRED_GLYPHS(s) desired_glyphs
-#define SCREEN_TEMP_GLYPHS(s) temp_glyphs
 #define SCREEN_HEIGHT(s) screen_height
 #define SCREEN_WIDTH(s) screen_width
 #define SCREEN_NEW_HEIGHT(s) delayed_screen_height
@@ -288,7 +289,6 @@ extern int selected_screen;
 #define SCREEN_ROOT_WINDOW(s) root_window
 #define SCREEN_SELECTED_WINDOW(s) selected_window
 #define SCREENP(s) 0
-#define SET_GLYPHS_SCREEN(glyphs,screen)
 #define SCREEN_INSERT_COST(screen)  insert_line_cost    
 #define SCREEN_DELETE_COST(screen)  delete_line_cost    
 #define SCREEN_INSERTN_COST(screen) insert_n_lines_cost
@@ -319,7 +319,7 @@ extern Lisp_Object prev_screen (Lisp_Object s, int mini, int visible_only);
 extern Lisp_Object get_screen_param (struct screen *screen, 
                                      Lisp_Object prop);
 extern void store_in_alist (Lisp_Object *alistptr, 
-                            const char *propname, 
+                            CONST char *propname, 
                             Lisp_Object val);
 extern void store_screen_param (struct screen *s, 
                                 Lisp_Object prop,

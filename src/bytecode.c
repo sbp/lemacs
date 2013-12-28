@@ -33,6 +33,7 @@ by Hallvard:
  */
 
 #include "config.h"
+#include "intl.h"
 #include "lisp.h"
 #include "buffer.h"
 #include "syntax.h"
@@ -296,10 +297,10 @@ If the third argument is incorrect, Emacs may crash.")
     {
 #ifdef BYTE_CODE_SAFE
       if (stackp > stacke)
-	error ("Byte code stack overflow (byte compiler bug), pc %d, depth %d",
+	error (GETTEXT ("Byte code stack overflow (byte compiler bug), pc %d, depth %d"),
 	       pc - detagged_string->data, stacke - stackp);
       if (stackp < stack)
-	error ("Byte code stack underflow (byte compiler bug), pc %d",
+	error (GETTEXT ("Byte code stack underflow (byte compiler bug), pc %d"),
 	       pc - detagged_string->data);
 #endif
 
@@ -468,14 +469,16 @@ If the third argument is incorrect, Emacs may crash.")
 
 	case BRgoto:
 	  QUIT;
-	  pc += *pc - 127;
+	  /* pc += *pc - 127; */
+	  pc = (unsigned char *) ((unsigned long) pc + *pc - 127);
 	  break;
 
 	case BRgotoifnil:
 	  if (NILP (POP))
 	    {
 	      QUIT;
-	      pc += *pc - 128;
+	      /* pc += *pc - 128; */
+	      pc = (unsigned char *) ((unsigned long) pc + *pc - 128);
 	    }
 	  pc++;
 	  break;
@@ -484,7 +487,8 @@ If the third argument is incorrect, Emacs may crash.")
 	  if (!NILP (POP))
 	    {
 	      QUIT;
-	      pc += *pc - 128;
+	      /* pc += *pc - 128; */
+	      pc = (unsigned char *) ((unsigned long) pc + *pc - 128);
 	    }
 	  pc++;
 	  break;
@@ -494,7 +498,8 @@ If the third argument is incorrect, Emacs may crash.")
 	  if (NILP (TOP))
 	    {
 	      QUIT;
-	      pc += op - 128;
+	      /* pc += op - 128; */
+	      pc = (unsigned char *) ((unsigned long) pc + op - 128);
 	    }
 	  else DISCARD (1);
 	  break;
@@ -504,7 +509,8 @@ If the third argument is incorrect, Emacs may crash.")
 	  if (!NILP (TOP))
 	    {
 	      QUIT;
-	      pc += op - 128;
+	      /* pc += op - 128; */
+	      pc = (unsigned char *) ((unsigned long) pc + op - 128);
 	    }
 	  else DISCARD (1);
 	  break;
@@ -829,7 +835,7 @@ If the third argument is incorrect, Emacs may crash.")
 	  break;
 
 	case Bpoint:
-	  v1 = make_number (point);
+	  v1 = make_number (PT);
 	  PUSH (v1);
 	  break;
 
@@ -862,12 +868,12 @@ If the third argument is incorrect, Emacs may crash.")
 	  break;
 
 	case Bfollowing_char:
-	  v1 = ((PT == ZV) ? Qzero : make_number (FETCH_CHAR (point)));
+	  v1 = ((PT == ZV) ? Qzero : make_number (FETCH_CHAR (PT)));
 	  PUSH (v1);
 	  break;
 
 	case Bpreceding_char:
-	  v1 = ((point <= BEGV) ? Qzero : make_number (FETCH_CHAR (point-1)));
+	  v1 = ((PT <= BEGV) ? Qzero : make_number (FETCH_CHAR (PT - 1)));
 	  PUSH (v1);
 	  break;
 
@@ -1067,22 +1073,22 @@ If the third argument is incorrect, Emacs may crash.")
 
 #ifdef BYTE_CODE_SAFE
 	case Bset_mark:
-	  error ("set-mark is an obsolete bytecode");
+	  error (GETTEXT ("set-mark is an obsolete bytecode"));
 	  break;
 	case Bscan_buffer:
-	  error ("scan-buffer is an obsolete bytecode");
+	  error (GETTEXT ("scan-buffer is an obsolete bytecode"));
 	  break;
 	case Bmark:
-	  error ("mark is an obsolete bytecode");
+	  error (GETTEXT ("mark is an obsolete bytecode"));
 	  break;
 #endif
 
 	default:
 #ifdef BYTE_CODE_SAFE
 	  if (op < Bconstant)
-	    error ("unknown bytecode %d (byte compiler bug)", op);
+	    error (GETTEXT ("unknown bytecode %d (byte compiler bug)"), op);
 	  if ((op -= Bconstant) >= const_length)
-	    error ("no constant number %d (byte compiler bug)", op);
+	    error (GETTEXT ("no constant number %d (byte compiler bug)"), op);
 	  PUSH (vectorp[op]);
 #else
 	  PUSH (vectorp[op - Bconstant]);
@@ -1095,7 +1101,7 @@ If the third argument is incorrect, Emacs may crash.")
   /* Binds and unbinds are supposed to be compiled balanced.  */
   if (specpdl_depth() != speccount)
 #ifdef BYTE_CODE_SAFE
-    error ("binding stack not balanced (serious byte compiler bug)");
+    error (GETTEXT ("binding stack not balanced (serious byte compiler bug)"));
 #else
     abort ();
 #endif

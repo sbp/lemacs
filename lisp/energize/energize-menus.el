@@ -109,14 +109,16 @@ functions that invoke them.")
 	(edit (or (assoc "Edit" default-menubar) (error "no Edit menu?")))
 	(buffers (or (assoc "Buffers" default-menubar)
 		     (error "no Buffers menu?"))))
-    (list
+   (list
 
  ;; The first thing in the menubar is the "sheet" button
  ["sheet" energize-toggle-psheet nil]
 
  ;; Add a "shutdown" menu item to the existing "File" menu.
  (append file
-	 (list (energize-def-menu-item "quit" 'energize-kill-server t)))
+	 (list (energize-def-menu-item "checkpoint"
+				       'energize-checkpoint-database)
+	       (energize-def-menu-item "quit" 'energize-kill-server t)))
      
  (append edit
 	 '("-----"
@@ -406,8 +408,10 @@ Otherwise, just runs the normal emacs `manual-entry' command."
 				(= 0 (logand 1 (aref item 3)))
 				(aref item 4))))
 		   choices)))
-      (setq energize-popup-menu (external-editor-hack-popup energize-popup-menu))
-      (popup-menu 'energize-popup-menu))))
+      (setq energize-popup-menu (external-editor-hack-popup
+				 energize-popup-menu))
+      (let ((popup-menu-titles nil))
+	(popup-menu 'energize-popup-menu)))))
 
 
 ;;; Functions to interactively execute menu items by their names.
@@ -415,7 +419,7 @@ Otherwise, just runs the normal emacs `manual-entry' command."
 (defun energize-menu-extent-at (pos buffer)
   (if (null pos)
       nil
-    (let ((extent (extent-at pos buffer 'menu)))
+    (let ((extent (energize-extent-at pos buffer)))
       (if (and extent (energize-extent-menu-p extent))
 	  extent
 	nil))))

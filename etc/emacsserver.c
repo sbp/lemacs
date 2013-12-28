@@ -57,6 +57,11 @@ main ()
 
 extern int errno;
 
+#if __STDC__
+#include <stdlib.h>
+#include <unistd.h>
+#endif
+
 void
 main ()
 {
@@ -67,9 +72,6 @@ main ()
   FILE *infile;
   FILE **openfiles;
   int openfiles_size;
-
-  int geteuid ();
-  char *getenv ();
 
   openfiles_size = 20;
   openfiles = (FILE **) malloc (openfiles_size * sizeof (FILE *));
@@ -160,7 +162,7 @@ main ()
 		abort ();
 	    }
 
-	  infile = fdopen (infd, "r+"); /* open stream */
+	  infile = (FILE *) fdopen (infd, "r+"); /* open stream */
 	  if (infile == NULL)
 	    {
 	      printf ("Too many clients.\n");

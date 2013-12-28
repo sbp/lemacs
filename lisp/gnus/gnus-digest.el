@@ -125,7 +125,7 @@
 ;; IMPLEMENTATION:
 ;;
 ;;   Selecting a message as a digest copies the message to a temporary buffer,
-;;   and parses it into sub-messages.  The message-serperators are removed,
+;;   and parses it into sub-messages.  The message-separators are removed,
 ;;   and dummy "Newsgroups" and "Message-ID" fields are inserted for each
 ;;   sub-message (so that followups and message-yanking works).  The variable
 ;;   gnus-newsgroup-headers is set to a vector of nntp-header structures

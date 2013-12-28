@@ -22,8 +22,14 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #if !defined(VMS) || !defined(LINK_CRTL_SHARE) || !defined(SHAREABLE_LIB_BUG)
 extern char **environ;
-#if !defined(NeXT) && !defined(__alpha) && !defined(MACH)
-extern const char *sys_errlist[];
+#if !defined(NeXT) && !defined(__alpha) && !defined(MACH) && !defined(LINUX) && !defined(IRIX) && !defined(__NetBSD__)
+/* Linux added here by Raymond L. Toy <toy@alydar.crd.ge.com> for Lemacs. */
+/* Irix added here by gparker@sni-usa.com for Lemacs. */
+/* NetBSD added here by James R Grinter <jrg@doc.ic.ac.uk> for Lemacs */
+extern CONST char *sys_errlist[];
+#endif
+#ifdef __NetBSD__
+extern char *sys_errlist[];
 #endif
 #else
 extern noshare char **environ;
@@ -118,18 +124,20 @@ extern int old_fcntl_owner;
 
 
 #ifndef USG5_4
-extern int sys_open (const char *path, int oflag, int mode);
+extern int sys_open (CONST char *path, int oflag, int mode);
 #endif
 
 extern int sys_close (int fd);
 
 extern int sys_read (int fildes, void *buf, unsigned int nbyte);
 
-extern int sys_write (int fildes, const void *buf, unsigned int nbyte);
+extern int sys_write (int fildes, CONST void *buf, unsigned int nbyte);
 
-extern const char *sys_siglist[];
+#ifndef	LINUX	/* Raymond L. Toy <toy@alydar.crd.ge.com> for Lemacs. */
+extern CONST char *sys_siglist[];
+#endif
 
-extern int sys_access (const char *path, int mode);
+extern int sys_access (CONST char *path, int mode);
 
 unsigned int sys_getuid (void);
 
@@ -142,18 +150,18 @@ extern char *getwd (char *pathname);
 #endif
 
 #ifndef HAVE_RENAME
-extern int rename (const char *from, const char *to);
+extern int rename (CONST char *from, CONST char *to);
 #endif
 
 extern int setpriority (int which, int who, int prio);
 
 #ifndef HAVE_VFORK
-extern int vfork (void);
+extern pid_t vfork (void);
 #endif
 
 #if defined(MISSING_UTIMES) || defined(IRIS_UTIME)
 struct timeval;
-extern int utimes (const char *file, const struct timeval *tvp);
+extern int utimes (CONST char *file, CONST struct timeval *tvp);
 #endif
 
 
@@ -168,7 +176,9 @@ extern int gettimeofday (struct timeval *, struct timezone *);
 #endif
 
 #if defined(SYSV_SYSTEM_DIR)
-#if !defined(AIX) && !defined(sun) && !defined(__alpha)
+#if !defined(AIX) && !defined(sun) && !defined(__alpha) && !defined(LINUX) && !defined(__OSF1__) && !defined(IRIX5)
+/* Linux added here by Raymond L. Toy <toy@alydar.crd.ge.com> for Lemacs. */
+/* IRIX5 added here by Daniel Rich <drich@lerc.nasa.gov> for lemacs */
 extern int closedir (DIR *dirp);
 #else
 extern int closedir ();
@@ -176,7 +186,7 @@ extern int closedir ();
 #endif
 
 #ifdef NONSYSTEM_DIR_LIBRARY
-extern DIR *opendir (const char *filename)
+extern DIR *opendir (CONST char *filename)
 extern int closedir (DIR *dirp);
 extern struct direct *readdir (DIR *dirp);
 extern struct direct *readdirver (DIR *dirp);

@@ -110,14 +110,12 @@ way.\nUse the `write-file' command instead."
 
 (defadvice next-error (around energize freeze)
   "This function has been encapsulated to work with the Energize Error Log."
-  (if (and (boundp 'compilation-error-list)
-	   (boundp 'compilation-error-buffer)
-	   compilation-error-list
-	   compilation-error-buffer
-	   (bufferp compilation-error-buffer)
-	   (buffer-name compilation-error-buffer))
+  (if (or (not (connected-to-energize-p))
+	  (non-energize-errors-exist-p))
       ad-do-it
-    (energize-execute-command (if (ad-get-arg 0) "previouserror" "nexterror"))))
+    (energize-execute-command (if (ad-get-arg 0)
+				  "previouserror"
+				"nexterror"))))
 
 (defadvice gdb-break (around energize freeze)
   "This function has been encapsulated to work with the Energize debugger."

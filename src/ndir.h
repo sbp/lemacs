@@ -14,7 +14,7 @@
 #ifndef RMS$_SUC
 #include <rmsdef.h>
 #endif
-#include "dir.h"
+#include "vms-dir.h"
 #endif /* VMS */
 
 #define DIRBLKSIZ	512		/* size of directory block */

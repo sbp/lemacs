@@ -128,30 +128,29 @@ All buffers will be displayed in the currently selected screen."
 
 ;;; Connecting and disconnecting
 
-(or energize-attributes-mapping 
+(or energize-attributes-mapping
     (setq energize-attributes-mapping
-	  '((1 bold)
-	    (2 italic)
-	    (3 bold-italic)
-	    (4 attributeSmall)
-	    (50 attributeGlyph)
-	    (51 attributeSectionHeader)
-	    (52 attributeToplevelFormGlyph)
-	    (53 attributeModifiedToplevelFormGlyph)
-	    (54 attributeBrowserHeader)
-	    (68 attributeWriteProtected)
-	    (69 attributeModifiedText)
-	    )))
+	  (purecopy
+	   '((0 . default)
+	     (1 . bold)
+	     (2 . italic)
+	     (3 . bold-italic)
+	     (4 . attributeSmall)
+	     (50 . attributeGlyph)
+	     (51 . attributeSectionHeader)
+	     (52 . attributeToplevelFormGlyph)
+	     (53 . attributeModifiedToplevelFormGlyph)
+	     (54 . attributeBrowserHeader)
+	     (68 . attributeWriteProtected)
+	     (69 . attributeModifiedText)
+	     ))))
 
 (defun energize-initialize-faces ()
-  (setq energize-attributes-mapping
-	(mapcar (function (lambda (l)
-			    (cons (car l)
-				  (cons (car (cdr l))
-					(face-id
-					 (or (find-face (car (cdr l)))
-					     (make-face (car (cdr l)))))))))
-		energize-attributes-mapping)))
+  (let ((rest energize-attributes-mapping))
+    (while rest
+      (let ((name (cdr (car rest))))
+	(or (find-face name) (make-face name))
+	(setq rest (cdr rest))))))
 
 (defun any-energize-buffers-p ()
   (let ((rest (buffer-list))
@@ -266,16 +265,19 @@ Has to be called after Emacs has been connected to Energize"
 		;; disabled here.
 		)
 	  (if (not (memq buffer buffers-to-avoid))
-	      (find-file-noselect filename)
+	      (progn
+		(message "Energizing buffer %s..." (buffer-name buffer))
+		(find-file-noselect filename))
 	    (message (format "Buffer %s not Energized." (buffer-name buffer)))
-	    (sit-for 1)))))))))
+	    (sit-for 1)))))
+      (message nil)))))
 
 (add-hook 'energize-connect-hook 'energize-all-buffers)
 
 
-;; This is called when the connection to Energize is lose (for whatever reason).
-;; We could just run the energize-disconnect-hook from C and put this function
-;; on it, but then the user could hurt themselves.
+;; This is called when the connection to Energize is lose (for whatever
+;; reason).   We could just run the energize-disconnect-hook from C and
+;; put this function on it, but then the user could hurt themselves.
 ;;
 (defun de-energize-all-buffers ()
   (save-excursion
@@ -291,8 +293,7 @@ Has to be called after Emacs has been connected to Energize"
 		    ((eq (energize-buffer-type buffer) 'energize-source-buffer)
 		     (map-extents
 		      (function (lambda (extent ignore)
-				  (if (eq 'energize-extent-data
-					  (car-safe (extent-data extent)))
+				  (if (extent-property extent 'energize)
 				      (delete-extent extent))
 				  nil))
 		      buffer)
@@ -367,15 +368,20 @@ Has to be called after Emacs has been connected to Energize"
 	  (t type))))
 
 (defun energize-extent-at (pos &optional buffer)
-  (let (e)
-    (map-extents (function (lambda (extent junk)
-			     (if (eq 'energize-extent-data
-				     (car-safe (extent-data extent)))
-				 ;; return non-nil
-				 (setq e extent))))
-		 (or buffer (current-buffer))
-		 pos pos nil t)
-    e))
+  (extent-at pos buffer 'energize))
+
+(defun non-energize-errors-exist-p ()
+  ;; Whether `next-error' executed right now should do the emacs thing.
+  ;; If we're in a *grep* or *compile* buffer, always do the emacs thing.
+  ;; If we're in the Error Log, always do the Energize thing.
+  ;; Otherwise, do the emacs thing if it would succeed; otherwise do the
+  ;; Energize thing.
+  (or (compilation-buffer-p (current-buffer))			; in *grep*
+      (and (not (eq (energize-buffer-type (current-buffer))	; in ErrLog
+		    'energize-error-log-buffer))
+	   ;; defined in compile.el (a lemacs addition).
+	   (compilation-errors-exist-p))))
+
 
 ;;; Misc Energize hook functions
 
@@ -448,7 +454,14 @@ Has to be called after Emacs has been connected to Energize"
 ;;; Buffer modified hook
 
 (defun energize-send-buffer-modified-1 (start end)
-  (energize-send-buffer-modified t start end))
+  (if (not (energize-buffer-p (current-buffer)))
+      nil
+    (map-extents #'(lambda (ext ignore)
+		     (and (extent-property ext 'energize)
+			  (set-extent-face ext 'attributeModifiedText))
+		     nil)
+		 (current-buffer) start end)
+    (energize-send-buffer-modified t start end)))
 
 (setq before-change-function 'energize-send-buffer-modified-1)
 
@@ -462,7 +475,19 @@ Has to be called after Emacs has been connected to Energize"
 
 ;;; set-buffer-modified-p hook
 
-(setq energize-buffer-modified-hook 'energize-send-buffer-modified)
+(defun energize-send-buffer-modified-2 (state start end)
+  (if (not (energize-buffer-p (current-buffer)))
+      nil
+    (if (not state)
+	(let ((e (next-extent (current-buffer))))
+	  (while e
+	    (if (and (extent-property e 'energize)
+		     (eq (extent-face e) 'attributeModifiedText))
+		(set-extent-face e nil))
+	    (setq e (next-extent e)))))
+    (energize-send-buffer-modified t start end)))
+
+(setq energize-buffer-modified-hook 'energize-send-buffer-modified-2)
 
 ;;; hook in editorside.c
 

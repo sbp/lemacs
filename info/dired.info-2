@@ -1,0 +1,1251 @@
+This is Info file ../info/dired.info, produced by Makeinfo-1.55 from
+the input file dired.texinfo.
+
+   This file documents Tree Dired, the GNU Emacs Directory Browser, and
+most of the extra features available as an option.
+
+   Copyright (C) 1991, 1992 Free Software Foundation
+
+   Permission is granted to make and distribute verbatim copies of this
+manual provided the copyright notice and this permission notice are
+preserved on all copies.
+
+   Permission is granted to copy and distribute modified versions of
+this manual under the conditions for verbatim copying, provided also
+that the section entitled "GNU General Public License" is included
+exactly as in the original, and provided that the entire resulting
+derived work is distributed under the terms of a permission notice
+identical to this one.
+
+   Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that the section entitled "GNU General Public License"
+may be included in a translation approved by the author instead of in
+the original English.
+
+
+File: dired.info,  Node: Dired User Options,  Next: Dired Configuration,  Prev: Dired Customization,  Up: Dired Customization
+
+Customization of Dired
+----------------------
+
+The following variables are for personal customization in your
+`~/.emacs' file.  For example, include a line similar to the following
+
+     (setq dired-listing-switches "-Alt")  ; sort on time, ignore . and ..
+
+   to set your favorite Dired listing switches.
+
+`dired-listing-switches'
+     Default: `"-al"'
+
+     Switches passed to `ls' for Dired. Must contain the `l' option.
+
+`dired-trivial-filenames'
+     Default: `"^\\.\\.?$\\|^#"'
+
+     Regexp of files to skip when moving point to the first file of a
+     new directory listing.  Nil means move to the subdirectory line, t
+     means move to first file.
+
+`dired-marker-char'
+     Default: `?*' (`?*' is the Lisp notation for the character `*'.)
+
+     In Dired, character used to mark files for later commands.
+
+     This is a variable so that one can write things like
+
+          (let ((dired-marker-char ?X))
+             ;; great code using X markers ...
+             )
+
+`dired-del-marker'
+     Default: `?D'
+
+     Character used to flag files for deletion.
+
+     Usually, marking for commands and flagging for deletion are
+     separate features.  (Internally they use the same marking
+     mechanism.)  You type `d' to flag with `D' and `x' to delete the
+     `D'-flagged files.
+
+     This explains how to make deletion behave just like a special case
+     of the general file marking feature, so that you type `m' to mark
+     with `*' (as usual) and `d' to delete the `*' (or next N) files:
+     In your `~/.emacs', include
+
+          (setq dired-del-marker dired-marker-char) ; use * also for deletions
+          (setq dired-load-hook
+                (function
+                 (lambda ()
+                   ;; other customizations here
+                   ;; let "d" do the actual deletion:
+                   (define-key dired-mode-map "d" 'dired-do-delete))))
+
+     If you do not like that `d' defaults to the current file if there
+     are no marks, replace the `define-key' statement in
+     `dired-load-hook' above with this one:
+
+              (define-key dired-mode-map "d" 'dired-do-deletions)
+
+`dired-shrink-to-fit'
+     Default: `(if (fboundp 'baud-rate) (> (baud-rate)
+     search-slow-speed) t)'
+
+     Whether Dired shrinks the display buffer to fit the marked files.
+
+`dired-no-confirm'
+     Default: `nil'
+
+     If non-nil, list of commands Dired should not confirm.
+     Confirmation for commands that require an argument to be entered
+     (like the shell command for `!') means a list of marked files is
+     displayed in a pop-up buffer.  Confirmation for commands that do
+     not require an argument (like compressing with `C') means you have
+     to confirm by typing `y' or `SPC'.
+
+     Except `nil', it can be a sublist of
+
+          '(byte-compile chgrp chmod chown compress copy delete hardlink load
+            move print shell symlink uncompress)
+
+     to suppress confirmation for just those commands.
+
+`dired-keep-marker-move'
+     Default: `t'
+
+     If nil, moved files are not marked.
+
+     If t, moved marked files are marked with the same marker they had
+     before (maybe none if you used the prefix argument to specify the
+     next N files).
+
+     If a character, moved files (marked or not) are marked with that
+     character.
+
+     This also applies to the following, similar variables for copied,
+     and hard or symbolically linked files:
+
+`dired-keep-marker-copy'
+     Default: `?C'
+
+`dired-keep-marker-hardlink'
+     Default: `?H'
+
+`dired-keep-marker-symlink'
+     Default: `?Y'
+
+`dired-dwim-target'
+     Default: `nil'
+
+     If non-nil, Dired tries to guess a default target directory: If
+     there is a Dired buffer displayed in the next window, use its
+     current subdirectory, instead of the current subdirectory of this
+     Dired buffer.
+
+     The target is used in the prompt for file copy, move etc., *Note
+     Copy and Move Into a Directory::.
+
+`dired-copy-preserve-time'
+     Default: `nil'
+
+     If non-nil, Dired preserves the last-modified time in a file copy.
+     (This works on only some systems.)  Use `c' (`dired-do-copy') with
+     a zero prefix argument to toggle its value.  The prompt of copy
+     commands will display `Copy [-p]' instead of just `Copy' if
+     preservation of file times is turned on.
+
+`dired-backup-if-overwrite'
+     Default: `nil'
+
+     Non-nil if Dired should ask about making backups before
+     overwriting files.  Special value `'always' suppresses
+     confirmation.
+
+
+File: dired.info,  Node: Dired Configuration,  Next: Dired Hooks,  Prev: Dired User Options,  Up: Dired Customization
+
+Dired Configuration
+-------------------
+
+   The following variables should have already been installed correctly
+by your system manager.  If not, you can still set them in your
+`~/.emacs' file.
+
+`dired-chown-program'
+     Pathname of chown command, default `"chown"' (or `"/etc/chown"' on
+     System V derived systems.)
+
+`dired-ls-program'
+     Absolute or relative name of the `ls' program used by Dired,
+     default `"ls"'.
+
+`dired-ls-F-marks-symlinks'
+     Set this to `t' if dired-ls-program with `-lF' marks the symbolic
+     link itself with a trailing `@' (usually the case under Ultrix).
+
+     Example: If
+
+          ln -s foo bar; ls -F bar
+
+     gives
+
+          bar -> foo
+
+     set it to `nil', if it gives
+
+          bar@ -> foo
+
+     set it to `t'.
+
+     Dired checks if there is really a @ appended.  Thus, if you have a
+     marking `ls' program on one host and a non-marking one on another
+     host, and do not care about symbolic links which really end in a
+     @, you can always set this variable to `t'.
+
+
+File: dired.info,  Node: Dired Hooks,  Prev: Dired Configuration,  Up: Dired Customization
+
+Dired Hooks
+-----------
+
+Hook variables can contain functions that are run at certain times in
+Dired.
+
+`dired-load-hook'
+     Run after loading Dired.  You can customize key bindings or load
+     extensions with this.  For example:
+
+          (setq dired-load-hook
+                (function
+                 (lambda ()
+                  ;; Load extras:
+                  (load "dired-x")
+                  ;; How to define your own key bindings:
+                  (define-key dired-mode-map " " 'scroll-up)
+                  (define-key dired-mode-map "b" 'scroll-down))))
+
+`dired-mode-hook'
+     Run at the very end of `dired-mode', after most buffer local
+     variables have been initialized (e.g., `default-directory' and
+     `dired-directory'), but before the directory listing has been read
+     in.
+
+     Do buffer local things here, for example:
+
+          (setq dired-mode-hook
+                (function
+                 (lambda ()
+                   (dired-extra-startup)	 ;; dired-extra support
+                   ;; How to set (local) variables in each new Dired buffer:
+                   (setq case-fold-search t)
+                   (setq truncate-lines t))))
+
+     Since the listing has not yet been inserted you could still change
+     `dired-actual-switches'.  For example, if you use `ange-ftp.el',
+     you might want to replace the `-A' with the `-a' switch, depending
+     on whether `default-directory' corresponds to a System V hosts
+     that does not understand all BSD `ls' switches.  The
+     `dired.README' file gives an example.  If you set
+     `dired-actual-switches' remember that you may also have to set
+     `dired-sort-mode' to the appropriate string so that the modeline
+     looks right.
+
+     Do not set `dired-mode-hook' inside your `dired-load-hook', simply
+     set it somewhere in your `~/.emacs' (before Dired is loaded, if
+     you explicitly load Dired).  This is so that extensions packages
+     loaded via the load hook can add things to the `dired-mode-hook' at
+     the front or at the end, as they see fit.
+
+     In case you set `truncate-lines' to `t' as in the above example,
+     here is a function to toggle the value of `truncate-lines', in
+     Dired and other buffers:
+          (defun set-truncate-lines ()
+            "Toggle value of truncate-lines and refresh window display."
+            (interactive)
+            (setq truncate-lines (not truncate-lines))
+            ;; now refresh window display (an idiom from simple.el):
+            (save-excursion
+              (set-window-start (selected-window)
+                                (window-start (selected-window)))))
+     You could bind it to `C-x 4 $':
+          (define-key ctl-x-4-map "$" 'set-truncate-lines)
+     It is sometimes useful to toggle `truncate-lines' in Dired buffers
+     to make long filenames completely visible and get the listing
+     properly aligned again.
+
+`dired-before-readin-hook'
+     This hook is run before a dired buffer is newly read in (created
+     or reverted).
+
+`dired-after-readin-hook'
+     After each listing of a file or directory, this hook is run with
+     the buffer narrowed to the listing.
+
+     The `dired-subdir-alist' has already been updated so that the usual
+     Dired functions like `dired-get-filename' work.  It is possible to
+     modify the buffer with this hook.  The package `dired-x.el' does
+     this to implement omitting certain uninteresting files from a Dired
+     buffer.  Under X11, highlighting of certain files is also possible
+     (see package `dired-x11.el').
+
+
+File: dired.info,  Node: Tree Dired Extra,  Next: Dired Internals,  Prev: Dired,  Up: Top
+
+Tree Dired Extra features
+*************************
+
+   Numerous "extra" features are available, such as omitting certain
+files from listings, minibuffer history, RCS related commands, and more.
+
+* Menu:
+
+* Tree Dired Extra Features::
+* Dired Minibuffer History::
+* Inserting All Marked Subdirectories::
+* Dynamic Dired Markers::
+* Omitting Files in Dired::
+* Advanced Dired Mark Commands::
+* Virtual Dired::
+* Multiple Dired Directories::
+* Dired Local Variables::
+* Making Relative Symbolic Links in Dired::
+* Letting Dired Guess What Shell Command to Apply::
+* dired-trns.el::		Filename Transformers for Dired Shell Commands
+* dired-cd.el::			Changing the Working Directory for Dired Shell Commands
+* dired-nstd.el::		Nested Dired format
+* find-dired.el::		Feeding Find Output to Dired
+
+
+File: dired.info,  Node: Tree Dired Extra Features,  Next: Dired Minibuffer History,  Prev: Tree Dired Extra,  Up: Tree Dired Extra
+
+Tree Dired Extra Features
+=========================
+
+   The rest of this manual describes the extra features provided by the
+file `dired-x.el' and some other files.
+
+   To take advantage of these features, you must load the file and set
+some variables and hooks.  See the accompanying `dired-x.README' file
+for details and a template of code to insert in your `.emacs'.
+
+   Miscellanous features not fitting anywhere else:
+
+   Variables:
+
+`dired-find-subdir'
+     Default: `nil'
+
+     If non-nil, Dired does not make a new buffer for a directory if it
+     can be found (perhaps as subdirectory) in some existing Dired
+     buffer.
+
+     If there are several Dired buffers for a directory, the most
+     recently used is chosen.
+
+     Dired avoids switching to the current buffer, so that if you have a
+     normal and a wildcard buffer for the same directory, `C-x d RET'
+     will toggle between those two.
+
+`M-g'
+     (`dired-goto-file') Goto file line of a file (or directory).
+
+`M-G'
+     (`dired-goto-subdir') Goto headerline of an inserted directory.
+     This commands reads its argument with completion over the names of
+     the inserted subdirectories.
+
+`&'
+     (`dired-do-background-shell-command') Run a shell command on the
+     marked files, in the background.  This requires `background.el'
+     from Olin Shiver's comint package to work.  Note that you can type
+     input to the command in its buffer.
+
+`w'
+     (`dired-copy-filename-as-kill') The `w' command puts the names of
+     the marked (or next N) files into the kill ring, as if you had
+     killed them with `C-w'.  With a zero prefix argument N=0, use the
+     complete pathname of each file.  With a raw (just `C-u') prefix
+     argument, use the relative pathname of each marked file.  As a
+     special case, if no prefix argument is given and point is on a
+     directory headerline, it gives you the name of that directory,
+     without looking for marked files.
+
+     The list of names is also stored onto the variable
+     `dired-marked-files' for use, e.g., in an `ESC ESC'
+     (`eval-expression') command.
+
+     As this command also displays what was pushed onto the kill ring
+     you can use it to display the list of currently marked files in the
+     echo area (unless you happen to be on a subdirectory headerline).
+
+     You can then feed the file name to other Emacs commands with `C-y'.
+     For example, say you want to rename a long filename to a slightly
+     different name.  First type `w' to push the old name onto the kill
+     ring.  Then type `r' to rename it and use `C-y' inside `r''s
+     minibuffer prompt to insert the old name at a convenient place.
+
+`T'
+     (`dired-do-toggle') Toggle marks.  That is, currently marked files
+     become unmarked and vice versa.  Files marked with other flags
+     (such as `D') are not affected.  The special directories `.' and
+     `..' are never toggled.
+
+
+File: dired.info,  Node: Dired Minibuffer History,  Next: Inserting All Marked Subdirectories,  Prev: Tree Dired Extra Features,  Up: Tree Dired Extra
+
+Minibuffer History for Dired Shell Commands
+===========================================
+
+   If `dired-x.el' determines at load-time that the Gmhist package is
+available, the Dired shell commands `!' and `&' maintain a history of
+commands.  Use `M-p' and `M-n' to scroll through them while you are
+prompted in the minibuffer for a shell command.  *Note Gmhist Keys in
+the Minibuffer: (gmhist)Gmhist Keys in the Minibuffer, for more info.
+
+   Gmhist also handles defaults:
+
+`dired-dangerous-shell-command'
+     Default: `"rm"'
+
+     Regexp for dangerous shell commands that should never be the
+     default.  It is deliberately chosen to match `rm' anywhere in the
+     command, e.g. in `rmdir'.
+
+
+File: dired.info,  Node: Inserting All Marked Subdirectories,  Next: Dynamic Dired Markers,  Prev: Dired Minibuffer History,  Up: Tree Dired Extra
+
+Insert all marked subdirectories
+================================
+
+`I'
+     (`dired-do-insert-subdir') Insert all marked subdirectories that
+     are not already inserted.  Non-directories are silently ignored.
+
+     Thus type `/I' to insert one more level of subdirectories.  You can
+     repeat this until no new directories are inserted to fully expand
+     the directory tree in this buffer.  As a faster alternative, use
+     the prefix argument for `C-x d' (`dired') to add `R' to the
+     switches.
+
+
+File: dired.info,  Node: Dynamic Dired Markers,  Next: Omitting Files in Dired,  Prev: Inserting All Marked Subdirectories,  Up: Tree Dired Extra
+
+Dynamic Marker Characters
+=========================
+
+   You can change the marker character from its usual value `*' to
+something else.  Use this to mark a different set of files while keeping
+the information on the already marked files.  You can nest several
+marker characters.  The current stack of marker characters is displayed
+in the Dired mode line, and all prompts of mark-using commands mention
+to which marker they apply.
+
+`('
+     (`dired-set-marker-char') Set the marker character to something
+     else.  Use `)' to restore the previous value.
+
+`)'
+     (`dired-restore-marker-char') Restore the marker character to its
+     previous value.  Uses `dired-default-marker' if the marker stack is
+     empty.
+
+   Instead of using `m' inside a `('...`)', you can mark files "in
+passing" with, say `Z' without changing the current marker character.
+You will probably later use `(' to temporarily make `Z' to the marker
+and do something on the `Z'-files, and then return using `)'.
+
+`dired-mark-keys'
+     Default: `'("Z")'
+
+     List of keys (strings) that insert themselves as file markers.
+
+
+File: dired.info,  Node: Omitting Files in Dired,  Next: Advanced Dired Mark Commands,  Prev: Dynamic Dired Markers,  Up: Tree Dired Extra
+
+Omitting Files in Dired
+=======================
+
+   "Omitting" a file means removing it from the directory listing.
+Omitting is useful for keeping Dired buffers free of uninteresting files
+(for instance, auto-save, auxiliary, backup, and revision control files)
+so that the user can concentrate on the interesting files.  Like hidden
+files, omitted files are never seen by Dired.  *Note Hiding in Dired:
+(dired)Dired Hiding.  Omitting differs from hiding in several respects:
+
+   * Omitting works on individual files, not on directories; an entire
+     directory cannot be omitted (though each of its files could be).
+
+   * Omitting is wholesale; if omitting is turned on for a dired
+     buffer, then all "uninteresting" files listed in that buffer are
+     omitted.  The user does not omit (or unomit) files one at a time.
+
+   * Omitting can be automatic; uninteresting file lines in the buffer
+     can be removed before the user ever sees them.
+
+   * Marked files are never omitted.
+
+`M-o'
+     (`dired-omit-toggle') Toggle between displaying and omitting
+     "uninteresting" files.  With a prefix argument, don't toggle and
+     just mark the files, but don't actually omit them.
+
+   In order to make omitting work, you must have `dired-omit-expunge'
+on your `dired-after-readin-hook', and you must call
+`dired-omit-startup' (or `dired-extra-startup', which calls
+`dired-omit-startup') in your `dired-mode-hook'.  Simply loading
+`dired-x.el' inside `dired-load-hook' takes care of all this.
+
+   The following variables can be used to customize omitting.
+
+`dired-omit-files-p'
+     Default: `nil'
+
+     If non-nil, "uninteresting" files are not listed.  Uninteresting
+     files are those whose filenames match regexp `dired-omit-files',
+     plus those ending with extensions in `dired-omit-extensions'.
+     `M-o' (`dired-omit-toggle') toggles its value, which is
+     buffer-local.  Do
+
+          (setq dired-omit-files-p t)
+
+     inside your `dired-mode-hook' to have omitting initially turned on
+     in every Dired buffer.  Since `dired-x.el' prepends the form
+     `(dired-extra-startup)' to what you put yourself in your
+     `dired-mode-hook', the `setq' will take place after
+     `dired-omit-files-p' has already been made local to the current
+     Dired buffer, so modelines of non-dired buffers are not affected.
+     For this to work you shouldn't set `dired-mode-hook' inside
+     `dired-load-hook', but directly in your `~/.emacs' (before Dired
+     is loaded, if you explicitly load Dired).
+
+     You can then use `M-o' to unomit in that buffer.
+
+`dired-omit-files'
+     Default: `"^#\\|\\.$"'
+
+     Filenames matching this buffer-local regexp will not be displayed.
+     This only has effect when `dired-omit-files-p' is t.
+
+     The default value omits the special directories `.' and `..' and
+     autosave files (plus other files ending in ".").
+
+`dired-omit-extensions'
+     Default: The elements of `completion-ignored-extensions',
+     `latex-unclean-extensions', `bibtex-unclean-extensions' and
+     `texinfo-unclean-extensions'.
+
+     If non-nil, a list of extensions (strings) to omit from Dired
+     listings.  Its format is the same as that of
+     `completion-ignored-extensions'.
+
+`dired-omit-localp'
+     Default:  `'no-dir'
+
+     The LOCALP argument `dired-omit-expunge' passes to
+     `dired-get-filename'.  If it is `'no-dir', omitting is much
+     faster, but you can only match against the non-directory part of
+     the filename.  Set it to `nil' if you need to match the whole
+     pathname or `t' to match the pathname relative to the buffer's
+     top-level directory.
+
+`dired-omit-marker-char'
+     Default: `C-o'
+
+     Temporary marker used by by Dired to implement omitting.  Should
+     never be used as marker by the user or other packages.  There is
+     one exception to this rule: by doing
+          (setq dired-mark-keys "\C-o")
+          ;; i.e., the value of dired-omit-marker-char
+          ;; (which is not defined yet)
+     anywhere in your `~/.emacs', you will bind the `C-o' key to insert
+     a C-o marker, thus causing these files to be omitted in addition
+     to the usually omitted files.  Unfortunately the files you omitted
+     manually this way will show up again after reverting the buffer,
+     unlike the others.
+
+   To avoid seeing RCS files and the RCS directory, do
+     (setq dired-omit-files "\\.$\\|#\\|^RCS$\\|,v$")
+   This assumes `dired-omit-localp' has its default value of `'no-dir'
+to make the `^'-anchored matches work.  As a slower alternative, with
+`dired-omit-localp' set to `nil', you can use `/' instead of `^' in the
+regexp.
+
+   If you use tib, the bibliography program for use with TeX and LaTeX,
+you might want to omit the `INDEX' and the `-t.tex' files:
+     (setq dired-omit-files "\\.$\\|#\\|^INDEX$\\|-t\\.tex$")
+
+
+File: dired.info,  Node: Advanced Dired Mark Commands,  Next: Virtual Dired,  Prev: Omitting Files in Dired,  Up: Tree Dired Extra
+
+Advanced Mark Commands
+======================
+
+`M-('
+     (`dired-mark-sexp') Mark files for which PREDICATE returns non-nil.
+     With a prefix argument, unflag those files instead.
+
+     The PREDICATE is a lisp expression that can refer to the following
+     symbols:
+    `inode'
+          [integer] the inode of the file (only for `ls -i' output)
+
+    `s'
+          [integer] the size of the file for `ls -s' output (usually in
+          blocks or, with `-k', in KBytes)
+
+    `mode'
+          [string]  file permission bits, e.g., `"-rw-r--r--"'
+
+    `nlink'
+          [integer] number of links to file
+
+    `uid'
+          [string]  owner
+
+    `gid'
+          [string]  group  (If the gid is not displayed by `ls', this
+          will still be set (to the same as uid))
+
+    `size'
+          [integer] file size in bytes
+
+    `time'
+          [string]  the time that `ls' displays, e.g., `"Feb 12 14:17"'
+
+    `name'
+          [string]  the name of the file
+
+    `sym'
+          [string]  if file is a symbolic link, the linked-to name,
+          else `""'
+
+     For example, use
+          (equal 0 size)
+     to mark all zero length files.
+
+     To find out all not yet compiled Emacs lisp files in a directory,
+     dired all `.el' files in the lisp directory using the wildcard
+     `*.el'.  Then use `M-(' with
+          (not (file-exists-p (concat name "c")))
+     to mark all `.el' files without a corresponding `.elc' file.
+
+`M-M'
+     (`dired-do-unmark') Unmark marked files by replacing the marker
+     with another character.  The new character defaults to a space,
+     effectively unmarking them.
+
+`,'
+     (`dired-mark-rcs-files') Mark all files that are under RCS control.
+     With prefix argument, unflag all those files.  Mentions RCS files
+     for which a working file was not found in this buffer.  Type `W'
+     (`dired-why') to see them again.
+
+`C-m C-c'
+     (`C-m C-c' is the suggested binding for
+     `dired-mark-files-compilation-buffer', it is not bound by default.)
+     Mark the files mentioned in the `*compilation*' buffer.  With an
+     argument, you may specify the other buffer and your own regexp
+     instead of `compilation-error-regexp'.  Use `^.+$' (the default
+     with a prefix argument) to match complete lines.  In conjunction
+     with narrowing the other buffer you can mark an arbitrary list of
+     files, one per line, with this command.  If your regexp contains a
+     subexpression, i.e.  `\(...\)', that subexpression is taken for
+     the file name, else the whole match is used.  Thus you can easily
+     strip pre- and suffixes from filenames by using
+     `PREFIX\(.+\)POSTFIX' as regexp.
+
+     This is especially useful for a list of files obtained from `M-x
+     grep' or output from a similar shell command.
+
+`C-m C-d'
+     (`C-m C-d' is the suggested binding for
+     `dired-mark-files-from-other-dired-buffer', it is not bound by
+     default.) Mark those files in this Dired buffer that have the same
+     name as the marked files in the Dired buffer in the other window.
+
+     In short, mark the corresponding files from the other Dired buffer.
+
+`F'
+     (`dired-do-find-file') Visit all marked files at once, and display
+     them simultaneously.  If you want to keep the dired buffer
+     displayed, type `C-x 2' first.  If you want just the marked files
+     displayed and nothing else, type `C-x 1' first.
+
+     The current window is split across all files.  Remaining lines go
+     to the last window.
+
+     The number of files that can be displayed this way is restricted
+     by the height of the current window and the variable
+     `window-min-height'.
+
+`dired-mark-extension'
+     Mark all files with a certain extension for use in later commands.
+     A `.' is not automatically prepended to the string entered.
+
+     When called from lisp, EXTENSION may also be a list of extensions
+     and an optional argument MARKER-CHAR specifies the marker used.
+
+`dired-flag-extension'
+     Flag all files with a certain extension for deletion.  A `.' is
+     *not* automatically prepended to the string entered.
+
+`dired-clean-patch'
+     Flag dispensable files created by the `patch' program for deletion.
+     See variable `patch-unclean-extensions'.
+
+`dired-clean-tex'
+     Flag dispensable files created by TeX, LaTeX and `texinfo' for
+     deletion.  See variables `tex-unclean-extensions',
+     `texinfo-unclean-extensions', `latex-unclean-extensions' and
+     `bibtex-unclean-extensions'.
+
+   Variables used by the above cleanup commands (and in the default
+value for variable `dired-omit-extensions'):
+
+`patch-unclean-extensions'
+     Default:  `'(".rej" ".orig")'
+
+     List of extensions of dispensable files created by the `patch'
+     program.
+
+`tex-unclean-extensions'
+     Default:  `'(".toc" ".log" ".aux")'
+
+     List of extensions of dispensable files created by TeX.
+
+`texinfo-unclean-extensions'
+     Default: `'(".cp" ".cps" ".fn" ".fns" ".ky" ".kys" ".pg" ".pgs"
+     ".tp" ".tps" ".vr" ".vrs")'
+
+     List of extensions of dispensable files created by texinfo.
+
+`latex-unclean-extensions'
+     Default: `'(".idx" ".lof" ".lot" ".glo")'
+
+     List of extensions of dispensable files created by LaTeX.
+
+`bibtex-unclean-extensions'
+     Default:  `'(".blg" ".bbl")'
+
+     List of extensions of dispensable files created by BibTeX.
+
+
+File: dired.info,  Node: Virtual Dired,  Next: Multiple Dired Directories,  Prev: Advanced Dired Mark Commands,  Up: Tree Dired Extra
+
+Virtual Dired
+=============
+
+   Using "Virtual Dired" means putting a buffer with Dired-like
+contents in Dired mode.  The files described by the buffer contents need
+not actually exist.  This is useful if you want to peruse an `ls -lR'
+output file, for example one you got from an FTP server.  You can use
+all motion commands usually available in Tree Dired.  You can also use
+it to save a Dired buffer in a file and resume it in a later session.
+
+   Type `M-x dired-virtual' to put the current buffer into virtual
+Dired mode.  You will be prompted for the top level directory of this
+buffer, with a default value guessed from the buffer contents.  To
+convert the virtual to a real Dired buffer again, type `g' (which calls
+`dired-virtual-revert') in the virtual Dired buffer and answer `y'.
+You don't have to do this, though: you can relist single subdirectories
+using `l' (`dired-do-redisplay') on the subdirectory headerline,
+leaving the buffer in virtual Dired mode all the time.
+
+   The function `dired-virtual-mode' is specially designed to turn on
+virtual Dired mode from the `auto-mode-alist'.  To automatically edit
+all `*.dired' files in virtual Dired mode, put this into your
+`~/.emacs':
+
+     (setq auto-mode-alist (cons '("[^/]\\.dired$" . dired-virtual-mode)
+                                   auto-mode-alist))
+
+   The regexp is a bit more complicated than usual to exclude ".dired"
+local variable files.
+
+
+File: dired.info,  Node: Multiple Dired Directories,  Next: Dired Local Variables,  Prev: Virtual Dired,  Up: Tree Dired Extra
+
+Multiple Dired Directories and Non-Dired Commands
+=================================================
+
+   An Emacs buffer can have but one working directory, stored in the
+buffer-local variable `default-directory'.  A Dired buffer may have
+several subdirectories inserted, but still has but one working
+directory: that of the top level Dired directory in that buffer.  For
+some commands it is appropriate that they use the current Dired
+directory instead of `default-directory', e.g., `find-file' and
+`compile'.
+
+   A general mechanism is provided for special handling of the working
+directory in special major modes:
+
+`default-directory-alist'
+     Default: `((dired-mode . (dired-current-directory)))'
+
+     Alist of major modes and their opinion on `default-directory', as a
+     lisp expression to evaluate.  A resulting value of `nil' is ignored
+     in favor of `default-directory'.
+
+`default-directory'
+     Function with usage like variable `default-directory', but knows
+     about the special cases in variable `default-directory-alist'.
+
+   The following dired-x commands take special care about the current
+Dired directory:
+
+`find-this-file'
+     Bind this to `C-x C-f' as a replacement for `find-file' that will
+     prompt for the filename within the current Dired subdirectory, not
+     the top level directory.
+
+`find-this-file-other-window'
+     Bind this to `C-x 4 C-f' as a replacement for
+     `find-file-other-window'.
+
+`dired-smart-shell-command'
+     Like function `shell-command', but in the current Tree Dired
+     directory.  Bound to `M-!' in Dired buffers.
+
+`dired-smart-background-shell-command'
+     Like function `background', but in the current Tree Dired
+     directory.  Bound to `M-&' in Dired buffers.
+
+`dired-jump-back'
+     (Suggested binding `C-x j') Jump back to dired: If in a file, dired
+     the current directory and move to file's line.  If in Dired
+     already, pop up a level and goto old directory's line.  In case
+     the proper Dired file line cannot be found, refresh the Dired
+     buffer and try again.
+
+`dired-jump-back-other-window'
+     (Suggested binding `C-x 4 j') Like `dired-jump-back', but to other
+     window.
+
+`dired-vm'
+     (`V') Run VM on this file (assumed to be a UNIX mail folder).
+     Further `v' commands from within VM in that folder will default to
+     the folder's directory, not the usual `vm-folder-directory'.
+
+     If you give this command a prefix argument, it will visit the
+     folder read-only.  This only works in VM 5, not VM 4.
+
+     If the variable `dired-vm-read-only-folders' is t, `dired-vm' will
+     visit all folders read-only.  If it is neither `nil' nor `t',
+     e.g., the symbol `'if-file-read-only', only files not writable by
+     you are visited read-only.  This is the recommended value if you
+     run VM 5.
+
+`dired-rmail'
+     Run Rmail on this file (assumed to be mail folder in Rmail/BABYL
+     format).
+
+
+File: dired.info,  Node: Dired Local Variables,  Next: Making Relative Symbolic Links in Dired,  Prev: Multiple Dired Directories,  Up: Tree Dired Extra
+
+Local Variables for Dired Directories
+=====================================
+
+   When Dired visits a directory, it looks for a file whose name is the
+value of variable `dired-local-variables-file' (default: `.dired').  If
+such a file is found, Dired will temporarily insert it into the Dired
+buffer and run `hack-local-variables'.  *Note Local Variables in Files:
+(emacs)File Variables.  You can set `dired-local-variables-file' to
+`nil' to suppress this.
+
+   For example, put
+
+     Local Variables:
+     dired-actual-switches: "-lat"
+     dired-sort-mode: " by date"
+     End:
+
+   into a `.dired' file of a directory to sort by date only in that
+directory.  Note that since `dired-hack-local-variables' is run inside
+`dired-mode-hook' the modeline has already been set, so you have to
+update that for yourself by setting `dired-sort-mode' in addition to
+changing the switches.
+
+
+File: dired.info,  Node: Making Relative Symbolic Links in Dired,  Next: Letting Dired Guess What Shell Command to Apply,  Prev: Dired Local Variables,  Up: Tree Dired Extra
+
+Making Relative Symbolic Links in Dired
+=======================================
+
+   In GNU Emacs version 18, the built-in function `make-symbolic-link'
+always calls `expand-file-name' on its arguments, so relative symlinks
+(e.g.  `foo -> ../bar/foo') are impossible to create.
+
+   Dired Extra uses `call-process' and `ln -s' for a workaround.
+
+`dired-make-symbolic-link'
+     Arguments NAME1 NAME2 and optional OK-IF-ALREADY-EXISTS.  Create
+     file NAME2, a symbolic link pointing to NAME1 (which may be any
+     string whatsoever and is passed untouched to `ln -s').
+     oK-IF-ALREADY-EXISTS means that NAME2 will be overwritten if it
+     already exists.  If it is an integer, user will be asked about
+     this.  On error, signals a file-error.
+
+`dired-make-relative-symlink'
+     Three arguments: FILE1 FILE2 and optional OK-IF-ALREADY-EXISTS.
+     Make a symbolic link FILE2 (pointing to FILE1).  The link is
+     relative (if possible), for example
+
+          (dired-make-relative-symlink "/vol/tex/bin/foo"
+                                       "/vol/local/bin/foo")
+
+     results in a link
+
+          /vol/local/bin/foo -> ../../tex/bin/foo
+
+`dired-do-relsymlink'
+     (binding `S') Symbolically link all marked (or next N) files into
+     a directory, or make a symbolic link to the current file.  This
+     creates relative symbolic links like
+
+              foo -> ../bar/foo
+
+     not absolute ones like
+              foo -> /ugly/path/that/may/change/any/day/bar/foo
+
+`dired-do-relsymlink-regexp'
+     (`%S') Symbolically link all marked files containing REGEXP to
+     NEWNAME, using relative (not absolute) names.  See functions
+     `dired-rename-regexp' and `dired-do-relsymlink' for more info.
+
+
+File: dired.info,  Node: Letting Dired Guess What Shell Command to Apply,  Next: dired-trns.el,  Prev: Making Relative Symbolic Links in Dired,  Up: Tree Dired Extra
+
+Letting Dired Guess What Shell Command to Apply
+===============================================
+
+   Based upon the name of a filename, Dired tries to guess what shell
+command you might want to apply to it.  For example, if you have point
+on a file named `foo.tar' and you press `!', Dired will guess you want
+to `tar xvf' it and suggest that as the default shell command.
+
+   If you are using the `gmhist' package (*Note Dired Minibuffer
+History::), the default will be mentioned in brackets and you can type
+`M-p' to get the default into the minibuffer so that you can edit it,
+e.g., changing `tar xvf' to `tar tvf'.  If there are several commands
+for a given file, e.g., `xtex' and `dvips' for a `.dvi' file, you can
+type `M-p' several times to see each of the matching commands.
+
+   Dired only tries to guess a command for a single file, never for a
+list of marked files.
+
+`dired-auto-shell-command-alist-default'
+     Predefined rules for shell commands.  Set this to nil to turn
+     guessing off.  The elements of `dired-auto-shell-command-alist'
+     (defined by the user) will override these rules.
+
+`dired-auto-shell-command-alist'
+     If non-nil, an alist of file regexps and their suggested commands
+     overriding the predefined rules in
+     `dired-auto-shell-command-alist-default'.
+
+     Each element of the alist looks like
+
+          (REGEXP COMMAND...)
+
+     where each COMMAND can either be a string or a lisp expression
+     that evaluates to a string.  If several COMMANDs are given, all
+     will temporarily be pushed on the history.
+
+     These rules take precedence over the predefined rules in the
+     variable `dired-auto-shell-command-alist-default' (to which they
+     are prepended when `dired-x' is loaded).
+
+     You can set this variable in your `~/.emacs'.  For example, to add
+     rules for `.foo' and `.bar' file extensions, write
+
+          (setq dired-auto-shell-command-alist
+                (list
+                 (list "\\.foo$" "FOO-COMMAND");; fixed rule
+                 ;; possibly more rules...
+                 (list "\\.bar$";; rule with condition test
+                        '(if CONDITION
+                             "BAR-COMMAND-1"
+                           "BAR-COMMAND-2"))))
+
+     This will override any predefined rules for the same extensions.
+
+`dired-guess-have-gnutar'
+     Default: `nil'
+
+     If non-nil, name of the GNU tar executable (e.g., `"tar"' or
+     `"gnutar"').  GNU tar's `z' switch is used for compressed tar
+     files.  If you don't have GNU tar, set this to nil: a pipe using
+     `zcat' is then used.
+
+
+File: dired.info,  Node: dired-trns.el,  Next: dired-cd.el,  Prev: Letting Dired Guess What Shell Command to Apply,  Up: Tree Dired Extra
+
+Filename Transformers for Dired Shell Commands
+==============================================
+
+   File name "transformers" are functions that take a filename (a
+string) as an argument and transform it into some other string (e.g., a
+filename without an extension).  This package makes transformers
+available in Dired shell commands.
+
+   For example, running the Dired shell command (type `!' or `M-x'
+`dired-do-shell-command')
+
+     echo * [b] [db]
+
+   would list the full name, the basename, and the absolute basename of
+each marked file.
+
+   Each transformer is associated with a dispatch character. The
+associations are stored in a keymap for fast and easy lookup. The
+dispatch character is used to activate the associated transformer
+function at a particular position in a shell command issued in Dired.
+The dispatch character must be enclosed in brackets to distinguish it
+from normal letters.
+
+   To take advantage of this package, simply load it after loading
+Dired, e.g., in your `dired-load-hook'.  You can then use transformers
+like "[b]" for the basename in your Dired shell commands (see below).
+
+   You can define your own transformers using the macro
+`dired-trans-define'.
+
+`dired-trans-define'
+     Macro that assigns the transformer function `(lambda (file) BODY)'
+     to CHAR (a character or string).  BODY must return a string: the
+     transformed file.
+
+   Several transformers are predefined:
+
+`*'
+     returns the unmodified filename (equivalent to `[dbe]').
+
+`n'
+     returns the Name component of a filename without directory
+     information
+
+`d'
+     returns the Directory component of a filename
+
+`b'
+     returns the Basename of a filename, i.e., the name of the file
+     without directory and extension (see variable `dired-trans-re-ext')
+     A basename with directory component can be obtained by `[db]'.
+
+`e'
+     returns the Extension of a filename (i.e., whatever
+     `dired-trans-re-ext' splits off)
+
+`v'
+     returns a file without directory and without `,v' suffixes if any.
+
+`z'
+     returns a file without directory and without `.Z' suffixes if any.
+
+The following variables can be used to customize `dired-trns.el':
+
+`dired-trans-re-ext'
+     Default: `"\\.[^.]*\\(\\.Z\\)?$"'
+
+     The part of a filename matching this regexp will be viewed as
+     extension.
+
+`dired-trans-starters'
+     Default: `"[#[]"'
+
+     User definable set of characters to be used to indicate the start
+     of a transformer sequence.
+
+`dired-trans-enders'
+     Default: `"[]# ]"'
+
+     User definable set of characters to be used to indicate the end of
+     a transformer sequence.
+
+
+File: dired.info,  Node: dired-cd.el,  Next: dired-nstd.el,  Prev: dired-trns.el,  Up: Tree Dired Extra
+
+Changing the Working Directory for Dired Shell Commands
+=======================================================
+
+   The package `dired-cd.el' permits the working directory of the Dired
+shell commands `!' (`dired-do-shell-command') and `&'
+(`dired-do-background-shell-command') to be the files' subdirectory
+under certain circumstances.  Loading this extension does not change the
+behavior of Dired until the variables `dired-cd-same-subdir' and/or
+`dired-cd-on-each' are non-nil.
+
+   If `dired-cd-same-subdir' is non-nil and if all the selected files
+(marked, non-zero numeric argument, etc.) are in the same subdirectory,
+then `dired-do-shell-command' and `dired-do-background-shell-command'
+cause the shell to perform a `cd' into that directory before the
+commands are executed.  Also, the selected filenames are provided to
+the command without any directory components.
+
+   If `dired-cd-on-each' is non-nil and if the `on-each' option is
+specified (numeric argument of zero), then `!'
+(`dired-do-shell-command') and `&'
+(`dired-mark-background-shell-command') use a subshell to perform a
+`cd' into the subdirectory of each file before the commands on that
+file are executed.  Also, each filename is provided to the command
+without any directory components.  Note that this behavior occurs
+regardless of whether the files are all in the same directory or not.
+
+   After the above `cd' wrapping has occured, the existing
+`dired-shell-stuff-it' is used to do the actual file-name quoting and
+substitution into the command.  Thus, custom versions of this procedure
+should work, e.g., the `dired-trans' package will transform commands
+correctly.  However, since filenames lack any directory components,
+features that use the directory components will fail, e.g.  the `[d]'
+transform specifier will be empty.
+
+   To use this package, load it in your `dired-load-hook'.  Do
+
+     (setq dired-cd-same-subdir t)
+
+and perhaps
+
+     (setq dired-cd-on-each t)
+
+in your `~/.emacs'.  By default, `dired-cd' doesn't change the behavior
+of Dired when it is loaded.
+
+   If `dired-cd-same-subdir' is non-nil, then the shell commands `cd'
+to the appropriate directory if all the selected files are in that
+directory; however, on-each behavior (with zero prefix argument) is not
+changed.
+
+   If `dired-cd-on-each' is non-nil, then each instance of the command
+for an on-each shell command runs in the file's directory regardless of
+whether the files are all in the same directory.
+
+
+File: dired.info,  Node: dired-nstd.el,  Next: find-dired.el,  Prev: dired-cd.el,  Up: Tree Dired Extra
+
+Nested Dired format
+===================
+
+   [NO DOCUMENTATION YET]
+
+   This is still buggy, *Note Dired Known Problems::.
+
+
+File: dired.info,  Node: find-dired.el,  Prev: dired-nstd.el,  Up: Tree Dired Extra
+
+Feeding Find Output to Dired
+============================
+
+   The `find-dired' command runs the `find' command in a buffer and
+starts Dired on the inserted file lines, even while `find' is still
+running.  For example, with `-type d' as argument, you will get a Dired
+buffer that contains all subdirectories of a given directory, but none
+of the other files.
+
+   Note that `find' just gives you file lines, not inserted
+subdirectories with associated headerlines as repeated use of the `i'
+(`dired-maybe-insert-subdir') command would.  Also, the names contain
+slashes if they are in a subdirectory, which never occurs in a normal
+Dired buffer.  Dired understands these names anyway and you can for
+example type `f' on such lines as usual.  However, while `find' is
+still running you shouldn't type `i' to insert subdirectories, since
+new `find' output is always appended at the end.  Use `f' or `o'
+instead to dired the specific subdirectory in a new Dired buffer.
+After `find' has finished (as indicated by a message and the modeline)
+all Dired commands work as usual.
+
+`find-dired'
+     Run `find' on a directory DIR, with find arguments ARGS, and go
+     into dired-mode on a buffer of the output.  The command run (after
+     changing into DIR) is
+          find . \( ARGS \) -ls
+
+`find-name-dired'
+     Search DIR recursively for files matching the globbing pattern
+     PATTERN, and run Dired on those files.  PATTERN is a shell
+     wildcard (not an Emacs regexp) and need not be quoted.  The command
+     run (after changing into DIR) is
+              find . -name 'PATTERN' -ls
+
+`find-grep-dired'
+     Find files in directory DIR containing a regexp ARG and start
+     Dired on output.  The command run (after changing into DIR) is
+          find . -exec grep -s ARG {} \; -ls
+
+
+File: dired.info,  Node: Dired Internals,  Next: Dired Known Problems,  Prev: Tree Dired Extra,  Up: Top
+
+Dired Internals
+***************
+
+   This is a short introduction about how Dired's Tree and Mark features
+work.  You are encouraged to read the code (`dired.el') for more
+information.
+
+* Menu:
+
+* Tree Dired Internals::
+* Dired Mark Internals::
+
+
+File: dired.info,  Node: Tree Dired Internals,  Next: Dired Mark Internals,  Prev: Dired Internals,  Up: Dired Internals
+
+Tree Dired Internals
+====================
+
+   In Tree Dired, instead of just one directory, all or part of the
+directory *tree* starting at the top level directory (the working
+directory or `default-directory' of the buffer) may be in a Dired
+buffer.  Each file line belongs to exactly one of those subdirectories.
+After the `ls' program has inserted its output, Dired parses the
+buffer once to find out where the subdirectory boundaries are and saves
+them in the variable `dired-subdir-alist'.  The beginning of the
+headerline inserted by `ls' serves as boundary between subdirectories.
+
+   Subsequent `i' (`dired-maybe-insert-subdir') commands update this
+alist and insert the appropriate headerline.  Each retrieval of the
+filename on the current line first extracts the basename (assuming a
+more or less standard `ls' output format), and then function
+`dired-current-directory' looks up the current Dired directory in
+`dired-subdir-alist'.  The lookup is keyed on buffer position, as each
+buffer position is between exactly two subdirectory boundaries.  (The
+end of the buffer serves as an implicit subdirectory boundary.)
+
+`dired-subdir-alist'
+     Association list of subdirectories and their buffer positions:
+
+          ((LASTDIR . LASTMARKER) ... (DEFAULT-DIRECTORY . FIRSTMARKER)).
+
+     The markers point right before the beginning of the line, so that
+     they separate subdirectories adjacent in the buffer.  The
+     directories must be in the form returned by
+     `file-name-as-directory'.
+
+`dired-subdir-regexp'
+     Value: "^. \\([^ \n\r]+\\)\\(:\\)[\n\r]"
+
+     Regexp matching a maybe hidden subdirectory line in `ls -lR'
+     output.  Subexpression 1 is subdirectory proper, no trailing
+     colon.  The match starts at the beginning of the line and ends
+     after the end of the line (`\n' or `\r').  Subexpression 2 must
+     end right before the `\n' or `\r'.  This is so that Dired can
+     easily check whether a subdirectory is hidden or not: hidden lines
+     end with `\r' (`C-m') instead of a newline.
+
+     This regexp used to be `"^. \\(/[^\n\r]*\\)\\(:\\)[\n\r]"',
+     allowing spaces, but disallowing relative filenames (which occur
+     when browsing ls -lR listing in virtual Dired mode, so I changed
+     it).
+
+     Note that `"^. \\([^\n\r]+\\)\\(:\\)[\n\r]"' (desirable since it
+     allows both spaces and relative names) will not always work: if
+     you have a file that ends in a colon, its whole line (including
+     permission bits, date etc.) would be mistaken for a subdirectory
+     headerline when parsing `ls -lR' output.
+
+     `dired-subdir-regexp' is only relevant for parsing `ls -lR'
+     output.  If Dired inserts subdirectories itself (using
+     `dired-insert-subdir'), they will always be absolute and there is
+     no restriction on the format of filenames, e.g., they can contain
+     spaces.
+

@@ -1,66 +1,130 @@
-/* Makeinfo -- convert texinfo format files into info files
-   Copyright (C) 1987 Free Software Foundation, Inc.
+/* Makeinfo -- convert texinfo format files into info files.
 
-This file is part of GNU Info.
+   Copyright (C) 1987, 1992, 1993 Free Software Foundation, Inc.
 
-GNU Info is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
-any later version.
+   This file is part of GNU Info.
 
-GNU Info is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   Makeinfo is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY.  No author or distributor accepts
+   responsibility to anyone for the consequences of using it or for
+   whether it serves any particular purpose or works at all, unless he
+   says so in writing.  Refer to the GNU Emacs General Public License
+   for full details.
 
-You should have received a copy of the GNU General Public License
-along with GNU Info; see the file COPYING.  If not, write to
-the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+   Everyone is granted permission to copy, modify and redistribute
+   Makeinfo, but only under the conditions described in the GNU Emacs
+   General Public License.   A copy of this license is supposed to
+   have been given to you along with GNU Emacs so you can know your
+   rights and responsibilities.  It should be in a file named COPYING.
+   Among other things, the copyright notice and this notice must be
+   preserved on all copies.  */
 
+/* This is Makeinfo version 1.55.  If you change the version number of
+   Makeinfo, please change it here and at the lines reading:
+
+    int major_version = 1;
+    int minor_version = 55;
+
+   in the code below.
+
+   Makeinfo is authored by Brian Fox (bfox@ai.mit.edu). */
+
+/* You can change some of the behaviour of Makeinfo by changing the
+   following defines: */
+
+/* Define INDENT_PARAGRAPHS_IN_TABLE if you want the paragraphs which
+   appear within an @table, @ftable, or @itemize environment to have
+   standard paragraph indentation.  Without this, such paragraphs have
+   no starting indentation. */
+/* #define INDENT_PARAGRAPHS_IN_TABLE */
+
+/* Define DEFAULT_INDENTATION_INCREMENT as an integer which is the amount
+   that @example should increase indentation by.  This incremement is used
+   for all insertions which indent the enclosed text. */
+#define DEFAULT_INDENTATION_INCREMENT 5
+
+/* Define PARAGRAPH_START_INDENT to be the amount of indentation that
+   the first lines of paragraphs receive by default, where no other
+   value has been specified.  Users can change this value on the command
+   line, with the +paragraph-indent option, or within the texinfo file,
+   with the @paragraphindent command. */
+#define PARAGRAPH_START_INDENT 3
+
+/* Define DEFAULT_PARAGRAPH_SPACING as the number of blank lines that you
+   wish to appear between paragraphs.  A value of 1 creates a single blank
+   line between paragraphs.  Paragraphs are defined by 2 or more consecutive
+   newlines in the input file (i.e., one or more blank lines). */
+#define DEFAULT_PARAGRAPH_SPACING 1
+
 /* **************************************************************** */
 /*								    */
 /*			Include File Declarations       	    */
 /*								    */
 /* **************************************************************** */
 
+/* Indent #pragma so that older Cpp's don't try to parse it. */
+#if defined (_AIX)
+ # pragma alloca
+#endif /* _AIX */
+
 #include <stdio.h>
 #include <sys/types.h>
+#include <ctype.h>
 #include <sys/stat.h>
 #include <ctype.h>
 #include <pwd.h>
 #include <errno.h>
+#if defined (HAVE_VARARGS_H)
+#include <varargs.h>
+#endif /* HAVE_VARARGS_H */
 #include "getopt.h"
 
 #if defined (VMS)
 #include <perror.h>
 #endif
 
-#if defined (SYSV) || defined (VMS)
+#if defined (HAVE_STRING_H)
 #include <string.h>
 #else
 #include <strings.h>
-#endif
+#endif /* !HAVE_STRING_H */
 
+#if defined (TM_IN_SYS_TIME)
+#include <sys/time.h>
+#else
+#include <time.h>
+#endif /* !TM_IN_SYS_TIME */
+
+#if defined (HAVE_SYS_FCNTL_H)
+#include <sys/fcntl.h>
+#else
 #include <fcntl.h>
-#include <sys/file.h>
+#endif /* !HAVE_SYS_FCNTL_H */
 
-#if defined (SYSV)
-#define bcopy(source, dest, count) memcpy (dest, source, count)
-#endif
+#include <sys/file.h>
 
 #if defined (__GNUC__)
 #define alloca __builtin_alloca
 #else
-#if defined (sparc)
+#if defined(HAVE_ALLOCA_H)
 #include <alloca.h>
-#else
+#else /* !HAVE_ALLOCA_H */
+#if !defined (_AIX)
 extern char *alloca ();
-#endif
-#endif
+#endif /* !_AIX */
+#endif /* !HAVE_ALLOCA_H */
+#endif /* !__GNUC__ */
 
-/* Forward declarations. */
-char *xmalloc (), *xrealloc ();
-extern int in_fixed_width_font;
+void *xmalloc (), *xrealloc ();
+static void isolate_nodename ();
+
+/* Non-zero means that we are currently hacking the insides of an
+   insertion which would use a fixed width font. */
+static int in_fixed_width_font = 0;
+
+/* Non-zero means that start_paragraph () MUST be called before we pay
+   any attention to close_paragraph () calls. */
+int must_start_paragraph = 0;
 
 /* Some systems don't declare this function in pwd.h. */
 struct passwd *getpwnam ();
@@ -77,14 +141,10 @@ struct passwd *getpwnam ();
 #define SYNTAX	 2
 #define FATAL	 4
 
-/* Boolean values. */
-#define true  1
-#define false 0
-typedef int boolean;
-
 /* How to allocate permanent storage for STRING. */
 #define savestring(x) \
-  ((char *)strcpy (xmalloc (1 + ((x) ? strlen (x) : 0)), (x) ? (x) : ""))
+  ((char *)strcpy ((char *)xmalloc (1 + ((x) ? strlen (x) : 0)), \
+		   (x) ? (x) : ""))
 
 /* C's standard macros don't check to make sure that the characters being
    changed are within range.  So I have to check explicitly. */
@@ -108,14 +168,31 @@ typedef int boolean;
 #define whitespace(c) (((c) == '\t') || ((c) == ' '))
 #define sentence_ender(c) ((c) == '.' || (c) == '?' || (c) == '!')
 #define cr_or_whitespace(c) (((c) == '\t') || ((c) == ' ') || ((c) == '\n'))
-#define member(c, s) (index (s, c) != NULL)
+
+#ifndef isletter
+#define isletter(c) (((c) >= 'A' && (c) <= 'Z') || ((c) >= 'a' && (c) <= 'z'))
+#endif
+
+#ifndef isupper
+#define isupper(c) ((c) >= 'A' && (c) <= 'Z')
+#endif
+
+#ifndef isdigit
+#define isdigit(c)  ((c) >= '0' && (c) <= '9')
+#endif
+
+#ifndef digit_value
+#define digit_value(c) ((c) - '0')
+#endif
+
+#define member(c, s) (strchr (s, c) != NULL)
 
 #define COMMAND_PREFIX '@'
 
 /* Stuff for splitting large files. */
-#define SPLIT_SIZE_THRESHOLD 70000	/* What's good enough for Stallman... */
-#define DEFAULT_SPLIT_SIZE 50000/* Is probably good enough for me. */
-boolean splitting = true;	/* Always true for now. */
+#define SPLIT_SIZE_THRESHOLD 70000  /* What's good enough for Stallman... */
+#define DEFAULT_SPLIT_SIZE 50000    /* Is probably good enough for me. */
+int splitting = 1;		    /* Always true for now. */
 
 typedef int FUNCTION ();	/* So I can say FUNCTION *foo; */
 
@@ -139,16 +216,33 @@ int line_number;
 #define curchar() input_text[input_text_offset]
 
 #define command_char(c) ((!whitespace(c)) && \
-			  ((c) != '\n') && \
-			  ((c) != '{'))
+			 ((c) != '\n') && \
+			 ((c) != '{') && \
+			 ((c) != '}') && \
+			 ((c) != '='))
+
 #define skip_whitespace() while (input_text_offset != size_of_input_text \
 				 && whitespace(curchar()))\
   input_text_offset++
 
+/* Return non-zero if STRING is the text at input_text + input_text_offset,
+   else zero. */
+#define looking_at(string) \
+  (strncmp (input_text + input_text_offset, string, strlen (string)) == 0)
+
 /* And writing to the output. */
 
 /* The output file name. */
-char *output_filename, *pretty_output_filename;
+char *output_filename = (char *)NULL;
+char *pretty_output_filename;
+
+/* Name of the output file that the user elected to pass on the command line.
+   Such a name overrides any name found with the @setfilename command. */
+char *command_output_filename = (char *)NULL;
+
+/* A colon separated list of directories to search for files included
+   with @include.  This can be controlled with the `-I' option to makeinfo. */
+char *include_files_path = (char *)NULL;
 
 /* Current output stream. */
 FILE *output_stream;
@@ -157,7 +251,7 @@ FILE *output_stream;
 int output_position;
 
 /* Output paragraph buffer. */
-char *output_paragraph;
+unsigned char *output_paragraph;
 
 /* Offset into OUTPUT_PARAGRAPH. */
 int output_paragraph_offset;
@@ -165,22 +259,22 @@ int output_paragraph_offset;
 /* The output paragraph "cursor" horizontal position. */
 int output_column = 0;
 
-/* non-zero means output_paragraph contains text. */
-boolean paragraph_is_open = false;
+/* Non-zero means output_paragraph contains text. */
+int paragraph_is_open = 0;
 
 #define INITIAL_PARAGRAPH_SPACE 5000
 int paragraph_buffer_len = INITIAL_PARAGRAPH_SPACE;
 
 /* Filling.. */
-/* True indicates that filling will take place on long lines. */
-boolean filling_enabled = true;
+/* Non-zero indicates that filling will take place on long lines. */
+int filling_enabled = 1;
 
 /* Non-zero means that words are not to be split, even in long lines.  This
    gets changed for cm_w (). */
 int non_splitting_words = 0;
 
-/* True indicates that filling a line also indents the new line. */
-boolean indented_fill = false;
+/* Non-zero indicates that filling a line also indents the new line. */
+int indented_fill = 0;
 
 /* The column at which long lines are broken. */
 int fill_column = 72;
@@ -196,10 +290,12 @@ int current_indent = 0;
    This is normally zero, but some people prefer paragraph starts to be
    somewhat more indented than paragraph bodies.  A pretty value for
    this is 3. */
-int paragraph_start_indent = 3;
+int paragraph_start_indent = PARAGRAPH_START_INDENT;
 
 /* Non-zero means that the use of paragraph_start_indent is inhibited.
-   @example uses this to line up the left columns of the example text. */
+   @example uses this to line up the left columns of the example text.
+   A negative value for this variable is incremented each time it is used.
+   @noindent uses this to inhibit indentation for a single paragraph.  */
 int inhibit_paragraph_indentation = 0;
 
 /* Indentation that is pending insertion.  We have this for hacking lines
@@ -208,10 +304,25 @@ int inhibit_paragraph_indentation = 0;
 int pending_indent = 0;
 
 /* The amount that indentation increases/decreases by. */
-int default_indentation_increment = 5;
+int default_indentation_increment = DEFAULT_INDENTATION_INCREMENT;
 
-/* True indicates that indentation is temporarily turned off. */
-boolean no_indent = true;
+/* Non-zero indicates that indentation is temporarily turned off. */
+int no_indent = 1;
+
+/* Non-zero means forcing output text to be flushright. */
+int force_flush_right = 0;
+
+/* Non-zero means that the footnote style for this document was set on
+   the command line, which overrides any other settings. */
+int footnote_style_preset = 0;
+
+/* Non-zero means that we automatically number footnotes that have no
+   specified marker. */
+int number_footnotes = 1;
+
+/* The current footnote number in this node.  Each time a new node is
+   started this is reset to 1. */
+int current_footnote_number = 1;
 
 /* Command name in the process of being hacked. */
 char *command;
@@ -235,8 +346,8 @@ typedef struct fstack
 FSTACK *filestack = (FSTACK *) NULL;
 
 /* Stuff for nodes. */
-/* The current nodes node name */
-char *current_node;
+/* The current nodes node name. */
+char *current_node = (char *)NULL;
 
 /* The current nodes section level. */
 int current_section = 0;
@@ -267,8 +378,23 @@ typedef struct tentry
 #define NEXT_ERROR 0x2
 #define UP_ERROR   0x4
 #define NO_WARN	   0x8
+#define IS_TOP 	   0x10
 
 TAG_ENTRY *tag_table = (TAG_ENTRY *) NULL;
+
+#define HAVE_MACROS
+#if defined (HAVE_MACROS)
+/* Macro definitions for user-defined commands. */
+typedef struct {
+  char *name;			/* Name of the macro. */
+  char *definition;		/* Definition text. */
+  char *filename;		/* File where this macro is defined. */
+  int lineno;			/* Line number within FILENAME. */
+} MACRO_DEF;
+
+void add_macro (), execute_macro ();
+MACRO_DEF *find_macro (), *delete_macro ();
+#endif /* HAVE_MACROS */
 
 /* Menu reference, *note reference, and validation hacking. */
 
@@ -300,10 +426,13 @@ int in_menu = 0;
 /* Flags controlling the operation of the program. */
 
 /* Default is to notify users of bad choices. */
-boolean print_warnings = true;
+int print_warnings = 1;
 
 /* Default is to check node references. */
-boolean validating = true;
+int validating = 1;
+
+/* Non-zero means do not output "Node: Foo" for node separations. */
+int no_headers = 0;
 
 /* Number of errors that we tolerate on a given fileset. */
 int max_error_level = 100;
@@ -336,232 +465,317 @@ BRACE_ELEMENT *brace_stack = (BRACE_ELEMENT *) NULL;
 
 /* Forward declarations. */
 
-int
-insert_self (), cm_tex (), cm_asterisk (), cm_dots (), cm_bullet (),
-cm_TeX (), cm_copyright (), cm_code (), cm_samp (), cm_file (), cm_kbd (),
-cm_key (), cm_ctrl (), cm_var (), cm_dfn (), cm_emph (), cm_strong (),
-cm_cite (), cm_italic (), cm_bold (), cm_roman (), cm_title (), cm_w (),
-cm_refill ();
+int insert_self (), cm_ignore_line ();
 
 int
-cm_chapter (), cm_unnumbered (), cm_appendix (),
-cm_section (), cm_unnumberedsec (), cm_appendixsec (),
-cm_subsection (), cm_unnumberedsubsec (), cm_appendixsubsec (),
-cm_subsubsection (), cm_unnumberedsubsubsec (), cm_appendixsubsubsec (),
-cm_heading (), cm_chapheading (), cm_subheading (), cm_subsubheading (),
-cm_majorheading ();
+  cm_tex (), cm_asterisk (), cm_dots (), cm_bullet (), cm_TeX (),
+  cm_copyright (), cm_code (), cm_samp (), cm_file (), cm_kbd (),
+  cm_key (), cm_ctrl (), cm_var (), cm_dfn (), cm_emph (), cm_strong (),
+  cm_cite (), cm_italic (), cm_bold (), cm_roman (), cm_title (), cm_w (),
+  cm_refill (), cm_titlefont ();
+
+int
+  cm_chapter (), cm_unnumbered (), cm_appendix (), cm_top (),
+  cm_section (), cm_unnumberedsec (), cm_appendixsec (),
+  cm_subsection (), cm_unnumberedsubsec (), cm_appendixsubsec (),
+  cm_subsubsection (), cm_unnumberedsubsubsec (), cm_appendixsubsubsec (),
+  cm_heading (), cm_chapheading (), cm_subheading (), cm_subsubheading (),
+  cm_majorheading (), cm_raisesections (), cm_lowersections ();
 
 /* All @defxxx commands map to cm_defun (). */
-int
-cm_defun ();
+int cm_defun ();
 
 int
-cm_node (), cm_menu (), cm_xref (),
-cm_pxref (), cm_inforef (), cm_quotation (), cm_display (), cm_itemize (),
-cm_enumerate (), cm_table (), cm_itemx (), cm_noindent (), cm_setfilename (),
-cm_comment (), cm_ignore (), cm_br (), cm_sp (), cm_page (), cm_group (),
-cm_need (), cm_center (), cm_include (), cm_bye (), cm_item (), cm_end (),
-cm_infoinclude (), cm_ifinfo (), cm_iftex (), cm_titlepage (),
-cm_titlespec (),cm_kindex (), cm_cindex (), cm_findex (), cm_pindex (),
-cm_vindex (), cm_tindex (), cm_asis (), cm_synindex (), cm_settitle (),
-cm_setchapternewpage (), cm_printindex (), cm_minus (), cm_footnote (),
-cm_force_abbreviated_whitespace (), cm_force_sentence_end (), cm_example (),
-cm_smallexample (), cm_lisp (), cm_format (), cm_exdent (), cm_defindex (),
-cm_defcodeindex (), cm_sc (), cm_result (), cm_expansion (), cm_equiv (),
-cm_print (), cm_error (), cm_point (), cm_smallbook ();
+  cm_node (), cm_menu (), cm_xref (), cm_ftable (), cm_vtable (), cm_pxref (),
+  cm_inforef (), cm_quotation (), cm_display (), cm_itemize (),
+  cm_enumerate (), cm_table (), cm_itemx (), cm_noindent (), cm_setfilename (),
+  cm_br (), cm_sp (), cm_page (), cm_group (), cm_center (), cm_include (),
+  cm_bye (), cm_item (), cm_end (), cm_infoinclude (), cm_ifinfo (),
+  cm_kindex (), cm_cindex (), cm_findex (), cm_pindex (), cm_vindex (),
+  cm_tindex (), cm_asis (), cm_synindex (), cm_printindex (), cm_minus (),
+  cm_footnote (), cm_force_abbreviated_whitespace (), cm_example (),
+  cm_smallexample (), cm_lisp (), cm_format (), cm_exdent (), cm_defindex (),
+  cm_defcodeindex (), cm_sc (), cm_result (), cm_expansion (), cm_equiv (),
+  cm_print (), cm_error (), cm_point (), cm_today (), cm_flushleft (),
+  cm_flushright (), cm_smalllisp (), cm_finalout (), cm_math (),
+  cm_cartouche (), cm_ignore_sentence_ender ();
 
-int do_nothing ();
+/* Conditionals. */
+int cm_set (), cm_clear (), cm_ifset (), cm_ifclear (), cm_value ();
+
+#if defined (HAVE_MACROS)
+/* Define a user-defined command which is simple substitution. */
+int cm_macro (), cm_unmacro ();
+#endif /* HAVE_MACROS */
+
+/* Options. */
+int cm_paragraphindent (), cm_footnotestyle ();
+
+/* Internals. */
+int do_nothing (), command_name_condition ();
 int misplaced_brace (), cm_obsolete ();
 
 typedef struct
 {
   char *name;
   FUNCTION *proc;
-  boolean argument_in_braces;
+  int argument_in_braces;
 } COMMAND;
 
 /* Stuff for defining commands on the fly. */
 COMMAND **user_command_array = (COMMAND **) NULL;
 int user_command_array_len = 0;
 
+#define NO_BRACE_ARGS 0
+#define BRACE_ARGS 1
+
 static COMMAND CommandTable[] = {
-  {"!", cm_force_sentence_end, false},
-  {"'", insert_self, false},
-  {"*", cm_asterisk, false},
-  {".", cm_force_sentence_end, false},
-  {":", cm_force_abbreviated_whitespace, false},
-  {"?", cm_force_sentence_end, false},
-  {"@", insert_self, false},
-  {" ", insert_self, false},
-  {"\n", insert_self, false},
-  {"TeX", cm_TeX, true},
-  {"`", insert_self, false},
-  {"appendix", cm_appendix, false},
-  {"appendixsec", cm_appendixsec, false},
-  {"appendixsubsec", cm_appendixsubsec, false},
-  {"appendixsubsubsec", cm_appendixsubsubsec, false},
-  {"asis", cm_asis, true},
-  {"b", cm_bold, true},
-  {"br", cm_br, false},
-  {"bullet", cm_bullet, true},
-  {"bye", cm_bye, false},
-  {"c", cm_comment, false},
-  {"center", cm_center, false},
-  {"chapheading", cm_chapheading, false},
-  {"chapter", cm_chapter, false},
-  {"cindex", cm_cindex, false},
-  {"cite", cm_cite, true},
-  {"code", cm_code, true},
-  {"comment", cm_comment, false},
-  {"contents", do_nothing, false},
-  {"copyright", cm_copyright, true},
-  {"ctrl", cm_ctrl, true},
-  {"defcodeindex", cm_defcodeindex, false},
-  {"defindex", cm_defindex, false},
-  {"dfn", cm_dfn, true},
+  { "!", cm_ignore_sentence_ender, NO_BRACE_ARGS },
+  { "'", insert_self, NO_BRACE_ARGS },
+  { "*", cm_asterisk, NO_BRACE_ARGS },
+  { ".", cm_ignore_sentence_ender, NO_BRACE_ARGS },
+  { ":", cm_force_abbreviated_whitespace, NO_BRACE_ARGS },
+  { "?", cm_ignore_sentence_ender, NO_BRACE_ARGS },
+  { "|", do_nothing, NO_BRACE_ARGS },
+  { "@", insert_self, NO_BRACE_ARGS },
+  { " ", insert_self, NO_BRACE_ARGS },
+  { "\n", insert_self, NO_BRACE_ARGS },
+  { "TeX", cm_TeX, BRACE_ARGS },
+  { "`", insert_self, NO_BRACE_ARGS },
+  { "appendix", cm_appendix, NO_BRACE_ARGS },
+  { "appendixsection", cm_appendixsec, NO_BRACE_ARGS },
+  { "appendixsec", cm_appendixsec, NO_BRACE_ARGS },
+  { "appendixsubsec", cm_appendixsubsec, NO_BRACE_ARGS },
+  { "appendixsubsubsec", cm_appendixsubsubsec, NO_BRACE_ARGS },
+  { "asis", cm_asis, BRACE_ARGS },
+  { "b", cm_bold, BRACE_ARGS },
+  { "br", cm_br, NO_BRACE_ARGS },
+  { "bullet", cm_bullet, BRACE_ARGS },
+  { "bye", cm_bye, NO_BRACE_ARGS },
+  { "c", cm_ignore_line, NO_BRACE_ARGS },
+  { "cartouche", cm_cartouche, NO_BRACE_ARGS },
+  { "center", cm_center, NO_BRACE_ARGS },
+  { "chapheading", cm_chapheading, NO_BRACE_ARGS },
+  { "chapter", cm_chapter, NO_BRACE_ARGS },
+  { "cindex", cm_cindex, NO_BRACE_ARGS },
+  { "cite", cm_cite, BRACE_ARGS },
+  { "clear", cm_clear, NO_BRACE_ARGS },
+  { "code", cm_code, BRACE_ARGS },
+  { "comment", cm_ignore_line, NO_BRACE_ARGS },
+  { "contents", do_nothing, NO_BRACE_ARGS },
+  { "copyright", cm_copyright, BRACE_ARGS },
+  { "ctrl", cm_ctrl, BRACE_ARGS },
+  { "defcodeindex", cm_defcodeindex, NO_BRACE_ARGS },
+  { "defindex", cm_defindex, NO_BRACE_ARGS },
+  { "dfn", cm_dfn, BRACE_ARGS },
 
 /* The `def' commands. */
-  {"defun", cm_defun, false},
-  {"defunx", cm_defun, false},
-  {"defvar", cm_defun, false},
-  {"defvarx", cm_defun, false},
-  {"defopt", cm_defun, false},
-  {"defoptx", cm_defun, false},
-  {"deffn", cm_defun, false},
-  {"deffnx", cm_defun, false},
-  {"defspec", cm_defun, false},
-  {"defspecx", cm_defun, false},
-  {"defmac", cm_defun, false},
-  {"defmacx", cm_defun, false},
+  { "deffn", cm_defun, NO_BRACE_ARGS },
+  { "deffnx", cm_defun, NO_BRACE_ARGS },
+  { "defun", cm_defun, NO_BRACE_ARGS },
+  { "defunx", cm_defun, NO_BRACE_ARGS },
+  { "defmac", cm_defun, NO_BRACE_ARGS },
+  { "defmacx", cm_defun, NO_BRACE_ARGS },
+  { "defspec", cm_defun, NO_BRACE_ARGS },
+  { "defspecx", cm_defun, NO_BRACE_ARGS },
+  { "defvr", cm_defun, NO_BRACE_ARGS },
+  { "defvrx", cm_defun, NO_BRACE_ARGS },
+  { "defvar", cm_defun, NO_BRACE_ARGS },
+  { "defvarx", cm_defun, NO_BRACE_ARGS },
+  { "defopt", cm_defun, NO_BRACE_ARGS },
+  { "defoptx", cm_defun, NO_BRACE_ARGS },
+  { "deftypefn", cm_defun, NO_BRACE_ARGS },
+  { "deftypefnx", cm_defun, NO_BRACE_ARGS },
+  { "deftypefun", cm_defun, NO_BRACE_ARGS },
+  { "deftypefunx", cm_defun, NO_BRACE_ARGS },
+  { "deftypevr", cm_defun, NO_BRACE_ARGS },
+  { "deftypevrx", cm_defun, NO_BRACE_ARGS },
+  { "deftypevar", cm_defun, NO_BRACE_ARGS },
+  { "deftypevarx", cm_defun, NO_BRACE_ARGS },
+  { "defcv", cm_defun, NO_BRACE_ARGS },
+  { "defcvx", cm_defun, NO_BRACE_ARGS },
+  { "defivar", cm_defun, NO_BRACE_ARGS },
+  { "defivarx", cm_defun, NO_BRACE_ARGS },
+  { "defop", cm_defun, NO_BRACE_ARGS },
+  { "defopx", cm_defun, NO_BRACE_ARGS },
+  { "defmethod", cm_defun, NO_BRACE_ARGS },
+  { "defmethodx", cm_defun, NO_BRACE_ARGS },
+  { "deftypemethod", cm_defun, NO_BRACE_ARGS },
+  { "deftypemethodx", cm_defun, NO_BRACE_ARGS },
+  { "deftp", cm_defun, NO_BRACE_ARGS },
+  { "deftpx", cm_defun, NO_BRACE_ARGS },
 /* The end of the `def' commands. */
 
-  {"display", cm_display, false},
-  {"dots", cm_dots, true},
-  {"emph", cm_emph, true},
-  {"end", cm_end, false},
-  {"enumerate", cm_enumerate, false},
-  {"equiv", cm_equiv, true},
-  {"error", cm_error, true},
-  {"example", cm_example, false},
-  {"exdent", cm_exdent, false},
-  {"expansion", cm_expansion, true},
-  {"file", cm_file, true},
-  {"findex", cm_findex, false},
-  {"format", cm_format, false},
-  {"group", cm_group, false},
-  {"heading", cm_heading, false},
-  {"i", cm_italic, true},
-  {"iappendix", cm_appendix, false},
-  {"iappendixsec", cm_appendixsec, false},
-  {"iappendixsubsec", cm_appendixsubsec, false},
-  {"iappendixsubsubsec", cm_appendixsubsubsec, false},
-  {"ichapter", cm_chapter, false},
-  {"ifinfo", cm_ifinfo, false},
-  {"iftex", cm_iftex, false},
-  {"ignore", cm_ignore, false},
-  {"include", cm_include, false},
-  {"inforef", cm_inforef, true},
-  {"input", cm_include, false},
-  {"isection", cm_section, false},
-  {"isubsection", cm_subsection, false},
-  {"isubsubsection", cm_subsubsection, false},
-  {"item", cm_item, false},
-  {"itemize", cm_itemize, false},
-  {"itemx", cm_itemx, false},
-  {"iunnumbered", cm_unnumbered, false},
-  {"iunnumberedsec", cm_unnumberedsec, false},
-  {"iunnumberedsubsec", cm_unnumberedsubsec, false},
-  {"iunnumberedsubsubsec", cm_unnumberedsubsubsec, false},
-  {"kbd", cm_kbd, true},
-  {"key", cm_key, true},
-  {"kindex", cm_kindex, false},
-  {"lisp", cm_lisp, false},
-  {"majorheading", cm_majorheading, false},
-  {"menu", cm_menu},
-  {"minus", cm_minus, true},
-  {"need", cm_need, false},
-  {"node", cm_node, false},
-  {"noindent", cm_noindent, false},
-  {"page", do_nothing, false},
-  {"pindex", cm_pindex, false},
-  {"point", cm_point, true},
-  {"print", cm_print, true},
-  {"printindex", cm_printindex, false},
-  {"pxref", cm_pxref, true},
-  {"quotation", cm_quotation, false},
-  {"r", cm_roman, true},
-  {"ref", cm_xref, true},
-  {"refill", cm_refill, false},
-  {"result", cm_result, true},
-  {"samp", cm_samp, true},
-  {"sc", cm_sc, true},
-  {"section", cm_section, false},
-  {"setchapternewpage", cm_setchapternewpage, false},
-  {"setfilename", cm_setfilename, false},
-  {"settitle", cm_settitle, false},
-  {"smallexample", cm_smallexample, false},
-  {"smallbook", cm_smallbook, false},
-  {"sp", cm_sp, false},
-  {"strong", cm_strong, true},
-  {"subheading", cm_subheading, false},
-  {"subsection", cm_subsection, false},
-  {"subsubheading", cm_subsubheading, false},
-  {"subsubsection", cm_subsubsection, false},
-  {"summarycontents", do_nothing, false},
-  {"syncodeindex", cm_synindex, false},
-  {"synindex", cm_synindex, false},
-  {"t", cm_title, true},
-  {"table", cm_table, false},
-  {"tex", cm_tex, false},
-  {"tindex", cm_tindex, false},
-  {"titlepage", cm_titlepage, false},
-  {"titlespec", cm_titlespec, false},
-  {"unnumbered", cm_unnumbered, false},
-  {"unnumberedsec", cm_unnumberedsec, false},
-  {"unnumberedsubsec", cm_unnumberedsubsec, false},
-  {"unnumberedsubsubsec", cm_unnumberedsubsubsec, false},
-  {"var", cm_var, true},
-  {"vindex", cm_vindex, false},
-  {"w", cm_w, true},
-  {"xref", cm_xref, true},
-  {"{", insert_self, false},
-  {"}", insert_self, false},
+  { "display", cm_display, NO_BRACE_ARGS },
+  { "dots", cm_dots, BRACE_ARGS },
+  { "dmn", do_nothing, BRACE_ARGS },
+  { "emph", cm_emph, BRACE_ARGS },
+  { "end", cm_end, NO_BRACE_ARGS },
+  { "enumerate", cm_enumerate, NO_BRACE_ARGS },
+  { "equiv", cm_equiv, BRACE_ARGS },
+  { "error", cm_error, BRACE_ARGS },
+  { "example", cm_example, NO_BRACE_ARGS },
+  { "exdent", cm_exdent, NO_BRACE_ARGS },
+  { "expansion", cm_expansion, BRACE_ARGS },
+  { "file", cm_file, BRACE_ARGS },
+  { "findex", cm_findex, NO_BRACE_ARGS },
+  { "finalout", do_nothing, NO_BRACE_ARGS },
+  { "flushleft", cm_flushleft, NO_BRACE_ARGS },
+  { "flushright", cm_flushright, NO_BRACE_ARGS },
+  { "format", cm_format, NO_BRACE_ARGS },
+  { "ftable", cm_ftable, NO_BRACE_ARGS },
+  { "group", cm_group, NO_BRACE_ARGS },
+  { "heading", cm_heading, NO_BRACE_ARGS },
+  { "headings", cm_ignore_line, NO_BRACE_ARGS },
+  { "i", cm_italic, BRACE_ARGS },
+  { "iappendix", cm_appendix, NO_BRACE_ARGS },
+  { "iappendixsection", cm_appendixsec, NO_BRACE_ARGS },
+  { "iappendixsec", cm_appendixsec, NO_BRACE_ARGS },
+  { "iappendixsubsec", cm_appendixsubsec, NO_BRACE_ARGS },
+  { "iappendixsubsubsec", cm_appendixsubsubsec, NO_BRACE_ARGS },
+  { "ichapter", cm_chapter, NO_BRACE_ARGS },
+  { "ifclear", cm_ifclear, NO_BRACE_ARGS },
+  { "ifinfo", cm_ifinfo, NO_BRACE_ARGS },
+  { "ifset", cm_ifset, NO_BRACE_ARGS },
+  { "iftex", command_name_condition, NO_BRACE_ARGS },
+  { "ignore", command_name_condition, NO_BRACE_ARGS },
+  { "include", cm_include, NO_BRACE_ARGS },
+  { "inforef", cm_inforef, BRACE_ARGS },
+  { "input", cm_include, NO_BRACE_ARGS },
+  { "isection", cm_section, NO_BRACE_ARGS },
+  { "isubsection", cm_subsection, NO_BRACE_ARGS },
+  { "isubsubsection", cm_subsubsection, NO_BRACE_ARGS },
+  { "item", cm_item, NO_BRACE_ARGS },
+  { "itemize", cm_itemize, NO_BRACE_ARGS },
+  { "itemx", cm_itemx, NO_BRACE_ARGS },
+  { "iunnumbered", cm_unnumbered, NO_BRACE_ARGS },
+  { "iunnumberedsec", cm_unnumberedsec, NO_BRACE_ARGS },
+  { "iunnumberedsubsec", cm_unnumberedsubsec, NO_BRACE_ARGS },
+  { "iunnumberedsubsubsec", cm_unnumberedsubsubsec, NO_BRACE_ARGS },
+  { "kbd", cm_kbd, BRACE_ARGS },
+  { "key", cm_key, BRACE_ARGS },
+  { "kindex", cm_kindex, NO_BRACE_ARGS },
+  { "lowersections", cm_lowersections, NO_BRACE_ARGS },
+  { "lisp", cm_lisp, NO_BRACE_ARGS },
+  { "macro", cm_macro, NO_BRACE_ARGS },
+  { "majorheading", cm_majorheading, NO_BRACE_ARGS },
+  { "math", cm_math, BRACE_ARGS },
+  { "menu", cm_menu, NO_BRACE_ARGS },
+  { "minus", cm_minus, BRACE_ARGS },
+  { "need", cm_ignore_line, NO_BRACE_ARGS },
+  { "node", cm_node, NO_BRACE_ARGS },
+  { "noindent", cm_noindent, NO_BRACE_ARGS },
+  { "nwnode", cm_node, NO_BRACE_ARGS },
+  { "overfullrule", cm_ignore_line, NO_BRACE_ARGS },
+  { "page", do_nothing, NO_BRACE_ARGS },
+  { "pindex", cm_pindex, NO_BRACE_ARGS },
+  { "point", cm_point, BRACE_ARGS },
+  { "print", cm_print, BRACE_ARGS },
+  { "printindex", cm_printindex, NO_BRACE_ARGS },
+  { "pxref", cm_pxref, BRACE_ARGS },
+  { "quotation", cm_quotation, NO_BRACE_ARGS },
+  { "r", cm_roman, BRACE_ARGS },
+  { "raisesections", cm_raisesections, NO_BRACE_ARGS },
+  { "ref", cm_xref, BRACE_ARGS },
+  { "refill", cm_refill, NO_BRACE_ARGS },
+  { "result", cm_result, BRACE_ARGS },
+  { "samp", cm_samp, BRACE_ARGS },
+  { "sc", cm_sc, BRACE_ARGS },
+  { "section", cm_section, NO_BRACE_ARGS },
+  { "set", cm_set, NO_BRACE_ARGS },
+  { "setchapternewpage", cm_ignore_line, NO_BRACE_ARGS },
+  { "setchapterstyle", cm_ignore_line, NO_BRACE_ARGS },
+  { "setfilename", cm_setfilename, NO_BRACE_ARGS },
+  { "settitle", cm_ignore_line, NO_BRACE_ARGS },
+  { "shortcontents", do_nothing, NO_BRACE_ARGS },
+  { "shorttitlepage", command_name_condition, NO_BRACE_ARGS },
+  { "smallbook", cm_ignore_line, NO_BRACE_ARGS },
+  { "smallexample", cm_smallexample, NO_BRACE_ARGS },
+  { "smalllisp", cm_smalllisp, NO_BRACE_ARGS },
+  { "sp", cm_sp, NO_BRACE_ARGS },
+  { "strong", cm_strong, BRACE_ARGS },
+  { "subheading", cm_subheading, NO_BRACE_ARGS },
+  { "subsection", cm_subsection, NO_BRACE_ARGS },
+  { "subsubheading", cm_subsubheading, NO_BRACE_ARGS },
+  { "subsubsection", cm_subsubsection, NO_BRACE_ARGS },
+  { "summarycontents", do_nothing, NO_BRACE_ARGS },
+  { "syncodeindex", cm_synindex, NO_BRACE_ARGS },
+  { "synindex", cm_synindex, NO_BRACE_ARGS },
+  { "t", cm_title, BRACE_ARGS },
+  { "table", cm_table, NO_BRACE_ARGS },
+  { "tex", command_name_condition, NO_BRACE_ARGS },
+  { "tindex", cm_tindex, NO_BRACE_ARGS },
+  { "titlefont", cm_titlefont, BRACE_ARGS },
+  { "titlepage", command_name_condition, NO_BRACE_ARGS },
+  { "titlespec", command_name_condition, NO_BRACE_ARGS },
+  { "today", cm_today, BRACE_ARGS },
+  { "top", cm_top, NO_BRACE_ARGS  },
+  { "unmacro", cm_unmacro, NO_BRACE_ARGS },
+  { "unnumbered", cm_unnumbered, NO_BRACE_ARGS },
+  { "unnumberedsec", cm_unnumberedsec, NO_BRACE_ARGS },
+  { "unnumberedsubsec", cm_unnumberedsubsec, NO_BRACE_ARGS },
+  { "unnumberedsubsubsec", cm_unnumberedsubsubsec, NO_BRACE_ARGS },
+  { "value", cm_value, BRACE_ARGS },
+  { "var", cm_var, BRACE_ARGS },
+  { "vindex", cm_vindex, NO_BRACE_ARGS },
+  { "vtable", cm_vtable, NO_BRACE_ARGS },
+  { "w", cm_w, BRACE_ARGS },
+  { "xref", cm_xref, BRACE_ARGS },
+  { "{", insert_self, NO_BRACE_ARGS },
+  { "}", insert_self, NO_BRACE_ARGS },
+
+  /* Some obsoleted commands. */
+  { "infotop", cm_obsolete, NO_BRACE_ARGS },
+  { "infounnumbered", cm_obsolete, NO_BRACE_ARGS },
+  { "infounnumberedsec", cm_obsolete, NO_BRACE_ARGS },
+  { "infounnumberedsubsec", cm_obsolete, NO_BRACE_ARGS },
+  { "infounnumberedsubsubsec", cm_obsolete, NO_BRACE_ARGS },
+  { "infoappendix", cm_obsolete, NO_BRACE_ARGS },
+  { "infoappendixsec", cm_obsolete, NO_BRACE_ARGS },
+  { "infoappendixsubsec", cm_obsolete, NO_BRACE_ARGS },
+  { "infoappendixsubsubsec", cm_obsolete, NO_BRACE_ARGS },
+  { "infochapter", cm_obsolete, NO_BRACE_ARGS },
+  { "infosection", cm_obsolete, NO_BRACE_ARGS },
+  { "infosubsection", cm_obsolete, NO_BRACE_ARGS },
+  { "infosubsubsection", cm_obsolete, NO_BRACE_ARGS },
 
   /* Now @include does what this was supposed to. */
-  {"infoinclude", cm_infoinclude, false},
-  {"footnote", cm_footnote, false}, /* self-arg eater */
+  { "infoinclude", cm_infoinclude, NO_BRACE_ARGS },
+  { "footnote", cm_footnote, NO_BRACE_ARGS}, /* self-arg eater */
+  { "footnotestyle", cm_footnotestyle, NO_BRACE_ARGS },
+  { "paragraphindent", cm_paragraphindent, NO_BRACE_ARGS },
 
-  {(char *) NULL, (FUNCTION *) NULL}, false};
+  {(char *) NULL, (FUNCTION *) NULL}, NO_BRACE_ARGS};
 
-/* Non-zero means we are running inside of Emacs. */
-int in_emacs = 0;
-
-#ifndef MAKEINFO_MAJOR
-#define MAKEINFO_MAJOR 1
-#endif
-
-#ifndef MAKEINFO_MINOR
-#define MAKEINFO_MINOR 0
-#endif
-
-int major_version = MAKEINFO_MAJOR;
-int minor_version = MAKEINFO_MINOR;
+int major_version = 1;
+int minor_version = 55;
 
 struct option long_options[] =
 {
-  { "no-validate", 0, &validating, false },	/* formerly -nv */
-  { "no-warn", 0, &print_warnings, false },	/* formerly -nw */
-  { "no-split", 0, &splitting, false },		/* formerly -ns */
-  { "verbose", 0, &verbose_mode, 1 },		/* formerly -verbose */
-  { "fill-column", 1, 0, 'f' },			/* formerly -fc */
-  { "paragraph-indent", 1, 0, 'p' },		/* formerly -pi */
   { "error-limit", 1, 0, 'e' },			/* formerly -el */
-  { "reference-limit", 1, 0, 'r' },		/* formerly -rl */
+  { "fill-column", 1, 0, 'f' },			/* formerly -fc */
   { "footnote-style", 1, 0, 's' },		/* formerly -ft */
+  { "no-headers", 0, &no_headers, 1 },		/* Do not output Node: foo */
+  { "no-pointer-validate", 0, &validating, 0 }, /* formerly -nv */
+  { "no-validate", 0, &validating, 0 },		/* formerly -nv */
+  { "no-split", 0, &splitting, 0 },		/* formerly -ns */
+  { "no-warn", 0, &print_warnings, 0 },		/* formerly -nw */
+  { "number-footnotes", 0, &number_footnotes, 1 },
+  { "no-number-footnotes", 0, &number_footnotes, 0 },
+  { "output", 1, 0, 'o' },
+  { "paragraph-indent", 1, 0, 'p' },		/* formerly -pi */
+  { "reference-limit", 1, 0, 'r' },		/* formerly -rl */
+  { "verbose", 0, &verbose_mode, 1 },		/* formerly -verbose */
   { "version", 0, 0, 'V' },
   {NULL, 0, NULL, 0}
 };
-  
+
+/* Values for calling handle_variable_internal (). */
+#define SET	1
+#define CLEAR	2
+#define IFSET	3
+#define IFCLEAR	4
+
 /* **************************************************************** */
 /*								    */
 /*			Main ()  Start of code  		    */
@@ -574,54 +788,80 @@ main (argc, argv)
      int argc;
      char **argv;
 {
-  char *t = (char *) getenv ("EMACS");
-  int c;
-  int ind;
+  extern int errors_printed;
+  char *filename_part ();
+  int c, ind;
 
-  progname = argv[0];
-
-  if (t && strcmp (t, "t") == 0)
-    in_emacs++;
+  /* The name of this program is the last filename in argv[0]. */
+  progname = filename_part (argv[0]);
 
   /* Parse argument flags from the input line. */
-  while ((c = getopt_long (argc, argv, "", long_options, &ind)) != EOF)
+  while ((c = getopt_long
+	  (argc, argv, "D:U:I:f:o:p:e:r:s:V", long_options, &ind))
+	 != EOF)
     {
       if (c == 0 && long_options[ind].flag == 0)
 	c = long_options[ind].val;
+
       switch (c)
 	{
+	  /* User specified variable to set or clear? */
+	case 'D':
+	case 'U':
+	  handle_variable_internal ((c == 'D') ? SET : CLEAR, optarg);
+	  break;
+
+	  /* User specified include file path? */
+	case 'I':
+	  if (!include_files_path)
+	    include_files_path = savestring (".");
+
+	  include_files_path = (char *)
+	    xrealloc (include_files_path,
+		      2 + strlen (include_files_path) + strlen (optarg));
+	  strcat (include_files_path, ":");
+	  strcat (include_files_path, optarg);
+	  break;
+
+	  /* User specified fill_column? */
 	case 'f':
-	  /* user specified fill_column? */
 	  if (sscanf (optarg, "%d", &fill_column) != 1)
 	    usage ();
 	  break;
 
-	case 'p':
+	  /* User specified output file? */
+	case 'o':
+	  command_output_filename = savestring (optarg);
+	  break;
+
 	  /* User specified paragraph indent (paragraph_start_index)? */
-	  if (sscanf (optarg, "%d", &paragraph_start_indent) != 1)
+	case 'p':
+	  if (set_paragraph_indent (optarg) < 0)
 	    usage ();
 	  break;
 
-	case 'e':
 	  /* User specified error level? */
+	case 'e':
 	  if (sscanf (optarg, "%d", &max_error_level) != 1)
 	    usage ();
 	  break;
 
-	case 'r':
 	  /* User specified reference warning limit? */
+	case 'r':
 	  if (sscanf (optarg, "%d", &reference_warning_limit) != 1)
 	    usage ();
 	  break;
 
-	case 's':
 	  /* User specified footnote style? */
-	  set_footnote_style (optarg);
+	case 's':
+	  if (set_footnote_style (optarg) < 0)
+	    usage ();
+	  footnote_style_preset = 1;
 	  break;
 
-	case 'V':		/* Use requested version info? */
-	  fprintf (stderr, "Makeinfo verison %d.%d.\n",
-		   major_version, minor_version);
+	  /* User requested version info? */
+	case 'V':
+	  print_version_info ();
 	  exit (NO_ERROR);
 	  break;
 
@@ -632,15 +872,26 @@ main (argc, argv)
 
   if (optind == argc)
     usage ();
+  else if (verbose_mode)
+    print_version_info ();
 
   /* Remaining arguments are file names of texinfo files.
      Convert them, one by one. */
   while (optind != argc)
     convert (argv[optind++]);
 
-  exit (NO_ERROR);
+  if (errors_printed)
+    exit (SYNTAX);
+  else
+    exit (NO_ERROR);
 }
 
+/* Display the version info of this invocation of Makeinfo. */
+print_version_info ()
+{
+  fprintf (stderr, "This is GNU Makeinfo version %d.%d.\n",
+	   major_version, minor_version);
+}
 
 /* **************************************************************** */
 /*								    */
@@ -649,32 +900,49 @@ main (argc, argv)
 /* **************************************************************** */
 
 /* Just like malloc, but kills the program in case of fatal error. */
-char *
+void *
 xmalloc (nbytes)
      int nbytes;
 {
-  char *temp = (char *) malloc (nbytes);
-  if (temp == (char *) NULL)
-    {
-      error ("Virtual memory exhausted! Needed %d bytes.", nbytes);
-      exit (FATAL);
-    }
+  void *temp = (void *) malloc (nbytes);
+
+  if (nbytes && temp == (void *)NULL)
+    memory_error ("xmalloc", nbytes);
+
   return (temp);
 }
 
 /* Like realloc (), but barfs if there isn't enough memory. */
-char *
+void *
 xrealloc (pointer, nbytes)
-     char *pointer;
+     void *pointer;
      int nbytes;
 {
-  pointer = (char *) realloc (pointer, nbytes);
+  void *temp;
+
   if (!pointer)
-    {
-      error ("Virtual memory exhausted in realloc ().");
-      abort ();
-    }
-  return (pointer);
+    temp = (void *)xmalloc (nbytes);
+  else
+    temp = (void *)realloc (pointer, nbytes);
+
+  if (nbytes && !temp)
+    memory_error ("xrealloc", nbytes);
+
+  return (temp);
+}
+
+memory_error (callers_name, bytes_wanted)
+     char *callers_name;
+     int bytes_wanted;
+{
+  char printable_string[80];
+
+  sprintf (printable_string,
+	   "Virtual memory exhausted in %s ()!  Needed %d bytes.",
+	   callers_name, bytes_wanted);
+
+  error (printable_string);
+  abort ();
 }
 
 /* Tell the user how to use this program. */
@@ -686,17 +954,31 @@ This program accepts as input files of texinfo commands and text\n\
 and outputs a file suitable for reading with GNU Info.\n\
 \n\
 The options are:\n\
-`+no-validate' to suppress node cross reference validation.\n\
-`+no-warn' to suppress warning messages (errors are still output).\n\
-`+no-split' to suppress the splitting of large files.\n\
-`+verbose' to print information about what is being done.\n\
-`+version' to print the version number of Makeinfo.\n\
-`+paragraph-indent NUM' to set the paragraph indent to NUM (default %d).\n\
-`+fill-column NUM' to set the filling column to NUM (default %d).\n\
-`+error-limit NUM' to set the error limit to NUM (default %d).\n\
-`+reference-limit NUM' to set the reference warning limit to NUM (default %d).\n\
-`+footnote-style STYLE' to set the footnote style to STYLE.  STYLE should\n\
-  either be `MN' for `make node', or `BN' for `bottom node'.\n\n",
+`-I DIR'              to add DIR to the directory search list for including\n\
+                      files with the `@include' command.\n\
+-D VAR                to define a variable, as with `@set'.\n\
+-U VAR                to undefine a variable, as with `@clear'.\n\
+`--no-validate'       to suppress node cross reference validation.\n\
+`--no-warn'           to suppress warning messages (errors are still output).\n\
+`--no-split'          to suppress the splitting of large files.\n\
+`--no-headers'        to suppress the output of Node: Foo headers.\n\
+`--verbose'           to print information about what is being done.\n\
+`--version'           to print the version number of Makeinfo.\n\
+`--output FILE' or `-o FILE'\n\
+                      to specify the output file.  When you specify the\n\
+                      output file in this way, any `@setfilename' in the\n\
+                      input file is ignored.\n\
+`--paragraph-indent NUM'\n\
+                      to set the paragraph indent to NUM (default %d).\n\
+`--fill-column NUM'   to set the filling column to NUM (default %d).\n\
+`--error-limit NUM'   to set the error limit to NUM (default %d).\n\
+`--reference-limit NUM'\n\
+                      to set the reference warning limit to NUM (default %d).\n\
+`--footnote-style STYLE'\n\
+                      to set the footnote style to STYLE.  STYLE should\n\
+                      either be `separate' to place footnotes in their own\n\
+                      node, or `end', to place the footnotes at the end of\n\
+                      the node in which they are defined (the default).\n\n",
 	   progname, paragraph_start_indent,
 	   fill_column, max_error_level, reference_warning_limit);
   exit (FATAL);
@@ -708,10 +990,9 @@ The options are:\n\
 /*					        		    */
 /* **************************************************************** */
 
-typedef struct generic_list
-{
+typedef struct generic_list {
   struct generic_list *next;
-}            GENERIC_LIST;
+} GENERIC_LIST;
 
 /* Reverse the chain of structures in LIST.  Output the new head
    of the chain.  You should always assign the output value of this
@@ -747,48 +1028,63 @@ find_and_load (filename)
      char *filename;
 {
   struct stat fileinfo;
-  int file, n, i, count = 0;
-  char *result = (char *) NULL;
+  int file = -1, n, i, count = 0;
+  char *fullpath, *result, *get_file_info_in_path ();
 
-  if (stat (filename, &fileinfo) != 0)
+  result = fullpath = (char *)NULL;
+
+  fullpath = get_file_info_in_path (filename, include_files_path, &fileinfo);
+
+  if (!fullpath)
     goto error_exit;
+
+  filename = fullpath;
 
   file = open (filename, O_RDONLY);
   if (file < 0)
     goto error_exit;
 
   /* Load the file. */
-  result = xmalloc (fileinfo.st_size);
+  result = (char *)xmalloc (1 + fileinfo.st_size);
 
   /* VMS stat lies about the st_size value.  The actual number of
      readable bytes is always less than this value.  The arcane
      mysteries of VMS/RMS are too much to probe, so this hack
     suffices to make things work. */
 #if defined (VMS)
-  while ((n = read (file, result+count, fileinfo.st_size)) > 0)
+  while ((n = read (file, result + count, fileinfo.st_size)) > 0)
     count += n;
   if (n == -1)
-#else
+#else /* !VMS */
     count = fileinfo.st_size;
     if (read (file, result, fileinfo.st_size) != fileinfo.st_size)
-#endif
+#endif /* !VMS */
   error_exit:
     {
       if (result)
 	free (result);
+
+      if (fullpath)
+	free (fullpath);
+
       if (file != -1)
 	close (file);
+
       return ((char *) NULL);
     }
   close (file);
 
   /* Set the globals to the new file. */
   input_text = result;
-  size_of_input_text = fileinfo.st_size;
-  input_filename = savestring (filename);
-  node_filename = savestring (filename);
+  size_of_input_text = count;
+  input_filename = savestring (fullpath);
+  node_filename = savestring (fullpath);
   input_text_offset = 0;
   line_number = 1;
+  /* Not strictly necessary.  This magic prevents read_token () from doing
+     extra unnecessary work each time it is called (that is a lot of times).
+     The SIZE_OF_INPUT_TEXT is one past the actual end of the text. */
+  input_text[size_of_input_text] = '\n';
   return (result);
 }
 
@@ -879,23 +1175,27 @@ char *
 filename_part (filename)
      char *filename;
 {
-  register int i = strlen (filename) - 1;
+  char *basename;
 
-  while (i && filename[i] != '/')
-    i--;
-  if (filename[i] == '/')
-    i++;
+  basename = strrchr (filename, '/');
+  if (!basename)
+    basename = filename;
+  else
+    basename++;
 
-#ifdef REMOVE_OUTPUT_EXTENSIONS
-  result = savestring (&filename[i]);
+  basename = savestring (basename);
+#if defined (REMOVE_OUTPUT_EXTENSIONS)
 
   /* See if there is an extension to remove.  If so, remove it. */
-  if (rindex (result, '.'))
-    *(rindex (result, '.')) = '\0';
-  return (result);
-#else
-  return (savestring (&filename[i]));
+  {
+    char *temp;
+
+    temp = strrchr (basename, '.');
+    if (temp)
+      *temp = '\0';
+  }
 #endif /* REMOVE_OUTPUT_EXTENSIONS */
+  return (basename);
 }
 
 /* Return the pathname part of filename.  This can be NULL. */
@@ -918,7 +1218,7 @@ pathname_part (filename)
 
   if (i)
     {
-      result = xmalloc (1 + i);
+      result = (char *)xmalloc (1 + i);
       strncpy (result, filename, i);
       result[i] = '\0';
     }
@@ -940,15 +1240,18 @@ expand_filename (filename, input_name)
   if (filename[0] != '/' && input_name[0] == '/')
     {
       /* Make it so that relative names work. */
-      char *result = xmalloc (1 + strlen (input_name)
-			      + strlen (filename));
+      char *result;
       int i = strlen (input_name) - 1;
 
+      result = (char *)xmalloc (1 + strlen (input_name) + strlen (filename));
       strcpy (result, input_name);
+
       while (result[i] != '/' && i)
 	i--;
+
       if (result[i] == '/')
 	i++;
+
       strcpy (&result[i], filename);
       free (filename);
       return (result);
@@ -976,13 +1279,17 @@ full_pathname (filename)
 	  if (filename[1] == '/')
 	    {
 	      /* Return the concatenation of HOME and the rest of the string. */
-	      char *temp_home = (char *) getenv ("HOME");
-	      char *temp_name = xmalloc (strlen (&filename[2])
-					 + 1
-					 + temp_home ? strlen (temp_home)
-					 : 0);
+	      char *temp_home;
+	      char *temp_name;
+
+	      temp_home = (char *) getenv ("HOME");
+	      temp_name = (char *)xmalloc (strlen (&filename[2])
+					   + 1
+					   + temp_home ? strlen (temp_home)
+					   : 0);
 	      if (temp_home)
 		strcpy (temp_name, temp_home);
+
 	      strcat (temp_name, &filename[2]);
 	      return (temp_name);
 	    }
@@ -990,7 +1297,7 @@ full_pathname (filename)
 	    {
 	      struct passwd *user_entry;
 	      int i, c;
-	      char *username = xmalloc (257);
+	      char *username = (char *)xmalloc (257);
 	      char *temp_name;
 
 	      for (i = 1; c = filename[i]; i++)
@@ -1008,8 +1315,8 @@ full_pathname (filename)
 	      if (!user_entry)
 		return (savestring (filename));
 
-	      temp_name = xmalloc (1 + strlen (user_entry->pw_dir)
-				   + strlen (&filename[i]));
+	      temp_name = (char *)xmalloc (1 + strlen (user_entry->pw_dir)
+					   + strlen (&filename[i]));
 	      strcpy (temp_name, user_entry->pw_dir);
 	      strcat (temp_name, &filename[i]);
 	      return (temp_name);
@@ -1035,21 +1342,80 @@ int errors_printed = 0;
 fs_error (filename)
      char *filename;
 {
+  remember_error ();
   perror (filename);
-  return ((int) false);
+  return (0);
 }
 
 /* Print an error message, and return false. */
+#if defined (HAVE_VARARGS_H) && defined (HAVE_VFPRINTF)
+
+int
+error (va_alist)
+     va_dcl
+{
+  char *format;
+  va_list args;
+
+  remember_error ();
+  va_start (args);
+  format = va_arg (args, char *);
+  vfprintf (stderr, format, args);
+  va_end (args);
+  fprintf (stderr, "\n");
+}
+
+/* Just like error (), but print the line number as well. */
+int
+line_error (va_alist)
+     va_dcl
+{
+  char *format;
+  va_list args;
+
+  remember_error ();
+  va_start (args);
+  format = va_arg (args, char *);
+  fprintf (stderr, "%s:%d: ", input_filename, line_number);
+  vfprintf (stderr, format, args);
+  fprintf (stderr, ".\n");
+  va_end (args);
+  return ((int) 0);
+}
+
+int
+warning (va_alist)
+     va_dcl
+{
+  char *format;
+  va_list args;
+
+  va_start (args);
+  format = va_arg (args, char *);
+  if (print_warnings)
+    {
+      fprintf (stderr, "%s:%d: Warning: ", input_filename, line_number);
+      vfprintf (stderr, format, args);
+      fprintf (stderr, ".\n");
+    }
+  va_end (args);
+  return ((int) 0);
+}
+
+#else /* !(HAVE_VARARGS_H && HAVE_VFPRINTF) */
+
+int
 error (format, arg1, arg2, arg3, arg4, arg5)
      char *format;
 {
   remember_error ();
   fprintf (stderr, format, arg1, arg2, arg3, arg4, arg5);
   fprintf (stderr, "\n");
-  return ((int) false);
+  return ((int) 0);
 }
 
 /* Just like error (), but print the line number as well. */
+int
 line_error (format, arg1, arg2, arg3, arg4, arg5)
      char *format;
 {
@@ -1057,9 +1423,10 @@ line_error (format, arg1, arg2, arg3, arg4, arg5)
   fprintf (stderr, "%s:%d: ", input_filename, line_number);
   fprintf (stderr, format, arg1, arg2, arg3, arg4, arg5);
   fprintf (stderr, ".\n");
-  return ((int) false);
+  return ((int) 0);
 }
 
+int
 warning (format, arg1, arg2, arg3, arg4, arg5)
      char *format;
 {
@@ -1069,8 +1436,10 @@ warning (format, arg1, arg2, arg3, arg4, arg5)
       fprintf (stderr, format, arg1, arg2, arg3, arg4, arg5);
       fprintf (stderr, ".\n");
     }
-  return ((int) false);
+  return ((int) 0);
 }
+
+#endif /* !(HAVE_VARARGS_H && HAVE_VFPRINTF) */
 
 /* Remember that an error has been printed.  If this is the first
    error printed, then tell them which program is printing them.
@@ -1081,12 +1450,12 @@ remember_error ()
   errors_printed++;
   if (max_error_level && (errors_printed > max_error_level))
     {
-      fprintf (stderr, "Too many errors!  Gave up.");
+      fprintf (stderr, "Too many errors!  Gave up.\n");
       flush_file_stack ();
       cm_bye ();
+      exit (1);
     }
 }
-
 
 /* **************************************************************** */
 /*								    */
@@ -1102,9 +1471,8 @@ read_token ()
   int i, character;
   char *result;
 
-  /* Hack special case.  If the first character to be read is
-     self-delimiting, then that is the command itself. */
-
+  /* If the first character to be read is self-delimiting, then that
+     is the command itself. */
   character = curchar ();
   if (self_delimiting (character))
     {
@@ -1118,14 +1486,14 @@ read_token ()
 	       && (character = curchar ())
 	       && command_char (character));
        i++, input_text_offset++);
-  result = xmalloc (i + 1);
-  strncpy (result, &input_text[input_text_offset - i], i);
+  result = (char *)xmalloc (i + 1);
+  memcpy (result, &input_text[input_text_offset - i], i);
   result[i] = '\0';
   return (result);
 }
 
-/* Return TRUE if CHARACTER is self-delimiting. */
-boolean
+/* Return non-zero if CHARACTER is self-delimiting. */
+int
 self_delimiting (character)
      int character;
 {
@@ -1144,7 +1512,7 @@ canon_white (string)
 
   for (x = 0; x < len; x++)
     {
-      if (!whitespace (string[x]))
+      if (!cr_or_whitespace (string[x]))
 	{
 	  strcpy (string, string + x);
 	  break;
@@ -1162,7 +1530,7 @@ canon_white (string)
 fix_whitespace (string)
      char *string;
 {
-  char *temp = xmalloc (strlen (string) + 1);
+  char *temp = (char *)xmalloc (strlen (string) + 1);
   int string_index = 0;
   int temp_index = 0;
   int c;
@@ -1221,33 +1589,38 @@ discard_until (string)
 /* Read characters from the file until we are at MATCH.
    Place the characters read into STRING.
    On exit input_text_offset is after the match string.
-   Return the length of STRING. */
+   Return the offset where the string starts. */
+int
 get_until (match, string)
      char *match, **string;
 {
-  int len;
-  int current_point = input_text_offset;
-  int x = current_point;
-  int new_point = search_forward (match, input_text_offset);
+  int len, current_point, x, new_point, tem;
+
+  current_point = x = input_text_offset;
+  new_point = search_forward (match, input_text_offset);
 
   if (new_point < 0)
     new_point = size_of_input_text;
   len = new_point - current_point;
 
   /* Keep track of which line number we are at. */
-  while (x != new_point)
+  tem = new_point + (strlen (match) - 1);
+  while (x != tem)
     if (input_text[x++] == '\n')
       line_number++;
 
-  *string = xmalloc (len + 1);
+  *string = (char *)xmalloc (len + 1);
 
-  strncpy (*string, &input_text[current_point], len);
+  memcpy (*string, &input_text[current_point], len);
   (*string)[len] = '\0';
 
   /* Now leave input_text_offset in a consistent state. */
-  input_text_offset = new_point + (strlen (match) - 1);
+  input_text_offset = tem;
+
   if (input_text_offset > size_of_input_text)
     input_text_offset = size_of_input_text;
+
+  return (new_point);
 }
 
 /* Read characters from the file until we are at MATCH or end of line.
@@ -1255,10 +1628,14 @@ get_until (match, string)
 get_until_in_line (match, string)
      char *match, **string;
 {
-  int real_bottom = size_of_input_text;
-  int temp = search_forward ("\n", input_text_offset);
+  int real_bottom, temp;
+
+  real_bottom = size_of_input_text;
+  temp = search_forward ("\n", input_text_offset);
+
   if (temp < 0)
     temp = size_of_input_text;
+
   size_of_input_text = temp;
   get_until (match, string);
   size_of_input_text = real_bottom;
@@ -1269,10 +1646,23 @@ get_rest_of_line (string)
 {
   get_until ("\n", string);
   canon_white (*string);
-  if (curchar () == '\n')
-    {				/* as opposed to the end of the file... */
+
+  if (curchar () == '\n')	/* as opposed to the end of the file... */
+    {
       line_number++;
       input_text_offset++;
+    }
+}
+
+/* Backup the input pointer to the previous character, keeping track
+   of the current line number. */
+backup_input_pointer ()
+{
+  if (input_text_offset)
+    {
+      input_text_offset--;
+      if (curchar () == '\n')
+	line_number--;
     }
 }
 
@@ -1289,16 +1679,18 @@ get_until_in_braces (match, string)
     {
       if (input_text[i] == '{')
 	brace++;
-      if (input_text[i] == '}')
+      else if (input_text[i] == '}')
 	brace--;
-      if (input_text[i] == '\n')
+      else if (input_text[i] == '\n')
 	line_number++;
+
       if (brace < 0 ||
 	  (brace == 0 && strncmp (input_text + i, match, match_len) == 0))
 	break;
     }
+
   match_len = i - input_text_offset;
-  temp = xmalloc (2 + match_len);
+  temp = (char *)xmalloc (2 + match_len);
   strncpy (temp, input_text + input_text_offset, match_len);
   temp[match_len] = '\0';
   input_text_offset = i;
@@ -1313,50 +1705,111 @@ get_until_in_braces (match, string)
 
 /* Convert the file named by NAME.  The output is saved on the file
    named as the argument to the @setfilename command. */
+static char *suffixes[] = {
+  "",
+  ".texinfo",
+  ".texi",
+  ".txinfo",
+  (char *)NULL
+};
+
 convert (name)
      char *name;
 {
   char *real_output_filename, *expand_filename (), *filename_part ();
+  char *filename = (char *)xmalloc (strlen (name) + 50);
+  register int i;
+
   init_tag_table ();
   init_indices ();
   init_internals ();
   init_paragraph ();
 
-  if (!find_and_load (name))
+  /* Try to load the file specified by NAME.  If the file isn't found, and
+     there is no suffix in NAME, then try NAME.texinfo, and NAME.texi. */
+  for (i = 0; suffixes[i]; i++)
     {
-      /* For some reason, the file couldn't be loaded.  Print a message
-	 to that affect, and split. */
+      strcpy (filename, name);
+      strcat (filename, suffixes[i]);
+
+      if (find_and_load (filename))
+	break;
+
+      if (!suffixes[i][0] && strrchr (filename, '.'))
+	{
+	  fs_error (filename);
+	  free (filename);
+	  return;
+	}
+    }
+
+  if (!suffixes[i])
+    {
       fs_error (name);
+      free (filename);
       return;
     }
-  else
-    input_filename = savestring (name);
+
+  input_filename = filename;
 
   /* Search this file looking for the special string which starts conversion.
      Once found, we may truly begin. */
 
   input_text_offset = search_forward ("@setfilename", 0);
+
   if (input_text_offset < 0)
     {
-      error ("No `@setfilename' found in `%s'", name);
-      goto finished;
+      if (!command_output_filename)
+	{
+	  error ("No `@setfilename' found in `%s'", name);
+	  goto finished;
+	}
     }
   else
     input_text_offset += strlen ("@setfilename");
 
-  get_until ("\n", &output_filename);	/* no braces expected. */
-  canon_white (output_filename);
+  real_output_filename = (char *)NULL;
 
+  if (!command_output_filename)
+    get_until ("\n", &output_filename);
+  else
+    {
+      if (input_text_offset != -1)
+	discard_until ("\n");
+      else
+	input_text_offset = 0;
+
+      real_output_filename = output_filename = command_output_filename;
+      command_output_filename = (char *)NULL;
+    }
+
+  canon_white (output_filename);
   printf ("Making info file `%s' from `%s'.\n", output_filename, name);
-  real_output_filename = expand_filename (output_filename, name);
-  output_stream = fopen (real_output_filename, "w");
+
+  if (verbose_mode)
+    fprintf (stderr, "  The input file contains %d characters.\n",
+	     size_of_input_text);
+
+  if (real_output_filename &&
+      strcmp (real_output_filename, "-") == 0)
+    {
+      output_stream = stdout;
+    }
+  else
+    {
+      if (!real_output_filename)
+	real_output_filename = expand_filename (output_filename, name);
+
+      output_stream = fopen (real_output_filename, "w");
+    }
+
   if (output_stream == NULL)
     {
       fs_error (real_output_filename);
       goto finished;
     }
 
-  /* Make the displayable filename from output_filename.  Only the root
+  /* Make the displayable filename from output_filename.  Only the base
      portion of the filename need be displayed. */
   pretty_output_filename = filename_part (output_filename);
 
@@ -1372,10 +1825,14 @@ convert (name)
 	line_number++;
   }
 
-  add_word_args ("Info file %s, produced by Makeinfo, -*- Text -*-\n\
-from input file %s.\n", output_filename, input_filename);
-  close_paragraph ();
+  if (!no_headers)
+    {
+      add_word_args ("This is Info file %s, produced by Makeinfo-%d.%d from ",
+		     output_filename, major_version, minor_version);
+      add_word_args ("the input file %s.\n", input_filename);
+    }
 
+  close_paragraph ();
   reader_loop ();
 
 finished:
@@ -1388,10 +1845,12 @@ finished:
       if (tag_table != NULL)
 	{
 	  tag_table = (TAG_ENTRY *) reverse_list (tag_table);
-	  write_tag_table ();
+	  if (!no_headers)
+	    write_tag_table ();
 	}
 
-      fclose (output_stream);
+      if (output_stream != stdout)
+	fclose (output_stream);
 
       /* If validating, then validate the entire file right now. */
       if (validating)
@@ -1431,12 +1890,12 @@ init_internals ()
 init_paragraph ()
 {
   free_and_clear (&output_paragraph);
-  output_paragraph = xmalloc (paragraph_buffer_len);
+  output_paragraph = (unsigned char *)xmalloc (paragraph_buffer_len);
   output_position = 0;
   output_paragraph[0] = '\0';
   output_paragraph_offset = 0;
   output_column = 0;
-  paragraph_is_open = false;
+  paragraph_is_open = 0;
   current_indent = 0;
 }
 
@@ -1448,7 +1907,7 @@ init_paragraph ()
 reader_loop ()
 {
   int character;
-  boolean done = false;
+  int done = 0;
   int dash_count = 0;
 
   while (!done)
@@ -1464,6 +1923,7 @@ reader_loop ()
 	  else
 	    break;
 	}
+
       character = curchar ();
 
       if (!in_fixed_width_font &&
@@ -1477,7 +1937,7 @@ reader_loop ()
       if (character == '-')
 	{
 	  dash_count++;
-	  if (dash_count == 3 && !in_fixed_width_font)
+	  if (dash_count == 2 && !in_fixed_width_font)
 	    {
 	      input_text_offset++;
 	      continue;
@@ -1488,34 +1948,49 @@ reader_loop ()
 	  dash_count = 0;
 	}
 
+      /* If this is a whitespace character, then check to see if the line
+	 is blank.  If so, advance to the carriage return. */
+      if (whitespace (character))
+	{
+	  register int i = input_text_offset + 1;
+
+	  while (i < size_of_input_text && whitespace (input_text[i]))
+	    i++;
+
+	  if (i == size_of_input_text || input_text[i] == '\n')
+	    {
+	      if (i == size_of_input_text)
+		i--;
+
+	      input_text_offset = i;
+	      character = curchar ();
+	    }
+	}
+
       if (character == '\n')
 	{
 	  line_number++;
+
+	  /* Check for a menu entry here, since the "escape sequence"
+	     that begins menu entrys is "\n* ". */
 	  if (in_menu && input_text_offset + 1 < size_of_input_text)
 	    {
-	      glean_node_from_menu ();
-	    }
+	      char *glean_node_from_menu (), *tem;
 
-	  /* If the following line is all whitespace, advance to the carriage
-	     return on it. */
-	  {
-	    register int i = input_text_offset + 1;
-	    
-	    while (i < size_of_input_text && whitespace (input_text[i]))
-	      i++;
-	    
-	        if (i == size_of_input_text || input_text[i] == '\n')
-		  input_text_offset = i - 1;
-	  }
+	      /* Note that the value of TEM is discarded, since it is
+		 gauranteed to be NULL when glean_node_from_menu () is
+		 called with a non-zero argument. */
+	      tem = glean_node_from_menu (1);
+	    }
 	}
-      
+
       switch (character)
 	{
 	case COMMAND_PREFIX:
 	  read_command ();
 	  if (strcmp (command, "bye") == 0)
 	    {
-	      done = true;
+	      done = 1;
 	      continue;
 	    }
 	  break;
@@ -1569,7 +2044,7 @@ get_command_entry (string)
       return (user_command_array[i]);
 
   /* Nope, we never heard of this command. */
-  return ((COMMAND *) - 1);
+  return ((COMMAND *) -1);
 }
 
 /* input_text_offset is right at the command prefix character.
@@ -1581,8 +2056,24 @@ read_command ()
   free_and_clear (&command);
   command = read_token ();
 
+#if defined (HAVE_MACROS)
+  /* Check to see if this command is a macro.  If so, execute it here. */
+  {
+    MACRO_DEF *def;
+
+    def = find_macro (command);
+
+    if (def)
+      {
+	execute_macro (def);
+	return;
+      }
+  }
+#endif /* HAVE_MACROS */
+
   entry = get_command_entry (command);
-  if ((int) entry < 0)
+
+  if ((int) entry == -1)
     {
       line_error ("Unknown info command `%s'", command);
       return;
@@ -1645,7 +2136,7 @@ pop_and_call_brace ()
   int pos;
 
   if (brace_stack == (BRACE_ELEMENT *) NULL)
-    return (line_error ("Unmatched close bracket"));
+    return (line_error ("Unmatched close brace"));
 
   pos = brace_stack->pos;
   proc = brace_stack->proc;
@@ -1707,6 +2198,24 @@ get_char_len (character)
   return (len);
 }
 
+#if defined (HAVE_VARARGS_H) && defined (HAVE_VSPRINTF)
+
+add_word_args (va_alist)
+     va_dcl
+{
+  char buffer[1000];
+  char *format;
+  va_list args;
+
+  va_start (args);
+  format = va_arg (args, char *);
+  vsprintf (buffer, format, args);
+  va_end (args);
+  add_word (buffer);
+}
+
+#else /* !(HAVE_VARARGS_H && HAVE_VSPRINTF) */
+
 add_word_args (format, arg1, arg2, arg3, arg4, arg5)
      char *format;
 {
@@ -1714,6 +2223,8 @@ add_word_args (format, arg1, arg2, arg3, arg4, arg5)
   sprintf (buffer, format, arg1, arg2, arg3, arg4, arg5);
   add_word (buffer);
 }
+
+#endif /* !(HAVE_VARARGS_H && HAVE_VSPRINTF) */
 
 /* Add STRING to output_paragraph. */
 add_word (string)
@@ -1723,21 +2234,37 @@ add_word (string)
     add_char (*string++);
 }
 
-boolean last_char_was_newline = true;
+/* Non-zero if the last character inserted has the syntax class of NEWLINE. */
+int last_char_was_newline = 1;
+
+/* The actual last inserted character.  Note that this may be something
+   other than NEWLINE even if last_char_was_newline is 1. */
 int last_inserted_character = 0;
 
+/* Non-zero means that a newline character has already been
+   inserted, so close_paragraph () should insert one less. */
+int line_already_broken = 0;
+
+/* When non-zero we have finished an insertion (see end_insertion ()) and we
+   want to ignore false continued paragraph closings. */
+int insertion_paragraph_closed = 0;
+
 /* Add the character to the current paragraph.  If filling_enabled is
-   true, then do filling as well. */
+   non-zero, then do filling as well. */
 add_char (character)
      int character;
 {
-  extern int must_start_paragraph;
+  /* If we are avoiding outputting headers, and we are currently
+     in a menu, then simply return. */
+  if (no_headers && in_menu)
+    return;
 
   /* If we are adding a character now, then we don't have to
      ignore close_paragraph () calls any more. */
-  if (must_start_paragraph)
+  if (must_start_paragraph && character != '\n')
     {
       must_start_paragraph = 0;
+      line_already_broken = 0;	/* The line is no longer broken. */
       if (current_indent > output_column)
 	{
 	  indent (current_indent - output_column);
@@ -1748,23 +2275,29 @@ add_char (character)
   if (non_splitting_words && member (character, " \t\n"))
     character = ' ' | 0x80;
 
+  insertion_paragraph_closed = 0;
+
   switch (character)
     {
-
     case '\n':
       if (!filling_enabled)
 	{
 	  insert ('\n');
 
-	  /* Should I be flushing output here? * /
-          flush_output (); */
+	  if (force_flush_right)
+	    {
+	      close_paragraph ();
+	      /* Hack to force single blank lines out in this mode. */
+	      flush_output ();
+	    }
 
 	  output_column = 0;
-	  if (!no_indent)
+
+	  if (!no_indent && paragraph_is_open)
 	    indent (output_column = current_indent);
 	  break;
 	}
-      else
+      else /* CHARACTER is newline, and filling is enabled. */
 	{
 	  if (sentence_ender (last_inserted_character))
 	    {
@@ -1781,7 +2314,7 @@ add_char (character)
 	}
       else
 	{
-	  last_char_was_newline = true;
+	  last_char_was_newline = 1;
 	  insert (' ');
 	  output_column++;
 	}
@@ -1790,6 +2323,8 @@ add_char (character)
     default:
       {
 	int len = get_char_len (character);
+	int suppress_insert = 0;
+
 	if ((character == ' ') && (last_char_was_newline))
 	  {
 	    if (!paragraph_is_open)
@@ -1798,6 +2333,7 @@ add_char (character)
 		return;
 	      }
 	  }
+
 	if (!paragraph_is_open)
 	  {
 	    start_paragraph ();
@@ -1809,15 +2345,22 @@ add_char (character)
 	      indent (pending_indent);
 	    pending_indent = 0;
 	  }
-	if ((output_column += len) >= fill_column)
+
+	if ((output_column += len) > fill_column)
 	  {
 	    if (filling_enabled)
 	      {
-		int temp = output_paragraph_offset - 1;
-		while (temp > 0 && output_paragraph[--temp] != '\n')
+		int temp = output_paragraph_offset;
+		while (--temp > 0 && output_paragraph[temp] != '\n')
 		  {
+		    /* If we have found a space, we have the place to break
+		       the line. */
 		    if (output_paragraph[temp] == ' ')
 		      {
+			/* Remove trailing whitespace from output. */
+			while (temp && whitespace (output_paragraph[temp - 1]))
+			  temp--;
+
 			output_paragraph[temp++] = '\n';
 
 			/* We have correctly broken the line where we want
@@ -1826,14 +2369,23 @@ add_char (character)
 			   them. */
 			{
 			  int t1 = temp;
-			  while (t1 < output_paragraph_offset
-				 && whitespace (output_paragraph[t1]))
-			    t1++;
+
+			  for (;; t1++)
+			    {
+			      if (t1 == output_paragraph_offset)
+				{
+				  if (whitespace (character))
+				    suppress_insert = 1;
+				  break;
+				}
+			      if (!whitespace (output_paragraph[t1]))
+				break;
+			    }
 
 			  if (t1 != temp)
 			    {
-			      strncpy (&output_paragraph[temp],
-				       &output_paragraph[t1],
+			      strncpy ((char *) &output_paragraph[temp],
+				       (char *) &output_paragraph[t1],
 				       (output_paragraph_offset - t1));
 			      output_paragraph_offset -= (t1 - temp);
 			    }
@@ -1844,7 +2396,7 @@ add_char (character)
 			  {
 			    int buffer_len = ((output_paragraph_offset - temp)
 					      + current_indent);
-			    char *temp_buffer = xmalloc (buffer_len);
+			    char *temp_buffer = (char *)xmalloc (buffer_len);
 			    int indentation = 0;
 
 			    /* We have to shift any markers that are in
@@ -1854,43 +2406,51 @@ add_char (character)
 
 			      while (stack)
 				{
-				  if (stack->pos > temp)
+				  if (stack->pos >= temp)
 				    stack->pos += current_indent;
 				  stack = stack->next;
 				}
 			    }
 
-			    while (indentation != current_indent)
+			    while (current_indent > 0 &&
+				   indentation != current_indent)
 			      temp_buffer[indentation++] = ' ';
 
-			    strncpy (&temp_buffer[current_indent],
-				     &output_paragraph[temp],
+			    strncpy ((char *) &temp_buffer[current_indent],
+				     (char *) &output_paragraph[temp],
 				     buffer_len - current_indent);
 
 			    if (output_paragraph_offset + buffer_len
 				>= paragraph_buffer_len)
 			      {
-				char *tt =
-				(char *) xrealloc (output_paragraph,
-				      (paragraph_buffer_len += buffer_len));
+				unsigned char *tt = xrealloc
+				  (output_paragraph,
+				   (paragraph_buffer_len += buffer_len));
 				output_paragraph = tt;
 			      }
-			    strncpy (&output_paragraph[temp], temp_buffer, buffer_len);
+			    strncpy ((char *) &output_paragraph[temp],
+				     temp_buffer, buffer_len);
 			    output_paragraph_offset += current_indent;
 			    free (temp_buffer);
 			  }
 			output_column = 0;
-			while (temp != output_paragraph_offset)
-			  output_column += get_char_len (output_paragraph[temp++]);
+			while (temp < output_paragraph_offset)
+			  output_column +=
+			    get_char_len (output_paragraph[temp++]);
 			output_column += len;
 			break;
 		      }
 		  }
 	      }
 	  }
-	insert (character);
-	last_char_was_newline = false;
-	last_inserted_character = character;
+
+	if (!suppress_insert)
+	  {
+	    insert (character);
+	    last_inserted_character = character;
+	  }
+	last_char_was_newline = 0;
+	line_already_broken = 0;
       }
     }
 }
@@ -1903,8 +2463,7 @@ insert (character)
   if (output_paragraph_offset == paragraph_buffer_len)
     {
       output_paragraph =
-	(char *) xrealloc (output_paragraph,
-		      (paragraph_buffer_len += 100));
+	xrealloc (output_paragraph, (paragraph_buffer_len += 100));
     }
 }
 
@@ -1936,16 +2495,39 @@ kill_self_indent (count)
     }
 }
 
+/* Non-zero means do not honor calls to flush_output (). */
+static int flushing_ignored = 0;
+
+/* Prevent calls to flush_output () from having any effect. */
+inhibit_output_flushing ()
+{
+  flushing_ignored++;
+}
+
+/* Allow calls to flush_output () to write the paragraph data. */
+uninhibit_output_flushing ()
+{
+  flushing_ignored--;
+}
+
 flush_output ()
 {
   register int i;
 
-  if (!output_paragraph_offset)
+  if (!output_paragraph_offset || flushing_ignored)
     return;
+
   for (i = 0; i < output_paragraph_offset; i++)
-    output_paragraph[i] &= 0x7f;
+    {
+      if (output_paragraph[i] == (unsigned char)(' ' | 0x80) ||
+	  output_paragraph[i] == (unsigned char)('\t' | 0x80) ||
+	  output_paragraph[i] == (unsigned char)('\n' | 0x80) ||
+	  sentence_ender (UNMETA (output_paragraph[i])))
+	output_paragraph[i] &= 0x7f;
+    }
 
   fwrite (output_paragraph, 1, output_paragraph_offset, output_stream);
+
   output_position += output_paragraph_offset;
   output_paragraph_offset = 0;
 }
@@ -1956,13 +2538,49 @@ flush_output ()
 /* Paragraph spacing is controlled by this variable.  It is the number of
    blank lines that you wish to appear between paragraphs.  A value of
    1 creates a single blank line between paragraphs. */
-int paragraph_spacing = 1;
-
+int paragraph_spacing = DEFAULT_PARAGRAPH_SPACING;
 
 /* Close the current paragraph, leaving no blank lines between them. */
 close_single_paragraph ()
 {
   close_paragraph_with_lines (0);
+}
+
+/* Close a paragraph after an insertion has ended. */
+close_insertion_paragraph ()
+{
+  if (!insertion_paragraph_closed)
+    {
+      /* Close the current paragraph, breaking the line. */
+      close_single_paragraph ();
+
+      /* Start a new paragraph here, inserting whatever indention is correct
+	 for the now current insertion level (one above the one that we are
+	 ending). */
+      start_paragraph ();
+
+      /* Tell close_paragraph () that the previous line has already been
+	 broken, so it should insert one less newline. */
+      line_already_broken = 1;
+
+      /* Let functions such as add_char () know that we have already found a
+	 newline. */
+      ignore_blank_line ();
+    }
+  else
+    {
+      /* If the insertion paragraph is closed already, then we are seeing
+	 two `@end' commands in a row.  Note that the first one we saw was
+	 handled in the first part of this if-then-else clause, and at that
+	 time start_paragraph () was called, partially to handle the proper
+	 indentation of the current line.  However, the indentation level
+	 may have just changed again, so we may have to outdent the current
+	 line to the new indentation level. */
+      if (current_indent < output_column)
+	kill_self_indent (output_column - current_indent);
+    }
+
+  insertion_paragraph_closed = 1;
 }
 
 close_paragraph_with_lines (lines)
@@ -1974,57 +2592,143 @@ close_paragraph_with_lines (lines)
   paragraph_spacing = old_spacing;
 }
 
-/* Non-zero means that start_paragraph () MUST be called before we pay
-   any attention to close_paragraph () calls. */
-int must_start_paragraph = 0;
-
 /* Close the currently open paragraph. */
 close_paragraph ()
 {
+  register int i;
+
+  /* The insertion paragraph is no longer closed. */
+  insertion_paragraph_closed = 0;
+
   if (paragraph_is_open && !must_start_paragraph)
     {
-      /* Gobble up blank lines that are extra... */
-      register int tindex = output_paragraph_offset;
-      register int c;
-      while (tindex &&
-	     ((c = output_paragraph[tindex - 1]) == ' ' || c == '\n'))
-	output_paragraph[--tindex] = '\n';
+      register int tindex, c;
 
-      output_paragraph_offset = tindex;
+      tindex = output_paragraph_offset;
 
-      insert ('\n');
-      {
-	register int i;
-	for (i = 0; i < paragraph_spacing; i++)
-	  insert ('\n');
-      }
+      /* Back up to last non-newline/space character, forcing all such
+	 subsequent characters to be newlines.  This isn't strictly
+	 necessary, but a couple of functions use the presence of a newline
+	 to make decisions. */
+      for (tindex = output_paragraph_offset - 1; tindex >= 0; --tindex)
+	{
+	  c = output_paragraph[tindex];
+
+	  if (c == ' '|| c == '\n')
+	    output_paragraph[tindex] = '\n';
+	  else
+	    break;
+	}
+
+      /* All trailing whitespace is ignored. */
+      output_paragraph_offset = ++tindex;
+
+      /* Break the line if that is appropriate. */
+      if (paragraph_spacing >= 0)
+	insert ('\n');
+
+      /* Add as many blank lines as is specified in PARAGRAPH_SPACING. */
+      if (!force_flush_right)
+	{
+	  for (i = 0; i < (paragraph_spacing - line_already_broken); i++)
+	    insert ('\n');
+	}
+
+      /* If we are doing flush right indentation, then do it now
+	 on the paragraph (really a single line). */
+      if (force_flush_right)
+	do_flush_right_indentation ();
+
       flush_output ();
-      paragraph_is_open = false;
-      no_indent = false;
+      paragraph_is_open = 0;
+      no_indent = 0;
+      output_column = 0;
     }
-  last_char_was_newline = true;
+  ignore_blank_line ();
+}
+
+/* Make the last line just read look as if it were only a newline. */
+ignore_blank_line ()
+{
+  last_inserted_character = '\n';
+  last_char_was_newline = 1;
+}
+
+/* Align the end of the text in output_paragraph with fill_column. */
+do_flush_right_indentation ()
+{
+  char *temp;
+  int temp_len;
+
+  kill_self_indent (-1);
+
+  if (output_paragraph[0] != '\n')
+    {
+      output_paragraph[output_paragraph_offset] = '\0';
+
+      if (output_paragraph_offset < fill_column)
+	{
+	  register int i;
+
+	  if (fill_column >= paragraph_buffer_len)
+	    output_paragraph =
+	      xrealloc (output_paragraph,
+			(paragraph_buffer_len += fill_column));
+
+	  temp_len = strlen ((char *)output_paragraph);
+	  temp = (char *)xmalloc (temp_len + 1);
+	  memcpy (temp, (char *)output_paragraph, temp_len);
+
+	  for (i = 0; i < fill_column - output_paragraph_offset; i++)
+	    output_paragraph[i] = ' ';
+
+	  memcpy ((char *)output_paragraph + i, temp, temp_len);
+	  free (temp);
+	  output_paragraph_offset = fill_column;
+	}
+    }
 }
 
 /* Begin a new paragraph. */
 start_paragraph ()
 {
-  close_paragraph ();		/* First close existing one. */
+  /* First close existing one. */
+  if (paragraph_is_open)
+    close_paragraph ();
 
-  paragraph_is_open = true;
+  /* In either case, the insertion paragraph is no longer closed. */
+  insertion_paragraph_closed = 0;
 
+  /* However, the paragraph is open! */
+  paragraph_is_open = 1;
+
+  /* If we MUST_START_PARAGRAPH, that simply means that start_paragraph ()
+     had to be called before we would allow any other paragraph operations
+     to have an effect. */
   if (!must_start_paragraph)
     {
-      output_column = 0;
+      int amount_to_indent = 0;
 
       /* If doing indentation, then insert the appropriate amount. */
       if (!no_indent)
 	{
-	  if (inhibit_paragraph_indentation || paragraph_start_indent < 0)
-	    output_column = current_indent;
+	  if (inhibit_paragraph_indentation)
+	    {
+	      amount_to_indent = current_indent;
+	      if (inhibit_paragraph_indentation < 0)
+		inhibit_paragraph_indentation++;
+	    }
+	  else if (paragraph_start_indent < 0)
+	    amount_to_indent = current_indent;
 	  else
-	    output_column = current_indent + paragraph_start_indent;
+	    amount_to_indent = current_indent + paragraph_start_indent;
 
-	  indent (output_column);
+	  if (amount_to_indent >= output_column)
+	    {
+	      amount_to_indent -= output_column;
+	      indent (amount_to_indent);
+	      output_column += amount_to_indent;
+	    }
 	}
     }
   else
@@ -2035,6 +2739,17 @@ start_paragraph ()
 indent (amount)
      int amount;
 {
+  register BRACE_ELEMENT *elt = brace_stack;
+
+  /* For every START_POS saved within the brace stack which will be affected
+     by this indentation, bump that start pos forward. */
+  while (elt)
+    {
+      if (elt->pos >= output_paragraph_offset)
+	elt->pos += amount;
+      elt = elt->next;
+    }
+
   while (--amount >= 0)
     insert (' ');
 }
@@ -2049,14 +2764,14 @@ search_forward (string, from)
 
   while (from < size_of_input_text)
     {
-      if (strnicmp (input_text + from, string, len) == 0)
+      if (strncmp (input_text + from, string, len) == 0)
 	return (from);
       from++;
     }
   return (-1);
 }
 
-/* Whoops, Unix doesn't have stricmp, or strnicmp. */
+/* Whoops, Unix doesn't have stricmp. */
 
 /* Case independent string compare. */
 stricmp (string1, string2)
@@ -2068,6 +2783,7 @@ stricmp (string1, string2)
     {
       ch1 = *string1++;
       ch2 = *string2++;
+
       if (!(ch1 | ch2))
 	return (0);
 
@@ -2075,42 +2791,25 @@ stricmp (string1, string2)
       ch2 = coerce_to_upper (ch2);
 
       if (ch1 != ch2)
-	return (1);
+	return (ch1 - ch2);
     }
 }
 
-/* Compare at most COUNT characters from string1 to string2.  Case
-   doesn't matter. */
-strnicmp (string1, string2, count)
-     char *string1, *string2;
-{
-  char ch1, ch2;
+enum insertion_type { menu, quotation, lisp, smalllisp, example,
+  smallexample, display, itemize, format, enumerate, cartouche, table,
+  ftable, vtable, group, ifinfo, flushleft, flushright, ifset, ifclear, deffn,
+  defun, defmac, defspec, defvr, defvar, defopt, deftypefn,
+  deftypefun, deftypevr, deftypevar, defcv, defivar, defop, defmethod,
+  deftypemethod, deftp, bad_type };
 
-  while (count)
-    {
-      ch1 = *string1++;
-      ch2 = *string2++;
-      if (coerce_to_upper (ch1) == coerce_to_upper (ch2))
-	count--;
-      else
-	break;
-    }
-  return (count);
-}
-
-enum insertion_type
-{
-  menu, quotation, lisp, example, smallexample, display,
-  itemize, format, enumerate, table, group, ifinfo,
-  defun, defvar, defopt, deffn, defspec, defmac,
-  bad_type
-};
-
-char *insertion_type_names[] = {
-	  "menu", "quotation", "lisp", "example", "smallexample", "display",
-	  "itemize", "format", "enumerate", "table", "group", "ifinfo",
-	  "defun", "defvar", "defopt", "deffn", "defspec", "defmac",
-};
+char *insertion_type_names[] = { "menu", "quotation", "lisp",
+  "smalllisp", "example", "smallexample", "display", "itemize",
+  "format", "enumerate", "cartouche", "table", "ftable", "vtable", "group",
+  "ifinfo", "flushleft", "flushright", "ifset", "ifclear", "deffn",
+  "defun", "defmac", "defspec", "defvr", "defvar", "defopt",
+  "deftypefn", "deftypefun", "deftypevr", "deftypevar", "defcv",
+  "defivar", "defop", "defmethod", "deftypemethod", "deftp",
+  "bad_type" };
 
 int insertion_level = 0;
 typedef struct istack_elt
@@ -2141,22 +2840,48 @@ current_insertion_type ()
     return (insertion_stack->insertion);
 }
 
-/* Return a pointer to the string which is the function
-   to wrap around items. */
+/* Return a pointer to the string which is the function to wrap around
+   items. */
 char *
 current_item_function ()
 {
-  if (!insertion_level)
+  register int level, done;
+  register INSERTION_ELT *elt;
+
+  level = insertion_level;
+  elt = insertion_stack;
+  done = 0;
+
+  /* Skip down through the stack until we find a non-conditional insertion. */
+  while (!done)
+    {
+      switch (elt->insertion)
+	{
+	case ifinfo:
+	case ifset:
+	case ifclear:
+	case cartouche:
+	  elt = elt->next;
+	  level--;
+	  break;
+
+	default:
+	  done = 1;
+	}
+    }
+
+  if (!level)
     return ((char *) NULL);
   else
-    return (insertion_stack->item_function);
+    return (elt->item_function);
 }
 
 char *
 get_item_function ()
 {
   char *item_function;
-  get_until ("\n", &item_function);
+  get_rest_of_line (&item_function);
+  backup_input_pointer ();
   canon_white (item_function);
   return (item_function);
 }
@@ -2184,11 +2909,13 @@ push_insertion (type, item_function)
 pop_insertion ()
 {
   INSERTION_ELT *temp = insertion_stack;
+
   if (temp == (INSERTION_ELT *) NULL)
     return;
+
   inhibit_paragraph_indentation = temp->inhibited;
-  filling_enabled = insertion_stack->filling_enabled;
-  indented_fill = insertion_stack->indented_fill;
+  filling_enabled = temp->filling_enabled;
+  indented_fill = temp->indented_fill;
   free_and_clear (&(temp->item_function));
   insertion_stack = insertion_stack->next;
   free (temp);
@@ -2216,7 +2943,7 @@ find_type_from_name (name)
   int index = 0;
   while (index < (int) bad_type)
     {
-      if (stricmp (name, insertion_type_names[index]) == 0)
+      if (strcmp (name, insertion_type_names[index]) == 0)
 	return (enum insertion_type) index;
       index++;
     }
@@ -2231,17 +2958,89 @@ int
 defun_insertion (type)
      enum insertion_type type;
 {
-  return (type == defun ||
-	  type == defvar ||
-	  type == defopt ||
-	  type == deffn ||
-	  type == defspec ||
-	  type == defmac);
+  return
+    ((type == deffn)
+     || (type == defun)
+     || (type == defmac)
+     || (type == defspec)
+     || (type == defvr)
+     || (type == defvar)
+     || (type == defopt)
+     || (type == deftypefn)
+     || (type == deftypefun)
+     || (type == deftypevr)
+     || (type == deftypevar)
+     || (type == defcv)
+     || (type == defivar)
+     || (type == defop)
+     || (type == defmethod)
+     || (type == deftypemethod)
+     || (type == deftp));
 }
 
-/* Non-zero means that we are currently hacking the insides of an
-   insertion which would use a fixed width font. */
-int in_fixed_width_font = 0;
+/* MAX_NS is the maximum nesting level for enumerations.  I picked 100
+   which seemed reasonable.  This doesn't control the number of items,
+   just the number of nested lists. */
+#define max_stack_depth 100
+#define ENUM_DIGITS 1
+#define ENUM_ALPHA  2
+typedef struct {
+  int enumtype;
+  int enumval;
+} DIGIT_ALPHA;
+
+DIGIT_ALPHA enumstack[max_stack_depth];
+int enumstack_offset = 0;
+int current_enumval = 1;
+int current_enumtype = ENUM_DIGITS;
+char *enumeration_arg = (char *)NULL;
+
+start_enumerating (at, type)
+     int at, type;
+{
+  if ((enumstack_offset + 1) == max_stack_depth)
+    {
+      line_error ("Enumeration stack overflow");
+      return;
+    }
+  enumstack[enumstack_offset].enumtype = current_enumtype;
+  enumstack[enumstack_offset].enumval = current_enumval;
+  enumstack_offset++;
+  current_enumval = at;
+  current_enumtype = type;
+}
+
+stop_enumerating ()
+{
+  --enumstack_offset;
+  if (enumstack_offset < 0)
+    enumstack_offset = 0;
+
+  current_enumval = enumstack[enumstack_offset].enumval;
+  current_enumtype = enumstack[enumstack_offset].enumtype;
+}
+
+/* Place a letter or digits into the output stream. */
+enumerate_item ()
+{
+  char temp[10];
+
+  if (current_enumtype == ENUM_ALPHA)
+    {
+      if (current_enumval == ('z' + 1) || current_enumval == ('Z' + 1))
+	{
+	  current_enumval = ((current_enumval - 1) == 'z' ? 'a' : 'A');
+	  warning ("Lettering overflow, restarting at %c", current_enumval);
+	}
+      sprintf (temp, "%c. ", current_enumval);
+    }
+  else
+    sprintf (temp, "%d. ", current_enumval);
+
+  indent (output_column += (current_indent - strlen (temp)));
+  add_word (temp);
+  current_enumval++;
+}
 
 /* This is where the work for all the "insertion" style
    commands is done.  A huge switch statement handles the
@@ -2251,57 +3050,71 @@ begin_insertion (type)
 {
   int no_discard = 0;
 
-  close_paragraph ();
-
   if (defun_insertion (type))
     {
       push_insertion (type, savestring (""));
-      no_discard = 1;
+      no_discard++;
     }
   else
     push_insertion (type, get_item_function ());
 
-  filling_enabled = false;	/* the general case for insertions. */
-  inhibit_paragraph_indentation = 1;
-  no_indent = false;
-
   switch (type)
     {
     case menu:
-      add_word ("* Menu:\n");
+      if (!no_headers)
+	close_paragraph ();
+
+      filling_enabled = no_indent = 0;
+      inhibit_paragraph_indentation = 1;
+
+      if (!no_headers)
+	add_word ("* Menu:\n");
+
       in_menu++;
-      discard_until ("\n");
-      input_text_offset--;
-      /* discard_until () has already counted the newline.  Discount it. */
-      line_number--;
-      return;
+      no_discard++;
+      break;
 
       /* I think @quotation is meant to do filling.
 	 If you don't want filling, then use @example. */
     case quotation:
-      last_char_was_newline = 0;
-      indented_fill = filling_enabled = true;
+      close_single_paragraph ();
+      last_char_was_newline = no_indent = 0;
+      indented_fill = filling_enabled = 1;
+      inhibit_paragraph_indentation = 1;
       current_indent += default_indentation_increment;
-      break;
-
-      /* Just like @example, but no indentation. */
-    case format:
-      in_fixed_width_font++;
       break;
 
     case display:
     case example:
     case smallexample:
     case lisp:
-      last_char_was_newline = 0;
-      current_indent += default_indentation_increment;
+    case smalllisp:
+      /* Just like @example, but no indentation. */
+    case format:
+
+      close_single_paragraph ();
+      inhibit_paragraph_indentation = 1;
       in_fixed_width_font++;
+      filling_enabled = 0;
+      last_char_was_newline = 0;
+
+      if (type != format)
+	current_indent += default_indentation_increment;
+
       break;
 
     case table:
+    case ftable:
+    case vtable:
     case itemize:
+      close_single_paragraph ();
       current_indent += default_indentation_increment;
-      filling_enabled = indented_fill = true;
+      filling_enabled = indented_fill = 1;
+#if defined (INDENT_PARAGRAPHS_IN_TABLE)
+      inhibit_paragraph_indentation = 0;
+#else
+      inhibit_paragraph_indentation = 1;
+#endif /* !INDENT_PARAGRAPHS_IN_TABLE */
 
       /* Make things work for losers who forget the itemize syntax. */
       if (type == itemize)
@@ -2309,51 +3122,92 @@ begin_insertion (type)
 	  if (!(*insertion_stack->item_function))
 	    {
 	      free (insertion_stack->item_function);
-	      insertion_stack->item_function = savestring ("*");
+	      insertion_stack->item_function = savestring ("@bullet");
 	    }
 	}
       break;
 
     case enumerate:
+      close_single_paragraph ();
+      no_indent = 0;
+#if defined (INDENT_PARAGRAPHS_IN_TABLE)
       inhibit_paragraph_indentation = 0;
+#else
+      inhibit_paragraph_indentation = 1;
+#endif /* !INDENT_PARAGRAPHS_IN_TABLE */
+
       current_indent += default_indentation_increment;
-      start_numbering (1);
-      filling_enabled = indented_fill = true;
+      filling_enabled = indented_fill = 1;
+
+      if (isdigit (*enumeration_arg))
+	start_enumerating (atoi (enumeration_arg), ENUM_DIGITS);
+      else
+	start_enumerating (*enumeration_arg, ENUM_ALPHA);
       break;
 
+      /* Does nothing special in makeinfo. */
     case group:
-      inhibit_paragraph_indentation = 0;
+      /* Only close the paragraph if we are not inside of an @example. */
+      if (!insertion_stack->next ||
+	  insertion_stack->next->insertion != example)
+	close_single_paragraph ();
       break;
 
+      /* Insertions that are no-ops in info, but do something in TeX. */
     case ifinfo:
-      /* Undo whatever we just did.  This is a no-op. */
-      inhibit_paragraph_indentation = 0;
-      filling_enabled = insertion_stack->filling_enabled;
-      indented_fill = insertion_stack->indented_fill;
+    case ifset:
+    case ifclear:
+    case cartouche:
+      if (in_menu)
+	no_discard++;
       break;
 
+    case deffn:
     case defun:
+    case defmac:
+    case defspec:
+    case defvr:
     case defvar:
     case defopt:
-    case deffn:
-    case defspec:
-    case defmac:
-      filling_enabled = indented_fill = true;
+    case deftypefn:
+    case deftypefun:
+    case deftypevr:
+    case deftypevar:
+    case defcv:
+    case defivar:
+    case defop:
+    case defmethod:
+    case deftypemethod:
+    case deftp:
+      inhibit_paragraph_indentation = 1;
+      filling_enabled = indented_fill = 1;
       current_indent += default_indentation_increment;
+      no_indent = 0;
+      break;
+
+    case flushleft:
+      close_single_paragraph ();
+      inhibit_paragraph_indentation = 1;
+      filling_enabled = indented_fill = no_indent = 0;
+      break;
+
+    case flushright:
+      close_single_paragraph ();
+      filling_enabled = indented_fill = no_indent = 0;
+      inhibit_paragraph_indentation = 1;
+      force_flush_right++;
       break;
     }
+
   if (!no_discard)
     discard_until ("\n");
 }
 
-/* Try to end the quotation with the specified type.
-   Like begin_insertion (), this uses a giant switch statement as
-   well.  A big difference is that you *must* pass a valid type to
-   this function, and a value of bad_type gets translated to match
-   the value currently on top of the stack.  If, however, the value
-   passed is a valid type, and it doesn't match the top of the
-   stack, then we produce an error.  Should fix this, somewhat
-   unclean. */
+/* Try to end the insertion with the specified TYPE.
+   TYPE, with a value of bad_type,  gets translated to match
+   the value currently on top of the stack.
+   Otherwise, if TYPE doesn't match the top of the insertion stack,
+   give error. */
 end_insertion (type)
      enum insertion_type type;
 {
@@ -2363,47 +3217,87 @@ end_insertion (type)
     return;
 
   temp_type = current_insertion_type ();
+
   if (type == bad_type)
     type = temp_type;
 
   if (type != temp_type)
     {
-      line_error ("Expected `%s', but saw `%s'.  Token unread",
-	     insertion_type_pname (temp_type), insertion_type_pname (type));
+      line_error
+	("`%cend' expected `%s', but saw `%s'.", COMMAND_PREFIX,
+	 insertion_type_pname (temp_type), insertion_type_pname (type));
       return;
     }
+
   pop_insertion ();
 
   switch (type)
     {
+      /* Insertions which have no effect on paragraph formatting. */
+    case ifinfo:
+    case ifset:
+    case ifclear:
+      break;
 
     case menu:
-      in_menu--;		/* no longer hacking menus. */
+      in_menu--;		/* No longer hacking menus. */
+      if (!no_headers)
+	close_insertion_paragraph ();
       break;
 
     case enumerate:
-      stop_numbering ();
+      stop_enumerating ();
+      close_insertion_paragraph ();
       current_indent -= default_indentation_increment;
       break;
 
+    case flushleft:
     case group:
-    case ifinfo:
+    case cartouche:
+      close_insertion_paragraph ();
       break;
 
     case format:
+    case display:
     case example:
     case smallexample:
-    case display:
     case lisp:
-      in_fixed_width_font--;
+    case smalllisp:
+    case quotation:
+
+      /* @quotation is the only one of the above without a fixed width
+	 font. */
+      if (type != quotation)
+	in_fixed_width_font--;
+
+      /* @format is the only fixed_width insertion without a change
+	 in indentation. */
+      if (type != format)
+	current_indent -= default_indentation_increment;
+
+      /* The ending of one of these insertions always marks the
+	 start of a new paragraph. */
+      close_insertion_paragraph ();
+      break;
+
+    case table:
+    case ftable:
+    case vtable:
+    case itemize:
       current_indent -= default_indentation_increment;
       break;
 
+    case flushright:
+      force_flush_right--;
+      close_insertion_paragraph ();
+      break;
+
+      /* Handle the @defun style insertions with a default clause. */
     default:
       current_indent -= default_indentation_increment;
+      close_insertion_paragraph ();
       break;
     }
-  close_paragraph ();
 }
 
 /* Insertions cannot cross certain boundaries, such as node beginnings.  In
@@ -2415,11 +3309,15 @@ discard_insertions ()
   int real_line_number = line_number;
   while (insertion_stack)
     {
-      if (insertion_stack->insertion == ifinfo)
+      if (insertion_stack->insertion == ifinfo ||
+	  insertion_stack->insertion == ifset ||
+	  insertion_stack->insertion == ifclear ||
+	  insertion_stack->insertion == cartouche)
 	break;
       else
 	{
-	  char *offender = (char *) insertion_type_pname (insertion_stack->insertion);
+	  char *offender = (char *)
+	    insertion_type_pname (insertion_stack->insertion);
 
 	  line_number = insertion_stack->line_number;
 	  line_error ("This `%s' doesn't have a matching `%cend %s'", offender,
@@ -2430,42 +3328,6 @@ discard_insertions ()
   line_number = real_line_number;
 }
 
-/* MAX_NS is the maximum nesting level for enumerations.  I picked 100
-   which seemed reasonable.  This doesn't control the number of items,
-   just the number of nested lists. */
-#define max_ns 100
-int number_stack[max_ns];
-int number_offset = 0;
-int the_current_number = 0;
-
-start_numbering (at_number)
-{
-  if (number_offset + 1 == max_ns)
-    {
-      line_error ("Enumeration stack overflow");
-      return;
-    }
-  number_stack[number_offset++] = the_current_number;
-  the_current_number = at_number;
-}
-
-stop_numbering ()
-{
-  the_current_number = number_stack[--number_offset];
-  if (number_offset < 0)
-    number_offset = 0;
-}
-
- /* Place a number into the output stream. */
-number_item ()
-{
-  char temp[10];
-  sprintf (temp, "%d. ", the_current_number);
-  indent (output_column += (current_indent - strlen (temp)));
-  add_word (temp);
-  the_current_number++;
-}
-
 /* The actual commands themselves. */
 
 /* Commands which insert themselves. */
@@ -2474,12 +3336,13 @@ insert_self ()
   add_word (command);
 }
 
-/* Force line break */
+/* Force a line break in the output. */
 cm_asterisk ()
 {
-  /* Force a line break in the output. */
-  insert ('\n');
-  indent (output_column = current_indent);
+  close_single_paragraph ();
+#if !defined (ASTERISK_NEW_PARAGRAPH)
+  cm_noindent ();
+#endif /* ASTERISK_NEW_PARAGRAPH */  
 }
 
 /* Insert ellipsis. */
@@ -2519,6 +3382,24 @@ cm_copyright (arg)
     add_word ("(C)");
 }
 
+cm_today (arg)
+     int arg;
+{
+  static char * months [12] =
+    { "January", "February", "March", "April", "May", "June", "July",
+	"August", "September", "October", "November", "December" };
+  if (arg == START)
+    {
+      long timer = (time (0));
+      struct tm *ts = (localtime (&timer));
+      add_word_args
+	("%d %s %d",
+	 (ts -> tm_mday),
+	 (months [ts -> tm_mon]),
+	 ((ts -> tm_year) + 1900));
+    }
+}
+
 cm_code (arg)
      int arg;
 {
@@ -2528,9 +3409,15 @@ cm_code (arg)
     return;
 
   if (arg == START)
-    add_char ('`');
+    {
+      in_fixed_width_font++;
+      add_char ('`');
+    }
   else
-    add_word ("'");
+    {
+      add_word ("'");
+      in_fixed_width_font--;
+    }
 }
 
 cm_samp (arg)
@@ -2556,12 +3443,12 @@ cm_key (arg)
 {
 }
 
- /* Convert the character at position-1 into CTL. */
+/* Convert the character at position into CTL. */
 cm_ctrl (arg, position)
      int arg, position;
 {
   if (arg == END)
-    output_paragraph[position - 1] = CTL (output_paragraph[position - 1]);
+    output_paragraph[position - 1] = CTL (output_paragraph[position]);
 }
 
 /* Small Caps in makeinfo just does all caps. */
@@ -2616,36 +3503,51 @@ cm_cite (arg, position)
      int arg, position;
 {
   if (arg == START)
-    add_word ("``");
+    add_word ("`");
   else
-    add_word ("''");
+    add_word ("'");
 }
 
-cm_italic (arg)
+/* Current text is italicized. */
+cm_italic (arg, start, end)
+     int arg, start, end;
 {
 }
 
-cm_bold (arg)
-{
-  cm_italic (arg);
-}
-
-cm_roman (arg)
-{
-}
-
-cm_title (arg)
+/* Current text is highlighted. */
+cm_bold (arg, start, end)
+     int arg, start, end;
 {
   cm_italic (arg);
 }
 
+/* Current text is in roman font. */
+cm_roman (arg, start, end)
+     int arg, start, end;
+{
+}
+
+/* Current text is in roman font. */
+cm_titlefont (arg, start, end)
+     int arg, start, end;
+{
+}
+
+/* Italicize titles. */
+cm_title (arg, start, end)
+     int arg, start, end;
+{
+  cm_italic (arg);
+}
+
+/* @refill is a NOP. */
 cm_refill ()
 {
 }
 
 /* Prevent the argument from being split across two lines. */
-cm_w (arg)
-     int arg;
+cm_w (arg, start, end)
+     int arg, start, end;
 {
   if (arg == START)
     non_splitting_words++;
@@ -2656,7 +3558,8 @@ cm_w (arg)
 
 /* Explain that this command is obsolete, thus the user shouldn't
    do anything with it. */
-cm_obsolete (arg)
+cm_obsolete (arg, start, end)
+     int arg, start, end;
 {
   if (arg == START)
     warning ("The command `@%s' is obsolete", command);
@@ -2669,87 +3572,295 @@ insert_and_underscore (with_char)
      int with_char;
 {
   int len, i, old_no_indent;
+  int starting_pos, ending_pos;
   char *temp;
 
   close_paragraph ();
-  filling_enabled =  indented_fill = false;
+  filling_enabled =  indented_fill = 0;
   old_no_indent = no_indent;
-  no_indent = true;
+  no_indent = 1;
   get_rest_of_line (&temp);
 
-  len = output_position;
+  starting_pos = output_position + output_paragraph_offset;
   execute_string ("%s\n", temp);
+  ending_pos = output_position + output_paragraph_offset;
   free (temp);
 
-  len = ((output_position + output_paragraph_offset) - 1) - len;
+  len = (ending_pos - starting_pos) - 1;
   for (i = 0; i < len; i++)
     add_char (with_char);
   insert ('\n');
   close_paragraph ();
-  filling_enabled = true;
+  filling_enabled = 1;
   no_indent = old_no_indent;
 }
 
+/* Here is a structure which associates sectioning commands with
+   an integer, hopefully to reflect the `depth' of the current
+   section. */
+struct {
+  char *name;
+  int level;
+} section_alist[] = {
+  { "unnumberedsubsubsec", 5 },
+  { "unnumberedsubsec", 4 },
+  { "unnumberedsec", 3 },
+  { "unnumbered", 2 },
+  { "appendixsubsubsec", 5 },
+  { "appendixsubsec", 4 },
+  { "appendixsec", 3 },
+  { "appendixsection", 3 },
+  { "appendix", 2 },
+  { "subsubsec", 5 },
+  { "subsubsection", 5 },
+  { "subsection", 4 },
+  { "section", 3 },
+  { "chapter", 2 },
+  { "top", 1 },
+
+  { (char *)NULL, 0 }
+};
+
+/* Amount to offset the name of sectioning commands to levels by. */
+int section_alist_offset = 0;
+
+/* Shift the meaning of @section to @chapter. */
+cm_raisesections ()
+{
+  discard_until ("\n");
+  section_alist_offset--;
+}
+
+/* Shift the meaning of @chapter to @section. */
+cm_lowersections ()
+{
+  discard_until ("\n");
+  section_alist_offset++;
+}
+
+/* Return an integer which identifies the type section present in TEXT. */
+int
+what_section (text)
+     char *text;
+{
+  register int i, j;
+  char *t;
+
+ find_section_command:
+  for (j = 0; text[j] && cr_or_whitespace (text[j]); j++);
+  if (text[j] != '@')
+    return (-1);
+
+  text = text + j + 1;
+
+  /* We skip @c, @comment, and @?index commands. */
+  if ((strncmp (text, "comment", strlen ("comment")) == 0) ||
+      (text[0] == 'c' && cr_or_whitespace (text[1])) ||
+      (strcmp (text + 1, "index") == 0))
+    {
+      while (*text++ != '\n');
+      goto find_section_command;
+    }
+
+  /* Handle italicized sectioning commands. */
+  if (*text == 'i')
+    text++;
+
+  for (j = 0; text[j] && !cr_or_whitespace (text[j]); j++);
+
+  for (i = 0; t = section_alist[i].name; i++)
+    {
+      if (j == strlen (t) && strncmp (t, text, j) == 0)
+	{
+	  int return_val;
+
+	  return_val = (section_alist[i].level + section_alist_offset);
+
+	  if (return_val < 0)
+	    return_val = 0;
+	  else if (return_val > 5)
+	    return_val = 5;
+	  return (return_val);
+	}
+    }
+  return (-1);
+}
+
+/* Treat this just like @unnumbered.  The only difference is
+   in node defaulting. */
+cm_top ()
+{
+  static int top_encountered = 0;
+  cm_unnumbered ();
+
+  /* It is an error to have more than one @top. */
+  if (top_encountered)
+    {
+      TAG_ENTRY *tag = tag_table;
+
+      line_error ("There already is a node having @top as a section");
+
+      while (tag != (TAG_ENTRY *)NULL)
+	{
+	  if ((tag->flags & IS_TOP))
+	    {
+	      int old_line_number = line_number;
+	      char *old_input_filename = input_filename;
+
+	      line_number = tag->line_no;
+	      input_filename = tag->filename;
+	      line_error ("Here is the @top node.");
+	      input_filename = old_input_filename;
+	      line_number = old_line_number;
+	      return;
+	    }
+	  tag = tag->next_ent;
+	}
+    }
+  else
+    {
+      top_encountered = 1;
+
+      /* The most recently defined node is the top node. */
+      if (tag_table)
+	tag_table->flags |= IS_TOP;
+
+      /* Now set the logical hierarchical level of the Top node. */
+      {
+	int orig_offset = input_text_offset;
+
+	input_text_offset = search_forward ("\n@node", orig_offset);
+
+	if (input_text_offset > 0)
+	  {
+	    int this_section;
+
+	    /* Move to the end of this line, and find out what the
+	       sectioning command is here. */
+	    while (input_text[input_text_offset] != '\n')
+	      input_text_offset++;
+
+	    if (input_text_offset < size_of_input_text)
+	      input_text_offset++;
+
+	    this_section = what_section (input_text + input_text_offset);
+
+	    /* If we found a sectioning command, then give the top section
+	       a level of this section - 1. */
+	    if (this_section != -1)
+	      {
+		register int i;
+
+		for (i = 0; section_alist[i].name; i++)
+		  if (strcmp (section_alist[i].name, "Top") == 0)
+		    {
+		      section_alist[i].level = this_section - 1;
+		      break;
+		    }
+	      }
+	  }
+	input_text_offset = orig_offset;
+      }
+    }
+}
+
+/* Organized by level commands.  That is, "*" == chapter, "=" == section. */
+char *scoring_characters = "*=-.";
+
+void
+sectioning_underscore (command)
+     char *command;
+{
+  char character;
+  int level;
+
+  level = what_section (command);
+  level -= 2;
+
+  if (level < 0)
+    level = 0;
+
+  character = scoring_characters[level];
+
+  insert_and_underscore (character);
+}
+
+/* The remainder of the text on this line is a chapter heading. */
 cm_chapter ()
 {
-  insert_and_underscore ('*');
+  sectioning_underscore ("@chapter");
 }
 
+/* The remainder of the text on this line is a section heading. */
 cm_section ()
 {
-  insert_and_underscore ('=');
+  sectioning_underscore ("@section");
 }
 
+/* The remainder of the text on this line is a subsection heading. */
 cm_subsection ()
 {
-  insert_and_underscore ('-');
+  sectioning_underscore ("@subsection");
 }
 
+/* The remainder of the text on this line is a subsubsection heading. */
 cm_subsubsection ()
 {
-  insert_and_underscore ('.');
+  sectioning_underscore ("@subsubsection");
 }
 
+/* The remainder of the text on this line is an unnumbered heading. */
 cm_unnumbered ()
 {
   cm_chapter ();
 }
 
+/* The remainder of the text on this line is an unnumbered section heading. */
 cm_unnumberedsec ()
 {
   cm_section ();
 }
 
+/* The remainder of the text on this line is an unnumbered
+   subsection heading. */
 cm_unnumberedsubsec ()
 {
   cm_subsection ();
 }
 
+/* The remainder of the text on this line is an unnumbered
+   subsubsection heading. */
 cm_unnumberedsubsubsec ()
 {
   cm_subsubsection ();
 }
 
+/* The remainder of the text on this line is an appendix heading. */
 cm_appendix ()
 {
   cm_chapter ();
 }
 
+/* The remainder of the text on this line is an appendix section heading. */
 cm_appendixsec ()
 {
   cm_section ();
 }
 
+/* The remainder of the text on this line is an appendix subsection heading. */
 cm_appendixsubsec ()
 {
   cm_subsection ();
 }
 
+/* The remainder of the text on this line is an appendix
+   subsubsection heading. */
 cm_appendixsubsubsec ()
 {
   cm_subsubsection ();
 }
 
+/* Compatibility functions substitute for chapter, section, etc. */
 cm_majorheading ()
 {
   cm_chapheading ();
@@ -2799,26 +3910,33 @@ init_tag_table ()
 
 write_tag_table ()
 {
-  return (write_tag_table_internal (false));	/* Not indirect. */
+  return (write_tag_table_internal (0));	/* Not indirect. */
 }
 
 write_tag_table_indirect ()
 {
-  return (write_tag_table_internal (true));
+  return (write_tag_table_internal (1));
 }
 
 /* Write out the contents of the existing tag table.
    INDIRECT_P says how to format the output. */
 write_tag_table_internal (indirect_p)
-     boolean indirect_p;
+     int indirect_p;
 {
   TAG_ENTRY *node = tag_table;
+  int old_indent = no_indent;
 
-  filling_enabled = false;
+  no_indent = 1;
+  filling_enabled = 0;
   must_start_paragraph = 0;
   close_paragraph ();
+
   if (!indirect_p)
-    insert ('\n');
+    {
+      no_indent = 1;
+      insert ('\n');
+    }
+
   add_word_args ("\037\nTag Table:\n%s", indirect_p ? "(Indirect)\n" : "");
 
   while (node != (TAG_ENTRY *) NULL)
@@ -2826,8 +3944,10 @@ write_tag_table_internal (indirect_p)
       add_word_args ("Node: %s\177%d\n", node->node, node->position);
       node = node->next_ent;
     }
+
   add_word ("\037\nEnd Tag Table\n");
   flush_output ();
+  no_indent = old_indent;
 }
 
 char *
@@ -2849,7 +3969,7 @@ get_node_token ()
 }
 
 /* Given a node name in STRING, remove double @ signs, replacing them
-   with just one. */
+   with just one.  Convert "top" and friends into "Top". */
 normalize_node_name (string)
      char *string;
 {
@@ -2863,6 +3983,8 @@ normalize_node_name (string)
 	  l--;
 	}
     }
+  if (stricmp (string, "Top") == 0)
+    strcpy (string, "Top");
 }
 
 /* Look up NAME in the tag table, and return the associated
@@ -2875,7 +3997,7 @@ find_node (name)
 
   while (tag != (TAG_ENTRY *) NULL)
     {
-      if (stricmp (tag->node, name) == 0)
+      if (strcmp (tag->node, name) == 0)
 	return (tag);
       tag = tag->next_ent;
     }
@@ -2921,59 +4043,11 @@ remember_node (node, prev, next, up, position, line_no, no_warn)
   }
 }
 
-/* Here is a structure which associates sectioning commands with
-   an integer, hopefully to reflect the `depth' of the current
-   section. */
-struct {
-  char *name;
-  int level;
-} section_alist[] = {
-  { "chapter", 1 },
-  { "section", 2},
-  { "subsec", 3},
-  { "subsubsec", 4},
-  { "unnumbered", 1},
-  { "unnumberedsec", 2},
-  { "unnumberedsubsec", 3},
-  { "unnumberedsubsubsec", 4},
-  { "appendix", 1},
-  { "appendixsec", 2},
-  { "appendixsubsec", 3},
-  { "appendixsubsubsec", 4},
-  { (char *)NULL, 0 }
-};
-
-/* Return an integer which identifies the type section present in TEXT. */
-int
-what_section (text)
-     char *text;
-{
-  int i, j;
-  char *t;
-
-  for (j = 0; text[j] && whitespace (text[j]) || text[j] == '\n'; j++);
-  if (text[j] != '@')
-    return (-1);
-
-  text = text + j + 1;
-
-  /* Handle italicized sectioning commands. */
-  if (*text == 'i')
-    text++;
-
-  for (i = 0; t = section_alist[i].name; i++)
-    {
-      if (strncmp (t, text, strlen (t)) == 0)
-	return (section_alist[i].level);
-    }
-  return (-1);
-}
-
 /* The order is: nodename, nextnode, prevnode, upnode.
-   The next, prev, and up fields can be defaulted.
-   You must follow a node command which has those fields
-   defaulted with a sectioning command (e.g. @chapter) giving
-   the "level" of that node.  It is an error not to do so.
+   If all of the NEXT, PREV, and UP fields are empty, they are defaulted.
+   You must follow a node command which has those fields defaulted
+   with a sectioning command (e.g. @chapter) giving the "level" of that node.
+   It is an error not to do so.
    The defaults come from the menu in this nodes parent. */
 cm_node ()
 {
@@ -2998,27 +4072,25 @@ cm_node ()
       free_pending_notes ();
     }
 
-  filling_enabled = indented_fill = false;
-  new_node_pos = output_position + 1;
+  filling_enabled = indented_fill = 0;
+  new_node_pos = output_position;
+  current_footnote_number = 1;
 
   node = get_node_token ();
   next = get_node_token ();
   prev = get_node_token ();
   up = get_node_token ();
 
-  this_section = what_section (input_text + input_text_offset);
-
-  /* ??? The first \n in the following string shouldn't be there, but I have
-     to revamp the @example & @group things so that they always leave a \n
-     as the last character output.  Until that time, this is the only way
-     I can produce reliable output. */
-  no_indent = true;
-  add_word_args ("\n\037\nFile: %s,  Node: %s", pretty_output_filename, node);
+  no_indent = 1;
+  if (!no_headers)
+    add_word_args ("\037\nFile: %s,  Node: %s", pretty_output_filename, node);
 
   /* Check for defaulting of this node's next, prev, and up fields. */
   defaulting = ((strlen (next) == 0) &&
 		(strlen (prev) == 0) &&
 		(strlen (up) == 0));
+
+  this_section = what_section (input_text + input_text_offset);
 
   /* If we are defaulting, then look at the immediately following
      sectioning command (error if none) to determine the node's
@@ -3032,7 +4104,7 @@ cm_node ()
 
       if (this_section < 0)
 	{
-	  char *polite_section_name = "chapter";
+	  char *polite_section_name = "top";
 	  int i;
 
 	  for (i = 0; section_alist[i].name; i++)
@@ -3048,29 +4120,80 @@ cm_node ()
 	}
       else
 	{
+	  if (stricmp (node, "Top") == 0)
+	    {
+	      /* Default the NEXT pointer to be the first menu item in
+		 this node, if there is a menu in this node. */
+	      {
+		int orig_offset, orig_size;
+		char *glean_node_from_menu ();
+
+		orig_offset = input_text_offset;
+		orig_size = search_forward ("\n@node ", orig_offset);
+
+		if (orig_size < 0)
+		  orig_size = size_of_input_text;
+
+		input_text_offset = search_forward ("\n@menu", orig_offset);
+		if (input_text_offset > -1)
+		  {
+		    char *nodename_from_menu = (char *)NULL;
+
+		    input_text_offset =
+		      search_forward ("\n* ", input_text_offset);
+
+		    if (input_text_offset != -1)
+		      nodename_from_menu = glean_node_from_menu (0);
+
+		    if (nodename_from_menu)
+		      {
+			free (next);
+			next = nodename_from_menu;
+			prev = savestring ("(DIR)");
+			up = savestring ("(DIR)");
+		      }
+		  }
+		input_text_offset = orig_offset;
+	      }
+	    }
+
 	  while (ref)
 	    {
 	      if (ref->section == (this_section - 1) &&
 		  ref->type == menu_reference &&
-		  stricmp (ref->node, node) == 0)
+		  strcmp (ref->node, node) == 0)
 		{
+		  char *containing_node = ref->containing_node;
+
 		  free (up);
-		  up = savestring (ref->containing_node);
+		  up = savestring (containing_node);
 
 		  if (last_ref &&
-		      strcmp
-		      (last_ref->containing_node, ref->containing_node) == 0)
+		      last_ref->type == menu_reference &&
+		      (strcmp (last_ref->containing_node,
+			       containing_node) == 0))
 		    {
 		      free (next);
 		      next = savestring (last_ref->node);
 		    }
 
-		  if (ref->next &&
-		      strcmp
-		      (ref->next->containing_node, ref->containing_node) == 0)
+		  while ((ref->section == this_section - 1) &&
+			 (ref->next) &&
+			 (ref->next->type != menu_reference))
+		    ref = ref->next;
+
+		  if (ref->next && ref->type == menu_reference &&
+		      (strcmp (ref->next->containing_node,
+			       containing_node) == 0))
 		    {
 		      free (prev);
 		      prev = savestring (ref->next->node);
+		    }
+		  else if (!ref->next &&
+			   stricmp (ref->containing_node, "Top") == 0)
+		    {
+		      free (prev);
+		      prev = savestring (ref->containing_node);
 		    }
 		  break;
 		}
@@ -3080,18 +4203,20 @@ cm_node ()
 	}
     }
 
-  if (*next)
-    add_word_args (",  Next: %s", next);
-  
-  if (*prev)
-    add_word_args (",  Prev: %s", prev);
+  if (!no_headers)
+    {
+      if (*next)
+	add_word_args (",  Next: %s", next);
 
-  if (*up)
-    add_word_args (",  Up: %s", up);
+      if (*prev)
+	add_word_args (",  Prev: %s", prev);
 
-  insert ('\n');
+      if (*up)
+	add_word_args (",  Up: %s", up);
+    }
+
   close_paragraph ();
-  no_indent = false;
+  no_indent = 0;
 
   if (!*node)
     {
@@ -3113,7 +4238,7 @@ cm_node ()
   if (this_section >= 0)
     current_section = this_section;
 
-  filling_enabled = true;
+  filling_enabled = 1;
 }
 
 /* Validation of an info file.
@@ -3144,6 +4269,13 @@ validate_file (filename, tag_table)
       input_filename = tags->filename;
       line_number = tags->line_no;
 
+      /* If this is a "no warn" node, don't validate it in any way. */
+      if (tags->flags & NO_WARN)
+	{
+	  tags = tags->next_ent;
+	  continue;
+	}
+	
       /* If this node has a Next, then make sure that the Next exists. */
       if (tags->next)
 	{
@@ -3153,19 +4285,29 @@ validate_file (filename, tag_table)
 	     sure that the Prev of the Next points back. */
 	  if (temp_tag = find_node (tags->next))
 	    {
-	      char *prev = temp_tag->prev;
-	      if (!prev || (stricmp (prev, tags->node) != 0))
+	      char *prev;
+
+	      if (temp_tag->flags & NO_WARN)
 		{
-		  line_error
-		    ("Node `%s''s Next field not pointed back to", tags->node);
-		  line_number = temp_tag->line_no;
-		  input_filename = temp_tag->filename;
-		  line_error
-		    ("This node (`%s') is the one with the bad `Prev'",
-		     temp_tag->node);
-		  input_filename = tags->filename;
-		  line_number = tags->line_no;
-		  temp_tag->flags |= PREV_ERROR;
+		  /* Do nothing if we aren't supposed to issue warnings
+		     about this node. */
+		}
+	      else
+		{
+		  prev = temp_tag->prev;
+		  if (!prev || (strcmp (prev, tags->node) != 0))
+		    {
+		      line_error ("Node `%s''s Next field not pointed back to",
+				  tags->node);
+		      line_number = temp_tag->line_no;
+		      input_filename = temp_tag->filename;
+		      line_error
+			("This node (`%s') is the one with the bad `Prev'",
+			 temp_tag->node);
+		      input_filename = tags->filename;
+		      line_number = tags->line_no;
+		      temp_tag->flags |= PREV_ERROR;
+		    }
 		}
 	    }
 	}
@@ -3184,22 +4326,33 @@ validate_file (filename, tag_table)
 	      /* If the Prev field is not the same as the Up field,
 		 then the node pointed to by the Prev field must have
 		 a Next field which points to this node. */
-	      if (tags->up && (stricmp (tags->prev, tags->up) != 0))
+	      if (tags->up && (strcmp (tags->prev, tags->up) != 0))
 		{
 		  temp_tag = find_node (tags->prev);
-		  if (!temp_tag->next ||
-		      (stricmp (temp_tag->next, tags->node) != 0))
+
+		  /* If we aren't supposed to issue warnings about the
+		     target node, do nothing. */
+		  if (!temp_tag || (temp_tag->flags & NO_WARN))
 		    {
-		      line_error ("Node `%s''s Prev field not pointed back to",
-				  tags->node);
-		      line_number = temp_tag->line_no;
-		      input_filename = temp_tag->filename;
-		      line_error
-			("This node (`%s') is the one with the bad `Next'",
-			 temp_tag->node);
-		      input_filename = tags->filename;
-		      line_number = tags->line_no;
-		      temp_tag->flags |= NEXT_ERROR;
+		      /* Do nothing. */
+		    }
+		  else
+		    {
+		      if (!temp_tag->next ||
+			  (strcmp (temp_tag->next, tags->node) != 0))
+			{
+			  line_error
+			    ("Node `%s''s Prev field not pointed back to",
+			     tags->node);
+			  line_number = temp_tag->line_no;
+			  input_filename = temp_tag->filename;
+			  line_error
+			    ("This node (`%s') is the one with the bad `Next'",
+			     temp_tag->node);
+			  input_filename = tags->filename;
+			  line_number = tags->line_no;
+			  temp_tag->flags |= NEXT_ERROR;
+			}
 		    }
 		}
 	    }
@@ -3226,7 +4379,7 @@ validate_file (filename, tag_table)
 		  if (!(nref = find_node_reference (tags->node, list)))
 		    break;
 
-		  if (stricmp (nref->containing_node, tags->up) == 0)
+		  if (strcmp (nref->containing_node, tags->up) == 0)
 		    {
 		      if (nref->type != menu_reference)
 			{
@@ -3245,7 +4398,8 @@ validate_file (filename, tag_table)
 		  line_number = temp_tag->line_no;
 		  filename = temp_tag->filename;
 		  if (!tref)
-		    line_error ("`%s' has an Up field of `%s', but `%s' has no menu item for `%s'",
+		    line_error (
+"`%s' has an Up field of `%s', but `%s' has no menu item for `%s'",
 				tags->node, tags->up, tags->up, tags->node);
 		  line_number = tags->line_no;
 		  filename = tags->filename;
@@ -3262,6 +4416,13 @@ validate_file (filename, tag_table)
   tags = tag_table;
   while (tags != (TAG_ENTRY *) NULL)
     {
+      /* If this node is a "no warn" node, do nothing. */
+      if (tags->flags & NO_WARN)
+	{
+	  tags = tags->next_ent;
+	  continue;
+	}
+
       /* Special hack.  If the node in question appears to have
          been referenced more than REFERENCE_WARNING_LIMIT times,
          give a warning. */
@@ -3307,7 +4468,8 @@ validate (tag, line, label)
   if (!result)
     {
       line_number = line;
-      line_error ("Validation error.  `%s' field points to node `%s', which doesn't exist",
+      line_error (
+"Validation error.  `%s' field points to node `%s', which doesn't exist",
 		  label, tag);
       return (0);
     }
@@ -3363,15 +4525,15 @@ split_file (filename, size)
 
     /* Remember the `header' of this file.  The first tag in the file is
        the bottom of the header; the top of the file is the start. */
-    the_header = xmalloc (1 + (header_size = (tags->position - 2)));
-    bcopy (the_file, the_header, header_size);
+    the_header = (char *)xmalloc (1 + (header_size = tags->position));
+    memcpy (the_header, the_file, header_size);
 
     while (tags)
       {
 	int file_top, file_bot, limit;
 
 	/* Have to include the Control-_. */
-	file_top = file_bot = tags->position - 2;
+	file_top = file_bot = tags->position;
 	limit = file_top + size;
 
 	/* If the rest of this file is only one node, then
@@ -3436,25 +4598,34 @@ split_file (filename, size)
 
 	    if (tags->next_ent->position > limit)
 	      {
-		if ((tags->position) - 2 == file_top)
+		if (tags->position == file_top)
 		  tags = tags->next_ent;
+
 		file_bot = tags->position;
+
 	      write_region:
 		{
 		  int fd;
-		  char *split_file = xmalloc (10 + strlen (root_pathname)
-					      + strlen (root_filename));
-		  sprintf (split_file,
-		       "%s%s-%d", root_pathname, root_filename, which_file);
+		  char *split_filename;
 
-		  if (((fd = open (split_file, O_WRONLY | O_TRUNC | O_CREAT, 0666)) < 0)
-		      || (write (fd, the_header, header_size) != header_size)
-		      || (write (fd, the_file + file_top, file_bot - file_top)
-			  != (file_bot - file_top))
-		      || ((close (fd)) < 0))
+		  split_filename = (char *) xmalloc
+		    (10 + strlen (root_pathname) + strlen (root_filename));
+		  sprintf
+		    (split_filename,
+		     "%s%s-%d", root_pathname, root_filename, which_file);
+
+		  fd = open
+		    (split_filename, O_WRONLY | O_TRUNC | O_CREAT, 0666);
+
+		  if ((fd < 0) ||
+		      (write (fd, the_header, header_size) != header_size) ||
+		      (write (fd, the_file + file_top, file_bot - file_top)
+		       != (file_bot - file_top)) ||
+		      ((close (fd)) < 0))
 		    {
-		      perror (split_file);
-		      close (fd);
+		      perror (split_filename);
+		      if (fd != -1)
+			close (fd);
 		      exit (FATAL);
 		    }
 
@@ -3468,7 +4639,7 @@ split_file (filename, size)
 		  sprintf (indirect_info, "%s-%d: %d\n",
 			   root_filename, which_file, file_top);
 
-		  free (split_file);
+		  free (split_filename);
 		  indirect_info += strlen (indirect_info);
 		  which_file++;
 		  break;
@@ -3492,7 +4663,7 @@ split_file (filename, size)
       fwrite (the_file, 1, distance, output_stream);
 
       /* Inhibit newlines. */
-      paragraph_is_open = false;
+      paragraph_is_open = 0;
 
       write_tag_table_indirect ();
       fclose (output_stream);
@@ -3564,7 +4735,7 @@ find_node_reference (node, ref_list)
 {
   while (ref_list)
     {
-      if (stricmp (node, ref_list->node) == 0)
+      if (strcmp (node, ref_list->node) == 0)
 	break;
       ref_list = ref_list->next;
     }
@@ -3588,22 +4759,22 @@ free_node_references ()
   node_references = (NODE_REF *) NULL;
 }
 
-#define menu_starter "* "
-glean_node_from_menu ()
-{
   /* This function gets called at the start of every line while inside of
      a menu.  It checks to see if the line starts with "* ", and if so,
      remembers the node reference that this menu refers to.
-
      input_text_offset is at the \n just before the line start. */
-
+#define menu_starter "* "
+char *
+glean_node_from_menu (remember_reference)
+     int remember_reference;
+{
   int i, orig_offset = input_text_offset;
   char *nodename;
 
   if (strncmp (&input_text[input_text_offset + 1],
 	       menu_starter,
 	       strlen (menu_starter)) != 0)
-    return;
+    return ((char *)NULL);
   else
     input_text_offset += strlen (menu_starter) + 1;
 
@@ -3614,6 +4785,7 @@ glean_node_from_menu ()
 
   if (curchar () == ':')
     goto save_node;
+
   free (nodename);
   get_rest_of_line (&nodename);
 
@@ -3625,26 +4797,77 @@ glean_node_from_menu ()
      been counted. */
   line_number--;
 
-  canon_white (nodename);
-  for (i = 0; i < strlen (nodename); i++)
-    {
-      if (nodename[i] == '\t' ||
-	  nodename[i] == '.' ||
-	  nodename[i] == ',')
-	{
-	  nodename[i] = '\0';
-	  break;
-	}
-    }
+  isolate_nodename (nodename);
+
 save_node:
+  input_text_offset = orig_offset;
   normalize_node_name (nodename);
   i = strlen (nodename);
   if (i && nodename[i - 1] == ':')
     nodename[i - 1] = '\0';
 
-  remember_node_reference (nodename, line_number, menu_reference);
-  free (nodename);
-  input_text_offset = orig_offset;
+  if (remember_reference)
+    {
+      remember_node_reference (nodename, line_number, menu_reference);
+      free (nodename);
+      return ((char *)NULL);
+    }
+  else
+    return (nodename);
+}
+
+static void
+isolate_nodename (nodename)
+     char *nodename;
+{
+  register int i, c;
+  int paren_seen, paren;
+
+  if (!nodename)
+    return;
+
+  canon_white (nodename);
+  paren_seen = paren = i = 0;
+
+  if (*nodename == '.' || !*nodename)
+    {
+      *nodename = '\0';
+      return;
+    }
+
+  if (*nodename == '(')
+    {
+      paren++;
+      paren_seen++;
+      i++;
+    }
+
+  for (; c = nodename[i]; i++)
+    {
+      if (paren)
+	{
+	  if (c == '(')
+	    paren++;
+	  else if (c == ')')
+	    paren--;
+
+	  continue;
+	}
+
+      /* If the character following the close paren is a space, then this
+	 node has no more characters associated with it. */
+      if (c == '\t' ||
+	  c == '\n' ||
+	  c == ','  ||
+	  ((paren_seen && nodename[i - 1] == ')') &&
+	   (c == ' ' || c == '.')) ||
+	  (c == '.' &&
+	   ((!nodename[i + 1] ||
+	     (cr_or_whitespace (nodename[i + 1])) ||
+	     (nodename[i + 1] == ')')))))
+	break;
+    }
+  nodename[i] = '\0';
 }
 
 cm_menu ()
@@ -3668,7 +4891,6 @@ get_xref_token ()
   if (curchar () == ',')
     input_text_offset++;
   fix_whitespace (string);
-  normalize_node_name (string);
   return (string);
 }
 
@@ -3694,11 +4916,16 @@ cm_xref (arg)
 	  char *node_name;
 
 	  if (!*arg2)
-	    node_name = arg1;
+	    {
+	      if (*arg3)
+		node_name = arg3;
+	      else
+		node_name = arg1;
+	    }
 	  else
 	    node_name = arg2;
 
-	  add_word_args ("%s: (%s)%s", arg2, arg4, arg1);
+	  execute_string ("%s: (%s)%s", node_name, arg4, arg1);
 	  return;
 	}
       else
@@ -3707,26 +4934,16 @@ cm_xref (arg)
       if (*arg3)
 	{
 	  if (!*arg2)
-	    {
-	      add_word_args ("%s: %s", arg3, arg1);
-	    }
+	    execute_string ("%s: %s", arg3, arg1);
 	  else
-	    {
-	      add_word_args ("%s: %s", arg2, arg1);
-	    }
+	    execute_string ("%s: %s", arg2, arg1);
 	  return;
 	}
 
       if (*arg2)
-	{
-	  execute_string ("%s", arg2);
-	  add_word_args (": %s", arg1);
-	}
+	execute_string ("%s: %s", arg2, arg1);
       else
-	{
-	  add_word_args ("%s::", arg1);
-	}
-
+	execute_string ("%s::", arg1);
     }
   else
     {
@@ -3734,7 +4951,6 @@ cm_xref (arg)
       /* Check to make sure that the next non-whitespace character is either
          a period or a comma. input_text_offset is pointing at the "}" which
          ended the xref or pxref command. */
-
       int temp = input_text_offset + 1;
 
       if (output_paragraph[output_paragraph_offset - 2] == ':' &&
@@ -3752,7 +4968,8 @@ cm_xref (arg)
 		return;
 	      else
 		{
-		  line_error ("Cross-reference must be terminated with a period or a comma");
+		  line_error (
+		"Cross-reference must be terminated with a period or a comma");
 		  return;
 		}
 	    }
@@ -3784,7 +5001,7 @@ cm_inforef (arg)
       pname = get_xref_token ();
       file = get_xref_token ();
 
-      add_word_args ("*note %s: (%s)%s", pname, file, node);
+      execute_string ("*note %s: (%s)%s", pname, file, node);
     }
 }
 
@@ -3814,6 +5031,18 @@ cm_lisp ()
   begin_insertion (lisp);
 }
 
+cm_smalllisp ()
+{
+  begin_insertion (smalllisp);
+}
+
+/* @cartouche/@end cartouche draws box with rounded corners in
+   TeX output.  Right now, just a NOP insertion. */
+cm_cartouche ()
+{
+  begin_insertion (cartouche);
+}
+
 cm_format ()
 {
   begin_insertion (format);
@@ -3831,12 +5060,52 @@ cm_itemize ()
 
 cm_enumerate ()
 {
-  begin_insertion (enumerate);
+  do_enumeration (enumerate, "1");
+}
+
+/* Start an enumeration insertion of type TYPE.  If the user supplied
+   no argument on the line, then use DEFAULT_STRING as the initial string. */
+do_enumeration (type, default_string)
+     int type;
+     char *default_string;
+{
+  get_until_in_line (".", &enumeration_arg);
+  canon_white (enumeration_arg);
+
+  if (!*enumeration_arg)
+    {
+      free (enumeration_arg);
+      enumeration_arg = savestring (default_string);
+    }
+
+  if (!isdigit (*enumeration_arg) && !isletter (*enumeration_arg))
+    {
+      warning ("%s requires a letter or a digit", insertion_type_pname (type));
+
+      switch (type)
+	{
+	case enumerate:
+	  default_string = "1";
+	  break;
+	}
+      enumeration_arg = savestring (default_string);
+    }
+  begin_insertion (type);
 }
 
 cm_table ()
 {
   begin_insertion (table);
+}
+
+cm_ftable ()
+{
+  begin_insertion (ftable);
+}
+
+cm_vtable ()
+{
+  begin_insertion (vtable);
 }
 
 cm_group ()
@@ -3849,34 +5118,319 @@ cm_ifinfo ()
   begin_insertion (ifinfo);
 }
 
-cm_tex ()
+/* Begin an insertion where the lines are not filled or indented. */
+cm_flushleft ()
 {
-  discard_until ("\n@end tex");
-  discard_until ("\n");
+  begin_insertion (flushleft);
 }
 
-cm_iftex ()
+/* Begin an insertion where the lines are not filled, and each line is
+   forced to the right-hand side of the page. */
+cm_flushright ()
 {
-  discard_until ("\n@end iftex");
-  discard_until ("\n");
+  begin_insertion (flushright);
 }
 
-cm_titlespec ()
+
+/* **************************************************************** */
+/*								    */
+/*			  Conditional Handling			    */
+/*								    */
+/* **************************************************************** */
+
+/* A structure which contains `defined' variables. */
+typedef struct _defines {
+  struct _defines *next;
+  char *name;
+  char *value;
+} DEFINE;
+
+/* The linked list of `set' defines. */
+DEFINE *defines = (DEFINE *)NULL;
+
+/* Add NAME to the list of `set' defines. */
+set (name, value)
+     char *name;
+     char *value;
 {
-  discard_until ("\n@end titlespec");
-  discard_until ("\n");
+  DEFINE *temp;
+
+  for (temp = defines; temp; temp = temp->next)
+    if (strcmp (name, temp->name) == 0)
+      {
+	free (temp->value);
+	temp->value = savestring (value);
+	return;
+      }
+
+  temp = (DEFINE *)xmalloc (sizeof (DEFINE));
+  temp->next = defines;
+  temp->name = savestring (name);
+  temp->value = savestring (value);
+  defines = temp;
 }
 
-cm_titlepage ()
+/* Remove NAME from the list of `set' defines. */
+clear (name)
+     char *name;
 {
-  discard_until ("\n@end titlepage");
-  discard_until ("\n");
+  register DEFINE *temp, *last;
+
+  last = (DEFINE *)NULL;
+  temp = defines;
+
+  while (temp)
+    {
+      if (strcmp (temp->name, name) == 0)
+	{
+	  if (last)
+	    last->next = temp->next;
+	  else
+	    defines = temp->next;
+
+	  free (temp->name);
+	  free (temp->value);
+	  free (temp);
+	  break;
+	}
+      last = temp;
+      temp = temp->next;
+    }
 }
 
-cm_ignore ()
+/* Return the value of NAME.  The return value is NULL if NAME is unset. */
+char *
+set_p (name)
+     char *name;
 {
-  discard_until ("\n@end ignore");
+  register DEFINE *temp;
+
+  for (temp = defines; temp; temp = temp->next)
+    if (strcmp (temp->name, name) == 0)
+      return (temp->value);
+
+  return ((char *)NULL);
+}
+
+/* Conditionally parse based on the current command name. */
+command_name_condition ()
+{
+  char *discarder;
+
+  discarder = (char *)xmalloc (8 + strlen (command));
+
+  sprintf (discarder, "\n@end %s", command);
+  discard_until (discarder);
   discard_until ("\n");
+
+  free (discarder);
+}
+
+/* Create a variable whose name appears as the first word on this line. */
+cm_set ()
+{
+  handle_variable (SET);
+}
+
+/* Remove a variable whose name appears as the first word on this line. */
+cm_clear ()
+{
+  handle_variable (CLEAR);
+}
+
+cm_ifset ()
+{
+  handle_variable (IFSET);
+}
+
+cm_ifclear ()
+{
+  handle_variable (IFCLEAR);
+}
+
+cm_value (arg, start_pos, end_pos)
+     int arg, start_pos, end_pos;
+{
+  if (arg == END)
+    {
+      char *name, *value;
+      name = (char *)&output_paragraph[start_pos];
+      output_paragraph[end_pos] = '\0';
+      name = savestring (name);
+      value = set_p (name);
+      output_column -= end_pos - start_pos;
+      output_paragraph_offset = start_pos;
+
+      if (value)
+        execute_string ("%s", value);
+      else
+	add_word_args ("{No Value For \"%s\"}", name);
+
+      free (name);
+    }
+}
+
+/* Set, clear, or conditionalize based on ACTION. */
+handle_variable (action)
+     int action;
+{
+  char *name;
+
+  get_rest_of_line (&name);
+  backup_input_pointer ();
+  canon_white (name);
+  handle_variable_internal (action, name);
+  free (name);
+}
+
+handle_variable_internal (action, name)
+     int action;
+     char *name;
+{
+  char *temp;
+  int delimiter, additional_text_present = 0;
+
+  /* Only the first word of NAME is a valid tag. */
+  temp = name;
+  delimiter = 0;
+  while (*temp && (delimiter || !whitespace (*temp)))
+    {
+#if defined (SET_WITH_EQUAL)
+      if (*temp == '"' || *temp == '\'')
+	{
+	  if (*temp == delimiter)
+	    delimiter = 0;
+	  else
+	    delimiter = *temp;
+	}
+#endif /* SET_WITH_EQUAL */
+      temp++;
+    }
+
+  if (*temp)
+    additional_text_present++;
+
+  *temp = '\0';
+
+  if (!*name)
+    line_error ("@%s requires a name", command);
+  else
+    {
+      switch (action)
+	{
+	case SET:
+	  {
+	    char *value;
+
+#if defined (SET_WITH_EQUAL)
+	    /* Allow a value to be saved along with a variable.  The value is
+	       the text following an `=' sign in NAME, if any is present. */
+
+	    for (value = name; *value && *value != '='; value++);
+
+	    if (*value)
+	      *value++ = '\0';
+
+	    if (*value == '"' || *value == '\'')
+	      {
+		value++;
+		value[strlen (value) - 1] = '\0';
+	      }
+
+#else /* !SET_WITH_EQUAL */
+	    /* The VALUE of NAME is the remainder of the line sans
+	       whitespace. */
+	    if (additional_text_present)
+	      {
+		value = temp + 1;
+		canon_white (value);
+	      }
+	    else
+	      value = "";
+#endif /* !SET_WITH_VALUE */
+
+	    set (name, value);
+	  }
+	  break;
+
+	case CLEAR:
+	  clear (name);
+	  break;
+
+	case IFSET:
+	case IFCLEAR:
+	  /* If IFSET and NAME is not set, or if IFCLEAR and NAME is set,
+	     read lines from the the file until we reach a matching
+	     "@end CONDITION".  This means that we only take note of
+	     "@ifset/clear" and "@end" commands. */
+	  {
+	    char condition[8];
+	    int condition_len;
+
+	    if (action == IFSET)
+	      strcpy (condition, "ifset");
+	    else
+	      strcpy (condition, "ifclear");
+
+	    condition_len = strlen (condition);
+
+	  if ((action == IFSET && !set_p (name)) ||
+	      (action == IFCLEAR && set_p (name)))
+	    {
+	      int level = 0, done = 0;
+
+	      while (!done)
+		{
+		  char *freeable_line, *line;
+
+		  get_rest_of_line (&freeable_line);
+
+		  for (line = freeable_line; whitespace (*line); line++);
+
+		  if (*line == COMMAND_PREFIX &&
+		      (strncmp (line + 1, condition, condition_len) == 0))
+		    level++;
+		  else if (strncmp (line, "@end", 4) == 0)
+		    {
+		      char *cname = line + 4;
+		      char *temp;
+
+		      while (*cname && whitespace (*cname))
+			cname++;
+		      temp = cname;
+
+		      while (*temp && !whitespace (*temp))
+			temp++;
+		      *temp = '\0';
+
+		      if (strcmp (cname, condition) == 0)
+			{
+			  if (!level)
+			    {
+			      done = 1;
+			    }
+			  else
+			    level--;
+			}
+		    }
+		  free (freeable_line);
+		}
+	      /* We found the end of a false @ifset/ifclear.  If we are
+		 in a menu, back up over the newline that ends the ifset,
+		 since that newline may also begin the next menu entry. */
+	      break;
+	    }
+	  else
+	    {
+	      if (action == IFSET)
+		begin_insertion (ifset);
+	      else
+		begin_insertion (ifclear);
+	    }
+	  }
+	  break;
+	}
+    }
 }
 
 /* **************************************************************** */
@@ -3890,11 +5444,30 @@ int executing_string = 0;
 
 /* Execute the string produced by formatting the ARGs with FORMAT.  This
    is like submitting a new file with @include. */
+#if defined (HAVE_VARARGS_H) && defined(HAVE_VSPRINTF)
+
+execute_string (va_alist)
+     va_dcl
+{
+  static char temp_string[4000];
+  char *format;
+  va_list args;
+
+  va_start (args);
+  format = va_arg (args, char *);
+  vsprintf (temp_string, format, args);
+  va_end (args);
+
+#else /* !(HAVE_VARARGS_H && HAVE_VSPRINTF) */
+
 execute_string (format, arg1, arg2, arg3, arg4, arg5)
      char *format;
 {
   static char temp_string[4000];
   sprintf (temp_string, format, arg1, arg2, arg3, arg4, arg5);
+
+#endif /* !(HAVE_VARARGS_H && HAVE_VSPRINTF) */
+
   strcat (temp_string, "@bye\n");
   pushfile ();
   input_text_offset = 0;
@@ -3921,7 +5494,6 @@ cm_itemx ()
   itemx_flag--;
 }
 
-
 cm_item ()
 {
   char *rest_of_line, *item_func;
@@ -3929,15 +5501,33 @@ cm_item ()
   /* Can only hack "@item" while inside of an insertion. */
   if (insertion_level)
     {
-      get_until ("\n", &rest_of_line);
+      INSERTION_ELT *stack = insertion_stack;
+      int original_input_text_offset;
+
+      skip_whitespace ();
+      original_input_text_offset = input_text_offset;
+
+      get_rest_of_line (&rest_of_line);
       canon_white (rest_of_line);
       item_func = current_item_function ();
 
       /* Okay, do the right thing depending on which insertion function
 	 is active. */
 
-      switch (current_insertion_type ())
+    switch_top:
+      switch (stack->insertion)
 	{
+	case ifinfo:
+	case ifset:
+	case ifclear:
+	case cartouche:
+	  stack = stack->next;
+	  if (!stack)
+	    goto no_insertion;
+	  else
+	    goto switch_top;
+	  break;
+
 	case menu:
 	case quotation:
 	case example:
@@ -3946,7 +5536,6 @@ cm_item ()
 	case format:
 	case display:
 	case group:
-	case ifinfo:
 	  line_error ("The `@%s' command is meaningless within a `@%s' block",
 		      command,
 		      insertion_type_pname (current_insertion_type ()));
@@ -3963,8 +5552,7 @@ cm_item ()
 	    {
 	      start_paragraph ();
 	      kill_self_indent (-1);
-	      discard_until ("\n");
-	      filling_enabled = indented_fill = true;
+	      filling_enabled = indented_fill = 1;
 
 	      if (current_insertion_type () == itemize)
 		{
@@ -3988,15 +5576,27 @@ cm_item ()
 		  output_column++;
 		}
 	      else
-		number_item ();
+		enumerate_item ();
 
 	      /* Special hack.  This makes close paragraph ignore you until
 		 the start_paragraph () function has been called. */
 	      must_start_paragraph = 1;
+
+	      /* Ultra special hack.  It appears that some people incorrectly
+		 place text directly after the @item, instead of on a new line
+		 by itself.  This happens to work in TeX, so I make it work
+		 here. */
+	      if (*rest_of_line)
+		{
+		  line_number--;
+		  input_text_offset = original_input_text_offset;
+		}
 	    }
 	  break;
 
 	case table:
+	case ftable:
+	case vtable:
 	  {
 	    /* Get rid of extra characters. */
 	    kill_self_indent (-1);
@@ -4009,29 +5609,51 @@ cm_item ()
 	      insert ('\n');
 	    close_paragraph ();
 
+#if defined (INDENT_PARAGRAPHS_IN_TABLE)
 	    /* Indent on a new line, but back up one indentation level. */
-	    /* force existing indentation. */
+	    {
+	      int t;
+
+	      t = inhibit_paragraph_indentation;
+	      inhibit_paragraph_indentation = 1;
+	      /* At this point, inserting any non-whitespace character will
+		 force the existing indentation to be output. */
+	      add_char ('i');
+	      inhibit_paragraph_indentation = t;
+	    }
+#else /* !INDENT_PARAGRAPHS_IN_TABLE */
 	    add_char ('i');
+#endif /* !INDENT_PARAGRAPHS_IN_TABLE */
+
 	    output_paragraph_offset--;
 	    kill_self_indent (default_indentation_increment + 1);
 
 	    /* Add item's argument to the line. */
-	    filling_enabled = false;
-	    if (!item_func && !(*item_func))
-	      execute_string ("%s", rest_of_line);
-	    else
-	      execute_string ("%s{%s}", item_func, rest_of_line);
+	    filling_enabled = 0;
+	    if (item_func && *item_func)
+ 	      execute_string ("%s{%s}", item_func, rest_of_line);
+ 	    else
+ 	      execute_string ("%s", rest_of_line);
+
+	    if (current_insertion_type () == ftable)
+	      execute_string ("@findex %s\n", rest_of_line);
+
+	    if (current_insertion_type () == vtable)
+	      execute_string ("@vindex %s\n", rest_of_line);
 
 	    /* Start a new line, and let start_paragraph ()
 	       do the indenting of it for you. */
 	    close_single_paragraph ();
-	    indented_fill = filling_enabled = true;
+	    indented_fill = filling_enabled = 1;
 	  }
 	}
       free (rest_of_line);
     }
   else
-    line_error ("@%s found outside of an insertion block", command);
+    {
+    no_insertion:
+      line_error ("@%s found outside of an insertion block", command);
+    }
 }
 
 
@@ -4041,213 +5663,452 @@ cm_item ()
 /*								    */
 /* **************************************************************** */
 
-/* The list of args that were passed to the def**** command. */
-char **defun_args = (char **)NULL;
+#define DEFUN_SELF_DELIMITING(c)					\
+  (((c) == '(')								\
+   || ((c) == ')')							\
+   || ((c) == '[')							\
+   || ((c) == ']'))
 
-/* An alist mapping defun insertion types to the text that we use
-   to describe them. */
-struct {
-  enum insertion_type type;
-  char *title;
-} type_title_alist[] = {
-  { defun, "Function" },
-  { defmac, "Macro" },
-  { defspec, "Special form" },
-  { defopt, "Option" },
-  { deffn, (char *)NULL },
-  { defvar, "Variable" },
-  { (enum insertion_type)0, (char *)NULL }
+struct token_accumulator
+{
+  unsigned int length;
+  unsigned int index;
+  char **tokens;
 };
 
-/* Return the title string for this type of defun. */
-char *
-defun_title (type)
-     enum insertion_type type;
+void
+initialize_token_accumulator (accumulator)
+     struct token_accumulator *accumulator;
 {
-  register int i;
-
-  for (i = 0; type_title_alist[i].type || type_title_alist[i].title; i++)
-    if (type_title_alist[i].type == type)
-      return (type_title_alist[i].title);
-  return (char *)NULL;
+  (accumulator->length) = 0;
+  (accumulator->index) = 0;
+  (accumulator->tokens) = NULL;
 }
 
-/* Return a list of words from the contents of STRING.
-   You can group words with braces. */
+void
+accumulate_token (accumulator, token)
+     struct token_accumulator *accumulator;
+     char *token;
+{
+  if ((accumulator->index) >= (accumulator->length))
+    {
+      (accumulator->length) += 10;
+      (accumulator->tokens) = (char **) xrealloc
+	(accumulator->tokens, (accumulator->length * sizeof (char *)));
+    }
+  accumulator->tokens[accumulator->index] = token;
+  accumulator->index += 1;
+}
+
+char *
+copy_substring (start, end)
+     char *start;
+     char *end;
+{
+  char *result, *scan, *scan_result;
+
+  result = (char *) xmalloc ((end - start) + 1);
+  scan_result = result;
+  scan = start;
+
+  while (scan < end)
+    *scan_result++ = *scan++;
+
+  *scan_result = '\0';
+  return (result);
+}
+
+/* Given `string' pointing at an open brace, skip forward and return a
+   pointer to just past the matching close brace. */
+int
+scan_group_in_string (string_pointer)
+     char **string_pointer;
+{
+  register int c;
+  register char *scan_string;
+  register unsigned int level = 1;
+
+  scan_string = (*string_pointer) + 1;
+
+  while (1)
+    {
+      if (level == 0)
+	{
+	  (*string_pointer) = scan_string;
+	  return (1);
+	}
+      c = (*scan_string++);
+      if (c == '\0')
+	{
+	  /* Tweak line_number to compensate for fact that
+	     we gobbled the whole line before coming here. */
+	  line_number -= 1;
+	  line_error ("Missing `}' in @def arg");
+	  line_number += 1;
+	  (*string_pointer) = (scan_string - 1);
+	  return (0);
+	}
+      if (c == '{')
+	level += 1;
+      if (c == '}')
+	level -= 1;
+    }
+}
+
+/* Return a list of tokens from the contents of `string'.
+   Commands and brace-delimited groups count as single tokens.
+   Contiguous whitespace characters are converted to a token
+   consisting of a single space. */
 char **
 args_from_string (string)
      char *string;
 {
-  char **result = (char **) NULL;
-  register int i, start, result_index, size;
-  int len, skip_til_brace = 0;
+  struct token_accumulator accumulator;
+  register char *scan_string = string;
+  char *token_start, *token_end;
 
-  i = result_index = size = 0;
+  initialize_token_accumulator (&accumulator);
 
-  /* Get a token, and stuff it into RESULT.  The tokens are split
-     at spaces or tabs. */
-  while (string[i])
+  while ((*scan_string) != '\0')
     {
-      /* Skip leading whitespace. */
-      for (; string[i] && whitespace (string[i]); i++);
-
-      start = i;
-
-      if (!string[i])
-	return (result);
-
-      /* If this is a command which takes it's argument in braces, then
-	 gobble the whole thing. */
-      if (string[i] == COMMAND_PREFIX)
+      /* Replace arbitrary whitespace by a single space. */
+      if (whitespace (*scan_string))
 	{
-	  register int j;
-	  for (j = i; string[j] &&
-	       !whitespace (string[j]) &&
-	       string[j] != '{'; j++);
-
-	  if (string[j] == '{')
-	    {
-	      while (string[j] && string[j] != '}')
-		j++;
-
-	      if (string[j])
-		j++;
-
-	      i = j;
-	      goto add_arg;
-	    }
-	}
-      
-      if (string[i] == '{' && !whitespace (string[i + 1]))
-	{
-	  skip_til_brace = 1;
-	  start = ++i;
+	  scan_string += 1;
+	  while (whitespace (*scan_string))
+	    scan_string += 1;
+	  accumulate_token ((&accumulator), (savestring (" ")));
+	  continue;
 	}
 
-      /* Skip until whitespace or close brace. */
-      while (string[i] &&
-	     ((skip_til_brace && string[i] != '}') ||
-	      (!skip_til_brace && !whitespace (string[i]))))
-	i++;
-
-    add_arg:
-      len = i - start;
-      if (result_index + 2 >= size)
+      /* Commands count as single tokens. */
+      if ((*scan_string) == COMMAND_PREFIX)
 	{
-	  if (!size)
-	    result = (char **) xmalloc ((size = 10) * (sizeof (char *)));
+	  token_start = scan_string;
+	  scan_string += 1;
+	  if (self_delimiting (*scan_string))
+	    scan_string += 1;
 	  else
-	    result =
-	      (char **) xrealloc (result, ((size += 10) * (sizeof (char *))));
-	}
-      result[result_index] = (char *) xmalloc (1 + len);
-      strncpy (result[result_index], string + start, len);
-      result[result_index][len] = '\0';
-      result_index++;
-      result[result_index] = (char *) NULL;
+	    {
+	      register int c;
+	      while (1)
+		{
+		  c = *scan_string++;
 
-      if (skip_til_brace)
+ 		  if ((c == '\0') || (c == '{') || (whitespace (c)))
+		    {
+		      scan_string -= 1;
+		      break;
+		    }
+		}
+
+	      if (*scan_string == '{')
+		{
+		  char *s = scan_string;
+		  (void) scan_group_in_string (&s);
+		  scan_string = s;
+		}
+	    }
+	  token_end = scan_string;
+	}
+
+      /* Parentheses and brackets are self-delimiting. */
+      else if (DEFUN_SELF_DELIMITING (*scan_string))
 	{
-	  skip_til_brace = 0;
-	  if (string[i])
-	    i++;
+	  token_start = scan_string;
+	  scan_string += 1;
+	  token_end = scan_string;
 	}
-    }
 
-  return (result);
+      /* Open brace introduces a group that is a single token. */
+      else if (*scan_string == '{')
+	{
+	  char *s = scan_string;
+	  int balanced = scan_group_in_string (&s);
+
+	  token_start = scan_string + 1;
+	  scan_string = s;
+	  token_end = balanced ? (scan_string - 1) : scan_string;
+	}
+
+      /* Otherwise a token is delimited by whitespace, parentheses,
+	 brackets, or braces.  A token is also ended by a command. */
+      else
+	{
+	  token_start = scan_string;
+
+	  while (1)
+	    {
+	      register int c;
+
+	      c = *scan_string++;
+
+	      if (!c ||
+		  (whitespace (c) || DEFUN_SELF_DELIMITING (c) ||
+		   c == '{' || c == '}'))
+		{
+		  scan_string--;
+		  break;
+		}
+
+	      /* If we encounter a command imbedded within a token,
+		 then end the token. */
+	      if (c == COMMAND_PREFIX)
+		{
+		  scan_string--;
+		  break;
+		}
+	    }
+	  token_end = scan_string;
+	}
+
+      accumulate_token
+	(&accumulator, copy_substring (token_start, token_end));
+    }
+  accumulate_token (&accumulator, NULL);
+  return (accumulator.tokens);
 }
 
-get_defun_args ()
+void
+process_defun_args (defun_args, auto_var_p)
+     char **defun_args;
+     int auto_var_p;
 {
-  register int i;
-  char *line;
+  int pending_space = 0;
 
-  get_rest_of_line (&line);
-
-  if (defun_args)
+  while (1)
     {
-      for (i = 0; defun_args[i]; i++)
-	free (defun_args[i]);
-      free (defun_args);
-    }
+      char *defun_arg = *defun_args++;
 
-  defun_args = args_from_string (line);
-  free (line);
+      if (defun_arg == NULL)
+	break;
+
+      if (defun_arg[0] == ' ')
+	{
+	  pending_space = 1;
+	  continue;
+	}
+
+      if (pending_space)
+	{
+	  add_char (' ');
+	  pending_space = 0;
+	}
+
+      if (DEFUN_SELF_DELIMITING (defun_arg[0]))
+	add_char (defun_arg[0]);
+      else if (defun_arg[0] == '&')
+	add_word (defun_arg);
+      else if (defun_arg[0] == COMMAND_PREFIX)
+	execute_string ("%s", defun_arg);
+      else if (auto_var_p)
+	execute_string ("@var{%s}", defun_arg);
+      else
+	add_word (defun_arg);
+    }
 }
 
-insert_defun_arg (string, where)
-     char *string;
-     int where;
+char *
+next_nonwhite_defun_arg (arg_pointer)
+     char ***arg_pointer;
 {
-  register int i;
+  char **scan = (*arg_pointer);
+  char *arg = (*scan++);
 
-  for (i = 0; defun_args[i]; i++);
-  defun_args = (char **)xrealloc (defun_args, (i + 2) * sizeof (char *));
-  defun_args[i + 1] = (char *)NULL;
+  if ((arg != 0) && (*arg == ' '))
+    arg = *scan++;
 
-  for (; i != where; --i)
-    defun_args[i] = defun_args[i - 1];
+  if (arg == 0)
+    scan -= 1;
 
-  defun_args[i] = savestring (string);
+  *arg_pointer = scan;
+
+  return ((arg == 0) ? "" : arg);
 }
 
 /* Make the defun type insertion.
    TYPE says which insertion this is.
-   TITLE is the string to describe the object being described, or NULL
-   for no title string.
    X_P says not to start a new insertion if non-zero. */
-defun_internal (type, title, x_p)
+void
+defun_internal (type, x_p)
      enum insertion_type type;
-     char *title;
      int x_p;
 {
-  register int i = 0;
-  char *type_name, *func_name;
-  int old_no_indent = no_indent;
+  enum insertion_type base_type;
+  char **defun_args, **scan_args;
+  char *category, *defined_name, *type_name, *type_name2;
 
-  get_defun_args ();
+  {
+    char *line;
+    get_rest_of_line (&line);
+    defun_args = (args_from_string (line));
+    free (line);
+  }
 
-  if (title)
-    insert_defun_arg (title, 0);
+  scan_args = defun_args;
 
-  if (defun_args[0])
+  switch (type)
     {
-      type_name = defun_args[0];
-      i++;
-
-      if (defun_args[1])
-	{
-	  func_name = defun_args[1];
-	  i++;
-	}
-      else
-	func_name = "";
+    case defun:
+      category = "Function";
+      base_type = deffn;
+      break;
+    case defmac:
+      category = "Macro";
+      base_type = deffn;
+      break;
+    case defspec:
+      category = "Special Form";
+      base_type = deffn;
+      break;
+    case defvar:
+      category = "Variable";
+      base_type = defvr;
+      break;
+    case defopt:
+      category = "User Option";
+      base_type = defvr;
+      break;
+    case deftypefun:
+      category = "Function";
+      base_type = deftypefn;
+      break;
+    case deftypevar:
+      category = "Variable";
+      base_type = deftypevr;
+      break;
+    case defivar:
+      category = "Instance Variable";
+      base_type = defcv;
+      break;
+    case defmethod:
+      category = "Method";
+      base_type = defop;
+      break;
+    case deftypemethod:
+      category = "Method";
+      base_type = deftypemethod;
+      break;
+    default:
+      category = next_nonwhite_defun_arg (&scan_args);
+      base_type = type;
+      break;
     }
-  else
-    type_name = "";
 
-  no_indent = true;
-  start_paragraph ();
-  execute_string (" * %s: %s", type_name, func_name);
-  no_indent = old_no_indent;
+  if ((base_type == deftypefn)
+      || (base_type == deftypevr)
+      || (base_type == defcv)
+      || (base_type == defop)
+      || (base_type == deftypemethod))
+    type_name = next_nonwhite_defun_arg (&scan_args);
 
-  for (; defun_args[i]; i++)
+  if (base_type == deftypemethod)
+    type_name2 = next_nonwhite_defun_arg (&scan_args);
+
+  defined_name = next_nonwhite_defun_arg (&scan_args);
+
+  /* This hack exists solely for the purposes of formatting the texinfo
+     manual.  I couldn't think of a better way.  The token might be
+     a simple @@ followed immediately by more text.  If this is the case,
+     then the next defun arg is part of this one, and we should concatenate
+     them. */
+  if (*scan_args && **scan_args && !whitespace (**scan_args) &&
+      (strcmp (defined_name, "@@") == 0))
     {
-      if (*defun_args[i] == '&')
-	add_word_args (" %s", defun_args[i]);
-      else
-	execute_string (" @var{%s}", defun_args[i]);
+      char *tem = (char *)xmalloc (3 + strlen (scan_args[0]));
+
+      sprintf (tem, "@@%s", scan_args[0]);
+
+      free (scan_args[0]);
+      scan_args[0] = tem;
+      scan_args++;
+      defined_name = tem;
     }
-  add_char ('\n');
-  if (type == defvar || type == defopt)
-    execute_string ("@vindex %s\n", func_name);
-  else
-    execute_string ("@findex %s\n", func_name);
 
   if (!x_p)
     begin_insertion (type);
-  else
-    start_paragraph ();
+
+  /* Write the definition header line.
+     This should start at the normal indentation.  */
+  current_indent -= default_indentation_increment;
+  start_paragraph ();
+
+  switch (base_type)
+    {
+    case deffn:
+    case defvr:
+    case deftp:
+      execute_string (" -- %s: %s", category, defined_name);
+      break;
+    case deftypefn:
+    case deftypevr:
+      execute_string (" -- %s: %s %s", category, type_name, defined_name);
+      break;
+    case defcv:
+      execute_string (" -- %s of %s: %s", category, type_name, defined_name);
+      break;
+    case defop:
+      execute_string (" -- %s on %s: %s", category, type_name, defined_name);
+      break;
+    case deftypemethod:
+      execute_string (" -- %s on %s: %s %s", category, type_name, type_name2,
+		      defined_name);
+      break;
+    }
+  current_indent += default_indentation_increment;
+
+  /* Now process the function arguments, if any.
+     If these carry onto the next line, they should be indented by two
+     increments to distinguish them from the body of the definition,
+     which is indented by one increment.  */
+  current_indent += default_indentation_increment;
+
+  switch (base_type)
+    {
+    case deffn:
+    case defop:
+      process_defun_args (scan_args, 1);
+      break;
+    case deftp:
+    case deftypefn:
+    case deftypemethod:
+      process_defun_args (scan_args, 0);
+      break;
+    }
+  current_indent -= default_indentation_increment;
+  close_single_paragraph ();
+
+  /* Make an entry in the appropriate index. */
+  switch (base_type)
+    {
+    case deffn:
+    case deftypefn:
+      execute_string ("@findex %s\n", defined_name);
+      break;
+    case defvr:
+    case deftypevr:
+    case defcv:
+      execute_string ("@vindex %s\n", defined_name);
+      break;
+    case defop:
+    case deftypemethod:
+      execute_string ("@findex %s on %s\n", defined_name, type_name);
+      break;
+    case deftp:
+      execute_string ("@tindex %s\n", defined_name);
+      break;
+    }
+
+  /* Deallocate the token list. */
+  scan_args = defun_args;
+  while (1)
+    {
+      char * arg = (*scan_args++);
+      if (arg == NULL)
+	break;
+      free (arg);
+    }
+  free (defun_args);
 }
 
 /* Add an entry for a function, macro, special form, variable, or option.
@@ -4257,7 +6118,7 @@ cm_defun ()
 {
   int x_p;
   enum insertion_type type;
-  char *title, *temp = savestring (command);
+  char *temp = savestring (command);
 
   x_p = (command[strlen (command) - 1] == 'x');
 
@@ -4274,11 +6135,11 @@ cm_defun ()
     {
       line_error ("Must be in a `%s' insertion in order to use `%s'x",
 		  command, command);
+      discard_until ("\n");
       return;
     }
 
-  title = defun_title (type);
-  defun_internal (type, title, x_p);
+  defun_internal (type, x_p);
 }
 
 /* End existing insertion block. */
@@ -4292,12 +6153,15 @@ cm_end ()
       line_error ("Unmatched `@%s'", command);
       return;
     }
+
   get_rest_of_line (&temp);
   canon_white (temp);
 
   if (strlen (temp) == 0)
     line_error ("`@%s' needs something after it", command);
+
   type = find_type_from_name (temp);
+
   if (type == bad_type)
     {
       line_error ("Bad argument to `%s', `%s', using `%s'",
@@ -4314,13 +6178,12 @@ cm_end ()
 /*								    */
 /* **************************************************************** */
 
-/* noindent () used to do something valueable, but it didn't follow the
-   spec for noindent in the texinfo manual.  Now it does nothing, which,
-   in the case of makeinfo, is correct. */
+/* This says to inhibit the indentation of the next paragraph, but
+   not of following paragraphs.  */
 cm_noindent ()
 {
-/*  no_indent = true;
-  indented_fill = false; */
+  if (!inhibit_paragraph_indentation)
+    inhibit_paragraph_indentation = -1;
 }
 
 /* I don't know exactly what to do with this.  Should I allow
@@ -4336,13 +6199,24 @@ cm_setfilename ()
   free (filename);
 }
 
-cm_comment ()
+cm_ignore_line ()
 {
   discard_until ("\n");
 }
 
+/* @br can be immediately followed by `{}', so we have to read those here.
+   It should simply close the paragraph. */
 cm_br ()
 {
+  if (looking_at ("{}"))
+    input_text_offset += 2;
+
+  if (curchar () == '\n')
+    {
+      input_text_offset++;
+      line_number++;
+    }
+
   close_paragraph ();
 }
 
@@ -4352,22 +6226,21 @@ cm_sp ()
   int lines;
   char *line;
 
-/*  close_paragraph (); */
   get_rest_of_line (&line);
 
-  sscanf (line, "%d", &lines);
-  while (lines--)
-    add_char ('\n');
+  if (sscanf (line, "%d", &lines) != 1)
+    {
+      line_error ("%csp requires a positive numeric argument", COMMAND_PREFIX);
+    }
+  else
+    {
+      if (lines < 0)
+	lines = 0;
+
+      while (lines--)
+	add_char ('\n');
+    }
   free (line);
-}
-
-cm_settitle ()
-{
-  discard_until ("\n");
-}
-
-cm_need ()
-{
 }
 
 /* Start a new line with just this text on it.
@@ -4375,24 +6248,47 @@ cm_need ()
    This always ends the current paragraph. */
 cm_center ()
 {
-  char *line;
+  register int i, start, length;
+  int fudge_factor = 1;
+  unsigned char *line;
 
   close_paragraph ();
-  filling_enabled = indented_fill = false;
+  filling_enabled = indented_fill = 0;
+  cm_noindent ();
+  start = output_paragraph_offset;
+  inhibit_output_flushing ();
+  get_rest_of_line ((char **)&line);
+  execute_string ((char *)line);
+  free (line);
+  uninhibit_output_flushing ();
 
-  get_rest_of_line (&line);
+  i = output_paragraph_offset - 1;
+  while (i > (start - 1) && output_paragraph[i] == '\n')
+	i--;
 
-  if (strlen (line) < fill_column)
+  output_paragraph_offset = ++i;
+  length = output_paragraph_offset - start;
+
+  if (length < (fill_column - fudge_factor))
     {
-      int i = (fill_column - strlen (line)) / 2;
+      line = (unsigned char *)xmalloc (1 + length);
+      memcpy (line, (char *)(output_paragraph + start), length);
+
+      i = (fill_column - fudge_factor - length) / 2;
+      output_paragraph_offset = start;
+
       while (i--)
 	insert (' ');
+
+      for (i = 0; i < length; i++)
+	insert (line[i]);
+
+      free (line);
     }
-  execute_string (line);
-  free (line);
+
   insert ('\n');
   close_paragraph ();
-  filling_enabled = true;
+  filling_enabled = 1;
 }
 
 /* Show what an expression returns. */
@@ -4455,7 +6351,7 @@ cm_exdent ()
 
   get_rest_of_line (&line);
   close_single_paragraph ();
-  add_word_args ("%s", line);
+  execute_string ("%s", line);
   current_indent = i;
   free (line);
   close_single_paragraph ();
@@ -4515,10 +6411,10 @@ cm_force_abbreviated_whitespace ()
 {
 }
 
-/* Make the output paragraph end the sentence here, even though it
-   looks like it shouldn't.  This also inserts the character which
-   invoked it. */
-cm_force_sentence_end ()
+/* Do not let this character signify the end of a sentence, though
+   if it was seen without the command prefix it normally would.  We
+   do this by turning on the 8th bit of the character. */
+cm_ignore_sentence_ender ()
 {
   add_char (META ((*command)));
 }
@@ -4533,15 +6429,10 @@ cm_asis ()
 {
 }
 
-cm_setchapternewpage ()
+cm_math ()
 {
-  discard_until ("\n");
 }
 
-cm_smallbook ()
-{
-  discard_until ("\n");
-}
 
 /* **************************************************************** */
 /*								    */
@@ -4558,6 +6449,7 @@ typedef struct index_elt
   char *node;			/* The node from whence it came. */
   int code;			/* Non-zero means add `@code{...}' when
 				   printing this element. */
+  int defining_line;		/* Line number where this entry was written. */
 } INDEX_ELT;
 
 /* A list of short-names for each index, and the index to that index in our
@@ -4630,7 +6522,7 @@ find_index_offset (name)
   register int i;
   for (i = 0; i < defined_indices; i++)
     if (name_index_alist[i] &&
-	stricmp (name, name_index_alist[i]->name) == 0)
+	strcmp (name, name_index_alist[i]->name) == 0)
       return (name_index_alist[i]->index);
   return (-1);
 }
@@ -4735,12 +6627,12 @@ defindex (name, code)
       slot = defined_indices;
       defined_indices++;
 
-      name_index_alist = (INDEX_ALIST **) xrealloc (name_index_alist,
-						    (1 + defined_indices)
-						  * sizeof (INDEX_ALIST *));
-      the_indices = (INDEX_ELT **) xrealloc (the_indices,
-					     (1 + defined_indices)
-					     * sizeof (INDEX_ELT *));
+      name_index_alist = (INDEX_ALIST **)
+	xrealloc ((char *)name_index_alist,
+		  (1 + defined_indices) * sizeof (INDEX_ALIST *));
+      the_indices = (INDEX_ELT **)
+	xrealloc ((char *)the_indices,
+		  (1 + defined_indices) * sizeof (INDEX_ELT *));
     }
 
   /* We have a slot.  Start assigning. */
@@ -4764,8 +6656,8 @@ index_add_arg (name)
 
   which = tem ? tem->index : -1;
 
-  /* close_paragraph (); */
   get_rest_of_line (&index_entry);
+  ignore_blank_line ();
 
   if (which < 0)
     {
@@ -4779,6 +6671,7 @@ index_add_arg (name)
       new->entry = index_entry;
       new->node = current_node;
       new->code = tem->code;
+      new->defining_line = line_number - 1;
       the_indices[which] = new;
     }
 }
@@ -4890,27 +6783,27 @@ cm_pindex ()			/* Pinhead index. */
   index_add_arg ("pg");
 }
 
-cm_vindex ()			/* variable index */
+cm_vindex ()			/* Variable index. */
 {
   index_add_arg ("vr");
 }
 
-cm_kindex ()			/* key index */
+cm_kindex ()			/* Key index. */
 {
   index_add_arg ("ky");
 }
 
-cm_cindex ()			/* concept index */
+cm_cindex ()			/* Concept index. */
 {
   index_add_arg ("cp");
 }
 
-cm_findex ()			/* function index */
+cm_findex ()			/* Function index. */
 {
   index_add_arg ("fn");
 }
 
-cm_tindex ()			/* data type index */
+cm_tindex ()			/* Data Type index. */
 {
   index_add_arg ("tp");
 }
@@ -4920,7 +6813,7 @@ index_element_compare (element1, element2)
      INDEX_ELT **element1, **element2;
 {
   /* This needs to ignore leading non-text characters. */
-  return (strcmp ((*element1)->entry, (*element2)->entry));
+  return (stricmp ((*element1)->entry, (*element2)->entry));
 }
 
 /* Sort the index passed in INDEX, returning an array of
@@ -4972,13 +6865,13 @@ cm_printindex ()
   INDEX_ELT **array;
   char *index_name;
   int old_inhibitions = inhibit_paragraph_indentation;
-  boolean previous_filling_enabled_value = filling_enabled;
+  int previous_filling_enabled_value = filling_enabled;
 
   close_paragraph ();
   get_rest_of_line (&index_name);
 
   index = index_list (index_name);
-  if ((int) index < 0)
+  if ((int) index == -1)
     {
       line_error ("Unknown index name `%s'", index_name);
       free (index_name);
@@ -4989,7 +6882,7 @@ cm_printindex ()
 
   array = sort_index (index);
 
-  filling_enabled = false;
+  filling_enabled = 0;
   inhibit_paragraph_indentation = 1;
   close_paragraph ();
   add_word ("* Menu:\n\n");
@@ -4997,17 +6890,33 @@ cm_printindex ()
   printing_index = 1;
   for (item = 0; (index = array[item]); item++)
     {
+      int real_line_number = line_number;
+
+      /* Let errors generated while making the index entry point back
+	 at the line which contains the entry. */
+      line_number = index->defining_line;
+
       /* If this particular entry should be printed as a "code" index,
 	 then wrap the entry with "@code{...}". */
       if (index->code)
-	execute_string ("* @code{%s}: %s.\n", index->entry, index->node);
+	execute_string ("* @code{%s}: ", index->entry);
       else
-	execute_string ("* %s: %s.\n", index->entry, index->node);
+	execute_string ("* %s: ", index->entry);
+
+      /* Pad the front of the destination nodename so that
+	 the output looks nice. */
+      if (fill_column > 40 && output_column < 40)
+	indent (40 - output_column);
+
+      execute_string ("%s.\n", index->node);
+
+      line_number = real_line_number;
       flush_output ();
     }
+
   printing_index = 0;
   free (array);
-  close_paragraph ();
+  close_single_paragraph ();
   filling_enabled = previous_filling_enabled_value;
   inhibit_paragraph_indentation = old_inhibitions;
 }
@@ -5046,40 +6955,92 @@ define_alias (alias, function)
 {
 }
 
+/* Set the paragraph indentation variable to the value specified in STRING.
+   Values can be:
+   `asis': Don't change existing indentation.
+   `none': Remove existing indentation.
+      NUM: Indent NUM spaces at the starts of paragraphs.
+           Note that if NUM is zero, we assume `none'.
+
+   Returns 0 if successful, or non-zero if STRING isn't one of the above. */
+int
+set_paragraph_indent (string)
+     char *string;
+{
+  if (strcmp (string, "asis") == 0)
+    paragraph_start_indent = 0;
+  else if (strcmp (string, "none") == 0)
+    paragraph_start_indent = -1;
+  else
+    {
+      if (sscanf (string, "%d", &paragraph_start_indent) != 1)
+	return (-1);
+      else
+	{
+	  if (paragraph_start_indent == 0)
+	    paragraph_start_indent = -1;
+	}
+    }
+  return (0);
+}
+
+cm_paragraphindent ()
+{
+  char *arg;
+
+  get_rest_of_line (&arg);
+  if (set_paragraph_indent (arg) != 0)
+    line_error ("Bad argument to @paragraphindent");
+
+  free (arg);
+}
+
 /* Some support for footnotes. */
 
 /* Footnotes are a new construct in Info.  We don't know the best method
    of implementing them for sure, so we present two possiblities.
 
-MN   1) Make them look like followed references, with the reference
-        destinations in a makeinfo manufactured node or,
+   SeparateNode:
+	Make them look like followed references, with the reference
+	destinations in a makeinfo manufactured node or,
 
-BN   2) Make them appear at the bottom of the node that they originally
-        appeared in.
-*/
+   EndNode:
+	Make them appear at the bottom of the node that they originally
+	appeared in. */
+#define SeparateNode 0
+#define EndNode 1
 
-#define MN 0
-#define BN 1
-
-int footnote_style = MN;
-boolean first_footnote_this_node = true;
+int footnote_style = EndNode;
+int first_footnote_this_node = 1;
 int footnote_count = 0;
 
 /* Set the footnote style based on he style identifier in STRING. */
+int
 set_footnote_style (string)
      char *string;
 {
-  if (stricmp (string, "MN") == 0)
-    {
-      footnote_style = MN;
-      return;
-    }
+  if ((stricmp (string, "separate") == 0) ||
+      (stricmp (string, "MN") == 0))
+    footnote_style = SeparateNode;
+  else if ((stricmp (string, "end") == 0) ||
+	   (stricmp (string, "EN") == 0))
+    footnote_style = EndNode;
+  else
+    return (-1);
 
-  if (stricmp (string, "BN") == 0)
-    {
-      footnote_style = BN;
-      return;
-    }
+ return (0);
+}
+
+cm_footnotestyle ()
+{
+  char *arg;
+
+  get_rest_of_line (&arg);
+
+  if (set_footnote_style (arg) != 0)
+    line_error ("Bad argument to @footnotestyle");
+
+  free (arg);
 }
 
 typedef struct fn
@@ -5117,7 +7078,7 @@ free_pending_notes ()
       pending_notes = pending_notes->next;
       free (temp);
     }
-  first_footnote_this_node = true;
+  first_footnote_this_node = 1;
   footnote_count = 0;
 }
 
@@ -5154,15 +7115,19 @@ cm_footnote ()
 	      line_error ("No closing brace for footnote `%s'", marker);
 	      return;
 	    }
+
 	  if (input_text[temp] == '{')
 	    braces++;
 	  else if (input_text[temp] == '}')
 	    braces--;
+	  else if (input_text[temp] == '\n')
+	    line_number ++;
+
 	  temp++;
 	}
 
       len = (temp - input_text_offset) - 1;
-      note = xmalloc (len + 1);
+      note = (char *)xmalloc (len + 1);
       strncpy (note, &input_text[input_text_offset], len);
       note[len] = '\0';
       input_text_offset = temp;
@@ -5176,27 +7141,44 @@ cm_footnote ()
       return;
     }
 
+  if (!*marker)
+    {
+      free (marker);
+
+      if (number_footnotes)
+	{
+	  marker = (char *)xmalloc (10);
+	  sprintf (marker, "%d", current_footnote_number);
+	  current_footnote_number++;
+	}
+      else
+	marker = savestring ("*");
+    }
+
   remember_note (marker, note);
 
+  /* Your method should at least insert MARKER. */
   switch (footnote_style)
-    {				/* your method should at least insert marker. */
-
-    case MN:
+    {
+    case SeparateNode:
       add_word_args ("(%s)", marker);
       if (first_footnote_this_node)
 	{
-	  char *temp_string = xmalloc ((strlen (current_node))
-				       + (strlen ("-Footnotes")) + 1);
+	  char *temp_string;
+
+	  temp_string = (char *)
+	    xmalloc ((strlen (current_node)) + (strlen ("-Footnotes")) + 1);
+
 	  add_word_args (" (*note %s-Footnotes::)", current_node);
 	  strcpy (temp_string, current_node);
 	  strcat (temp_string, "-Footnotes");
 	  remember_node_reference (temp_string, line_number, followed_reference);
 	  free (temp_string);
-	  first_footnote_this_node = false;
+	  first_footnote_this_node = 0;
 	}
       break;
 
-    case BN:
+    case EndNode:
       add_word_args ("(%s)", marker);
       break;
 
@@ -5222,7 +7204,7 @@ output_pending_notes ()
   switch (footnote_style)
     {
 
-    case MN:
+    case SeparateNode:
       {
 	char *old_current_node = current_node;
 	char *old_command = savestring (command);
@@ -5236,7 +7218,7 @@ output_pending_notes ()
       }
       break;
 
-    case BN:
+    case EndNode:
       close_paragraph ();
       in_fixed_width_font++;
       execute_string ("---------- Footnotes ----------\n\n");
@@ -5256,17 +7238,16 @@ output_pending_notes ()
 	footnote = footnote->next;
       }
 
-    filling_enabled = true;
-    indented_fill = true;
+    filling_enabled = 1;
+    indented_fill = 1;
 
     while (footnote = array[++footnote_count])
       {
 
 	switch (footnote_style)
 	  {
-
-	  case MN:
-	  case BN:
+	  case SeparateNode:
+	  case EndNode:
 	    execute_string ("(%s)  %s", footnote->marker, footnote->note);
 	    close_paragraph ();
 	    break;
@@ -5276,10 +7257,293 @@ output_pending_notes ()
     free (array);
   }
 }
-
-/*
- * Local variables:
- * compile-command: "gcc -g -Bstatic -o makeinfo makeinfo.c getopt.c"
- * end:
- */
 
+
+/* **************************************************************** */
+/*                                                                  */
+/*              User definable Macros (text substitution)	    */
+/*                                                                  */
+/* **************************************************************** */
+
+#if defined (HAVE_MACROS)
+
+/* Array of macros and definitions. */
+MACRO_DEF **macro_list = (MACRO_DEF **)NULL;
+
+int macro_list_len = 0;		/* Number of elements. */
+int macro_list_size = 0;	/* Number of slots in total. */
+
+/* Return the macro definition of NAME or NULL if NAME is not defined. */
+MACRO_DEF *
+find_macro (name)
+     char *name;
+{
+  register int i;
+  register MACRO_DEF *def;
+
+  def = (MACRO_DEF *)NULL;
+  for (i = 0; macro_list && (def = macro_list[i]); i++)
+    if (strcmp (def->name, name) == 0)
+      break;
+
+  return (def);
+}
+
+/* Add the macro NAME with DEFINITION to macro_list.  FILENAME is
+   the name of the file where this definition can be found, and
+   LINENO is the line number within that file.  If a macro already
+   exists with NAME, then a warning is produced, and that previous
+   definition is overwritten. */
+void
+add_macro (name, definition, filename, lineno)
+     char *name, *definition;
+     char *filename;
+     int lineno;
+{
+  register MACRO_DEF *def;
+
+  def = find_macro (name);
+
+  if (!def)
+    {
+      if (macro_list_len + 2 >= macro_list_size)
+	macro_list = (MACRO_DEF **)xrealloc
+	  (macro_list, ((macro_list_size += 10) * sizeof (MACRO_DEF *)));
+
+      macro_list[macro_list_len] = (MACRO_DEF *)xmalloc (sizeof (MACRO_DEF));
+      macro_list[macro_list_len + 1] = (MACRO_DEF *)NULL;
+
+      def = macro_list[macro_list_len];
+      macro_list_len += 1;
+      def->name = savestring (name);
+    }
+  else
+    {
+      char *temp_filename = input_filename;
+      int temp_line = line_number;
+
+      warning ("The macro `%s' is previously defined.", name);
+
+      input_filename = def->filename;
+      line_number = def->lineno;
+
+      warning ("Here is the previous definition of `%s'.", name);
+
+      input_filename = temp_filename;
+      line_number = temp_line;
+
+      free (def->filename);
+      free (def->definition);
+    }
+
+  def->filename = savestring (filename);
+  def->lineno = lineno;
+  def->definition = savestring (definition);
+}
+
+
+/* Delete the macro with name NAME.  The macro is deleted from the list,
+   but it is also returned.  If there was no macro defined, NULL is
+   returned. */
+MACRO_DEF *
+delete_macro (name)
+     char *name;
+{
+  register int i;
+  register MACRO_DEF *def;
+
+  def = (MACRO_DEF *)NULL;
+  for (i = 0; macro_list && (def = macro_list[i]); i++)
+    if (strcmp (def->name, name) == 0)
+      {
+	memcpy (macro_list + i, macro_list + i + 1,
+	       ((macro_list_len + 1) - i) * sizeof (MACRO_DEF *));
+	break;
+      }
+  return (def);
+}
+
+/* Execute the macro passed in DEF, a pointer to a MACRO_DEF. */
+void
+execute_macro (def)
+     MACRO_DEF *def;
+{
+
+  if (def != (MACRO_DEF *)NULL)
+    {
+      char *line, *string;
+
+      get_until ("\n", &line);
+
+      if (curchar () == '\n')	/* as opposed to the end of the file... */
+	{
+	  line_number++;
+	  input_text_offset++;
+	}
+      string = (char *)xmalloc (1 + strlen (def->definition) + strlen (line));
+      strcpy (string, def->definition);
+      strcat (string, line);
+      free (line);
+
+      execute_string ("%s\n", string);
+      free (string);
+    }
+}
+
+int
+cm_macro ()
+{
+  register int i;
+  char *line, *name, *expansion;
+
+  get_rest_of_line (&line);
+  canon_white (line);
+
+  for (i = 0; line[i] && !whitespace (line[i]); i++);
+  name = (char *)xmalloc (i);
+  strncpy (name, line, i);
+  name[i] = '\0';
+
+  while (whitespace (line[i]))
+    i++;
+
+  add_macro (name, line + i, input_filename, line_number - 1);
+  free (line);
+  free (name);
+}
+
+int
+cm_unmacro ()
+{
+  register int i;
+  char *line, *name;
+  MACRO_DEF *def;
+
+  get_rest_of_line (&line);
+  canon_white (line);
+
+  for (i = 0; line[i] && !whitespace (line[i]); i++);
+  name = (char *)xmalloc (i);
+  strncpy (name, line, i);
+  name[i] = '\0';
+
+  def = delete_macro (name);
+
+  if (def)
+    {
+      free (def->filename);
+      free (def->name);
+      free (def->definition);
+      free (def);
+    }
+
+  free (line);
+  free (name);
+}
+#endif /* HAVE_MACROS */
+
+/* **************************************************************** */
+/*                                                                  */
+/*                  Looking For Include Files                       */
+/*                                                                  */
+/* **************************************************************** */
+
+/* Given a string containing units of information separated by colons,
+   return the next one pointed to by INDEX, or NULL if there are no more.
+   Advance INDEX to the character after the colon. */
+char *
+extract_colon_unit (string, index)
+     char *string;
+     int *index;
+{
+  int i, start;
+
+  i = *index;
+
+  if (!string || (i >= strlen (string)))
+    return ((char *)NULL);
+
+  /* Each call to this routine leaves the index pointing at a colon if
+     there is more to the path.  If I is > 0, then increment past the
+     `:'.  If I is 0, then the path has a leading colon.  Trailing colons
+     are handled OK by the `else' part of the if statement; an empty
+     string is returned in that case. */
+  if (i && string[i] == ':')
+    i++;
+
+  start = i;
+
+  while (string[i] && string[i] != ':') i++;
+
+  *index = i;
+
+  if (i == start)
+    {
+      if (string[i])
+	(*index)++;
+
+      /* Return "" in the case of a trailing `:'. */
+      return (savestring (""));
+    }
+  else
+    {
+      char *value;
+
+      value = (char *)xmalloc (1 + (i - start));
+      strncpy (value, &string[start], (i - start));
+      value [i - start] = '\0';
+
+      return (value);
+    }
+}
+
+/* Return the full pathname for FILENAME by searching along PATH.
+   When found, return the stat () info for FILENAME in FINFO.
+   If PATH is NULL, only the current directory is searched.
+   If the file could not be found, return a NULL pointer. */
+char *
+get_file_info_in_path (filename, path, finfo)
+     char *filename, *path;
+     struct stat *finfo;
+{
+  char *dir;
+  int result, index = 0;
+
+  if (path == (char *)NULL)
+    path = ".";
+
+  /* Handle absolute pathnames. "./foo", "/foo", "../foo". */
+  if (*filename == '/' ||
+      (*filename == '.' &&
+       (filename[1] == '/' ||
+	(filename[1] == '.' && filename[2] == '/'))))
+    {
+      if (stat (filename, finfo) == 0)
+	return (savestring (filename));
+      else
+	return ((char *)NULL);
+    }
+
+  while (dir = extract_colon_unit (path, &index))
+    {
+      char *fullpath;
+
+      if (!*dir)
+	{
+	  free (dir);
+	  dir = savestring (".");
+	}
+
+      fullpath = (char *)xmalloc (2 + strlen (dir) + strlen (filename));
+      sprintf (fullpath, "%s/%s", dir, filename);
+      free (dir);
+
+      result = stat (fullpath, finfo);
+
+      if (result == 0)
+	return (fullpath);
+      else
+	free (fullpath);
+    }
+  return ((char *)NULL);
+}

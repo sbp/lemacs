@@ -19,6 +19,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 
 #include "config.h"
+#include "intl.h"
 #include "lisp.h"
 #include "buffer.h"
 #include "insdel.h"
@@ -67,7 +68,11 @@ adjust_markers (struct buffer *buf, int adjust_extents_as_well_p,
 static void
 gap_left (struct buffer *buf, int pos, int newgap)
 {
+#ifdef I18N4
+  register wchar_t *to, *from;
+#else
   register unsigned char *to, *from;
+#endif
   register int i;
   int new_s1;
 
@@ -149,7 +154,11 @@ gap_left (struct buffer *buf, int pos, int newgap)
 static void
 gap_right (struct buffer *buf, int pos)
 {
+#ifdef I18N4
+  register wchar_t *to, *from;
+#else
   register unsigned char *to, *from;
+#endif
   register int i;
   int new_s1;
 
@@ -248,7 +257,11 @@ void
 make_gap (increment)
      int increment;
 {
+#ifdef I18N4
+  wchar_t *result;
+#else
   unsigned char *result;
+#endif
   Lisp_Object tem;
   int real_gap_loc;
   int old_gap_size;
@@ -358,6 +371,35 @@ change_function_restore (Lisp_Object ignored)
   return (ignored);
 }
 
+static int in_first_change;
+
+static Lisp_Object
+first_change_hook_restore (Lisp_Object value)
+{
+  in_first_change = 0;
+  return Qnil;
+}
+
+/* Signal an initial modification to the buffer.  */
+
+static void
+signal_first_change (void)
+{
+  if (!NILP (Vfirst_change_hook) && !in_first_change)
+    {
+      int speccount = specpdl_depth ();
+
+      record_unwind_protect (first_change_hook_restore, Qnil);
+      gc_currently_forbidden = 1;
+      in_first_change = 1;
+
+      if (!NILP (Vrun_hooks))
+	call1 (Vrun_hooks, Qfirst_change_hook);
+      unbind_to (speccount, Qnil);
+      gc_currently_forbidden = 0;
+    }
+}
+
 /* Signal a change to the buffer immediatly before it happens.
    START and END are the bounds of the text to be changed,
    as Lisp objects.  */
@@ -369,7 +411,7 @@ signal_before_change (int start, int end)
   if (current_buffer->save_modified >= MODIFF
       && !NILP (Vfirst_change_hook)
       && !NILP (Vrun_hooks))
-    call1 (Vrun_hooks, Qfirst_change_hook);
+    signal_first_change();
 
   /* Now in any case run the before-change-function if any.  */
   if (!NILP (Vbefore_change_function) && !inside_change_hook)
@@ -408,8 +450,86 @@ signal_after_change (pos, lendel, lenins)
 
 /* Insertion of strings. */
 
+#ifdef I18N4
+/* The only reason for the obj argument is to deal with extents. */
 void
-insert_relocatable_raw_string (const char *string, int length, Lisp_Object obj)
+insert_wide_string (CONST wchar_t *string, int length, Lisp_Object obj)
+{
+  struct gcpro gcpro1;
+  Lisp_Object dup_list = Qnil;
+  Lisp_Object temp;
+  int opoint = PT;
+
+  if (STRINGP (obj))
+    {
+      dup_list = string_dups (XSTRING (obj));
+    }
+
+  if (length < 1)
+    return;
+
+  /* Make sure that point-max won't exceed the size of an emacs int. */
+  XSET (temp, Lisp_Int, length + Z);
+  if (length + Z != XINT (temp))
+    error (GETTEXT ("maximum buffer size exceeded"));
+
+  GCPRO1 (dup_list);
+
+  prepare_to_modify_buffer (opoint, opoint);
+
+  if (opoint != GPT)
+    move_gap (current_buffer, opoint);
+  if (GAP_SIZE < length)
+    make_gap (length - GAP_SIZE);
+
+  record_insert (opoint, length);
+  MODIFF++;
+
+  memcpy (GPT_ADDR, string, length * sizeof (wchar_t));
+
+  process_extents_for_insertion (opoint, length, current_buffer);
+
+  GAP_SIZE -= length;
+  GPT += length;
+  ZV += length;
+  Z += length;
+  SET_PT (opoint + length);
+
+  splice_in_extent_replicas (opoint, length, 0, dup_list, current_buffer);
+  signal_after_change (opoint, 0, length);
+
+  UNGCPRO;
+}
+
+void
+insert_relocatable_raw_string (CONST char *string, int length, Lisp_Object obj)
+{
+  struct gcpro gcpro1;
+  int offset = -1;
+
+  if (STRINGP (obj))
+    {
+      offset = ((string)
+		? ((CONST unsigned char *) string - XSTRING (obj)->data)
+		: 0);
+      if (length < 0) length = XSTRING (obj)->size;
+    }
+
+  GCPRO1 (obj);
+
+  /* string may have been relocated up to this point */
+  if (STRINGP (obj))
+    string = (char *) XSTRING (obj)->data + offset;
+
+  length = mb_substring_to_wc (string, length, &mb_buf, &wc_buf);
+
+  insert_wide_string (wc_buf.data, length, obj);
+
+  UNGCPRO;
+}
+#else /* not I18N4 */
+void
+insert_relocatable_raw_string (CONST char *string, int length, Lisp_Object obj)
 {
   struct gcpro gcpro1, gcpro2;
   Lisp_Object dup_list = Qnil;
@@ -421,7 +541,7 @@ insert_relocatable_raw_string (const char *string, int length, Lisp_Object obj)
   {
     dup_list = string_dups (XSTRING (obj));
     offset = ((string)
-              ? ((const unsigned char *) string - XSTRING (obj)->data)
+              ? ((CONST unsigned char *) string - XSTRING (obj)->data)
               : 0);
     if (length < 0) length = XSTRING (obj)->size;
   }
@@ -432,7 +552,7 @@ insert_relocatable_raw_string (const char *string, int length, Lisp_Object obj)
   /* Make sure that point-max won't exceed the size of an emacs int. */
   XSET (temp, Lisp_Int, length + Z);
   if (length + Z != XINT (temp))
-    error ("maximum buffer size exceeded");
+    error (GETTEXT ("maximum buffer size exceeded"));
 
   GCPRO2 (obj, dup_list);
 
@@ -452,24 +572,26 @@ insert_relocatable_raw_string (const char *string, int length, Lisp_Object obj)
 
   memcpy (GPT_ADDR, string, length);
 
-  process_extents_for_insertion (opoint, length, current_buffer);
-
   GAP_SIZE -= length;
   GPT += length;
   ZV += length;
   Z += length;
+
+  process_extents_for_insertion (opoint, length, current_buffer);
+
   SET_PT (opoint + length);
 
-  splice_in_extent_replicas (opoint, length, dup_list, current_buffer);
+  splice_in_extent_replicas (opoint, length, 0, dup_list, current_buffer);
   signal_after_change (opoint, 0, length);
 
   UNGCPRO;
 }
+#endif /* I18N4 */
 
 /* Insert the null-terminated string S before point */
 
 void
-insert_string (const char *s)
+insert_string (CONST char *s)
 {
   insert_relocatable_raw_string (s, strlen (s), Qzero);
 }
@@ -485,7 +607,7 @@ insert_char (int ch)
    at the place where the insertion happens are adjusted to point after it. */
 
 void
-insert_before_markers (const char *string, int length, 
+insert_before_markers (CONST char *string, int length, 
                        Lisp_Object obj)
 {
   register int opoint = PT;
@@ -497,6 +619,15 @@ insert_before_markers (const char *string, int length,
   adjust_markers (current_buffer, 0,
                   opoint - 1, opoint, length);
 }
+
+#ifdef I18N4
+/* Insert the wide character WC before point */
+void
+insert_wide_char (wchar_t wc)
+{
+  insert_wide_string (&wc, 1, Qnil);
+}
+#endif
 
 /* Insert the string which begins at INDEX in buffer B into
    the current buffer at point. */

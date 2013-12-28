@@ -228,13 +228,12 @@ With arg, repeat, or kill forward to Nth end of sentence if negative arg -N."
   (kill-region (point) (save-excursion (backward-sentence arg) (point))))
 
 (defun mark-end-of-sentence (arg)
-  "Put mark at end of sentence.  Arg works as in `forward-sentence'."
+  "Set mark ARG sentences from point.
+The place mark goes is the same place \\[forward-sentence] would move to
+with the same argument.
+Repeat this command to mark more sentences in the same direction."
   (interactive "p")
-  (push-mark
-    (save-excursion
-      (forward-sentence arg)
-      (point))
-    nil t))
+  (mark-something 'mark-end-of-sentence 'forward-sentence arg))
 
 (defun transpose-sentences (arg)
   "Interchange this (next) and previous sentence."

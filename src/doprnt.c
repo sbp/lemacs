@@ -22,6 +22,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 
 #include "config.h"
+#include "intl.h"
 
 #include <stdio.h>
 #include <ctype.h>
@@ -30,7 +31,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "lisp.h"
 
 static int
-doprnt_1 (const char *string, int len, int minlen,
+doprnt_1 (CONST char *string, int len, int minlen,
           char **pbufptr, int bufsize)
 {
   register char *bufptr = *pbufptr;
@@ -69,16 +70,19 @@ doprnt_1 (const char *string, int len, int minlen,
 
 static int
 emacs_doprnt_1 (char *buffer, int bufsize, 
-		const char *format, int format_length,
+		CONST char *format, int format_length,
 		int nargs, 
 		/*>>> Gag me, gag me, gag me */
 		Lisp_Object *largs, va_list vargs)
 {
-  register const char *fmt = format; /* Pointer into format string */
-  register const char *format_end;
+  register CONST char *fmt = format; /* Pointer into format string */
+  register CONST char *format_end;
   char *bufptr = buffer;        /* Pointer into output buffer.. */
   int cnt = 0;                  /* Argnum counter */
   /* int size;  --  Field width factor; e.g., %90d */
+
+  int argnum;                   /* Arg number, where 1 means first arg */
+  int place;                    /* Digit multiplier; 10's place, etc. */
 
   if (format_length < 0)
     format_length = strlen (format);
@@ -90,12 +94,7 @@ emacs_doprnt_1 (char *buffer, int bufsize,
     {
       char ch = *fmt++;
 
-      if (ch != '%')		/* Check for a '%' character */
-	{
-	  *bufptr++ = ch;	/* Just some characters; Copy 'em */
-	  bufsize--;
-	}
-      else
+      if (ch == '%')		/* Check for a '%' character */
 	{
 	  /* Copy this one %-spec into fmtcopy.  */
 	  char fmtcpy[20];
@@ -105,12 +104,35 @@ emacs_doprnt_1 (char *buffer, int bufsize,
 	  for (flen = 1; ;)
 	    {
 	      ch = *fmt;
+
+	      /* If we encounter a $, scan backwards to get a decimal digit
+		 string specifying the argument number and reset the %-spec.
+		 If there is no such number, error. */
+	      if (ch == '$')
+		{
+		  argnum = 0;
+		  place = 1;
+		  while (isdigit(fmtcpy[--flen]))
+		    {
+		      argnum += (fmtcpy[flen] - '0') * place;
+		      place *= 10;
+		    }
+		  if (argnum == 0)
+		    error (GETTEXT ("No positive integer between %% and $"));
+
+		  cnt = argnum - 1;
+		  flen++;
+		  fmt++;
+
+		  if (fmt == format_end)
+		    error (GETTEXT ("%%$ appears at end of string"));
+		}
+
 	      fmtcpy[flen] = ch;
 	      if (fmt == format_end)
-		error ("Invalid format operation %s", fmtcpy);
+		error (GETTEXT ("Invalid format operation %s"), fmtcpy);
 	      fmt++; flen++;
-	      if (! (ch >= '0' && ch <= '9')
-		  && ch != '-' && ch != ' ')
+	      if (!isdigit(ch) && ch != '-' && ch != ' ' && ch != '$')
 		break;
 	    }
 	  fmtcpy[flen] = 0;
@@ -118,7 +140,7 @@ emacs_doprnt_1 (char *buffer, int bufsize,
 	  switch (ch)
 	    {
 	    default:
-	      error ("Invalid format operation %%%c", ch);
+	      error (GETTEXT ("Invalid format operation %%%c"), ch);
 	      break;
 
 	      /* case 'b': */
@@ -130,7 +152,7 @@ emacs_doprnt_1 (char *buffer, int bufsize,
 		int a;
 
 		if (cnt == nargs)
-		  error ("Format string wants too many arguments");
+		  error (GETTEXT ("Format string wants too many arguments"));
               
 		if (largs)
 		  a = XINT (largs[cnt]);
@@ -153,7 +175,7 @@ emacs_doprnt_1 (char *buffer, int bufsize,
 		int minlen = 0;
 
 		if (cnt == nargs)
-		  error ("Format string wants too many arguments");
+		  error (GETTEXT ("Format string wants too many arguments"));
               
 		if (ch == 'S') fmtcpy[flen - 1] = 's'; /* printf wants this */
 
@@ -163,7 +185,7 @@ emacs_doprnt_1 (char *buffer, int bufsize,
 		    if (!STRINGP (a))
 		      {
 			/*abort ();*/
-			bufsize = doprnt_1 ("??(not a string)??", -1, 0,
+			bufsize = doprnt_1 ("[not a string]", -1, 0,
 					    &bufptr, bufsize);
 			goto punt;
 		      }
@@ -195,7 +217,7 @@ emacs_doprnt_1 (char *buffer, int bufsize,
 		char a;
 
 		if (cnt == nargs)
-		  error ("Format string wants too many arguments");
+		  error (GETTEXT ("Format string wants too many arguments"));
 
 		if (largs)
 		  a = (char) XINT (largs[cnt]);
@@ -219,6 +241,11 @@ emacs_doprnt_1 (char *buffer, int bufsize,
 	      }
 	    }
 	}
+      else
+	{
+	  *bufptr++ = ch;	/* Just some characters; Copy 'em */
+	  bufsize--;
+	}
     }
 
   *bufptr = 0;			/* Make sure our string end with a '\0' */
@@ -228,7 +255,7 @@ emacs_doprnt_1 (char *buffer, int bufsize,
 /* You really don't want to know why this is necessary... */
 static int
 emacs_doprnt_2 (char *buffer, int bufsize, 
-		const char *format, int format_length,
+		CONST char *format, int format_length,
 		int nargs, Lisp_Object *largs, ...)
 {
   va_list vargs;
@@ -242,7 +269,7 @@ emacs_doprnt_2 (char *buffer, int bufsize,
 
 int
 emacs_doprnt (char *buffer, int bufsize, 
-	      const char *format, int format_length,
+	      CONST char *format, int format_length,
 	      int nargs, va_list vargs)
 {
   return emacs_doprnt_1 (buffer, bufsize, format, format_length, nargs,
@@ -251,7 +278,7 @@ emacs_doprnt (char *buffer, int bufsize,
 
 int
 emacs_doprnt_lisp (char *buffer, int bufsize, 
-		   const char *format, int format_length,
+		   CONST char *format, int format_length,
 		   int nargs, Lisp_Object *largs)
 {
   return emacs_doprnt_2 (buffer, bufsize, format, format_length, nargs, largs);

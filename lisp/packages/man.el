@@ -53,20 +53,24 @@
 (defvar Manual-program "man" "\
 *Name of the program to invoke in order to format the source man pages.")
 
+(defvar Manual-section-switch (if (eq system-type 'usg-unix-v) "-s" nil)
+  "SysV needs this to work right.")
+
 (defvar Manual-topic-buffer t "\
 *Non-nil means \\[Manual-entry] should output the manual entry for TOPIC into
-a buffer named *TOPIC Manual Entry*, otherwise, it should name the buffer
+a buffer named *man TOPIC*, otherwise, it should name the buffer
 *Manual Entry*.")
 
 (defvar Manual-buffer-view-mode t "\
-*Non-nil means that \\[view-buffer] is used to display the output from
-\\[Manual-entry]; nil means that the buffer is left in fundamental-mode
-in another window.")
+*Whether manual buffers should be placed in view-mode.
+nil means leave the buffer in fundamental-mode in another window.
+t means use `view-buffer' to display the man page in the current window.
+Any other value means use `view-buffer-other-window'.")
 
 (defvar Manual-match-topic-exactly t "\
 *Non-nil means that \\[manual-entry] will match the given TOPIC exactly, rather
-apply it as a pattern.  When this is nil, and \"Manual-query-multiple-pages\" is
-non-nil, then \\[manual-entry] will query you for all matching TOPICs.
+apply it as a pattern.  When this is nil, and \"Manual-query-multiple-pages\"
+is non-nil, then \\[manual-entry] will query you for all matching TOPICs.
 This variable only has affect on the preformatted man pages (the \"cat\" files),
 since the \"man\" command always does exact topic matches.")
 
@@ -146,10 +150,12 @@ argument is given."
 ;; manual-entry  -- The "main" user function
 ;;
 
+;;;###autoload
 (defun manual-entry (topic &optional arg silent)
-  "Display the Unix manual entry (or entries) for TOPIC.  If prefix
-arg is given, modify the search according to the value:
-  2 = toggle exact matching of the TOPIC name
+  "Display the Unix manual entry (or entries) for TOPIC.
+If prefix arg is given, modify the search according to the value:
+  2 = complement default exact matching of the TOPIC name;
+      exact matching default is specified by `Manual-match-topic-exactly'
   3 = force a search of the unformatted man directories
   4 = both 2 and 3
 The manual entries are searched according to the variable
@@ -175,10 +181,12 @@ Manual-query-multiple-pages, and Manual-buffer-view-mode."
   ;;(interactive "sManual entry (topic): \np")
   (or arg (setq arg 1))
   (Manual-directory-list-init nil)
-  (let ((exact (if (or (= arg 2)(= arg 4))
+  (let ((exact (if (or (= arg 2) (= arg 4))
 		   (not Manual-match-topic-exactly)
 		 Manual-match-topic-exactly))
-	(force (>= arg 3))
+	(force (if (>= arg 3)
+                   t
+                   nil))
 	(sep (make-string 65 ?-))
 	section fmtlist manlist apropos-mode)
     (let ((case-fold-search nil))
@@ -198,129 +206,159 @@ Manual-query-multiple-pages, and Manual-buffer-view-mode."
 	  (message "Looking for formatted entry for %s%s..."
 		   topic (if section (concat "(" section ")") "")))
       (setq fmtlist (Manual-select-man-pages
-		     (Manual-select-directories
-		      Manual-formatted-directory-list section) 
-		     topic section exact))
-      (if (or force (not fmtlist))
+                      Manual-formatted-directory-list
+                      topic section exact '()))
+      (if (or force (not section) (null fmtlist))
 	  (progn
 	    (or silent
 		(message "%sooking for unformatted entry for %s%s..."
 			 (if fmtlist "L" "No formatted entry, l")
 			 topic (if section (concat "(" section ")") "")))
 	    (setq manlist (Manual-select-man-pages
-			   (Manual-select-directories
-			    Manual-unformatted-directory-list section)
-			   topic section exact)))))
-    (if (or fmtlist manlist apropos-mode)
-	(let* ((name (car (or fmtlist manlist)))
-	       (bufname (concat
-			 (if Manual-topic-buffer
-			     (if apropos-mode
-				 (concat "*" topic " ")
-			       (concat "*"
-				       (and (string-match "/\\([^/]+\\)$" name)
-					    (substring name (match-beginning 1)
-						       (match-end 1)))
-				       " ")))
-			 (if apropos-mode
-			     "*Manual Apropos*" "*Manual Entry*")))
-	       (temp-buffer-show-function (if Manual-buffer-view-mode
-					      'view-buffer
-					    temp-buffer-show-function)))
-	  ;; Delete duplicate man pages (a file of the same name in multiple
-	  ;; directories.)
-	  (let ((rest (append fmtlist manlist)))
-	    (while rest
-	      (let ((rest2 (cdr rest)))
-		(while rest2
-		  (if (equal (file-name-nondirectory (car rest))
-			     (file-name-nondirectory (car rest2)))
-		      (setq fmtlist (delq (car rest2) fmtlist)
-			    manlist (delq (car rest2) manlist)))
-		  (setq rest2 (cdr rest2))))
-	      (setq rest (cdr rest))))
+                            Manual-unformatted-directory-list
+                            topic section exact (if force '() fmtlist))))))
 
-	  (if apropos-mode
-	      (setq manlist (list (format "%s.%s" topic section))))
+    ;; Delete duplicate man pages (a file of the same name in multiple
+    ;; directories.)
+    (or nil ;force
+        (let ((rest (append fmtlist manlist)))
+          (while rest
+            (let ((rest2 (cdr rest)))
+              (while rest2
+                (if (equal (file-name-nondirectory (car rest))
+                           (file-name-nondirectory (car rest2)))
+                    (setq fmtlist (delq (car rest2) fmtlist)
+                          manlist (delq (car rest2) manlist)))
+                (setq rest2 (cdr rest2))))
+            (setq rest (cdr rest)))))
 
-	  (cond
-	   ((and Manual-topic-buffer (get-buffer bufname))
-	    ;; reselect an old man page buffer if it exists already.
-	    (save-excursion
-	      (set-buffer (get-buffer bufname))
-	      (Manual-mode))
-	    (if temp-buffer-show-function
-		(funcall temp-buffer-show-function (get-buffer bufname))
-	      (display-buffer bufname)))
-	   (t
-	    (with-output-to-temp-buffer bufname
-	      (buffer-disable-undo standard-output)
-	      (save-excursion
-		(set-buffer standard-output)
-		(setq buffer-read-only nil)
-		(erase-buffer)
-		(let (name start end topic section)
-		  (while fmtlist	; insert any formatted files
-		    (setq name (car fmtlist))
-		    (goto-char (point-max))
-		    (setq start (point))
-		    ;; In case the file can't be read or uncompressed or
-		    ;; something like that.
-		    (condition-case ()
-			(Manual-insert-man-file name)
-		      (file-error nil))
-		    (goto-char (point-max))
-		    (setq end (point))
-		    (save-excursion
-		      (save-restriction
-			(message "Cleaning manual entry for %s..."
-				 (file-name-nondirectory name))
-			(narrow-to-region start end)
-			(Manual-nuke-nroff-bs)))
-		    (if (or (cdr fmtlist) manlist)
-			(insert "\n\n" sep "\n"))
-		    (setq fmtlist (cdr fmtlist)))
-		  (while manlist	; process any unformatted files
-		    (setq name (car manlist))
-		    (string-match "\\([^/]+\\)\\.\\([^./]+\\)$" name)
-		    (setq topic (substring name (match-beginning 1)
-					   (match-end 1)))
-		    (setq section (substring name (match-beginning 2)
-					     (match-end 2)))
-		    (message "Invoking man %s %s ..." section topic)
-		    (setq start (point))
-		    ;; kludge kludge
-		    (if (string-match "roff\\'" Manual-program)
-			(call-process Manual-program nil t nil
-				      "-Tman" "-man" name)
-		      (call-process Manual-program nil t nil section topic))
-		    (setq end (point))
-		    (save-excursion
-		      (save-restriction
-			(message "Cleaning manual entry for %s(%s)..."
-				 topic section)
-			(narrow-to-region start end)
-			(Manual-nuke-nroff-bs apropos-mode)))
-		    (if (cdr manlist)
-			(insert "\n\n" sep "\n"))
-		    (setq manlist (cdr manlist))))
-		(if (< (buffer-size) 80)
-		    (progn
-		      (goto-char (point-min))
-		      (end-of-line)
-		      (error (buffer-substring 1 (point)))))
-		(set-buffer-modified-p nil)
-		(Manual-mode)
-		))))
- 	  (setq Manual-page-history
- 		(cons (buffer-name)
-		      (delete (buffer-name) Manual-page-history)))
-	  (message nil)
-	  t)
-      ;; else
-      (message "No entries found for %s%s" topic
-	       (if section (concat "(" section ")") ""))
-      nil)))
+    (if (not (or fmtlist manlist apropos-mode))
+        (progn
+          (message "No entries found for %s%s" topic
+                   (if section (concat "(" section ")") ""))
+          nil)
+      (let ((bufname (cond ((not Manual-topic-buffer)
+                            ;; What's the point of retaining this?
+                            (if apropos-mode
+                                "*Manual Apropos*"
+                                "*Manual Entry*"))
+                           (apropos-mode
+                            (concat "*man apropos " topic "*"))
+                           (t
+                            (concat "*man "
+                                    (cond (exact
+                                           (if section
+                                               (concat topic "." section)
+                                               topic))
+                                          ((or (cdr fmtlist) (cdr manlist)
+                                               (and fmtlist manlist))
+                                           ;; more than one entry found
+                                           (concat topic "..."))
+                                          (t
+                                           (file-name-nondirectory
+                                            (car (or fmtlist manlist)))))
+                                    "*"))))
+            (temp-buffer-show-function 
+             (cond ((eq 't Manual-buffer-view-mode) 'view-buffer)
+                   ((eq 'nil Manual-buffer-view-mode)
+                    temp-buffer-show-function)
+                   (t 'view-buffer-other-window))))
+
+        (if apropos-mode
+            (setq manlist (list (format "%s.%s" topic section))))
+
+        (cond
+          ((and Manual-topic-buffer (get-buffer bufname))
+           ;; reselect an old man page buffer if it exists already.
+           (save-excursion
+             (set-buffer (get-buffer bufname))
+             (Manual-mode))
+           (if temp-buffer-show-function
+               (funcall temp-buffer-show-function (get-buffer bufname))
+               (display-buffer bufname)))
+          (t
+           (with-output-to-temp-buffer bufname
+             (buffer-disable-undo standard-output)
+             (save-excursion
+               (set-buffer standard-output)
+               (setq buffer-read-only nil)
+               (erase-buffer)
+               (let (name start end topic section)
+                 (while fmtlist         ; insert any formatted files
+                   (setq name (car fmtlist))
+                   (goto-char (point-max))
+                   (setq start (point))
+                   ;; In case the file can't be read or uncompressed or
+                   ;; something like that.
+                   (condition-case ()
+                       (Manual-insert-man-file name)
+                     (file-error nil))
+                   (goto-char (point-max))
+                   (setq end (point))
+                   (save-excursion
+                     (save-restriction
+                       (message "Cleaning manual entry for %s..."
+                                (file-name-nondirectory name))
+                       (narrow-to-region start end)
+                       (Manual-nuke-nroff-bs)
+		       (goto-char (point-min))
+		       (insert "File: " name "\n")
+		       (goto-char (point-max))
+		       ))
+                   (if (or (cdr fmtlist) manlist)
+                       (insert "\n\n" sep "\n"))
+                   (setq fmtlist (cdr fmtlist)))
+                 (while manlist         ; process any unformatted files
+                   (setq name (car manlist))
+                   (string-match "\\([^/]+\\)\\.\\([^./]+\\)\\'" name)
+                   (setq topic (substring name (match-beginning 1)
+                                          (match-end 1)))
+                   (setq section (substring name (match-beginning 2)
+                                            (match-end 2)))
+                   (message "Invoking man %s%s %s..."
+                            (if Manual-section-switch
+                                (concat Manual-section-switch " ")
+                                "")
+                            section topic)
+                   (setq start (point))
+                   (cond ((string-match "roff\\'" Manual-program)
+                          ;; kludge kludge
+                          (call-process Manual-program nil t nil
+                                        "-Tman" "-man" name))
+                         (Manual-section-switch
+                          (call-process Manual-program nil t nil 
+                                        Manual-section-switch
+                                        section topic))
+                         (t
+                          (call-process Manual-program nil t nil 
+                                        section topic)))
+                   (setq end (point))
+                   (save-excursion
+                     (save-restriction
+                       (message "Cleaning manual entry for %s(%s)..."
+                                topic section)
+                       (narrow-to-region start end)
+                       (Manual-nuke-nroff-bs apropos-mode)
+		       (goto-char (point-min))
+		       (insert "File: " name "\n")
+		       (goto-char (point-max))
+		       ))
+                   (if (cdr manlist)
+                       (insert "\n\n" sep "\n"))
+                   (setq manlist (cdr manlist))))
+               (if (< (buffer-size) 80)
+                   (progn
+                     (goto-char (point-min))
+                     (end-of-line)
+                     (error (buffer-substring 1 (point)))))
+               (set-buffer-modified-p nil)
+               (Manual-mode)
+               ))))
+        (setq Manual-page-history
+              (cons (buffer-name)
+                    (delete (buffer-name) Manual-page-history)))
+        (message nil)
+        t))))
 
 (defvar Manual-mode-map
   (let ((m (make-sparse-keymap)))
@@ -355,79 +393,114 @@ Manual-query-multiple-pages, and Manual-buffer-view-mode."
 ;; match the latter.
 
 (defun Manual-select-subdirectories (dirlist subdir)
-  (apply 'append (mapcar '(lambda (dir)
-			   (and (file-exists-p dir)
-                              (mapcar
-			       '(lambda (name) (expand-file-name name dir))
-			       (sort (file-name-all-completions subdir dir)
-				     'string<))))
-			 dirlist)))
+  (let ((dirs '())
+        (case-fold-search nil)
+        (match (concat "\\`" (regexp-quote subdir)))
+        d)
+    (setq dirlist (reverse dirlist))
+    (while dirlist
+      (setq d (car dirlist) dirlist (cdr dirlist))
+      (if (file-directory-p d)
+          (let ((files (directory-files d t match nil 'dirs-only)))
+            (while files
+              (if (file-executable-p (car files))
+                  (setq dirs (cons (file-name-as-directory (car files))
+                                   dirs)))
+              (setq files (cdr files))))))
+    (nreverse dirs)))
 
-;; Manual-select-directories
-;;
-;; Select from DIRLIST the appropriate directories by SECTION.
-;; Return selected directories in a list.  If SECTION is nil, select
-;; all SECTION directories.
 
-(defun Manual-select-directories (dirlist section)
-  (delq nil
-	(mapcar
-	 (function (lambda (fmtdir)
-		     (if (or (not section)
-			     (string-match (concat (substring section 0 1)
-						   "/$") fmtdir))
-			 fmtdir)))
-	 dirlist)))
+(defvar Manual-bogus-file-pattern "\\.\\(lpr\\|ps\\|PS\\)\\'"
+  "Some systems have files in the man/man*/ directories which aren't man pages.
+This pattern is used to prune those files.")
 
 ;; Manual-select-man-pages
 ;;
-;; Given a DIRLIST, discover all filenames which complete given the TOPIC and SECTION.
-
-(defun Manual-select-man-pages-iterator (file)
-  ;; If Manual-match-topic-exactly is set, then we must make sure
-  ;; the completions are exact, except for trailing weird characters
-  ;; after the section.
-  (if (or (not exact)
-	  (eq 0 (string-match (concat "^" topic "\\." (or section)) file)))
-      (concat dir file)))
+;; Given a DIRLIST, discover all filenames which complete given the TOPIC
+;; and SECTION.
 
 ;; ## Note: BSD man looks for .../man1/foo.1 and .../man1/$MACHINE/foo.1
 
-(defun Manual-select-man-pages (dirlist topic section exact)
-  (let ((manlist
-	 (apply 'append		; this removes the nulls
-	   (mapcar (function
-		    (lambda (dir)
-		      (if (file-directory-p dir)
-			  (delq nil
-				(mapcar 'Manual-select-man-pages-iterator
-					(file-name-all-completions
-					 (concat topic
-						 (if section
-						     (concat "." section)))
-					 dir)))
-			(message "warning: %s is not a directory" dir)
-			;;(sit-for 1)
-			nil)))
-		   dirlist))))
-    (if (and manlist Manual-query-multiple-pages)
-	(apply 'append
-	       (mapcar '(lambda (page)
-			  (if (and page 
-				   (y-or-n-p (format "Read %s? " page)))
-			      (list page)))
-		       manlist))
-      manlist)))
+(defun Manual-select-man-pages (dirlist topic section exact shadow)
+  (let ((case-fold-search nil))
+    (if (not section)
+        (setq dirlist (reverse dirlist))
+        (let ((l '())
+              (match (concat (substring section 0 1) "/?\\'"))
+              d)
+          (setq dirlist (reverse dirlist))
+          (while dirlist
+            (setq d (car dirlist) dirlist (cdr dirlist))
+            (if (string-match match d)
+                (setq l (cons d l))))
+          (setq dirlist l)))
+    (if shadow
+        (setq shadow (concat "/\\("
+                             (mapconcat #'(lambda (n)
+                                            (regexp-quote
+                                             (file-name-nondirectory n)))
+                                        shadow
+                                        "\\|")
+                             "\\)\\'")))
+    (let ((manlist '())
+          (match (concat "\\`"
+                           (regexp-quote topic)
+                           (cond (section
+                                  (concat "\\." (regexp-quote section)))
+                                 (exact
+                                  ;; If Manual-match-topic-exactly is
+                                  ;; set, then we must make sure the
+                                  ;; completions are exact, except for
+                                  ;; trailing weird characters after
+                                  ;; the section.
+                                  "\\.")
+                                 (t
+                                  ""))))
+          dir)
+      (while dirlist
+        (setq dir (car dirlist) dirlist (cdr dirlist))
+        (if (not (file-directory-p dir))
+            (progn
+              (message "warning: %s is not a directory" dir)
+              ;;(sit-for 1)
+              )
+            (let ((files (directory-files dir t match nil t))
+                  f)
+              (while files
+                (setq f (car files) files (cdr files))
+                (cond ((string-match Manual-bogus-file-pattern f)
+		       ;(message "Bogus fule %s" f) (sit-for 2)
+                       )
+		      ((and shadow (string-match shadow f))
+                       ;(message "Shadowed %s" f) (sit-for 2)
+                       )
+                      ((not (file-readable-p f))
+                       ;(message "Losing with %s" f) (sit-for 2)
+                       )
+                      (t
+                       (setq manlist (cons f manlist))))))))
+      (setq manlist (nreverse manlist))
+      (if (and manlist Manual-query-multiple-pages)
+          (apply #'append
+                 (mapcar #'(lambda (page)
+                             (and page 
+                                  (y-or-n-p (format "Read %s? " page)))
+                             (list page))
+                         manlist))
+          manlist))))
 
 (defun Manual-insert-man-file (name)
   ;; Insert manual file (unpacked as necessary) into buffer
-  (cond ((or (equal (substring name -2) ".Z")
+  (cond ((equal (substring name -3) ".gz")
+	 (call-process "gunzip" nil t nil name))
+        ((or (equal (substring name -2) ".Z")
 	     ;; HPUX uses directory names that end in .Z and compressed
 	     ;; files that don't.  How gratuitously random.
-	     (string-match "\\.Z/" name))
+             (let ((case-fold-search nil))
+               (string-match "\\.Z/" name)))
 	 (call-process "zcat" nil t nil name))
 	((equal (substring name -2) ".z")
-	 (call-process "pcat" nil t nil name)) ; use gzip instead?
+	 (call-process "pcat" nil t nil name))
 	(t
 	 (insert-file-contents name))))
 
@@ -442,31 +515,35 @@ Manual-query-multiple-pages, and Manual-buffer-view-mode."
   (interactive "*")
   ;;
   ;; turn underlining into italics
+  ;;
   (goto-char (point-min))
-  (while (re-search-forward "\\(_\b[^\n]\\)+" nil t)
-    (let ((s (match-beginning 0))
-	  (e (match-end 0)))
+  (while (search-forward "_\b" nil t)
+    ;; searching for underscore-backspace and then comparing the following
+    ;; chars until the sequence ends turns out to be much faster than searching
+    ;; for a regexp which matches the whole sequence.
+    (let ((s (match-beginning 0)))
       (goto-char s)
-      (while (< (point) e)
-	(setq e (- e 2))
+      (while (and (= (following-char) ?_)
+		  (= (char-after (1+ (point))) ?\b))
 	(Manual-delete-char 2)
 	(forward-char 1))
       (set-extent-face (make-extent s (point)) 'man-italic)))
   ;;
   ;; turn overstriking into bold
+  ;;
   (goto-char (point-min))
-  (while (search-forward "\b" nil t)
-    (if (save-excursion
-	  (forward-char -2)
-	  (looking-at "\\(\\([^\n]\\)\b\\2\\)+"))
-	(let* ((s (match-beginning 0))
-	       (e (match-end 0)))
-	  (goto-char s)
-	  (while (< (point) e)
-	    (setq e (- e 2))
-	    (Manual-delete-char 2)
-	    (forward-char 1))
-	  (set-extent-face (make-extent s e) 'man-bold))))
+  (while (re-search-forward "\\([^\n]\\)\\(\b\\1\\)" nil t)
+    ;; Surprisingly, searching for the above regexp is faster than searching
+    ;; for a backspace and then comparing the preceding and following chars,
+    ;; I presume because there are many false matches, meaning more funcalls
+    ;; to re-search-forward.
+    (let ((s (match-beginning 0)))
+      (goto-char s)
+      ;; Some systems (SGI) overstrike multiple times, eg, "M\bM\bM\bM".
+      (while (looking-at "\\([^\n]\\)\\(\b\\1\\)+")
+	(delete-region (+ (point) 1) (match-end 0))
+	(forward-char 1))
+      (set-extent-face (make-extent s (point)) 'man-bold)))
   ;;
   ;; hack bullets: o^H+ --> +
   (goto-char (point-min))
@@ -476,15 +553,34 @@ Manual-query-multiple-pages, and Manual-buffer-view-mode."
   (Manual-nuke-nroff-bs-footers)
   ;;
   ;; turn subsection header lines into bold
+  ;;
   (goto-char (point-min))
   (if apropos-mode
       (while (re-search-forward "[a-zA-Z0-9] ([0-9]" nil t)
-	(backward-char 2)
+	(forward-char -2)
 	(delete-backward-char 1))
-    (while (re-search-forward "^[^ \t\n]" nil t)
-      (set-extent-face (make-extent (match-beginning 0)
-				    (progn (end-of-line) (point)))
-		       'man-heading)))
+
+;    (while (re-search-forward "^[^ \t\n]" nil t)
+;      (set-extent-face (make-extent (match-beginning 0)
+;				    (progn (end-of-line) (point)))
+;		       'man-heading))
+
+    ;; boldface the first line
+    (if (looking-at "[^ \t\n].*$")
+	(set-extent-face (make-extent (match-beginning 0) (match-end 0))
+			 'man-bold))
+
+    ;; boldface subsequent title lines
+    ;; Regexp to match section headers changed to match a non-indented
+    ;; line preceded by a blank line and followed by an indented line. 
+    ;; This seems to work ok for manual pages but gives better results
+    ;; with other nroff'd files
+    (while (re-search-forward "\n\n\\([^ \t\n].*\\)\n[ \t]+[^ \t\n]" nil t)
+      (goto-char (match-end 1))
+      (set-extent-face (make-extent (match-beginning 1) (match-end 1))
+		       'man-bold)
+      (forward-line 1))
+    )
 
   ;; Zap ESC7,  ESC8, and ESC9
   ;; This is for Sun man pages like "man 1 csh"
@@ -675,8 +771,8 @@ Manual-query-multiple-pages, and Manual-buffer-view-mode."
 			     (downcase (substring name (match-beginning 0))))))
       (setq already-fontified (extent-at s))
       (setq extent (make-extent s e))
-      (set-extent-data extent (list 'Manual-follow-xref name))
-      (set-extent-attribute extent 'highlight)
+      (set-extent-property extent 'man (list 'Manual-follow-xref name))
+      (set-extent-property extent 'highlight t)
       (if (not already-fontified)
 	  (set-extent-face extent 'italic))
       (goto-char e))))
@@ -690,7 +786,7 @@ When invoked noninteractively, the arg may be an xref string to parse instead."
 	     (extent (and p (extent-at p
 			     (window-buffer (event-window name-or-event))
 			     'highlight)))
-	     (data (and extent (extent-data extent))))
+	     (data (and extent (extent-property extent 'man))))
 	(if (eq (car-safe data) 'Manual-follow-xref)
 	    (eval data)
 	  (error "no manual cross-reference there.")))
@@ -723,24 +819,24 @@ on the menu in the order in which they appear in the buffer."
 	   (setq buffer (window-buffer (event-window event)))
 	   (let* ((p (event-point event))
 		  (extent (and p (extent-at p buffer 'highlight)))
-		  (data (and extent (extent-data extent))))
+		  (data (and extent (extent-property extent 'man))))
 	     (if (eq (car-safe data) 'Manual-follow-xref)
 		 (setq xref (nth 1 data))))))
     (if xref (setq items (list sep xref)))
-    (map-extents (function
-		  (lambda (extent ignore)
-		    (let ((data (extent-data extent)))
-		      (if (and (eq (car-safe data) 'Manual-follow-xref)
-			       (not (member (nth 1 data) items)))
-			  (setq items (cons (nth 1 data) items))))
+    (map-extents #'(lambda (extent ignore)
+		     (let ((data (extent-property extent 'man)))
+		       (if (and (eq (car-safe data) 'Manual-follow-xref)
+				(not (member (nth 1 data) items)))
+			   (setq items (cons (nth 1 data) items)))
 		    nil))
 		 buffer)
     (if (eq sep (car items)) (setq items (cdr items)))
-    (popup-menu
-     (cons "Manual Entry"
-	   (mapcar '(lambda (item)
-		      (if (eq item sep)
-			  item
-			(vector (concat prefix item)
-				(list 'Manual-follow-xref item) t)))
-		   (nreverse items))))))
+    (let ((popup-menu-titles nil))
+      (popup-menu
+       (cons "Manual Entry"
+	     (mapcar #'(lambda (item)
+			 (if (eq item sep)
+			     item
+                           (vector (concat prefix item)
+                                   (list 'Manual-follow-xref item) t)))
+		     (nreverse items)))))))

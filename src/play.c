@@ -170,8 +170,9 @@ play_sound_file (sound_file, volume)
       return;
     }
 
-  sighup_handler = signal (SIGHUP, sighandler);
-  sigint_handler = signal (SIGINT, sighandler);
+  /* where to find the proto for signal()... */
+  sighup_handler = (void (*) ()) signal (SIGHUP, sighandler);
+  sigint_handler = (void (*) ()) signal (SIGINT, sighandler);
   
   file_fd = open (sound_file, O_RDONLY);
   if (file_fd < 0)
@@ -264,8 +265,9 @@ play_sound_data (data, length, volume)
       return;
     }
 
-  sighup_handler = signal (SIGHUP, sighandler);
-  sigint_handler = signal (SIGINT, sighandler);
+  /* where to find the proto for signal()... */
+  sighup_handler = (void (*) ()) signal (SIGHUP, sighandler);
+  sigint_handler = (void (*) ()) signal (SIGINT, sighandler);
     
   if (init_device (volume, data, 0, &ilen))
     goto END_OF_PLAY;

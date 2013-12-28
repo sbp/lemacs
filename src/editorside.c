@@ -15,14 +15,15 @@
 #include <sys/file.h>
 #include <sys/fcntl.h>
 #include <sys/ioctl.h>		/* if not provided BLOCK_INPUT loses */
-#include <signal.h>		/* must be before xterm.c ?? */
+/* #include <signal.h>  use "syssignal.h" instead -jwz */
+#include "syssignal.h"
 #include <string.h>
 #include <errno.h>
 
 #include <lwlib.h>
 
 /* Display Context for the icons */
-#include <X11/Intrinsic.h>
+#include "xintrinsic.h"
 #include <X11/StringDefs.h>
 #include <Xm/DialogS.h>
 
@@ -44,13 +45,6 @@
 
 /* Energize editor requests and I/O operations */
 #include "editorside.h"
-
-#include <editorreq.h>
-#include <editorconn.h>
-#include <editoption.h>
-
-#include "extents-data.h"
-
 
 /* The Connection library
  */
@@ -102,21 +96,14 @@ Lisp_Object Venergize_kernel_busy_hook;
 Lisp_Object Qenergize_kernel_busy_hook;
 Lisp_Object Venergize_menu_update_hook;
 Lisp_Object Qenergize_menu_update_hook;
-Lisp_Object Qenergize_extent_data;
-
-
-extern void wait_delaying_user_input (int (*)(), void*);
-extern void update_extent_1 (EXTENT extent, int from, int to,
-			     int set_endpoints, struct buffer *buf);
-extern Lisp_Object make_extent_internal (int from, int to,
-					 Lisp_Object buffer);
+Lisp_Object Qenergize;
 
 
 static void set_energize_extent_data (EXTENT extent, void *data);
 
 static char *kernel_buffer_type_to_elisp_type (char *kernel_type);
 
-static void *get_object (EId id, BufferInfo *binfo);
+static const void *get_object (EId id, BufferInfo *binfo);
 static void put_object (EId id, BufferInfo *binfo, void *object);
 static void remove_object (EId id, BufferInfo *binfo);
 static void free_GDataclass (GDataClass *cl, BufferInfo *binfo);
@@ -159,9 +146,6 @@ Lisp_Object Qenergize_buffer_modified_hook;
 Lisp_Object Qbuffer_locked_by_energize;
 Lisp_Object Qenergize_user_input_buffer_mark;
 Lisp_Object Qenergize_make_many_buffers_visible;
-
-extern Lisp_Object Qbuffer_file_name;
-extern Lisp_Object Qbuffer_undo_list;
 
 int inside_parse_buffer;
 
@@ -260,18 +244,18 @@ copy_string (char *s)
 }
 
 /* Get objects from the hashtables */
-static void *
+static const void *
 get_object_internal (EId id, c_hashtable table)
 {
   void *res;
-  void *found = gethash ((void*)id, table, &res);
+  const void *found = gethash ((void*)id, table, &res);
 
   if (found) CHECK_OBJECT (res, 0);
 
   return found ? res : 0;
 }
 
-static void *
+static const void *
 get_object (EId id, BufferInfo *binfo)
 {
   return get_object_internal (id, binfo->id_to_object);
@@ -396,6 +380,15 @@ free_GenericData (GenericData *gen, BufferInfo *binfo)
   return;
 }
 
+/* Called to flush the extent from the hash table when Energize tells us to
+   lose the extent.  This is NOT called from the extent GC finalization method,
+   because there would be a period before the next GC when we still had an
+   Energize ID that the server thought was dead, and could concievably reuse.
+
+   Since we protect extents from GC until Energize says they're done, if an
+   extent still has Energize data by the time it gets collected, something is
+   fucked.
+ */
 static void
 free_Energize_Extent_Data (Energize_Extent_Data *ext, BufferInfo *binfo,
 			   enum Energize_Object_Free_Type free_type)
@@ -427,23 +420,20 @@ free_Energize_Extent_Data (Energize_Extent_Data *ext, BufferInfo *binfo,
   return;
 }
 
-/* Called to flush the extent from the hash table when Energize tells us to
-   lose the extent.  This is NOT called from the extent GC finalization method,
-   because there would be a period before the next GC when we still had an
-   Energize ID that the server thought was dead, and could concievably reuse.
-
-   Since we protect extents from GC until Energize says they're done, if an
-   extent still has Energize data by the time it gets collected, something is
-   fucked.
- */
 void
 energize_extent_finalization (EXTENT extent)
 {
-  Energize_Extent_Data *ext = energize_extent_data (extent);
   /* In the new world, extents are protected from GC until Energize is
      done with them, so if we GC an extent that still has Energize
-     data, that means the extents weren't properly protected. */
+     data, that means the extents weren't prosssssssperly protected. */
+  /*
+     Except that in the even newer world, we can't do this check because the
+     Energize_Extent_Data is pointed to by a cons that may have been collected
+     already, so CDRing down the extent->plist can crash.  Oh well.
+
+  Energize_Extent_Data *ext = energize_extent_data (extent);
   if (ext) abort ();
+  */
 }
 
 static BufferInfo *
@@ -594,7 +584,8 @@ mark_energize_buffer_data_extent_mapper (void *key, void *val, void *arg)
     {
       struct markobj_kludge_fmh *fmh = arg;
       struct Energize_Extent_Data *ext = (Energize_Extent_Data *) val;
-      Lisp_Object extent = data_to_extent (ext);
+      /* Lisp_Object extent = data_to_extent (ext);  (will abort if marked) */
+      Lisp_Object extent = ext->extent;
       if (! gc_record_type_p (extent, lrecord_extent))
 	abort ();
       ((*fmh->markobj) (extent));
@@ -801,45 +792,59 @@ EnergizePosForEmacsPos (EmacsPos emacs_pos)
 
 /* extent data */
 
+extern Lisp_Object extent_getf (EXTENT extent, Lisp_Object property);
+
 Energize_Extent_Data *
 energize_extent_data (EXTENT extent)
 {
-  Lisp_Object data = extent->user_data;
-  if (!CONSP (data) ||
-      !EQ (XCONS (data)->car, Qenergize_extent_data))
+  Lisp_Object data = extent_getf (extent, Qenergize);
+  if (NILP (data))
     return 0;
-  data = XCONS (data)->cdr;
-  if (!FIXNUMP (XCONS (data)->car) || !FIXNUMP (XCONS (data)->cdr))
+  if (!CONSP (data) ||
+      !FIXNUMP (XCONS (data)->car) ||
+      !FIXNUMP (XCONS (data)->cdr))
     abort ();
   return ((Energize_Extent_Data *) (lisp_to_word (data)));
 }
 
 static void
-set_energize_extent_data (EXTENT extent, void *data)
+set_energize_extent_data (EXTENT e, void *data)
 {
   unsigned short high = ((unsigned int) data) >> 16;
   unsigned short low = ((unsigned int) data) & 0xFFFF;
-  Lisp_Object old = extent->user_data;
+  Lisp_Object prev, tail, old;
+  for (prev = Qnil, tail = e->plist;
+       !NILP (tail);
+       prev = tail, tail = Fcdr (Fcdr (tail)))
+    if (EQ (XCONS (tail)->car, Qenergize))
+      break;
   if (data == 0)
-    extent->user_data = Qnil;
-  else if (NILP (old))
-    extent->user_data = Fcons (Qenergize_extent_data,
-			       Fcons (make_number (high), make_number (low)));
-  else if (!CONSP (old) || !EQ (XCONS (old)->car, Qenergize_extent_data))
-    abort ();
+    {
+      if (NILP (tail))
+	;
+      else if (EQ (tail, e->plist))
+	e->plist = Fcdr (Fcdr (tail));
+      else if (!NILP (prev))
+	XCONS (prev)->cdr = Fcdr (Fcdr (tail));
+    }
+  else if (NILP (tail))
+    e->plist = Fcons (Qenergize,
+		      Fcons (Fcons (make_number (high),
+				    make_number (low)),
+			     e->plist));
   else
     {
-      XCONS (XCONS (old)->cdr)->car = make_number (high);
-      XCONS (XCONS (old)->cdr)->cdr = make_number (low);
+      Lisp_Object old = XCONS (XCONS (tail)->cdr)->car;
+      if (!CONSP (old) ||
+	  !FIXNUMP (XCONS (old)->car) ||
+	  !FIXNUMP (XCONS (old)->cdr))
+	abort ();
+      XCONS (old)->car = make_number (high);
+      XCONS (old)->cdr = make_number (low);
     }
 }
 
 
-
-extern int windows_or_buffers_changed;
-
-extern void recompute_screen_menubar (struct screen *);
-
 DEFUN ("energize-update-menubar", Fenergize_update_menubar,
        Senergize_update_menubar, 0, 1, 0,
        "Updates the menubar of optional SCREEN argument to reflect the \n\
@@ -908,6 +913,12 @@ extern GLYPH x_get_pixmap (Lisp_Object lisp_name, char *hash);
 static c_hashtable image_cache;
 
 extern char *strdup ();
+extern Lisp_Object Fbuffer_file_name (Lisp_Object);
+
+
+extern Lisp_Object Fmake_face (Lisp_Object name);
+extern Lisp_Object Fface_foreground (Lisp_Object face, Lisp_Object screen);
+extern Lisp_Object Fface_background (Lisp_Object face, Lisp_Object screen);
 
 /* Parses an image from the image language */
 static GLYPH
@@ -974,21 +985,11 @@ read_energize_image_data (Connection *conn, BufferInfo *binfo)
 	   controlled by the fg/bg of a face.  So don't bother making a
 	   face for it. */
 	{
-	  Lisp_Object face, face_id, fg, bg;
+	  Lisp_Object face, fg, bg;
 	  struct face *c_face;
-	  /* run the lisp code to make a face for this image. */
-	  face = call1 (intern ("find-face"), intern (buf));
-	  if (NILP (face))
-	    {
-	      call1 (intern ("make-face"), intern (buf));
-	      face = call1 (intern ("find-face"), intern (buf));
-	      if (NILP (face)) error ("make-face is broken");
-	    }
-	  face_id = call1 (intern ("face-id"), face);
-	  CHECK_FIXNUM (face_id, 0);
-	  c_face = selected_screen->faces [XINT (face_id)];
-	  fg = c_face->foreground;
-	  bg = c_face->background;
+	  face = Fmake_face (intern (buf));
+	  fg = Fface_foreground (face, Qnil);
+	  bg = Fface_background (face, Qnil);
 	  /* #### shouldn't be using selected_screen here */
 	  if (NILP (fg)) fg = SCREEN_NORMAL_FACE (selected_screen).foreground;
 	  if (NILP (bg)) bg = SCREEN_NORMAL_FACE (selected_screen).background;
@@ -1121,7 +1122,7 @@ insert_one_extent (CExtent* ptr, BufferInfo* binfo, int modify_ok)
   GenericData *gen;
   int extent_start;
   int extent_end;
-  int set_extent_endpoints = 1;
+  int set_endpoints_p = 1;
   int created_ext_data = 0;
   Lisp_Object buffer = binfo->emacs_buffer;
 
@@ -1137,6 +1138,7 @@ insert_one_extent (CExtent* ptr, BufferInfo* binfo, int modify_ok)
       ext->extent = Qnil;	/* not a normal value: set before we return */
       ext->start_pixmap = 0;
       ext->end_pixmap = 0;
+      ext->warn_modify = 0;
       put_extent_data (ext->id, binfo, ext);
     }
   else if (!modify_ok)
@@ -1179,7 +1181,7 @@ insert_one_extent (CExtent* ptr, BufferInfo* binfo, int modify_ok)
    * the extent endpoints */
   if (ptr->startPosition == ~0 && ptr->endPosition == ~0)
     {
-      set_extent_endpoints = 0;
+      set_endpoints_p = 0;
       extent_start = ~0;
       extent_end = ~0;
     }
@@ -1201,7 +1203,7 @@ insert_one_extent (CExtent* ptr, BufferInfo* binfo, int modify_ok)
     }
 
   /* no zero width extent */
-  if (set_extent_endpoints && extent_start == extent_end)
+  if (set_endpoints_p && extent_start == extent_end)
     extent_end += 1;
 
   /* Now create the extent for the extent-data.  There is a 1:1 mapping between
@@ -1217,13 +1219,14 @@ insert_one_extent (CExtent* ptr, BufferInfo* binfo, int modify_ok)
   else
     {
       update_extent_1 (XEXTENT (ext->extent), extent_start, extent_end,
-		       set_extent_endpoints, XBUFFER (buffer));
+		       set_endpoints_p, XBUFFER (buffer));
     }
 
   if (energize_extent_data (XEXTENT (ext->extent)) != ext)
     abort ();
 
-  SET_EXTENT_FLAG (XEXTENT (ext->extent), EF_DUPLICABLE);
+  XEXTENT (ext->extent)->flags.duplicable = 1;
+  XEXTENT (ext->extent)->flags.unique = 1;
 }
 
 
@@ -1399,6 +1402,11 @@ restore_inside_parse_buffer (Lisp_Object val)
   return (val);
 }
 
+extern Lisp_Object Finsert_file_contents (Lisp_Object filename,
+					  Lisp_Object visit,
+					  Lisp_Object beg,
+					  Lisp_Object end);
+
 static void
 read_energize_buffer_data (Connection *conn, CBuffer *cbu, Editor *editor,
 			   EnergizePos delete_from, EnergizePos delete_to,
@@ -1427,6 +1435,7 @@ read_energize_buffer_data (Connection *conn, CBuffer *cbu, Editor *editor,
 #endif
   char *text;
   ReqLen text_len;
+  int get_chars_from_file;
   Lisp_Object modified_buffer_flag;
   int speccount = specpdl_depth ();
   int extent_offset;
@@ -1506,8 +1515,9 @@ read_energize_buffer_data (Connection *conn, CBuffer *cbu, Editor *editor,
       if (!NILP (Ffile_directory_p (pathname_directory))
 	  && !NILP (Ffile_executable_p (pathname_directory)))
 	Fset (Qdefault_directory, pathname_directory);
-      else
-	Fset (Qdefault_directory, Qnil);
+      /* Never set this to nil, that loses badly. */
+/*      else
+	Fset (Qdefault_directory, Qnil); */
     }
 
   /* set file name unless it's a directory */
@@ -1561,9 +1571,26 @@ read_energize_buffer_data (Connection *conn, CBuffer *cbu, Editor *editor,
   from = EmacsPosForEnergizePos (delete_from);
   to = EmacsPosForEnergizePos (delete_to);
 
-  /* get text */
-  text = CGetVstring (conn, &text_len);
-
+  /* See if we should get the characters from the file directly */
+  
+  if (cbu->flags != 0xff)
+    get_chars_from_file = cbu->flags &  CBFileYourself;
+  else
+    get_chars_from_file = binfo->flags &  CBFileYourself;
+  
+  
+  /* Even when we get the chars from a file there is an empty text string */
+  if (get_chars_from_file)
+    {
+      text = CGetVstring (conn, &text_len);
+      text = NULL;
+      text_len = 0;
+    }
+  else
+    {
+      text = CGetVstring (conn, &text_len);
+    }
+  
   if (modifying_p && (from != to || text_len))
     /* updates the visited file modtime */
     Fset_buffer_modtime (binfo->emacs_buffer, Qnil);
@@ -1580,7 +1607,7 @@ read_energize_buffer_data (Connection *conn, CBuffer *cbu, Editor *editor,
 #if 1
       display_window = Fget_buffer_window (binfo->emacs_buffer, Qnil, Qnil);
 #endif
-      previous_point = point;
+      previous_point = PT;
 
 #if 1
       if (!NILP (display_window))
@@ -1597,7 +1624,7 @@ read_energize_buffer_data (Connection *conn, CBuffer *cbu, Editor *editor,
 	      && marker_position (binfo->output_mark) >= from)
 	    Fset_marker (binfo->output_mark, make_number (from),
 			 binfo->emacs_buffer);
-	  if (((to - from) == text_len) &&
+	  if (((to - from) == text_len) && !get_chars_from_file &&
 	      !string_buffer_compare (text, text_len, buf, from))
 	    /* the new text is the same as the old text, don't clear
 	       the undo list*/
@@ -1612,29 +1639,27 @@ read_energize_buffer_data (Connection *conn, CBuffer *cbu, Editor *editor,
 	      should_keep_window_start = 0;
 	      Fset_buffer (binfo->emacs_buffer);
 	      destroy_all_energize_extents (buf);
-	      del_range (from, to);
+	      if (!get_chars_from_file)
+		del_range (from, to);
 	    }
+
+	  /* Do not clear the undo list if getting the chars from the file */
+	  if (get_chars_from_file)
+	    Fsetcdr (Fcdr (restore_buffer_state_cons), Qnil);
 	}
-      else if (!text_len)
+      else if (!text_len && !get_chars_from_file)
 	/* if there is no text and we didn't delete anything,
 	   don't clear the undo_list slot */
 	Fsetcdr (Fcdr (restore_buffer_state_cons), Qnil);
+
     }
 
   /* buffer type */
   if (cbu->flags != 0xff && cbu->flags != binfo->flags)
     {
       if (!modifying_p)
-	switch (cbu->flags)
-	  {
-	  case CBEditable:
-	    break;
-
-	  case CBReadOnly:
-	    /* handle it at the end !! */
-	    break;
-
-	  case CBUserInput:
+	{
+	  if (cbu->flags == CBUserInput)
 	    {
 	      Lisp_Object buffer_local_variable_name =
 		Qenergize_user_input_buffer_mark;
@@ -1648,9 +1673,7 @@ read_energize_buffer_data (Connection *conn, CBuffer *cbu, Editor *editor,
 	      /* Make sure buffer is current after the hook */
 	      Fset_buffer (binfo->emacs_buffer);
 	    }
-	    break;
-	  }
-
+	}
       binfo->flags = cbu->flags;
     }
 
@@ -1673,7 +1696,7 @@ read_energize_buffer_data (Connection *conn, CBuffer *cbu, Editor *editor,
 	    /* This should not happen */
 	    Fgoto_char (make_number (BUF_ZV (XBUFFER (binfo->emacs_buffer))));
 
-	  if (point <= previous_point)
+	  if (PT <= previous_point)
 	    {
 #if 1
 	      display_start += text_len;
@@ -1681,7 +1704,7 @@ read_energize_buffer_data (Connection *conn, CBuffer *cbu, Editor *editor,
 	      previous_point += text_len;
 	    }
 	  insert_raw_string (text, text_len);
-	  Fset_marker (binfo->output_mark, make_number (point),
+	  Fset_marker (binfo->output_mark, make_number (PT),
 		       binfo->emacs_buffer);
 	}
       else if (modifying_p)
@@ -1694,11 +1717,22 @@ read_energize_buffer_data (Connection *conn, CBuffer *cbu, Editor *editor,
 	insert_raw_string (text, text_len);
 
       previous_point = XINT (Fgoto_char (make_number (previous_point)));
+    }
+  else if (get_chars_from_file && !modifying_p)
+    {
+      /* read the buffer from the file */
+      /* when we are supposed to get teh chars form the file ourselves we
+	 never bother to update the buffer text automatically. */
+      Finsert_file_contents (Fbuffer_file_name (binfo->emacs_buffer),
+			     Qt, Qnil, Qnil);
+    }
 
 #if 1
+  if (text_len || !text)
+    {
       if (!NILP (display_window))
 	{
-
+	  
 	  Fset_marker (XWINDOW (display_window)->pointm,
 		       make_number (previous_point),
 		       binfo->emacs_buffer);
@@ -1728,6 +1762,75 @@ read_energize_buffer_data (Connection *conn, CBuffer *cbu, Editor *editor,
   unbind_to (speccount, Qnil);
 }
 
+
+static void
+cleanly_destroy_all_widgets (int count, LWLIB_ID *ids)
+{
+  /* This just calls lw_destroy_all_widgets, but is careful to make sure that
+     this doesn't cause the screens to shrink.  If one deletes psheets
+     (children of the "control" area of the MainWindow) without first
+     unmanaging the MainWindow, the screen resizes.  So first unmanage all
+     the MainWindows of all applicable screens, then remanage them.  This is
+     nasty, but...
+   */
+  Lisp_Object tail;
+  struct screen *s;
+  int i, j;
+
+  BLOCK_INPUT;
+  if (count == 0) return;
+  for (tail = Vscreen_list; CONSP (tail); tail = XCONS (tail)->cdr)
+    {
+      Lisp_Object screen = XCONS (tail)->car;
+      if (!SCREENP (screen))
+	continue;
+      s = XSCREEN (screen);
+      if (!SCREEN_IS_X (s))
+	continue;
+      /* Optimization: only unmanage the MainWindow if this screen is
+	 displaying one of the psheets in question.  (Special casing
+	 the debugger panel as usual...)
+       */
+      for (i = 0; i < count; i++)
+	if (ids [i] == debuggerpanel_sheet)
+	  {
+	    XtUnmanageChild (s->display.x->container);
+	    goto next_screen;
+	  }
+	else
+	  for (j = 0; j < s->display.x->current_psheet_count; j++)
+	    if (ids [i] == s->display.x->current_psheets [j])
+	      {
+		XtUnmanageChild (s->display.x->container);
+		goto next_screen;
+	      }
+    next_screen: ;
+    }
+
+  for (i = 0; i < count; i++)
+    {
+      lw_destroy_all_widgets (ids [i]);
+      if (ids [i] == debuggerpanel_sheet)
+	{
+	  debuggerpanel_sheet = 0;
+	  desired_debuggerpanel_exposed_p = 0;
+	}
+    }
+
+  for (tail = Vscreen_list; CONSP (tail); tail = XCONS (tail)->cdr)
+    {
+      Lisp_Object screen = XCONS (tail)->car;
+      if (!SCREENP (screen))
+	continue;
+      s = XSCREEN (screen);
+      if (!SCREEN_IS_X (s))
+	continue;
+      XtManageChild (s->display.x->container);
+    }
+  UNBLOCK_INPUT;
+}
+
+
 /* kill an Energize buffer */
 static void
 forget_buffer (BufferInfo *binfo)
@@ -1742,18 +1845,12 @@ forget_buffer (BufferInfo *binfo)
   if (!NILP (binfo->screen))
     Fdelete_screen (binfo->screen);
 
-  /* Also delete the dialog boxes associated to the buffer */
-  BLOCK_INPUT;
-  for (i = 0; i < binfo->n_p_sheets; i++)
+  if (binfo->n_p_sheets > 0)
     {
-      lw_destroy_all_widgets (binfo->p_sheet_ids [i]);
-      if (binfo->p_sheet_ids [i] == debuggerpanel_sheet)
-	{
-	  debuggerpanel_sheet = 0;
-	  desired_debuggerpanel_exposed_p = 0;
-	}
+      /* Also delete the dialog boxes associated with the buffer. */
+      cleanly_destroy_all_widgets (binfo->n_p_sheets,
+				   (LWLIB_ID *) binfo->p_sheet_ids);
     }
-  UNBLOCK_INPUT;
 
   free_buffer_info (binfo);
 
@@ -1858,16 +1955,36 @@ write_energize_buffer_data (BufferInfo *binfo)
   CWriteVstring0 (conn, "");	/* buffer name */
 
   /* write the text */
-  CNeedOutputSize (conn, (Z - BEG) + 9);
-  text = get_buffer_as_string ((unsigned int *) &length);
-  CWriteVstringLen (conn, text, length);
+  if (binfo->flags & CBFileYourself)
+    {
+      Lisp_Object start;
+      Lisp_Object end;
+      XSET (start, Lisp_Int, BEG);
+      XSET (end, Lisp_Int, Z);
+      Fwrite_region (start, end, Fbuffer_file_name (binfo->emacs_buffer),
+		     Qnil, Qt);
+      CNeedOutputSize (conn, 9);
+      CWriteVstringLen (conn, NULL, 0);
+    }
+  else
+    {
+      CNeedOutputSize (conn, (Z - BEG) + 9);
+      text = get_buffer_as_string ((unsigned int *) &length);
+      CWriteVstringLen (conn, text, length);
+    }
 
   /* write the extents */
   bane.binfo = binfo;
   bane.n_extents = 0;
-  map_extents (BUF_BEG (current_buffer), BUF_Z (current_buffer),
-	       write_energize_extent_data_mapper, 0, &bane,
-	       XBUFFER (binfo->emacs_buffer), 1);
+
+  /* Only write the extents when not filing ourselves */
+  if (!(binfo->flags & CBFileYourself))
+    {
+      map_extents (BUF_BEG (current_buffer), BUF_Z (current_buffer),
+		   write_energize_extent_data_mapper, 0, &bane,
+		   XBUFFER (binfo->emacs_buffer), 1);
+      
+    }
 
   /* update nextent in request's header */
   req = (CEditorRequest *)conn->header;
@@ -2854,7 +2971,7 @@ handle_buffer_sheet_request (Editor *editor, CSheetRequest *sreq,
       remove_from_list_of_ids (&binfo->p_sheet_ids, &binfo->n_p_sheets,
 			       sreq->sheetId);
       BLOCK_INPUT;
-      lw_destroy_all_widgets (sreq->sheetId);
+      cleanly_destroy_all_widgets (1, &sreq->sheetId);
       UNBLOCK_INPUT;
       if (sreq->sheetId == debuggerpanel_sheet)
 	{
@@ -2958,7 +3075,7 @@ handle_sheet_request (Connection* conn, CSheetRequest* sreq, Widget parent)
 			!sreq->bufferId, 0, handle_sheet_control_change, 0);
       break;
     case CSDelete:
-      lw_destroy_all_widgets (sreq->sheetId);
+      cleanly_destroy_all_widgets (1, &sreq->sheetId);
       break;
 
     case CSShow:
@@ -3310,6 +3427,10 @@ process_one_energize_request ()
 	  handle_logging_request (editor, (CLoggingRequest*)req);
 	  break;
 
+	case KernelEventRType:
+	  CSkipRequest (editor->conn);
+	  break;
+
 	default:
 	  Post1("ProcessEnergizeRequest: can't handle request of type %d",
 		req->head.reqType);
@@ -3414,7 +3535,7 @@ setup_connection (Editor *ed, unsigned int id1, unsigned int id2)
   req->generic.queryconnection.cadillacId2 = id2;
   req->generic.queryconnection.nProtocols = 1;
   /* first numerical arg is major protocol number, second is minor */
-  CWriteProtocol (ed->conn, 0, 8, "editor");
+  CWriteProtocol (ed->conn, 0, 10, "editor");
   CWriteLength (ed->conn);
   CWriteRequestBuffer (ed->conn);
 }
@@ -3570,9 +3691,6 @@ close_energize_connection ()
       lw_destroy_all_pop_ups ();
       UNBLOCK_INPUT;
 
-      debuggerpanel_sheet = 0;
-      desired_debuggerpanel_exposed_p = 0;
-
       if (ed->conn)
 	DeleteConnection (ed->conn);
       ed->conn = 0;
@@ -3592,6 +3710,10 @@ close_energize_connection ()
 	  free_hashtable (ed->binfo_hash);
 	  ed->binfo_hash = 0;
 	}
+
+      /* Do this after de-energize-all-buffers or screen sizes thrash. */
+      debuggerpanel_sheet = 0;
+      desired_debuggerpanel_exposed_p = 0;
 
       free_edit_options (peo);
 
@@ -3665,20 +3787,25 @@ DEFUN ("close-connection-to-energize", Fclose_connection_to_energize,
 /* Extents stuff; this used to be in extents.c */
 
 static void
-set_extent_flags (EXTENT extent)
+set_extent_flags (EXTENT extent, Energize_Extent_Data *ext)
 {
-  Energize_Extent_Data *ext = energize_extent_data (extent);
-
   /* clear every flag except the EF_DETACHED flag */
   if (EXTENT_DESTROYED_P (extent))
     return;
-  else if (EXTENT_DETACHED_P (extent))
-    extent->flags = EF_DETACHED;
-  else
-    extent->flags = 0;
+  extent->flags.glyph_layout = GL_TEXT;
+  extent->flags.glyph_end_p = 0;
+  extent->flags.start_open = 0;
+  extent->flags.end_open = 1;
+  extent->flags.read_only = 0;
+  extent->flags.highlight = 0;
+  extent->flags.unique = 0;
+  extent->flags.duplicable = 0;
+  extent->flags.invisible = 0;
 
   if (ext)
     {
+      ext->warn_modify = 0;
+
       switch (ext->extentType)
 	{
 	case CEAttribute:
@@ -3688,40 +3815,39 @@ set_extent_flags (EXTENT extent)
 	  break;
 
 	case CEWriteProtect:
-	  SET_EXTENT_FLAG (extent, EF_WRITE_PROTECT);
+	  extent->flags.read_only = 1;
 	  break;
 
 	case CEGeneric:
 	  if (ext->u.generic.gData->id)
-	    SET_EXTENT_FLAG (extent, EF_MENU);
+/*	    SET_EXTENT_FLAG (extent, EF_MENU);*/
 	  if (ext->u.generic.gData->glyph)
 	    {
-	      CLEAR_EXTENT_FLAG (extent, EF_START_GLYPH);
-	      SET_EXTENT_FLAG (extent, EF_END_GLYPH);
-	      SET_EXTENT_GLYPH_LAYOUT (extent, GL_TEXT);
-	      extent->glyph = ext->u.generic.gData->glyph;
+	      extent->flags.glyph_end_p = 1;
+	      extent->flags.glyph_layout = GL_TEXT;
+	      extent_glyph (extent) = ext->u.generic.gData->glyph;
 	      BUF_FACECHANGE (XBUFFER (extent_buffer (extent)))++;
 	    }
 	  if (ext->u.generic.gData->cl && ext->u.generic.gData->cl->glyph)
 	    {
-	      CLEAR_EXTENT_FLAG (extent, EF_END_GLYPH);
-	      SET_EXTENT_FLAG (extent, EF_START_GLYPH);
-	      SET_EXTENT_GLYPH_LAYOUT (extent, GL_TEXT);
-	      extent->glyph = ext->u.generic.gData->cl->glyph;
+	      extent->flags.glyph_end_p = 0;
+	      extent->flags.glyph_layout = GL_TEXT;
+	      extent_glyph (extent) = ext->u.generic.gData->cl->glyph;
 	      BUF_FACECHANGE (XBUFFER (extent_buffer (extent)))++;
 	    }
 	  if (ext->u.generic.gData->cl &&
 	      (ext->u.generic.gData->cl->flags & CCElectric))
-	    SET_EXTENT_FLAG (extent, EF_HIGHLIGHT);
+	    extent->flags.highlight = 1;
 	  if (ext->u.generic.gData->cl &&
 	      (ext->u.generic.gData->cl->flags & CCWarnModified))
-	    SET_EXTENT_FLAG (extent, EF_WARN_MODIFY);
+	    ext->warn_modify = 1;
 #if 0 /* #### some day (soon?)... */
 	  if (ext->u.generic.gData->cl &&
 	      (ext->u.generic.gData->cl->flags & CCColumn))
 	    SET_EXTENT_FLAG (extent, EF_COLUMN);
 #endif
-	  SET_EXTENT_FLAG (extent, EF_DUPLICABLE);
+	  extent->flags.duplicable = 1;
+	  extent->flags.unique = 1;
 	  break;
 
 	default:
@@ -3730,19 +3856,17 @@ set_extent_flags (EXTENT extent)
     }
 }
 
+extern Lisp_Object Fset_extent_face (Lisp_Object extent, Lisp_Object name);
+
 static void
-set_extent_attributes_index (EXTENT extent)
+set_extent_attributes_index (EXTENT extent, Energize_Extent_Data *ext)
 {
-  Energize_Extent_Data *ext = energize_extent_data (extent);
   int graphic_attributes;
 
   if (!ext)
-    extent->attr_index = -1;
+    extent_face_id (extent) = -1;
   else
     {
-      extern Lisp_Object Venergize_attributes_mapping;
-      Lisp_Object face;
-
       switch (ext->extentType)
 	{
 	case CEAttribute:
@@ -3755,7 +3879,7 @@ set_extent_attributes_index (EXTENT extent)
 
 	case CEWriteProtect:
 	  /* this type has NO display attributes */
-	  extent->attr_index = -1;
+	  extent_face_id (extent) = -1;
 	  return;
 
 	default:
@@ -3765,38 +3889,31 @@ set_extent_attributes_index (EXTENT extent)
       if (graphic_attributes >= GA_MAX)
 	graphic_attributes = GA_NO_CHANGE;
 
-      /* The Venergize_attributes_mapping global is an A-list of the form
-	 ((<kernel attribute number> <attribute name> . <emacs face id>)..)
-	 It is initialized by connect-to-energize in energize-init.el. */
-      if (CONSP (Venergize_attributes_mapping))
-	{
-	  face = Fassq (make_number (graphic_attributes),
-			Venergize_attributes_mapping);
-	  if (CONSP (face))
-	    {
-	      face = XCONS (face)->cdr;
-	      if (CONSP (face))
-		{
-		  face = XCONS (face)->cdr;
-		  if (FIXNUMP (face))
-		    graphic_attributes = XINT (face);
-		}
-	    }
-	}
-      extent->attr_index = graphic_attributes;
+      {
+	/* The Venergize_attributes_mapping global is an alist of the form
+	   ( (<kernel-attribute-number> <emacs-face-name> ) ... )
+	   */
+	Lisp_Object face = Fcdr (Fassq (make_number (graphic_attributes),
+					Venergize_attributes_mapping));
+	Lisp_Object e;
+	XSETEXTENT (e, extent);
+	if (NILP (face))
+	  Post1 ("Unknown Energize attribute %d", graphic_attributes);
+	else if (EQ (face, Qdefault))
+	  Fset_extent_face (e, Qnil);
+	else
+	  Fset_extent_face (e, face);
+      }
     }
 }
 
 void
 restore_energize_extent_state (EXTENT extent)
 {
-  set_extent_flags (extent);
-  set_extent_attributes_index (extent);
-}
-
-void
-energize_install_extent_data (EXTENT extent, void *data)
-{
+  Energize_Extent_Data *ext = energize_extent_data (extent);
+  if (!ext) return;
+  set_extent_flags (extent, ext);
+  set_extent_attributes_index (extent, ext);
 }
 
 DEFUN ("extent-to-generic-id", Fextent_to_generic_id, Sextent_to_generic_id,
@@ -3916,11 +4033,8 @@ notify_extent_modified (Lisp_Object extent_obj, void *arg)
   Connection *conn = binfo->editor->conn;
   EId *extent_id;
 
-  if (!EXTENTP (extent_obj) ||
-      !(EXTENT_FLAGS (XEXTENT (extent_obj)) & EF_WARN_MODIFY))
-    return 0;
-
   if ((ext = extent_to_data (extent_obj))
+      && ext->warn_modify
       && ext->extentType == CEGeneric
       && ext->u.generic.gData
       && ext->u.generic.gData->cl
@@ -3941,19 +4055,27 @@ notify_extent_modified (Lisp_Object extent_obj, void *arg)
 }
 
 static int
-ceiwme_lower_mf (EXTENT extent, void *arg)
+ceiwme_lower_mf (EXTENT e, void *arg)
 {
-  if (EXTENT_FLAGS (extent) & EF_WARN_MODIFY)
-    *((EXTENT *) arg) = extent;
+  Lisp_Object extent;
+  Energize_Extent_Data *ext;
+  XSETEXTENT (extent, e);
+  ext = extent_to_data (extent);
+  if (ext && ext->warn_modify)
+    *((EXTENT *) arg) = e;
   return 0;
 }
 
 static int
-ceiwme_upper_mf (EXTENT extent, void *arg)
+ceiwme_upper_mf (EXTENT e, void *arg)
 {
-  if (EXTENT_FLAGS (extent) & EF_WARN_MODIFY)
+  Lisp_Object extent;
+  Energize_Extent_Data *ext;
+  XSETEXTENT (extent, e);
+  ext = extent_to_data (extent);
+  if (ext && ext->warn_modify)
     {
-      *((EXTENT *) arg) = extent;
+      *((EXTENT *) arg) = e;
       return 1;
     }
   else
@@ -4063,18 +4185,21 @@ DEFUN ("energize-send-buffer-modified", Fenergize_send_buffer_modified,
 					  modifiedp);
 	  binfo->modified_state = modifiedp;
 	}
-      if (modifiedp)
+      if (!(binfo->flags & CBFileYourself))
 	{
-	  binfo_and_state bans;
-	  bans.binfo = binfo;
-	  bans.state = TRUE;
-	  bans.tell_energize = TRUE;
-	  map_extents (XFASTINT (from), XFASTINT (to),
-		       notify_extent_modified, 0, &bans,
-		       XBUFFER (binfo->emacs_buffer), 1);
+	  if (modifiedp)
+	    {
+	      binfo_and_state bans;
+	      bans.binfo = binfo;
+	      bans.state = 1;
+	      bans.tell_energize = 1;
+	      map_extents (XFASTINT (from), XFASTINT (to),
+			   notify_extent_modified, 0, &bans,
+			   XBUFFER (binfo->emacs_buffer), 1);
+	    }
+	  else
+	    mark_all_extents_as_unmodified (binfo);
 	}
-      else
-	mark_all_extents_as_unmodified (binfo);
     }
   return Qnil;
 }
@@ -4334,6 +4459,208 @@ DEFUN ("energize-buffer-has-psheets-p", Fenergize_buffer_has_psheets_p,
   if (get_psheets_for_buffer (buf, &count))
     return Qt;
   return Qnil;
+}
+
+
+void
+make_psheets_desired (s, buffer)
+     struct screen* s;
+     Lisp_Object buffer;
+{
+  struct x_display *x = s->display.x;
+  int count;
+  int *psheets;
+
+  if (NILP (buffer) || !(psheets = get_psheets_for_buffer (buffer, &count)))
+    {
+      x->desired_psheets = 0;
+      x->desired_psheet_count = 0;
+      x->desired_psheet_buffer = Qnil;
+    }
+  else
+    {
+      /* Do not show the debugger panel in this function.  The
+       * debugger panel should never be listed in the visible psheets. */
+      extern int debuggerpanel_sheet;
+      
+      if (count == 1 && psheets [0] == debuggerpanel_sheet)
+	return;
+
+      x->desired_psheets = psheets;
+      x->desired_psheet_count = count;
+      x->desired_psheet_buffer = buffer;
+    }
+}
+
+Lisp_Object
+desired_psheet_buffer (struct screen* s)
+{
+  if (SCREEN_IS_X (s))
+  return s->display.x->desired_psheet_buffer;
+  else
+    return Qnil;
+}
+
+/* This function is invoked when the user clicks on the "sheet" button.
+ */
+DEFUN ("energize-toggle-psheet", Fenergize_toggle_psheet,
+       Senergize_toggle_psheet, 0, 0, "",
+       "")
+     ()
+{
+  struct screen *screen = selected_screen;
+  Lisp_Object buffer = Fwindow_buffer (Fselected_window ());
+  if (EQ (buffer, desired_psheet_buffer (screen)))
+    make_psheets_desired (screen, Qnil);
+  else
+    make_psheets_desired (screen, buffer);
+  return Qnil;
+}
+
+
+static void energize_show_menubar_of_buffer (Lisp_Object screen,
+					     Lisp_Object buffer,
+					     Lisp_Object psheets_too);
+
+/* This is called when a buffer becomes visible in some window.
+
+   Show the menubar associated with this buffer, and show the psheets as
+   well if this buffer is the last buffer whose psheets were visible in
+   this screen.
+ */
+void
+energize_buffer_shown_hook (struct window *window)
+{
+  struct screen* screen = XSCREEN (window->screen);
+  Lisp_Object buffer = window->buffer;
+  Lisp_Object pbuf;
+
+  if (! SCREEN_IS_X (screen)) return;
+  pbuf = desired_psheet_buffer (screen);
+
+  if (!MINI_WINDOW_P (window))
+    energize_show_menubar_of_buffer (window->screen, buffer,
+				     (EQ (buffer, pbuf) ? Qt : Qnil));
+}
+
+
+static int
+find_buffer_in_different_window (window, buffer, not_in)
+     struct window* window;
+     Lisp_Object buffer;
+     struct window* not_in;
+{
+  Lisp_Object child;
+  if (!NILP (window->buffer))
+    {
+      /* a leaf window */
+      return (EQ (window->buffer, buffer) && (window != not_in));
+    }
+  else
+    {
+      /* a non leaf window, visit either the hchild or the vchild */
+      for (child = !NILP (window->vchild) ? window->vchild : window->hchild;
+	   !NILP (child);
+	   child = XWINDOW (child)->next)
+	{
+	  if (find_buffer_in_different_window (XWINDOW (child), buffer,
+					       not_in))
+	    return 1;
+	}
+      return 0;
+    }
+}
+
+/* returns 1 if the buffer is only visible in window on screen s */
+static int
+buffer_only_visible_in_this_window_p (buffer, s, window)
+     Lisp_Object buffer;
+     struct screen* s;
+     struct window* window;
+{
+  return !find_buffer_in_different_window (XWINDOW (s->root_window), buffer,
+					   window);
+}
+
+/* This is called just before a buffer which is visible becomes invisible,
+   either because some other buffer is about to be made visible in its window,
+   or because that window is being deleted.
+
+   If this buffer's psheets are visible, hide them.
+ */
+void
+energize_buffer_hidden_hook (struct window *window)
+{
+  struct screen *s;
+  s = XSCREEN (window->screen);
+
+  if (! SCREEN_IS_X (s)) return;
+
+  /* hides the p_sheet if we are changing the buffer of the
+   * selected window of the screen and the p_sheet where displayed */
+  if (EQ (window->buffer, desired_psheet_buffer (s))
+      && buffer_only_visible_in_this_window_p (window->buffer, s, window))
+    make_psheets_desired (s, Qnil);
+}
+
+
+/* This is called just before the selected window is no longer the selected
+   window because some other window is being selected.  The given window is
+   not being deleted, it is merely no longer the selected one.
+
+   This doesn't do anything right now.
+ */
+void
+energize_window_deselected_hook (struct window *window)
+{
+}
+
+
+/* This is called just after a window has been selected.
+
+   Show the menubar associated with this buffer; leave the psheets as
+   they are.
+ */
+void
+energize_window_selected_hook (struct window *window)
+{
+  struct screen* screen = XSCREEN (window->screen);
+  Lisp_Object buffer = window->buffer;
+
+  if (SCREEN_IS_X (screen) && !MINI_WINDOW_P (window))
+    energize_show_menubar_of_buffer (window->screen, buffer, Qnil);
+}
+
+
+
+int current_debuggerpanel_exposed_p;
+int desired_debuggerpanel_exposed_p;
+int debuggerpanel_sheet;
+
+static void
+energize_show_menubar_of_buffer (Lisp_Object screen,
+				 Lisp_Object buffer,
+				 Lisp_Object psheets_too)
+{
+  struct screen* s;
+  struct x_display *x;
+  
+  if (NILP (screen))
+    s = selected_screen;
+  else {
+    CHECK_SCREEN (screen, 0);
+    s = XSCREEN (screen);
+  }
+
+  if (! SCREEN_IS_X (s)) error ("not an X screen");
+  x = s->display.x;
+
+  if (! NILP (psheets_too))
+    {
+      Lisp_Object buffer;
+      XSETR (buffer, Lisp_Buffer, current_buffer);
+      make_psheets_desired (s, buffer);
+    }
 }
 
 
@@ -4814,6 +5141,7 @@ syms_of_editorside ()
   defsubr (&Senergize_barf_if_buffer_locked);
   defsubr (&Senergize_psheets_visible_p);
   defsubr (&Senergize_buffer_has_psheets_p);
+  defsubr (&Senergize_toggle_psheet);
   defsubr (&Senergize_protocol_level);
   defsubr (&Senergize_edit_mode_prompt);
   defsubr (&Senergize_search);
@@ -4873,7 +5201,7 @@ takes no arguments.");
 	     "energize-user-input-buffer-mark");
   defsymbol (&Qenergize_make_many_buffers_visible,
 	     "energize-make-many-buffers-visible");
-  defsymbol (&Qenergize_extent_data, "energize-extent-data");
+  defsymbol (&Qenergize, "energize");
 
   pure_put (Qbuffer_locked_by_energize, Qerror_conditions,
 	    list2 (Qbuffer_locked_by_energize, Qerror));

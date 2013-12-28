@@ -19,10 +19,8 @@
 
 ;; Written by Richard Mlynarik 8-Jul-92
 
-;; Putting this in lisp slows things down, and this definition isn't
-;; correct anyway.
-;;  How isn't it correct, Jamie?  It's pretty bloody hard to fix things
-;;  if nobody reports and problems.
+;; Putting this in lisp slows things down.
+
 (defun recursive-edit ()
   "Invoke the editor command loop recursively.
 To get out of the recursive edit, a command can do `(throw 'exit nil)';
@@ -48,6 +46,7 @@ Alternately, `(throw 'exit t)' makes this function signal an error."
     nil))
 
 
+;; We demand lexical scope!
 (defun command-loop (_catch_errors)
   "This function is the default value of the variable command-loop."
   (setq prefix-arg nil)

@@ -100,13 +100,11 @@ C-c C-r  caesar rotate all letters by 13 places in the article's body (rot13)."
 				   paragraph-separate))
   (run-hooks 'text-mode-hook 'news-reply-mode-hook))
 
-(defvar news-reply-yank-from
-  "Save From: field for news-reply-yank-original."
-  "")
+(defvar news-reply-yank-from ""
+  "Save From: field for news-reply-yank-original.")
 
-(defvar news-reply-yank-message-id
-  "Save Message-Id: field for news-reply-yank-original."
-  "")
+(defvar news-reply-yank-message-id ""
+  "Save Message-Id: field for news-reply-yank-original.")
 
 (defun news-reply-yank-original (arg)
   "Insert the message being replied to, if any (in postnews).
@@ -459,4 +457,5 @@ original message into it."
 			 (not (looking-at "[ \t\n]*\\'"))))))
       (if fill (aset fill 2 body-p))
       (if rot (aset rot 2 body-p))))
-  (popup-menu 'news-reply-menu))
+  (let ((popup-menu-titles nil))
+    (popup-menu 'news-reply-menu)))

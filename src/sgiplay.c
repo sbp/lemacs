@@ -95,10 +95,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 extern void play_sound_file (char *, int);
 extern void play_sound_data (unsigned char *, int, int);
 
-/* Imports */
-
-extern void report_file_error (const char *, Lisp_Object);
-
 /* Data structures */
 
 /* an AudioContext describes everything we want to know about how a
@@ -378,7 +374,7 @@ static int
 st_ulaw_to_linear (u)
      int u;
 {
-  static const short table[] = {0,132,396,924,1980,4092,8316,16764};
+  static CONST short table[] = {0,132,396,924,1980,4092,8316,16764};
   int u1 = ~u;
   short exponent = (u1 >> 4) & 0x07;
   int mantissa = u1 & 0x0f;
