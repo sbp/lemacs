@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Thu Jun 11 20:23:46 1992
-;;; from file /u/jwz/emacs19/lisp/calendar/calendar.el
-;;; emacs version 19.1 Lucid.
-;;; bytecomp version 2.06; 17-may-92.
+;;; compiled by jwz@thalidomide on Tue Jun 30 21:55:01 1992
+;;; from file /wg1/emacs-base/lisp/calendar/calendar.el
+;;; emacs version 19.2.1 Lucid.
+;;; bytecomp version 2.07; 17-jun-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -442,12 +442,12 @@ Name of the buffer used for the calendar.")
 Name of the buffer used for the displaying the holidays.")
 (defconst fancy-diary-buffer "*Fancy Diary Entries*" "\
 Name of the buffer used for the optional fancy display of the diary.")
-(fset 'increment-calendar-month '(macro . #[(mon yr n) "ÀÁÂÃÅEÇ¯DCÉÊEÉËEF‡" [let macro-y + * yr 12 mon -1 n setq (1+ (% macro-y 12)) (/ macro-y 12)] 7 "\
+(fset 'increment-calendar-month '(macro . #[(mon yr n) "ÀÁÂÃÅBBÇ¯DCÉÊBBÉËBBF‡" [let macro-y + * yr (12) mon -1 n setq ((1+ (% macro-y 12))) ((/ macro-y 12))] 7 "\
 Move the variables MON and YR to the month and year N months forward
 if N is positive or backward if N is negative."]))
-(fset 'calendar-for-loop '(macro . #[(var from init to final do &rest body) "À	ÂDDCÄÅÆÈ	É	DEED\n\"E‡" [let var 1- init append while >= final setq 1+ body] 10 "\
+(fset 'calendar-for-loop '(macro . #[(var from init to final do &rest body) "À	ÂDDCÄÅÇ	È	DEE	BBE‡" [let var 1- init while >= final setq 1+ body] 9 "\
 Execute a for loop."]))
-(fset 'calendar-sum '(macro . #[(index initial condition expression) "À	\nDÃDÄÆÇÈÇ	EEÆ	Ê	DEFÇF‡" [let index initial (sum 0) while condition setq sum + expression 1+] 9 "\
+(fset 'calendar-sum '(macro . #[(index initial condition expression) "À	\nDÃBÄÆÇÈÇ	EEÆ	Ê	DEFËBBB‡" [let index initial ((sum 0)) while condition setq sum + expression 1+ (sum)] 9 "\
 For INDEX = INITIAL and successive integers, as long as CONDITION holds,
 sum EXPRESSION."]))
 (fset 'calendar #[(&optional arg) "«…Á!ªÂÃ!qˆÅ ˆÆ ÈÉ\nÌ!ˆÍ!ˆE«šÓ!«”ÔÕ!«‰×!Hª‚!ˆ)Ø!‰­„Û!‰«ƒİªÉ\n«ƒß ˆ-àá!‡" [arg prefix-numeric-value 0 get-buffer-create calendar-buffer calendar-mode current-window-configuration calendar-window-configuration t 1000 split-height-threshold pop-up-windows pop-to-buffer regenerate-calendar-window current-month current-day current-year date view-diary-entries-initially calendar-date-is-visible-p view-diary-entries vectorp number-of-diary-entries calendar-day-of-week get-file-buffer diary-file diary-buffer get-buffer-window diary-window 2 view-calendar-holidays-initially list-calendar-holidays run-hooks initial-calendar-window-hook] 5 "\

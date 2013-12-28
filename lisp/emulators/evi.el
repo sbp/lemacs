@@ -477,6 +477,7 @@ for use in defining command macros.")
   "The keymap used for operand motions.")
 
 (defvar evi-insert-map (let ((map (evi-make-empty-keymap))
+			     (meta-prefix-char -1)
 			     (i 128))
 			 (while (<= 0 (setq i (1- i)))
 			   (define-key map (make-string 1 i)
@@ -485,6 +486,7 @@ for use in defining command macros.")
   "The keymap used in insert mode.")
 
 (defvar evi-replace-map (let ((map (evi-make-empty-keymap))
+			     (meta-prefix-char -1)
 			     (i 128))
 			 (while (<= 0 (setq i (1- i)))
 			   (define-key map (make-string 1 i)
@@ -774,9 +776,10 @@ in insert mode.")
 ;; Keymaps
 
 (defun evi-define-key (maps key def)
-  (evi-enumerate-condition map maps t
-    (eval (list 'define-key
-		(intern (concat "evi-" (symbol-name map) "-map")) 'key 'def))))
+  (let ((meta-prefix-char -1))
+    (evi-enumerate-condition map maps t
+			     (eval (list 'define-key
+					 (intern (concat "evi-" (symbol-name map) "-map")) 'key 'def)))))
 
 ;(defmacro evi-define-key (maps key def)
 ;  (append '(progn)
@@ -1191,6 +1194,8 @@ in insert mode.")
 (defvar evi-mode-hook nil
   "function or functions to run for each buffer that is placed in evi-mode.")
 
+(defvar evi-orig-interrupt-char)
+
 (defun evi ()
   "Start global vi emulation."
   (interactive)
@@ -1201,7 +1206,8 @@ in insert mode.")
     (evi-install-var 'minibuffer-local-must-match-map
 		     evi-minibuffer-must-match-map)
     (evi-install-var 'minibuffer-local-ns-map evi-minibuffer-no-space-map)
-    (and (boundp 'interrupt-char) (evi-install-var 'interrupt-char ?\^C))
+    (setq evi-orig-interrupt-char interrupt-char)
+    (set-interrupt-character ?\^C)
     (evi-load-init-files)
     (or evi-was-on-already (run-hooks 'evi-startup-hook))
     (evi-mode)
@@ -1231,10 +1237,12 @@ in insert mode.")
 (defun evi-exit-to-emacs ()
   "Stop vi emulation."
   (interactive)
-  (mapcar '(lambda (cons)
-	     (set (car cons) (cdr cons)))
-	  evi-install-undo-list)
-  (setq evi-install-undo-list nil)
+  (let ((inhibit-quit t))
+    (set-interrupt-character evi-orig-interrupt-char)
+    (mapcar '(lambda (cons)
+	       (set (car cons) (cdr cons)))
+	    evi-install-undo-list)
+    (setq evi-install-undo-list nil))
   (save-excursion
     (let ((rest (buffer-list)))
       (while rest
@@ -1248,7 +1256,9 @@ in insert mode.")
 		  (setq buffer-read-only t))
 	      (use-local-map nil)
 	      (kill-all-local-variables)
-	      (after-find-file nil nil)))
+	      (if (buffer-file-name)
+		  (after-find-file nil nil)
+		(fundamental-mode))))
 	(setq rest (cdr rest)))))
   (evi-refresh-mode-line)
   (run-hooks 'evi-exit-hook)

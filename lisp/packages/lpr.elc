@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Tue Apr 21 17:48:32 1992
-;;; from file /u/jwz/emacs19/lisp/lpr.el
-;;; emacs version 19.0.2 Lucid.
-;;; bytecomp version 2.05; 9-mar-92.
+;;; compiled by jwz@watergate on Tue Aug 18 17:18:46 1992
+;;; from file /wg1/emacs-base/lisp/packages/lpr.el
+;;; emacs version 19.2.2 Lucid.
+;;; bytecomp version 2.08;  7-aug-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -24,4 +24,4 @@ Print region contents as with Unix command `lpr'.
 (fset 'print-region #[(start end) "À	\nÄ$‡" [print-region-1 start end lpr-switches t] 5 "\
 Print region contents as with Unix command `lpr -p'.
 `lpr-switches' is a list of extra switches (strings) to pass to lpr." "r"])
-(byte-code "ÀÁMˆÂÃM‡" [print-region-1 #[(start end switches page-headers) "À ÁP\nŠÅÆ!ˆ\nÇU¬ŠÈ ˆÉed\"ˆ\n«Ì=«‘È ˆÍĞÑ‰Ò&ˆª†ÓBÕÍÒ‰‰¯×=­…ØÙF¤¤\"ˆÅÚ!+‡" [buffer-name " Emacs buffer" tab-width width name message "Spooling..." 8 print-region-new-buffer untabify page-headers system-type usg-unix-v call-process-region start end "pr" t nil "-p" switches apply lpr-command berkeley-unix "-J" "-T" "Spooling...done"] 8] print-region-new-buffer #[nil "À Á˜®œpÃÁ!qˆ~ˆÄ ˆÅ\n#ˆed‰)‡" [buffer-name " *spool temp*" oldbuf get-buffer-create erase-buffer insert-buffer-substring start end] 4]] 2)
+(byte-code "ÀÁMˆÂÃM‡" [print-region-1 #[(start end switches page-headers) "À ÁP\nŠÅÆ!ˆ\nÇU¬ŠÈ ˆÉed\"ˆ\n«£Ì=«‘È ˆÍĞÑ‰Ò&ˆªŒÔš­„ÕB×ÍÒ‰‰¯Ø=­‹Ô=­…ÙÚF¤¤\"ˆÅÛ!+‡" [buffer-name " Emacs buffer" tab-width width name message "Spooling..." 8 print-region-new-buffer untabify page-headers system-type usg-unix-v call-process-region start end "pr" t nil lpr-command "lpr" "-p" switches apply berkeley-unix "-J" "-T" "Spooling...done"] 8] print-region-new-buffer #[nil "À Á˜®œpÃÁ!qˆ~ˆÄ ˆÅ\n#ˆed‰)‡" [buffer-name " *spool temp*" oldbuf get-buffer-create erase-buffer insert-buffer-substring start end] 4]] 2)

@@ -347,8 +347,10 @@ Obeying it means displaying in another window the specified file and line."
     (let ((pt (point)))
       (beginning-of-line)
       (setq gdb-delete-prompt-marker
-	    (list (point-marker) (- pt (point))
-		  (buffer-substring (point) pt)))))
+	    (if (= (point) pt)
+		nil
+	      (list (point-marker) (- pt (point))
+		    (buffer-substring (point) pt))))))
   (gdb-set-buffer)
   (send-string (get-buffer-process current-gdb-buffer)
 	       (concat command "\n")))

@@ -13,6 +13,9 @@ struct Lisp_Keymap {
 				   If this is the symbol t, then the cache
 				   needs to be recomputed.
 				 */
+  int fullness;			/* How many entries there are in this table.
+				   This should be the same as the fullness
+				   of the `table', but hash.c is broken. */
 };
 
 #define KEYMAP_SIZE ((sizeof (struct Lisp_Keymap) / sizeof (int)) - 2)

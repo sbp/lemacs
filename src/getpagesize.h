@@ -4,6 +4,12 @@
 #endif
 #endif
 
+#ifdef __hpux
+#include <sys/types.h>
+static size_t getpagesize() { return( 4096 ); }
+#define HAVE_GETPAGESIZE
+#endif
+  
 #ifndef HAVE_GETPAGESIZE
 
 #include <sys/param.h>

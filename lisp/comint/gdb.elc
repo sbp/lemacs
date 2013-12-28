@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Wed Apr 22 16:50:11 1992
-;;; from file /cadillac-th/jwz/emacs19/lisp/gdb.el
-;;; emacs version 19.0.2 Lucid.
-;;; bytecomp version 2.05; 9-mar-92.
+;;; compiled by jwz@thalidomide on Wed Jul 29 17:10:36 1992
+;;; from file /wg1/emacs-base/lisp/comint/gdb.el
+;;; emacs version 19.2.3 Lucid.
+;;; bytecomp version 2.07; 15-jul-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -75,7 +75,7 @@ Find, obey and delete the last filename-and-line marker from GDB.
 The marker looks like \\032\\032FILENAME:LINE:CHARPOS\\n.
 Obeying it means displaying in another window the specified file and line." nil])
 (fset 'gdb-display-line #[(true-file line) "À	!Ã\nÄ\"ÆŠ\nqˆŒ~ˆÈ	!ˆ`Ê¬„Í `p“ˆ)eW¬†dV«†~ˆbˆ)Î\"+‡" [find-file-noselect true-file buffer display-buffer t window nil pos goto-line line "=>" overlay-arrow-string overlay-arrow-position make-marker set-window-point] 3])
-(fset 'gdb-call #[(command) "dbˆŠÀÁ\n!!bˆ`ÄyˆÅ `Z`{E*Ç ˆÈÁ\n!	ÊP\"‡" [process-mark get-buffer-process current-gdb-buffer pt 0 point-marker gdb-delete-prompt-marker gdb-set-buffer send-string command "\n"] 4 "\
+(fset 'gdb-call #[(command) "dbˆŠÀÁ\n!!bˆ`Äyˆ`U?­‰Å `Z`{E*Ç ˆÈÁ\n!	ÊP\"‡" [process-mark get-buffer-process current-gdb-buffer pt 0 point-marker gdb-delete-prompt-marker gdb-set-buffer send-string command "\n"] 4 "\
 Invoke gdb COMMAND displaying source in other window." nil])
 (fset 'gdb-maybe-delete-prompt #[nil "­»Á8A@@\n\\bˆ`\n\\dX«‘``\n\\{˜«ˆ``\n\\|ˆªh`ÄÅ!!U?­‰@Ç‰“ˆÇ‰*‡" [gdb-delete-prompt-marker 2 length prompt process-mark get-buffer-process current-gdb-buffer nil] 4])
 (fset 'gdb-break #[(temp) "À	!Œ~ˆÂyˆÃÄ`\"T)ÇÈ	!\n«ƒËªÌÍÎ°\"*‡" [file-name-nondirectory buffer-file-name 0 count-lines 1 line file-name send-string get-buffer-process current-gdb-buffer temp "tbreak " "break " ":" "\n"] 7 "\

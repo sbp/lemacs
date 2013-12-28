@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Tue May  5 17:19:13 1992
-;;; from file /cadillac-th/jwz/emacs19/lisp/calendar/appt.el
-;;; emacs version 19.0.5 Lucid.
-;;; bytecomp version 2.05; 9-mar-92.
+;;; compiled by devin@scylla on Fri Jul 10 12:12:30 1992
+;;; from file /wg1/emacs-base/lisp/calendar/appt.el
+;;; emacs version 19.2.2 Lucid.
+;;; bytecomp version 2.07;  5-jul-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -122,4 +122,4 @@ Adds an appointment to the list of appointments for the day at TIME
 Deletes an appointment from the list of appointments." nil])
 (defvar display-time-hook nil "\
 *List of functions to be called when the time is updated on the mode line.")
-(byte-code "ÀÂÃ!¬‚ÄÅÆMˆÇÈ!‡" [appt-check display-time-hook boundp display-time-hook-installed nil install-display-time-hook #[nil "?­¶ÁÂ!«ŸÁÃ!«šÄÅ!«ˆÁÆ!«ƒÆªÇÈÉ \"«ƒÂª„ÃªÊÌKMˆÍMˆ)Î‰‡" [display-time-hook-installed fboundp display-time-filter-18-55 display-time-filter-18-57 featurep timer display-time-timer-function string-match "18\\.5[0-5]" emacs-version display-time-filter old-fn old-display-time-filter #[(&rest args) "ÀÁ\n\"ˆÃÄ!‡" [apply old-display-time-filter args run-hooks display-time-hook] 3 "Revised version of the original function: this version calls a hook."] t] 3] provide appt] 2)
+(byte-code "ÀÂÃ!¬‚ÄÅÆMˆÇÈ!‡" [appt-check display-time-hook boundp display-time-hook-installed nil install-display-time-hook #[nil "?­ÃÁÂ!«ŸÁÃ!«šÄÅ!«ˆÁÆ!«ƒÆª›ÇÈÉ \"«ƒÂª‘ÃªÄÅ!«ˆÁÊ!«ƒÊªËÍKMˆÎMˆ)Ï‰‡" [display-time-hook-installed fboundp display-time-filter-18-55 display-time-filter-18-57 featurep timer display-time-timer-function string-match "18\\.5[0-5]" emacs-version display-time-function display-time-filter old-fn old-display-time-filter #[(&rest args) "ÀÁ\n\"ˆÃÄ!‡" [apply old-display-time-filter args run-hooks display-time-hook] 3 "Revised version of the original function: this version calls a hook."] t] 3] provide appt] 2)

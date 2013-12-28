@@ -1,6 +1,8 @@
+;; Id: diff.el,v 1.3 1992/08/26 21:06:27 tfb Exp 
 ;; "DIFF" mode for handling output from unix diff utility.
 ;; Copyright (C) 1990 Free Software Foundation, Inc.
 ;; Written sunpitt!wpmstr!fbresz@Sun.COM 1/27/89
+;; hacked on by tfb@aisb.ed.ac.uk (Tim Bradshaw)
 
 ;; This file is part of GNU Emacs.
 
@@ -36,8 +38,12 @@
 (defvar diff-search-pattern "^\\([0-9]\\|\\*\\*\\*\\*\\*\\*\\*\\*\\*\\*\\*\\*\\*\\*\\*\\)"
   "Regular expression that delineates difference regions in diffs.")
 
+(defvar diff-mode-map nil)
+(defvar diff-total-differences)
+(defvar diff-current-difference)
+
 ;; Initialize the keymap if it isn't already
-(if (boundp 'diff-mode-map)
+(if diff-mode-map
     nil
   (setq diff-mode-map (make-keymap))
   (suppress-keymap diff-mode-map)
@@ -49,56 +55,96 @@
   (define-key diff-mode-map "p" 'diff-previous-difference)
   (define-key diff-mode-map "j" 'diff-show-difference))
 
-(defun diff (old new)
+(defun diff (old new &optional switches)
   "Find and display the differences between OLD and NEW files.
 Interactively you are prompted with the current buffer's file name for NEW
-and what appears to be it's backup for OLD."
-  (interactive
-   (let (oldf newf)
-     (reverse
-      (list
-       (setq newf (buffer-file-name)
-	     newf (if (and newf (file-exists-p newf))
-			  (read-file-name
-			   (concat "Diff new file: ("
-				   (file-name-nondirectory newf) ") ")
-			   nil newf t)
-			(read-file-name "Diff new file: " nil nil t)))
-       (setq oldf (file-newest-backup newf)
-	     oldf (if (and oldf (file-exists-p oldf))
-			  (read-file-name
-			   (concat "Diff original file: ("
-				   (file-name-nondirectory oldf) ") ")
-			   (file-name-directory oldf) oldf t)
-			(read-file-name "Diff original file: "
-					(file-name-directory newf) nil t)))))))
+and what appears to be its backup for OLD."
+  (interactive (diff-read-args "Diff original file (%s) "
+			       "Diff new file (%s) "
+			       "Switches for diff (%s) " 
+			       (buffer-file-name)))
+  (setq switches (diff-fix-switches (or switches diff-switches)))
   (message "Comparing files %s %s..." new old)
   (setq new (expand-file-name new)
 	old (expand-file-name old))
-  (let ((buffer-read-only nil)
-	(sw diff-switches))
+  (let ((buffer-read-only nil))
     (with-output-to-temp-buffer "*Diff Output*"
       (buffer-disable-undo standard-output)
       (save-excursion
 	(set-buffer standard-output)
 	(erase-buffer)
 	(apply 'call-process "diff" nil t nil
-	       (append diff-switches (list old new)))))
+	       (append switches (list old new)))))
     (set-buffer "*Diff Output*")
     (goto-char (point-min))
-    (while sw
-      (if (string= (car sw) "-c")
+    (while switches
+      (if (string= (car switches) "-c")
 	  ;; strip leading filenames from context diffs
 	  (progn (forward-line 2) (delete-region (point-min) (point))))
-      (setq sw (cdr sw))))
+      (setq switches (cdr switches))))
   (diff-mode)
   (if (string= "0" diff-total-differences)
-      (insert (message "There are no differences."))
+      (message "There are no differences.")
     (narrow-to-region (point) (progn
 				(forward-line 1)
-				(re-search-forward diff-search-pattern nil)
-				(goto-char (match-beginning 0))))
+				(if 
+				    (re-search-forward diff-search-pattern nil 'move)
+				    (goto-char (match-beginning 0))
+				  (point))))
+				  
     (setq diff-current-difference "1")))
+
+;;; arg reading from Dired originally
+(defun diff-read-args (oldprompt newprompt switchprompt 
+				 &optional file-for-backup)
+  ;; Grab the args for diff.  OLDPROMPT and NEWPROMPT are the prompts
+  ;; for the old & new filenames, SWITCHPROMPT for the list of
+  ;; switches.  If FILE_FOR_BACKUP is provided (it must be a string if
+  ;; so), then it will be used to try & work out a file & backup to
+  ;; diff, & in this case the prompting order is backwards.  %s in a
+  ;; prompt has a guess substituted into it.  This is nasty.
+  (let (oldf newf)
+    (if file-for-backup
+	(setq newf file-for-backup
+	      newf (if (and newf (file-exists-p newf))
+		       (read-file-name 
+			(format newprompt (file-name-nondirectory newf))
+			nil newf t)
+		     (read-file-name (format newprompt "") nil nil t))
+	      oldf (file-newest-backup newf)
+	      oldf (if (and oldf (file-exists-p oldf))
+		       (read-file-name 
+			(format oldprompt (file-name-nondirectory oldf)) 
+			nil oldf t)
+		     (read-file-name (format oldprompt "") 
+				     (file-name-directory newf) nil t)))
+      ;; Else we aren't trying to be bright...
+      (setq oldf (read-file-name (format oldprompt "") nil nil t)
+	    newf (read-file-name 
+		  (format newprompt (file-name-nondirectory oldf))
+		  nil (file-name-directory oldf) t)))
+	(list oldf newf (diff-read-switches switchprompt))))
+
+(defun diff-read-switches (switchprompt)
+  ;; Read and return a list of switches
+  (if current-prefix-arg
+      (let ((default (mapconcat 'identity diff-switches " ")))
+	(diff-fix-switches
+	 (read-string (format switchprompt default) default)))))
+
+(defun diff-fix-switches (switch-spec)
+  ;; Parse a string into a list of switches or leave it be if it's 
+  ;; not a string
+  (if (stringp switch-spec)
+      (let (result (start 0))
+	(while (string-match "\\(\\S-+\\)" switch-spec start)
+	  (setq result (cons (substring switch-spec (match-beginning 1)
+					(match-end 1))
+			     result)
+		start (match-end 0)))
+	(nreverse result))
+    switch-spec))
+
 
 ;; Take a buffer full of Unix diff output and go into a mode to easily 
 ;; see the next and previous difference
@@ -164,8 +210,10 @@ by diff-search-pattern."
 	(setq diff-current-difference "1"))
       (narrow-to-region (point) (progn
 				  (forward-line 1)
-				  (re-search-forward diff-search-pattern nil)
-				  (goto-char (match-beginning 0))))
+				  (if
+				      (re-search-forward diff-search-pattern nil 'move)
+				      (goto-char (match-beginning 0))
+				    (point))))
       (goto-char (point-min)))))
 
 (defun diff-show-difference (n)

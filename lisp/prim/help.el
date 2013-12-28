@@ -1,11 +1,11 @@
 ;; Help commands for Emacs
-;; Copyright (C) 1985, 1986 Free Software Foundation, Inc.
+;; Copyright (C) 1985, 1986, 1992 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -80,7 +80,7 @@
       (switch-to-buffer (create-file-buffer file))
       (setq buffer-file-name file)
       (setq default-directory (expand-file-name "~/"))
-      (setq auto-save-file-name nil)
+      (setq buffer-auto-save-file-name nil)
       (insert-file-contents (expand-file-name "TUTORIAL" exec-directory))
       (goto-char (point-min))
       (search-forward "\n<<")
@@ -139,9 +139,18 @@ also be a menu selection."
       (with-output-to-temp-buffer "*Help*"
 	(prin1 defn)
 	(princ ":\n")
-	(if (documentation defn)
-	    (princ (documentation defn))
-	  (princ "not documented"))
+	(if (or (stringp defn) (vectorp defn))
+	    (let ((cmd (key-binding defn)))
+	      (princ "a keyboard macro")
+	      (if cmd
+		  (progn
+		    (princ " which runs the command ")
+		    (princ cmd)
+		    (princ ":\n\n")
+		    (if (documentation cmd) (princ (documentation cmd))))))
+	  (if (documentation defn)
+	      (princ (documentation defn))
+	    (princ "not documented")))
 	(print-help-return-message)))))
 
 
@@ -288,50 +297,93 @@ C-w print information on absence of warranty for GNU Emacs."
   "*If true, then describe-function will show its arglist if the function is
 not an autoload.")
 
+
 (defun describe-function (function)
   "Display the full documentation of FUNCTION (a symbol)."
   (interactive
-   (let ((fn (function-called-at-point))
-	 (enable-recursive-minibuffers t)	     
-	 val)
-     (setq val (completing-read (if fn
-				    (format "Describe function (default %s): " fn)
-				  "Describe function: ")
-				obarray 'fboundp t))
-     (list (if (equal val "")
-	       fn (intern val)))))
+    (let* ((fn (function-called-at-point))
+           (val (let ((enable-recursive-minibuffers t))
+                  (completing-read
+                    (if fn 
+                        (format "Describe function (default %s): " fn)
+                        "Describe function: ")
+                    obarray 'fboundp t))))
+      (list (if (equal val "") fn (intern val)))))
   (with-output-to-temp-buffer "*Help*"
-    (prin1 function)
-    (princ ": ")
-    (let (arglist)
-      (if describe-function-show-arglist
-	  (let ((def function))
-	    (while (symbolp def) (setq def (symbol-function def)))
-	    (setq arglist (cond ((subrp def) 'subr)
-				((eq 'autoload (car-safe def)) 'autoload)
-				((eq 'lambda (car-safe 'def)) (nth 1 def))
-				((compiled-function-p def) (aref def 0))))
-	    (if arglist (prin1 arglist) (princ "()"))))
-      (princ "\n")
-      (if (documentation function)
-	  (princ (documentation function))
-	(princ "not documented"))
-      (if (eq arglist 'subr)
-	  (save-excursion
-	    (set-buffer "*Help*")
-	    (goto-char (point-max))
-	    (forward-line -1)
-	    (if (looking-at "arguments:")
-		(let ((p (point)))
-		  (goto-char (match-end 0))
-		  (setq arglist (buffer-substring (point) (point-max)))
-		  (delete-region p (point-max))
-		  (goto-char (point-min))
-		  (end-of-line)
-		  (delete-backward-char 5)
-		  (insert " ")
-		  (insert arglist))))))
-    (print-help-return-message)))
+    (describe-function-1 function standard-output)
+    (print-help-return-message)
+    (save-excursion (set-buffer standard-output) (buffer-string))))
+
+(defun describe-function-1 (function stream)
+  (prin1 function stream)
+  (princ ": " stream)
+  (let* ((def function)
+         (doc (or (documentation function)
+                  "not documented"))
+	 aliases kbd-macro-p)
+    (while (symbolp def)
+      (or (eq def function)
+	  (if aliases
+	      (setq aliases (concat aliases "\n     which is an alias for "
+				    (symbol-name def) ", "))
+	    (setq aliases (concat "an alias for " (symbol-name def) ", "))))
+      (setq def (symbol-function def)))
+    (if describe-function-show-arglist
+        (if (cond ((eq 'autoload (car-safe def))
+                   nil)
+                  ((eq 'lambda (car-safe def))
+                   (princ (or (nth 1 def) "()" stream))
+                   t)
+                  ((compiled-function-p def)
+                   (princ (or (aref def 0) "()" stream))
+                   t)
+                  ((and (subrp def)
+                        (string-match "[\n\t ]*\narguments: ?\\((.*)\\)\n?\\'"
+                                      doc))
+                   (princ (substring doc (match-beginning 1) (match-end 1))
+                          stream)
+                   (setq doc (substring doc 0 (match-beginning 0)))
+                   t)
+                  (t
+                   nil))
+            (princ "\n  -- " stream)))
+    (if aliases (princ aliases stream))
+    (let ((int (function (lambda (string)
+                 (princ (if (commandp def) "an interactive " "a ") stream)
+                 (princ string stream)))))
+      (cond ((or (stringp def) (vectorp def))
+             (princ "a keyboard macro." stream)
+	     (setq kbd-macro-p t))
+            ((subrp def)
+             (funcall int "built-in function."))
+            ((compiled-function-p def)
+             (funcall int "compiled Lisp function."))
+            ((symbolp def)
+             (princ (format "alias for `%s'." (prin1-to-string def)) stream))
+            ((eq (car-safe def) 'lambda)
+             (funcall int "Lisp function."))
+            ((eq (car-safe def) 'macro)
+             (princ "a Lisp macro." stream))
+            ((eq (car-safe def) 'mocklisp)
+             (princ "a mocklisp function." stream))
+            ((eq (car-safe def) 'autoload)
+             (funcall int "autoloaded Lisp ")
+             (princ (if (elt def 4) "macro" "function") stream)
+	     (princ "\n  -- loads from " stream) (prin1 (elt def 1) stream))
+            (t
+             nil)))
+    (terpri)
+    (cond (kbd-macro-p
+	   (princ "These characters are executed:\n\n\t" stream)
+	   (princ (key-description def) stream)
+	   (cond ((setq def (key-binding def))
+		  (princ "\n\nwhich executes the command " stream)
+		  (princ def stream)
+		  (princ ".\n\n" stream)
+		  (describe-function-1 def stream))))
+	  (t
+	   (princ doc stream)))))
+
 
 (defun variable-at-point ()
   (condition-case ()

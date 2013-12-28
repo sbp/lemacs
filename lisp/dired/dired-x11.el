@@ -1,7 +1,7 @@
 ;;;; dired-x11.el - X11 support for Dired under Epoch
 
-(defconst dired-x11-version (substring "$Revision: 1.26 $" 11 -2)
-  "$Id: dired-x11.el,v 1.26 1992/05/20 05:34:50 jwz Exp $")
+(defconst dired-x11-version (substring "!Revision: 1.26 !" 11 -2)
+  "Id: dired-x11.el,v 1.26 1992/04/22 17:36:37 sk RelBeta ")
 
 (require 'dired)
 
@@ -27,7 +27,7 @@
 ;;;    LCD Archive Entry:
 ;;;    dired-x11|Tim Wilson and Sebastian Kremer|Tim.Wilson@cl.cam.ac.uk, sk@thp.uni-koeln.de
 ;;;    |X11 mouse and color support for Dired under Epoch
-;;;    |$Date: 1992/05/20 05:34:50 $|$Revision: 1.26 $|
+;;;    |Date: 1992/04/22 17:36:37 |Revision: 1.26 |
 
 ;; OVERVIEW ===========================================================
 

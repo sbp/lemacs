@@ -121,9 +121,10 @@ static struct position *display_text_line ();
 static void display_mode_line ();
 static int display_mode_element ();
 static int display_string ();
+void x_format_screen_title ();
 
 /* Prompt to display in front of the minibuffer contents */
-char *minibuf_prompt;
+Lisp_Object Vminibuf_prompt;
 
 /* Width in columns of current minibuffer prompt.  */
 int minibuf_prompt_width;
@@ -350,6 +351,7 @@ message (m, a1, a2, a3)
       update_screen (s, 1, 1);
     }
 }
+
 
 /* Do a screen update, taking possible shortcuts into account.
    This is the main external entry point for redisplay.
@@ -366,6 +368,8 @@ message (m, a1, a2, a3)
    See Fcall_process; if you called it from here, it could be
    entered recursively.  */
 
+extern int menubar_has_changed;
+
 void
 redisplay ()
 {
@@ -375,6 +379,7 @@ redisplay ()
   int all_windows;
   register int tlbufpos, tlendpos;
   struct position pos;
+  int redo_menubar;
 
   extern int detect_input_pending ();
   int input_pending = detect_input_pending ();
@@ -385,7 +390,7 @@ redisplay ()
   if (noninteractive || in_display || input_pending)
     return;
 
-  update_menubars ();
+  update_psheets ();
 
   in_display++;
 
@@ -395,7 +400,7 @@ redisplay ()
 #ifdef MULTI_SCREEN
   for (tail = Vscreen_list; CONSP (tail); tail = XCONS (tail)->cdr){
     
-    if (XTYPE (XCONS (tail)->car) != Lisp_Screen)
+    if (!SCREENP (XCONS (tail)->car))
       continue;
     
     s = XSCREEN (XCONS (tail)->car);
@@ -540,7 +545,7 @@ redisplay ()
 	{
 	  SCREEN_PTR s;
 
-	  if (XTYPE (XCONS (tail)->car) != Lisp_Screen)
+	  if (!SCREENP (XCONS (tail)->car))
 	    continue;
 
 	  s = XSCREEN (XCONS (tail)->car);
@@ -588,7 +593,7 @@ update:
 	{
 	  SCREEN_PTR s;
 
-	  if (XTYPE (XCONS (tail)->car) != Lisp_Screen)
+	  if (!SCREENP (XCONS (tail)->car))
 	    continue;
 
 	  s = XSCREEN (XCONS (tail)->car);
@@ -627,6 +632,7 @@ update:
 	  last_arrow_position = Qt;
 	  last_arrow_string = Qt;
 	}
+
       /* If we pause after scrolling, some lines in current_screen
 	 may be null, so preserve_other_columns won't be able to
 	 preserve all the vertical-bar separators.  So, avoid using it
@@ -671,6 +677,18 @@ update:
 	  last_arrow_position = Voverlay_arrow_position;
 	  last_arrow_string = Voverlay_arrow_string;
 	}
+
+      if (redraw_mode_line)
+	{
+	  for (tail = Vscreen_list; CONSP (tail); tail = XCONS (tail)->cdr)
+	    {
+	      SCREEN_PTR s;
+	      if (!SCREENP (XCONS (tail)->car))
+		continue;
+	      s = XSCREEN (XCONS (tail)->car);
+	      x_format_screen_title (s);
+	    }
+	}
       redraw_mode_line = 0;
       windows_or_buffers_changed = 0;
     }
@@ -687,6 +705,7 @@ update:
 
   in_display--;
 
+  update_screen_menubars ();	/* do this when no longer "in_display" */
 }
 
 /* Redisplay, but leave alone any recent echo area message
@@ -1191,7 +1210,7 @@ try_window_id (window)
 
   /* Find first visible newline after which no more is changed.  */
   tem = find_next_newline (Z - max (end_unchanged, Z - ZV), 1);
-  if (XTYPE (current_buffer->selective_display) == Lisp_Int
+  if (FIXNUMP (current_buffer->selective_display)
       && XINT (current_buffer->selective_display) > 0)
     while (tem < ZV - 1
 	   && (position_indentation (tem)
@@ -1539,11 +1558,14 @@ glyphs_from_char (screen, c, g, tab_width, ctl_arrow,
 
   if (((c >= 040 && c < 0177) ||	/* Normal character. */
        (!EQ (ctl_arrow, Qnil) &&	/* 8-bit display */
-	!EQ (ctl_arrow, Qt) && c >= 0240))
+	!EQ (ctl_arrow, Qt) &&
+	(FIXNUMP (ctl_arrow)
+	 ? c >= XINT (ctl_arrow)
+	 : c >= 0240)))
       && (dp == 0
 	  || NILP (DISP_CHAR_ROPE (dp, c))))
     {
-      GLYPH_SET_VALUE (*gp++, GLYPH_FROM_CHAR (c));
+      GLYPH_SET_VALUE (*gp++, GLYPH_FROM_CHAR (c == 0240 ? ' ' : c));
     }
   else if (c == '\t')		/* Tab character. */
     {
@@ -1554,7 +1576,7 @@ glyphs_from_char (screen, c, g, tab_width, ctl_arrow,
       while (j--)
 	GLYPH_SET_VALUE (*gp++, TABGLYPH);
     }
-  else if (dp != 0 && XTYPE (DISP_CHAR_ROPE (dp, c)) == Lisp_String)
+  else if (dp != 0 && STRINGP (DISP_CHAR_ROPE (dp, c)))
     {
       register int i = XSTRING (DISP_CHAR_ROPE (dp, c))->size / sizeof (GLYPH);
       GLYPH *data = (GLYPH *) XSTRING (DISP_CHAR_ROPE (dp, c))->data;
@@ -1565,7 +1587,7 @@ glyphs_from_char (screen, c, g, tab_width, ctl_arrow,
     }
   else if (c < 0200 && !NILP (ctl_arrow))
     {
-      if (dp && XTYPE (DISP_CTRL_GLYPH (dp)) == Lisp_Int)
+      if (dp && FIXNUMP (DISP_CTRL_GLYPH (dp)))
 	GLYPH_SET_VALUE (*gp, XINT (DISP_CTRL_GLYPH (dp)));
       else
 	GLYPH_SET_VALUE (*gp, GLYPH_FROM_CHAR ('^'));
@@ -1575,7 +1597,7 @@ glyphs_from_char (screen, c, g, tab_width, ctl_arrow,
     }
   else
     {
-      GLYPH_SET_VALUE (*gp, (dp && XTYPE (DISP_ESCAPE_GLYPH (dp)) == Lisp_Int
+      GLYPH_SET_VALUE (*gp, (dp && FIXNUMP (DISP_ESCAPE_GLYPH (dp))
 			     ? XINT (DISP_ESCAPE_GLYPH (dp))
 			     : GLYPH_FROM_CHAR ('\\')));
       gp++;
@@ -1638,6 +1660,8 @@ update_cache (buffer, extfrag)
   last_buffer_extfrag = extfrag;
 }
  
+extern int extent_cache_invalid;
+
 struct glyphs_from_chars *
 glyphs_from_bufpos (screen, buffer, pos, dp, hscroll, columns, tab_offset,
 		    direction, only_nonchars)
@@ -1664,7 +1688,8 @@ glyphs_from_bufpos (screen, buffer, pos, dp, hscroll, columns, tab_offset,
   displayed_glyphs.glyphs = gp;
 
   /* Check if we can use our cached values */
-  if (buffer == last_buffer
+  if (!extent_cache_invalid
+      && buffer == last_buffer
       && screen == last_screen
       && BUF_MODIFF (buffer) == last_buffer_modiff
       && BUF_FACECHANGE (buffer) == last_buffer_facechange)
@@ -1741,7 +1766,7 @@ glyphs_from_bufpos (screen, buffer, pos, dp, hscroll, columns, tab_offset,
           EXTENT current_extent = *extents_vec++;
           Lisp_Object elt = EXTENT_BEGIN_GLYPH_AT (current_extent, pos);
 
-          if (XTYPE (elt) == Lisp_Int)
+          if (FIXNUMP (elt))
             {
 #ifdef LINE_INFO_COLUMN
               if (screen->display.x->line_info_column_width
@@ -1784,11 +1809,14 @@ glyphs_from_bufpos (screen, buffer, pos, dp, hscroll, columns, tab_offset,
 
       if (((c >= 040 && c < 0177) ||	/* Normal character. */
 	   (!EQ (buffer->ctl_arrow, Qnil) &&	/* 8-bit display */
-	    !EQ (buffer->ctl_arrow, Qt) && c >= 0240))  /* Normal + 8th bit */
+	    !EQ (buffer->ctl_arrow, Qt) &&
+	    (FIXNUMP (buffer->ctl_arrow)
+	     ? c >= XINT (buffer->ctl_arrow)
+	     : c >= 0240)))
 	  && (dp == 0
 	      || NILP (DISP_CHAR_ROPE (dp, c))))
 	{
-	  GLYPH_SET_VALUE (*gp++, GLYPH_FROM_CHAR (c));
+	  GLYPH_SET_VALUE (*gp++, GLYPH_FROM_CHAR (c == 0240 ? ' ' : c));
 	}
       else if (c == '\t')	/* Tab character. */
 	{
@@ -1803,7 +1831,7 @@ glyphs_from_bufpos (screen, buffer, pos, dp, hscroll, columns, tab_offset,
 	  while (j--)
 	    GLYPH_SET_VALUE (*gp++, TABGLYPH);
 	}
-      else if (dp != 0 && XTYPE (DISP_CHAR_ROPE (dp, c)) == Lisp_String)
+      else if (dp != 0 && STRINGP (DISP_CHAR_ROPE (dp, c)))
 	{
 	  register int i = 
             (XSTRING (DISP_CHAR_ROPE (dp, c))->size) / sizeof (GLYPH);
@@ -1815,7 +1843,7 @@ glyphs_from_bufpos (screen, buffer, pos, dp, hscroll, columns, tab_offset,
 	}
       else if (c < 0200 && !NILP (buffer->ctl_arrow))
 	{
-	  if (dp && XTYPE (DISP_CTRL_GLYPH (dp)) == Lisp_Int)
+	  if (dp && FIXNUMP (DISP_CTRL_GLYPH (dp)))
 	    GLYPH_SET_VALUE (*gp, XINT (DISP_CTRL_GLYPH (dp)));
 	  else
 	    GLYPH_SET_VALUE (*gp, GLYPH_FROM_CHAR ('^'));
@@ -1826,7 +1854,7 @@ glyphs_from_bufpos (screen, buffer, pos, dp, hscroll, columns, tab_offset,
       else
 	{
 	  GLYPH_SET_VALUE 
-            (*gp, (dp && XTYPE (DISP_ESCAPE_GLYPH (dp)) == Lisp_Int
+            (*gp, (dp && FIXNUMP (DISP_ESCAPE_GLYPH (dp))
                    ? XINT (DISP_ESCAPE_GLYPH (dp))
                    : GLYPH_FROM_CHAR ('\\')));
 	  gp++;
@@ -1869,7 +1897,7 @@ glyphs_from_bufpos (screen, buffer, pos, dp, hscroll, columns, tab_offset,
             {
               Lisp_Object elt = 
                 EXTENT_END_GLYPH_AT (current_extent, endpos);
-              if (XTYPE (elt) == Lisp_Int)
+              if (FIXNUMP (elt))
                 {
                   frag_has_end_glyphs = 1;
 
@@ -2487,10 +2515,13 @@ display_text_line (w, start, vpos, hpos, taboffset)
 
   if (MINI_WINDOW_P (w) && start == 1 && vpos == XFASTINT (w->top))
     {
-      int minibuf_len = (minibuf_prompt ? strlen (minibuf_prompt) : 0);
+      int minibuf_len = (STRINGP (Vminibuf_prompt)
+                         ? XSTRING (Vminibuf_prompt)->size
+                         : 0);
       install_first_runs (s, vpos, 1 - minibuf_len, w);
-      if (minibuf_prompt)
-	start_column = display_string (w, vpos, minibuf_prompt, hpos,
+      if (minibuf_len > 0)
+	start_column = display_string (w, vpos,
+                                       XSTRING (Vminibuf_prompt)->data, hpos,
 				       (!truncate ? continuer : truncator),
 				       -1, -1, &SCREEN_NORMAL_FACE (s),
 				       &minibuf_prompt_pix_width);
@@ -2523,10 +2554,10 @@ display_text_line (w, start, vpos, hpos, taboffset)
   pause = ZV;
 
   /* Deal with the overlay arrow. */
-  if (XTYPE (Voverlay_arrow_position) == Lisp_Marker
+  if (MARKERP (Voverlay_arrow_position)
       && current_buffer == XMARKER (Voverlay_arrow_position)->buffer
       && start == marker_position (Voverlay_arrow_position)
-      && XTYPE (Voverlay_arrow_string) == Lisp_String
+      && STRINGP (Voverlay_arrow_string)
       && ! overlay_arrow_seen)
     {
       if (SCREEN_IS_TERMCAP (s))
@@ -2582,7 +2613,7 @@ display_text_line (w, start, vpos, hpos, taboffset)
 	/* Handle the ^M variety of selective display... */
 	if (c == 015 &&
 	    !NILP (buffer->selective_display) &&
-	    XTYPE (buffer->selective_display) != Lisp_Int)
+	    !FIXNUMP (buffer->selective_display))
 	  {
 	    while (buffer_position < BUF_ZV (buffer) &&
 		   BUF_CHAR_AT (buffer, buffer_position) != '\n')
@@ -2591,7 +2622,7 @@ display_text_line (w, start, vpos, hpos, taboffset)
 	    selectively_truncated = 1;
 	  }
 	else if (c == '\n' &&
-		 XTYPE (buffer->selective_display) == Lisp_Int)
+		 FIXNUMP (buffer->selective_display))
 	  {
 	    /* #### */
 	  }
@@ -2603,7 +2634,9 @@ display_text_line (w, start, vpos, hpos, taboffset)
             (((((c >= 040) && (c < 0177)) ||            /* Normal character. */
 	       (!EQ (buffer->ctl_arrow, Qnil) &&	/* 8-bit display */
 		!EQ (buffer->ctl_arrow, Qt) &&
-		c >= 0240)) &&				/* Normal + 8th bit */
+		(FIXNUMP (buffer->ctl_arrow)
+		 ? c > XINT (buffer->ctl_arrow)
+		 : c >= 0240))) &&			/* Normal + 8th bit */
               (dp == 0 || NILP (DISP_CHAR_ROPE (dp, c)))) ||
              /* newline */
              (c == '\n') ||
@@ -2613,6 +2646,9 @@ display_text_line (w, start, vpos, hpos, taboffset)
             /* inside a run, so update the glyphs structure "by hand" */
 
             reusing_glyphs = 1;
+
+	    if (c == 0240) c = ' ';  /* print `nobreakspace' as space */
+
 #ifdef LINE_INFO_COLUMN
             glyphs->info_column_glyphs = Qnil;
 #endif
@@ -2710,7 +2746,7 @@ display_text_line (w, start, vpos, hpos, taboffset)
             && desired_glyphs->face_list[vpos][1].type == column_glyph)
           {
             desired_glyphs->face_list[vpos][1].class = glyphs->begin_class[0];
-            if (XTYPE (glyphs->info_column_glyphs) == Lisp_Int)
+            if (FIXNUMP (glyphs->info_column_glyphs))
               desired_glyphs->face_list[vpos][1].lineinfo_glyph_index
                 = XINT (glyphs->info_column_glyphs);
             else
@@ -3015,7 +3051,7 @@ add_in_column_glyph (desired_glyphs, vpos, element, class)
       if (r->type == column_glyph)
 	{
 	  r->class = class;
-	  r->lineinfo_glyph_index = (XTYPE (element) == Lisp_Int ?
+	  r->lineinfo_glyph_index = (FIXNUMP (element) ?
 				     XINT(element) : -1);
 	}
     }
@@ -3141,10 +3177,24 @@ decode_mode_spec (w, c, maxwidth)
       }
 
     case '-':
-      return "--------------------------------------------------------------------------------------------------------------------------------------------";
+      {
+	static char lots_of_dashes[] = "--------------------------------------------------------------------------------------------------------------------------------------------";
+	register char *p;
+	register int i;
+	
+	if (maxwidth < sizeof (lots_of_dashes))
+	  return lots_of_dashes;
+	else
+	  {
+	    for (p = decode_mode_spec_buf, i = maxwidth; i > 0; i--)
+	      *p++ = '-';
+	    *p = '\0';
+	  }
+	return decode_mode_spec_buf;
+      }
     }
 
-  if (XTYPE (obj) == Lisp_String)
+  if (STRINGP (obj))
     return (char *) XSTRING (obj)->data;
   else
     return "";
@@ -3217,7 +3267,7 @@ display_string (w, vpos, string, hpos, truncate,
 
   /* Use the standard display table, not the window's display table.
      We don't want the mode line in rot13.  */
-  if (XTYPE (Vstandard_display_table) == Lisp_Vector
+  if (VECTORP (Vstandard_display_table)
       && XVECTOR (Vstandard_display_table)->size == DISP_TABLE_SIZE)
     dp = XVECTOR (Vstandard_display_table);
 
@@ -3412,7 +3462,7 @@ display_mode_element (fn, w, vpos, hpos, depth, minendcol, maxendcol, elt)
 	    tem = Fsymbol_value (elt);
 	    /* If value is a string, output that string literally:
 	       don't check for % within it.  */
-	    if (XTYPE (tem) == Lisp_String)
+	    if (STRINGP (tem))
 	      hpos = fn (w, vpos, XSTRING (tem)->data,
 			 hpos, 0, minendcol, maxendcol,
 			 &SCREEN_MODELINE_FACE (s), 0);
@@ -3436,11 +3486,11 @@ display_mode_element (fn, w, vpos, hpos, depth, minendcol, maxendcol, elt)
 	   If first element is a symbol, process the cadr or caddr recursively
 	   according to whether the symbol's value is non-nil or nil.  */
 	car = XCONS (elt)->car;
-	if (XTYPE (car) == Lisp_Symbol)
+	if (SYMBOLP (car))
 	  {
 	    tem = Fboundp (car);
 	    elt = XCONS (elt)->cdr;
-	    if (XTYPE (elt) != Lisp_Cons)
+	    if (!CONSP (elt))
 	      goto invalid;
 	    /* elt is now the cdr, and we know it is a cons cell.
 	       Use its car if CAR has a non-nil value.  */
@@ -3456,12 +3506,12 @@ display_mode_element (fn, w, vpos, hpos, depth, minendcol, maxendcol, elt)
 	    elt = XCONS (elt)->cdr;
 	    if (NILP (elt))
 	      break;
-	    else if (XTYPE (elt) != Lisp_Cons)
+	    else if (!CONSP (elt))
 	      goto invalid;
 	    elt = XCONS (elt)->car;
 	    goto tail_recurse;
 	  }
-	else if (XTYPE (car) == Lisp_Int)
+	else if (FIXNUMP (car))
 	  {
 	    register int lim = XINT (car);
 	    elt = XCONS (elt)->cdr;
@@ -3486,11 +3536,11 @@ display_mode_element (fn, w, vpos, hpos, depth, minendcol, maxendcol, elt)
 	      }
 	    goto tail_recurse;
 	  }
-	else if (XTYPE (car) == Lisp_String || XTYPE (car) == Lisp_Cons)
+	else if (STRINGP (car) || CONSP (car))
 	  {
 	    register int limit = 50;
 	    /* LIMIT is to protect against circular lists.  */
-	    while (XTYPE (elt) == Lisp_Cons && --limit > 0
+	    while (CONSP (elt) && --limit > 0
 		   && hpos < maxendcol)
 	      {
 		hpos = display_mode_element (fn, w, vpos, hpos, depth,
@@ -3551,18 +3601,22 @@ screen_title_display_string (w, vpos, string, hpos, truncate,
   return screen_title_buffer_index;
 }
 
-Lisp_Object
-x_format_screen_title (s, w)
+void
+x_format_screen_title (s)
      struct screen *s;
-     struct window *w;
 {
+  struct window *w = XWINDOW (s->selected_window);
   Lisp_Object title_format;
   Lisp_Object icon_format;
   Lisp_Object obuf = Fcurrent_buffer ();
+
+  /* do not change for the minibuffer */
+  if (MINI_WINDOW_P (w))
+    return;
   /* evaluate screen-title-format and screen-icon-title-format in the
      buffer of the selected window of the screen in question.
    */
-  Fset_buffer (XWINDOW (s->selected_window)->buffer);
+  Fset_buffer (w->buffer);
   title_format = Fsymbol_value (Qscreen_title_format);
   icon_format = Fsymbol_value (Qscreen_icon_title_format);
   Fset_buffer (obuf);
@@ -3581,7 +3635,6 @@ x_format_screen_title (s, w)
 			    icon_format);
     }
   x_set_icon_name_from_char (s, screen_title_buffer);
-  return Qnil;
 }
 
 #endif /* HAVE_X_WINDOWS */
@@ -3849,6 +3902,12 @@ init_xdisp ()
   if (!noninteractive)
     {
       SCREEN_PTR s = XSCREEN (WINDOW_SCREEN (XWINDOW (root_window)));
+
+#ifdef HAVE_X_WINDOWS
+      if (!NILP (Vwindow_system) && !SCREEN_IS_X (s))
+	return;
+#endif
+
       XFASTINT (XWINDOW (root_window)->top) = 0;
       set_window_height (root_window, SCREEN_HEIGHT (s) - 1, 0);
       XFASTINT (mini_w->top) = SCREEN_HEIGHT (s) - 1;

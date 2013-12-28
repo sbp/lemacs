@@ -17,28 +17,34 @@ You should have received a copy of the GNU General Public License
 along with GNU Emacs; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
+#ifdef NeXT
+#undef __STRICT_BSD__ /* ick */
+#endif
+
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <alloca.h>
 #include <X11/StringDefs.h>
 #include "lwlib-internal.h"
 
-#ifdef USE_MOTIF
-#include "lwlib-Xm.h"
-#endif
-
-#ifdef USE_LUCID
+#if defined (USE_LUCID)
 #include "lwlib-Xlw.h"
 #endif
-
-#ifdef USE_OLIT
+#if defined (USE_MOTIF)
+#include "lwlib-Xm.h"
+#endif
+#if defined (USE_OLIT)
 #include "lwlib-Xol.h"
 #endif
 
-#if (!defined(USE_MOTIF) && !defined(USE_LUCID) && !defined(USE_OLIT))
-#error at least one of USE_MOTIF, USE_LUCID or USE_OLIT must be defined
+#if !defined (USE_LUCID) && !defined (USE_MOTIF) && !defined (USE_OLIT)
+ERROR!  At least one of USE_LUCID, USE_MOTIF or USE_OLIT must be defined.
 #endif
 
+#if defined (USE_MOTIF) && defined (USE_OLIT)
+ERROR! no more than one of USE_MOTIF and USE_OLIT may be defined.
+#endif
 
 /* List of all widgets managed by the library. */
 static widget_info*
@@ -49,16 +55,70 @@ static void
 instanciate_widget_instance (widget_instance* instance);
 
 /* utility functions for widget_instance and widget_info */
+static char *
+safe_strdup (char* s)
+{
+  return s ? strdup (s) : NULL;
+}
+
+static void
+safe_free_str (char* s)
+{
+  int i;
+  if (s)
+    free (s);
+}
+
+static widget_value *
+copy_widget_value (widget_value* val, change_type change)
+{
+  widget_value* copy;
+  
+  if (!val)
+    return NULL;
+
+  copy = (widget_value*)malloc (sizeof (widget_value));
+  copy->name = safe_strdup (val->name);
+  copy->value = safe_strdup (val->value);
+  copy->key = safe_strdup (val->key);
+  copy->enabled = val->enabled;
+  copy->selected = val->selected;
+  copy->edited = False;
+  copy->change = change;
+  copy->contents = copy_widget_value (val->contents, change);
+  copy->call_data = val->call_data;
+  copy->next = copy_widget_value (val->next, change);
+  copy->toolkit_data = NULL;
+  return copy;
+}
+
+static void
+free_widget_value (widget_value* val)
+{
+  if (!val)
+    return;
+
+  safe_free_str (val->name);
+  safe_free_str (val->value);
+  safe_free_str (val->key);
+
+  free_widget_value (val->contents);
+  free_widget_value (val->next);
+
+  bzero ((void*)val, sizeof (widget_value));
+  free (val);
+}
+
 static widget_info *
 allocate_widget_info (char* type, char* name, BITS32 id, widget_value* val,
 		      lw_callback pre_activate_cb, lw_callback selection_cb,
 		      lw_callback post_activate_cb)
 {
   widget_info* info = (widget_info*)malloc (sizeof (widget_info));
-  info->type = type;
-  info->name = name;
+  info->type = safe_strdup (type);
+  info->name = safe_strdup (name);
   info->id = id;
-  info->val = val;
+  info->val = copy_widget_value (val, STRUCTURAL_CHANGE);
   info->busy = False;
   info->pre_activate_cb = pre_activate_cb;
   info->selection_cb = selection_cb;
@@ -69,6 +129,16 @@ allocate_widget_info (char* type, char* name, BITS32 id, widget_value* val,
   all_widget_info = info;
 
   return info;
+}
+
+static void
+free_widget_info (widget_info* info)
+{
+  safe_free_str (info->type);
+  safe_free_str (info->name);
+  free_widget_value (info->val);
+  bzero ((void*)info, sizeof (widget_info));
+  free (info);
 }
 
 static void
@@ -97,6 +167,13 @@ allocate_widget_instance (widget_info* info, Widget parent, Boolean pop_up_p)
   XtAddCallback (instance->widget, XtNdestroyCallback,
 		 mark_widget_destroyed, (XtPointer)instance);
   return instance;
+}
+
+static void
+free_widget_instance (widget_instance* instance)
+{
+  bzero ((void*)instance, sizeof (widget_instance));
+  free (instance);
 }
 
 static widget_info *
@@ -144,22 +221,22 @@ get_widget_instance (Widget widget, Boolean remove_p)
 	}
 }
 
+static widget_instance*
+find_instance (BITS32 id, Widget parent, Boolean pop_up_p)
+{
+  widget_info* info = get_widget_info (id, False);
+  widget_instance* instance;
+
+  if (info)
+    for (instance = info->instances; instance; instance = instance->next)
+      if (instance->parent == parent && instance->pop_up_p == pop_up_p)
+	return instance;
+
+  return NULL;
+}
+
 
 /* utility function for widget_value */
-static char *
-safe_strdup (char* s)
-{
-  return s ? strdup (s) : NULL;
-}
-
-static void
-safe_free_str (char* s)
-{
-  int i;
-  if (s)
-    free (s);
-}
-
 static Boolean
 safe_strcmp (char* s1, char* s2)
 {
@@ -171,62 +248,6 @@ static int
 max (int i1, int i2)
 {
   return i1 > i2 ? i1 : i2;
-}
-
-static widget_value *
-copy_widget_value (widget_value* val, change_type change,
-		   Boolean contents_p, Boolean next_p)
-{
-  widget_value* copy;
-  
-  if (!val)
-    return NULL;
-
-  copy = (widget_value*)malloc (sizeof (widget_value));
-  copy->name = safe_strdup (val->name);
-  copy->value = safe_strdup (val->value);
-  copy->key = safe_strdup (val->key);
-  copy->enabled = val->enabled;
-  copy->selected = val->selected;
-  copy->change = change;
-
-  if (contents_p)
-    copy->contents = copy_widget_value (val->contents, change, contents_p,
-					next_p);
-  else
-    copy->contents = NULL;
-
-  copy->call_data = val->call_data;
-
-  if (next_p)
-    copy->next = copy_widget_value (val->next, change, contents_p, next_p);
-  else
-    copy->next = NULL;
-
-  return copy;
-}
-
-static void
-free_widget_value (widget_value* val, Boolean contents_p, Boolean next_p)
-{
-  int i;
-  widget_value* next;
-  if (!val)
-    return;
-
-  if (contents_p)
-    free_widget_value (val->contents, contents_p, next_p);
-
-  safe_free_str (val->name);
-  safe_free_str (val->value);
-  safe_free_str (val->key);
-
-  next = val->next;
-  free (val);
-
-  /* tail rec */
-  if (next_p)
-    free_widget_value (next, contents_p, next_p);
 }
 
 
@@ -250,7 +271,7 @@ free_widget_value (widget_value* val, Boolean contents_p, Boolean next_p)
 
 
 static widget_value *
-merge_widget_value (widget_value* val1, widget_value* val2)
+merge_widget_value (widget_value* val1, widget_value* val2, int level)
 {
   change_type change;
   widget_value* merged_next;
@@ -259,13 +280,13 @@ merge_widget_value (widget_value* val1, widget_value* val2)
   if (!val1)
     {
       if (val2)
-	return copy_widget_value (val2, STRUCTURAL_CHANGE, True, True);
+	return copy_widget_value (val2, STRUCTURAL_CHANGE);
       else
 	return NULL;
     }
   if (!val2)
     {
-      free_widget_value (val1, True, True);
+      free_widget_value (val1);
       return NULL;
     }
   
@@ -302,6 +323,13 @@ merge_widget_value (widget_value* val1, widget_value* val2)
       change = max (change, VISIBLE_CHANGE);
       val1->enabled = val2->enabled;
     }
+  if (val1->selected != val2->selected)
+    {
+      EXPLAIN (val1->name, change, VISIBLE_CHANGE, "selection change",
+	       val1->selected, val2->selected);
+      change = max (change, VISIBLE_CHANGE);
+      val1->selected = val2->selected;
+    }
   if (val1->call_data != val2->call_data)
     {
       EXPLAIN (val1->name, change, INVISIBLE_CHANGE, "call-data change",
@@ -310,24 +338,28 @@ merge_widget_value (widget_value* val1, widget_value* val2)
       val1->call_data = val2->call_data;
     }
 
-  merged_contents = merge_widget_value (val1->contents, val2->contents);
-
-  if (val1->contents && !merged_contents)
+  if (level > 0)
     {
-      EXPLAIN (val1->name, change, INVISIBLE_CHANGE, "(contents gone)",
-	       0, 0);
-      change = max (change, INVISIBLE_CHANGE);
-    }
-  else if (merged_contents && merged_contents->change != NO_CHANGE)
-    {
-      EXPLAIN (val1->name, change, INVISIBLE_CHANGE, "(contents change)",
-	       0, 0);
-      change = max (change, INVISIBLE_CHANGE);
+      merged_contents =
+	merge_widget_value (val1->contents, val2->contents, level - 1);
+      
+      if (val1->contents && !merged_contents)
+	{
+	  EXPLAIN (val1->name, change, INVISIBLE_CHANGE, "(contents gone)",
+		   0, 0);
+	  change = max (change, INVISIBLE_CHANGE);
+	}
+      else if (merged_contents && merged_contents->change != NO_CHANGE)
+	{
+	  EXPLAIN (val1->name, change, INVISIBLE_CHANGE, "(contents change)",
+		   0, 0);
+	  change = max (change, INVISIBLE_CHANGE);
+	}
+      
+      val1->contents = merged_contents;
     }
 
-  val1->contents = merged_contents;
-
-  merged_next = merge_widget_value (val1->next, val2->next);
+  merged_next = merge_widget_value (val1->next, val2->next, level);
 
   if (val1->next && !merged_next)
     {
@@ -347,6 +379,9 @@ merge_widget_value (widget_value* val1, widget_value* val2)
 
   val1->change = change;
   
+  if (change > NO_CHANGE)
+    val1->toolkit_data = NULL;
+
   return val1;
 }
 
@@ -361,19 +396,8 @@ name_to_widget (widget_instance* instance, char* name)
     widget = instance->widget;
   else
     {
-      /* Static buffer for prepending '*' to the name passed to
-       * XtNameToWidget. */
-      static char* real_name = NULL;
-      static int real_name_length = 0;
-      
       int length = strlen (name);
-      if (real_name_length < length)
-	{
-	  real_name_length = length + 1;
-	  real_name = (real_name ? realloc (real_name, real_name_length)
-		       : malloc (real_name_length));
-	}
-      
+      char* real_name = (char*)alloca (length + 2);
       real_name [0] = '*';
       strcpy (real_name + 1, name);
       
@@ -383,7 +407,29 @@ name_to_widget (widget_instance* instance, char* name)
 }
 
 static void
-update_one_widget_instance (widget_instance* instance)
+set_one_value (widget_instance* instance, widget_value* val, Boolean deep_p)
+{
+  Widget widget = name_to_widget (instance, val->name);
+  
+  if (widget)
+    {
+#if defined (USE_LUCID)
+      if (lw_lucid_widget_p (instance->widget))
+	xlw_update_one_widget (instance, widget, val, deep_p);
+#endif
+#if defined (USE_MOTIF)
+      if (lw_motif_widget_p (instance->widget))
+	xm_update_one_widget (instance, widget, val, deep_p);
+#endif
+#if defined (USE_OLIT)
+      if (lw_olit_widget_p (instance->widget))
+	xol_update_one_widget (instance, widget, val, deep_p);
+#endif
+    }
+}
+
+static void
+update_one_widget_instance (widget_instance* instance, Boolean deep_p)
 {
   widget_value *val;
   Widget widget;
@@ -394,47 +440,68 @@ update_one_widget_instance (widget_instance* instance)
 
   for (val = instance->info->val; val; val = val->next)
     if (val->change != NO_CHANGE)
-      {
-	widget = name_to_widget (instance, val->name);
-
-	if (widget)
-	  {
-#ifdef USE_MOTIF
-	    xm_update_one_widget (instance, widget, val);
-#endif
-#ifdef USE_LUCID
-	    xlw_update_one_widget (instance, widget, val);
-#endif
-#ifdef USE_OLIT
-	    xol_update_one_widget (instance, widget, val);
-#endif
-	  }
-      }
+      set_one_value (instance, val, deep_p);
 }
 
 static void
-update_all_widget_values (widget_info* info)
+update_all_widget_values (widget_info* info, Boolean deep_p)
 {
   widget_instance* instance;
   widget_value* val;
 
   for (instance = info->instances; instance; instance = instance->next)
-    update_one_widget_instance (instance);
+    update_one_widget_instance (instance, deep_p);
 
   for (val = info->val; val; val = val->next)
     val->change = NO_CHANGE;
 }
 
 void
-lw_modify_all_widgets (BITS32 id, widget_value* val)
+lw_modify_all_widgets (BITS32 id, widget_value* val, Boolean deep_p)
 {
   widget_info* info = get_widget_info (id, False);
+  widget_value* new_val;
+  widget_value* next_new_val;
+  widget_value* cur;
+  widget_value* prev;
+  widget_value* next;
+  int		found;
 
   if (!info)
     return;
 
-  info->val = merge_widget_value (info->val, val);
-  update_all_widget_values (info);
+  for (new_val = val; new_val; new_val = new_val->next)
+    {
+      next_new_val = new_val->next;
+      new_val->next = NULL;
+      found = False;
+      for (prev = NULL, cur = info->val; cur; prev = cur, cur = cur->next)
+	if (!strcmp (cur->name, new_val->name))
+	  {
+	    found = True;
+	    next = cur->next;
+	    cur->next = NULL;
+	    cur = merge_widget_value (cur, new_val, deep_p ? 1000 : 1);
+	    if (prev)
+	      prev->next = cur ? cur : next;
+	    else
+	      info->val = cur ? cur : next;
+	    if (cur)
+	      cur->next = next;
+	    break;
+	  }
+      if (!found)
+	{
+	  /* Could not find it, add it */
+	  if (prev)
+	    prev->next = copy_widget_value (new_val, STRUCTURAL_CHANGE);
+	  else
+	    info->val = copy_widget_value (new_val, STRUCTURAL_CHANGE);
+	}
+      new_val->next = next_new_val;
+    }
+
+  update_all_widget_values (info, deep_p);
 }
 
 
@@ -448,7 +515,7 @@ initialize_widget_instance (widget_instance* instance)
   for (val = instance->info->val; val; val = val->next)
     val->change = STRUCTURAL_CHANGE;
 
-  update_one_widget_instance (instance);
+  update_one_widget_instance (instance, True);
 
   for (val = instance->info->val; val; val = val->next)
     val->change = NO_CHANGE;
@@ -460,9 +527,42 @@ find_in_table (char* type, widget_creation_entry* table)
 {
   widget_creation_entry* cur;
   for (cur = table; cur->type; cur++)
-    if (!strcmp (type, cur->type))
+    if (!strcasecmp (type, cur->type))
       return cur->function;
   return NULL;
+}
+
+static Boolean
+dialog_spec_p (char* name)
+{
+  /* return True if name matches [EIPQeipq][1-9][Bb] or 
+     [EIPQeipq][1-9][Bb][Rr][1-9] */
+  if (!name)
+    return False;
+  
+  switch (name [0])
+    {
+    case 'E': case 'I': case 'P': case 'Q':
+    case 'e': case 'i': case 'p': case 'q':
+      if (name [1] >= '1' && name [1] <= '9')
+	{
+	  if (name [2] != 'B' && name [2] != 'b')
+	    return False;
+	  if (!name [3])
+	    return True;
+	  if ((name [3] == 'T' || name [3] == 't') && !name [4])
+	    return True;
+	  if ((name [3] == 'R' || name [3] == 'r')
+	      && name [4] >= '1' && name [4] <= '9' && !name [5])
+	    return True;
+	  return False;
+	}
+      else
+	return False;
+    
+    default:
+      return False;
+    }
 }
 
 static void
@@ -470,83 +570,98 @@ instanciate_widget_instance (widget_instance* instance)
 {
   widget_creation_function function = NULL;
 
-#ifdef USE_MOTIF
-  function = find_in_table (instance->info->type, xm_creation_table);
-#else
-#ifdef USE_LUCID
-  function = find_in_table (instance->info->type, xlw_creation_table);
-#else
-#ifdef USE_OLIT
-  function = find_in_table (instance->info->type, xol_creation_table);
+#if defined (USE_LUCID)
+  if (!function)
+    function = find_in_table (instance->info->type, xlw_creation_table);
 #endif
+#if defined(USE_MOTIF)
+  if (!function)
+    function = find_in_table (instance->info->type, xm_creation_table);
 #endif
+#if defined (USE_OLIT)
+  if (!function)
+    function = find_in_table (instance->info->type, xol_creation_table);
 #endif
 
   if (!function)
-    abort ();
+    {
+      if (dialog_spec_p (instance->info->type))
+	{
+#if defined (USE_LUCID)
+	  /* not yet */
+#endif
+#if defined(USE_MOTIF)
+	  if (!function)
+	    function = xm_create_dialog;
+#endif
+#if defined (USE_OLIT)
+	  /* not yet */
+#endif
+	}
+    }
+  
+  if (!function)
+    {
+      printf ("No creation function for widget type %s\n",
+	      instance->info->type);
+      abort ();
+    }
 
   instance->widget = (*function) (instance);
 
   if (!instance->widget)
     abort ();
+
+  /*   XtRealizeWidget (instance->widget);*/
 }
 
-#if 0
-  Widget new_shell;
-  Widget new_parent;
-  widget_function func;
+void 
+lw_register_widget (char* type, char* name, BITS32 id, widget_value* val,
+		    lw_callback pre_activate_cb, lw_callback selection_cb,
+		    lw_callback post_activate_cb)
+{
+  if (!get_widget_info (id, False))
+    allocate_widget_info (type, name, id, val, pre_activate_cb, selection_cb,
+			  post_activate_cb);
+}
 
-  if (!pop_up_p)
-    {
-      new_shell = parent;
-      new_parent = NULL;
-    }
-  else
-    {
-      new_shell = NULL;
-      new_parent = parent;
-    }
+Widget
+lw_get_widget (BITS32 id, Widget parent, Boolean pop_up_p)
+{
+  widget_instance* instance;
   
-  widget = NULL;
+  instance = find_instance (id, parent, pop_up_p);
+  return instance ? instance->widget : NULL;
+}
 
-  if (dialog_spec_p (info->type))
-    widget = make_dialog_box (info->type, new_parent, new_shell);
-  else
+Widget
+lw_make_widget (BITS32 id, Widget parent, Boolean pop_up_p)
+{
+  widget_instance* instance;
+  widget_info* info;
+  
+  instance = find_instance (id, parent, pop_up_p);
+  if (!instance)
     {
-      func = name_to_function (info->type);
-      if (func)
-	widget = (*func) (new_parent, new_shell, info->type);
+      info = get_widget_info (id, False);
+      if (!info)
+	return NULL;
+      instance = allocate_widget_instance (info, parent, pop_up_p);
+      initialize_widget_instance (instance);
     }
-
-#endif /* !0 */
-
+  if (!instance->widget)
+    abort ();
+  return instance->widget;
+}
 
 Widget
 lw_create_widget (char* type, char* name, BITS32 id, widget_value* val,
 		  Widget parent, Boolean pop_up_p, lw_callback pre_activate_cb,
 		  lw_callback selection_cb, lw_callback post_activate_cb)
 {
-  widget_info* info;
-  widget_instance* instance;
-  
-  info = get_widget_info (id, False);
-
-  if (!info)
-    info = allocate_widget_info (type, name, id,
-				 copy_widget_value (val, STRUCTURAL_CHANGE,
-						    True, True),
-				 pre_activate_cb, selection_cb,
-				 post_activate_cb);
-  else if (val)
-    {
-      info->val = merge_widget_value (info->val, val);
-      update_all_widget_values (info);
-    }
-
-  instance = allocate_widget_instance (info, parent, pop_up_p);
-  initialize_widget_instance (instance);
-  
-  return instance->widget;
+  lw_register_widget (type, name, id, val, pre_activate_cb, selection_cb,
+		      post_activate_cb);
+  return lw_make_widget (id, parent, pop_up_p);
 }
 		  
 
@@ -555,8 +670,29 @@ static void
 destroy_one_instance (widget_instance* instance)
 {
   if (instance->widget)
-    XtDestroyWidget (instance->widget);
-  free (instance);
+    {
+      /* The else are pretty tricky here, including the empty statement
+	 at the end because it would be very bad to destroy a widget
+	 twice. */
+#if defined (USE_LUCID)
+      if (lw_lucid_widget_p (instance->widget))
+	xlw_destroy_instance (instance);
+      else
+#endif
+#if defined (USE_MOTIF)
+      if (lw_motif_widget_p (instance->widget))
+	xm_destroy_instance (instance);
+      else
+#endif
+#if defined (USE_OLIT)
+      if (lw_olit_widget_p (instance->widget))
+	xol_destroy_instance (instance);
+      else
+#endif
+	/* do not remove the empty statement */
+	;
+    }
+  free_widget_instance (instance);
 }
 
 void
@@ -588,59 +724,210 @@ lw_destroy_all_widgets (BITS32 id)
 	  destroy_one_instance (instance);
 	  instance = next;
 	}
-      if (info->val)
-	free_widget_value (info->val, True, True);
-      free (info);
+      free_widget_info (info);
     }
+}
+
+void
+lw_destroy_everything ()
+{
+  while (all_widget_info)
+    lw_destroy_all_widgets (all_widget_info->id);
+}
+
+void
+lw_destroy_all_pop_ups ()
+{
+  widget_info* info;
+  widget_info* next;
+  widget_instance* instance;
+
+  for (info = all_widget_info; info; info = next)
+    {
+      next = info->next;
+      instance = info->instances;
+      if (instance && instance->pop_up_p)
+	lw_destroy_all_widgets (info->id);
+    }
+}
+
+Widget
+lw_raise_all_pop_up_widgets ()
+{
+  widget_info* info;
+  widget_instance* instance;
+  Widget result = NULL;
+
+  for (info = all_widget_info; info; info = info->next)
+    for (instance = info->instances; instance; instance = instance->next)
+      if (instance->pop_up_p)
+	{
+	  Widget widget = instance->widget;
+	  if (widget)
+	    {
+	      if (XtIsManaged (widget))
+		{
+		  if (!result)
+		    result = widget;
+		  XMapRaised (XtDisplay (widget), XtWindow (widget));
+		}
+	    }
+	}
+  return result;
+}
+
+static void
+lw_pop_all_widgets (BITS32 id, Boolean up)
+{
+  widget_info* info = get_widget_info (id, False);
+  widget_instance* instance;
+
+  if (info)
+    for (instance = info->instances; instance; instance = instance->next)
+      if (instance->pop_up_p && instance->widget)
+	{
+	  if (!XtIsRealized (instance->widget))
+	    XtRealizeWidget (instance->widget);
+#if defined (USE_LUCID)
+	  if (lw_lucid_widget_p (instance->widget))
+	    xlw_pop_instance (instance, up);
+#endif
+#if defined (USE_MOTIF)
+	  if (lw_motif_widget_p (instance->widget))
+	    xm_pop_instance (instance, up);
+#endif
+#if defined (USE_OLIT)
+	  if (lw_olit_widget_p (instance->widget))
+	    xol_pop_instance (instance, up);
+#endif
+	}
+}
+
+void
+lw_pop_up_all_widgets (BITS32 id)
+{
+  lw_pop_all_widgets (id, True);
+}
+
+void
+lw_pop_down_all_widgets (BITS32 id)
+{
+  lw_pop_all_widgets (id, False);
 }
 
 void
 lw_popup_menu (Widget widget)
 {
-#ifdef USE_MOTIF
-  xm_popup_menu (widget);
+#if defined (USE_LUCID)
+  if (lw_lucid_widget_p (widget))
+    xlw_popup_menu (widget);
 #endif
-#ifdef USE_LUCID
-  xlw_popup_menu (widget);
+#if defined (USE_MOTIF)
+  if (lw_motif_widget_p (widget))
+    xm_popup_menu (widget);
 #endif
-#ifdef USE_OLIT
-  xol_popup_menu (widget);
+#if defined (USE_OLIT)
+  if (lw_olit_widget_p (widget))
+    xol_popup_menu (widget);
 #endif
 }
 
 /* get the values back */
-widget_value*
-lw_get_values (Widget w)
+static Boolean
+get_one_value (widget_instance* instance, widget_value* val)
 {
-  widget_instance* instance = get_widget_instance (w, False);
-  widget_value* result;
+  Widget widget = name_to_widget (instance, val->name);
+      
+  if (widget)
+    {
+#if defined (USE_LUCID)
+      if (lw_lucid_widget_p (instance->widget))
+	xlw_update_one_value (instance, widget, val);
+#endif
+#if defined (USE_MOTIF)
+      if (lw_motif_widget_p (instance->widget))
+	xm_update_one_value (instance, widget, val);
+#endif
+#if defined (USE_OLIT)
+      if (lw_olit_widget_p (instance->widget))
+	xol_update_one_value (instance, widget, val);
+#endif
+      return True;
+    }
+  else
+    return False;
+}
+
+Boolean
+lw_get_some_values (BITS32 id, widget_value* val_out)
+{
+  widget_info* info = get_widget_info (id, False);
+  widget_instance* instance;
   widget_value* val;
   Widget widget;
+  Boolean result = False;
 
+  if (!info)
+    return False;
+
+  instance = info->instances;
   if (!instance)
-    return NULL;
+    return False;
 
-  result = instance->info->val;
-
-  for (val = result; val; val = val->next)
-    {
-      widget = name_to_widget (instance, val->name);
-      
-      if (widget)
-	{
-#ifdef USE_MOTIF
-	  xm_update_one_value (instance, widget, val);
-#endif
-#ifdef USE_LUCID
-	  xlw_update_one_value (instance, widget, val);
-#endif
-#ifdef USE_OLIT
-	  xol_update_one_value (instance, widget, val);
-#endif
-	}
-    }
+  for (val = val_out; val; val = val->next)
+    if (get_one_value (instance, val))
+      result = True;
 
   return result;
+}
+
+widget_value*
+lw_get_all_values (BITS32 id)
+{
+  widget_info* info = get_widget_info (id, False);
+  widget_value* val = info->val;
+  if (lw_get_some_values (id, val))
+    return val;
+  else
+    return NULL;
+}
+
+/* update other instances value when one thing changed */
+/* This function can be used as a an XtCallback for the widgets that get 
+  modified to update other instances of the widgets.  Closure should be the
+  widget_instance. */
+void
+lw_internal_update_other_instances (Widget widget, XtPointer closure,
+				    XtPointer call_data)
+{
+  /* To forbid recursive calls */
+  static Boolean updating;
+  
+  widget_instance* instance = (widget_instance*)closure;
+  char* name = XtName (widget);
+  widget_info* info;
+  widget_instance* cur;
+  widget_value* val;
+
+  /* never recurse as this could cause infinite recursions. */
+  if (updating)
+    return;
+
+  /* Return immediately if there are no other instances */
+  info = instance->info;
+  if (!info->instances->next)
+    return;
+
+  updating = True;
+
+  for (val = info->val; val && strcmp (val->name, name); val = val->next);
+
+  if (val && get_one_value (instance, val))
+    for (cur = info->instances; cur; cur = cur->next)
+      if (cur != instance)
+	set_one_value (cur, val, True);
+
+  updating = False;
 }
 
 
@@ -658,7 +945,7 @@ lw_get_widget_id (Widget w)
 void
 lw_set_keyboard_focus (Widget parent, Widget w)
 {
-#ifdef USE_MOTIF
+#if defined (USE_MOTIF)
   xm_set_keyboard_focus (parent, w);
 #else
   XtSetKeyboardFocus (parent, w);

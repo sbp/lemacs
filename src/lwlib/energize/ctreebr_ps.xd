@@ -1,0 +1,154 @@
+module 'grapher'
+applicationName = 'grapher';
+generateNameC = 'ctreebr_ps.xdc';
+generateNameUIL = '';
+generateNameResDB = '';
+generateUidFile = '';
+generateMask = 196837;
+object '' : XmDialogShell {
+	arguments {
+	name = 'widget0';
+	XmNtitle = 'Grapher';
+	XmNallowShellResize = true;
+	};
+object '' : XmFrame {
+	arguments {
+	name = 'calltreePanel';
+	XmNshadowType=8;
+	};
+object '' : XmForm {
+	arguments {
+	name = 'panel';
+	XmNautoUnmanage = false;
+	XmNdefaultButton = 'apply';
+	};
+object '' : XmLabel {
+	arguments {
+	name = 'nameLabel';
+	};
+};
+object '' : XmText {
+	arguments {
+	name = 'nameText';
+	};
+};
+object '' : XmLabel {
+	arguments {
+	name = 'fileLabel';
+	};
+};
+object '' : XmText {
+	arguments {
+	name = 'fileText';
+	};
+};
+object '' : XmLabel {
+	arguments {
+	name = 'projectLabel';
+	};
+};
+object '' : XmText {
+	arguments {
+	name = 'projectText';
+	};
+};
+object 'apply' : XmPushButton {
+	arguments {
+	name = 'apply';
+	};
+};
+object '' : XmToggleButton {
+	arguments {
+	name = 'whereDefined';
+	};
+};
+object '' : XmRadioBox {
+	arguments {
+	name = 'nameStyle';
+	};
+object '' : XmToggleButton GADGET {
+	arguments {
+	name = 'nameOnly';
+	};
+};
+object '' : XmToggleButton GADGET {
+	arguments {
+	name = 'prototype';
+	};
+};
+object '' : XmToggleButton GADGET {
+	arguments {
+	name = 'mangled';
+	};
+};
+};
+object '' : XmSeparator {
+	arguments {
+	name = 'separator';
+	};
+};
+    attachments {
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 1 0 5;
+	XmNbottomAttachment = 5 0 24;
+	XmNtopAttachment = 5 0 1;
+    };
+    attachment {
+	XmNrightAttachment = 5 0 84;
+	XmNleftAttachment = 3 1 5;
+	XmNbottomAttachment = 5 0 24;
+	XmNtopAttachment = 5 0 1;
+    };
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 1 0 6;
+	XmNbottomAttachment = 5 0 49;
+	XmNtopAttachment = 5 0 25;
+    };
+    attachment {
+	XmNrightAttachment = 5 0 84;
+	XmNleftAttachment = 3 3 5;
+	XmNbottomAttachment = 5 0 49;
+	XmNtopAttachment = 5 0 25;
+    };
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 1 0 5;
+	XmNbottomAttachment = 5 0 74;
+	XmNtopAttachment = 5 0 50;
+    };
+    attachment {
+	XmNrightAttachment = 5 0 84;
+	XmNleftAttachment = 3 5 5;
+	XmNbottomAttachment = 5 0 74;
+	XmNtopAttachment = 5 0 50;
+    };
+    attachment {
+	XmNrightAttachment = 1 0 5;
+	XmNleftAttachment = 5 0 85;
+	XmNbottomAttachment = 5 0 49;
+	XmNtopAttachment = 5 0 25;
+    };
+    attachment {
+	XmNrightAttachment = 1 0 5;
+	XmNleftAttachment = 0 0 0;
+	XmNbottomAttachment = 5 0 99;
+	XmNtopAttachment = 5 0 80;
+    };
+    attachment {
+	XmNrightAttachment = 5 0 75;
+	XmNleftAttachment = 1 0 5;
+	XmNbottomAttachment = 5 0 99;
+	XmNtopAttachment = 5 0 80;
+    };
+    attachment {
+	XmNrightAttachment = 5 0 100;
+	XmNleftAttachment = 1 0 0;
+	XmNtopAttachment = 5 0 78;
+    };
+    };
+};
+};
+};
+end module;

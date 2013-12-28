@@ -1,11 +1,11 @@
 ;; Buffer menu main function and support functions.
-;; Copyright (C) 1985, 1986, 1987 Free Software Foundation, Inc.
+;; Copyright (C) 1985, 1986, 1987, 1992 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -44,7 +44,10 @@
   (define-key Buffer-menu-mode-map "?" 'describe-mode)
   (define-key Buffer-menu-mode-map "u" 'Buffer-menu-unmark)
   (define-key Buffer-menu-mode-map "m" 'Buffer-menu-mark)
-  (define-key Buffer-menu-mode-map "t" 'Buffer-menu-visit-tags-table))
+  (define-key Buffer-menu-mode-map "t" 'Buffer-menu-visit-tags-table)
+  (define-key Buffer-menu-mode-map 'button2 'Buffer-menu-mouse-select)
+  (define-key Buffer-menu-mode-map 'button3 'Buffer-menu-popup-menu)
+  )
 
 ;; Buffer Menu mode is suitable only for specially formatted data.
 (put 'Buffer-menu-mode 'mode-class 'special)
@@ -78,6 +81,8 @@ Precisely,\\{Buffer-menu-mode-map}"
   (setq buffer-read-only t)
   (setq major-mode 'Buffer-menu-mode)
   (setq mode-name "Buffer Menu")
+  (require 'mode-motion)
+  (setq mode-motion-hook 'mode-motion-highlight-line)
   (run-hooks 'buffer-menu-mode-hook))
 
 (defvar Buffer-menu-buffer-column 4)
@@ -388,3 +393,39 @@ You can mark buffers with the \\[Buffer-menu-mark] command."
     (switch-to-buffer (other-buffer))
     (pop-to-buffer buff)
     (bury-buffer menu)))
+
+
+;;; mouseability
+
+(defun Buffer-menu-mouse-select (event)
+  (interactive "e")
+  (mouse-set-point event)
+  (Buffer-menu-select))
+
+(defvar Buffer-menu-popup-menu
+  '("Buffer Commands"
+    ["Select Buffer"			Buffer-menu-select		t]
+    ["Select buffer Other Window"	Buffer-menu-other-window	t]
+    ["Clear Buffer Modification Flag"	Buffer-menu-not-modified	t]
+    "----"
+    ["Mark Buffer for Selection"	Buffer-menu-mark		t]
+    ["Mark Buffer for Save"		Buffer-menu-save		t]
+    ["Mark Buffer for Deletion"		Buffer-menu-delete		t]
+    ["Unmark Buffer"			Buffer-menu-unmark		t]
+    "----"
+    ["Delete/Save Marked Buffers"	Buffer-menu-execute		t]
+    ))
+
+(defun Buffer-menu-popup-menu (event)
+  (interactive "e")
+  (mouse-set-point event)
+  (beginning-of-line)
+  (let ((buffer (Buffer-menu-buffer nil)))
+    (if buffer
+	(popup-menu
+	 (nconc (list (car Buffer-menu-popup-menu)
+		      (concat
+		       "Commands on buffer \"" (buffer-name buffer) "\":")
+		      "----")
+		(cdr Buffer-menu-popup-menu)))
+      (error "no buffer on this line"))))

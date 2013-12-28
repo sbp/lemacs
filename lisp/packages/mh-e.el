@@ -1,7 +1,7 @@
 ;;;  mh-e.el	(Version: 3.6 for GNU Emacs Version 18 and MH.5 and MH.6)
 
 (defvar mh-e-RCS-id)
-(setq mh-e-RCS-id "$Header: mh-e.el,v 1.1 91/03/20 23:43:19 eb Exp $")
+(setq mh-e-RCS-id "$Header: /cadillac-inferno-5/cvs-master/lemacs/lisp/packages/mh-e.el,v 1.1.1.1 1992/06/29 22:30:47 devin Exp $")
 (provide 'mh-e)
 
 ;;;  Copyright (C) 1985-89 Free Software Foundation

@@ -290,7 +290,6 @@ struct x_display
   Lisp_Object current_psheet_buffer;
   Lisp_Object desired_psheet_buffer;
 #endif
-  Lisp_Object last_selected_buffer;
 
   /* This is true if we own the window, that is, it is not a window that
      was created by another process.  If we don't own the window, we aren't

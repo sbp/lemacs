@@ -1,11 +1,11 @@
 ;; Menubar support.
-;; Copyright (C) 1988 Free Software Foundation, Inc.
+;; Copyright (C) 1991, 1992 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -37,6 +37,9 @@
 		["Clear"		x-delete-primary-selection t]
 		)
     ("Buffers"	"")
+
+    nil		; the partition: menus after this are flushright
+
     ("Help"	["Info"			info			t]
 		["Describe Mode"	describe-mode		t]
 		["Command Apropos..."	command-apropos		t]
@@ -61,6 +64,18 @@
   (if (and (boundp 'evi-install-undo-list) evi-install-undo-list)
       (evi-mode))
   )
+
+
+(defun set-menubar (menubar)
+  "Set the default menubar to be menubar."
+  (setq-default current-menubar (copy-sequence menubar))
+  (set-menubar-dirty-flag))
+
+(defun set-buffer-menubar (menubar)
+  "Set the buffer-local menubar to be menubar."
+  (make-local-variable 'current-menubar)
+  (setq current-menubar (copy-sequence menubar))
+  (set-menubar-dirty-flag))
 
 
 ;;; menu manipulation functions
@@ -96,7 +111,7 @@ PATH is a list of strings which identify the position of the menu item in
 the menu hierarchy.  (\"File\" \"Save\") means the menu item called \"Save\"
 under the toplevel \"File\" menu.  (\"Menu\" \"Foo\" \"Item\") means the 
 menu item called \"Item\" under the \"Foo\" submenu of \"Menu\"."
-  (let* ((menubar (screen-menubar))
+  (let* ((menubar current-menubar)
 	 (pair (find-menu-item menubar path))
 	 (item (car pair))
 	 (menu (cdr pair)))
@@ -104,7 +119,7 @@ menu item called \"Item\" under the \"Foo\" submenu of \"Menu\"."
 	(signal 'error (list (if menu "No such menu item" "No such menu")
 			     path)))
     (aset item 2 nil)
-    (set-screen-menubar menubar)
+    (set-menubar-dirty-flag)
     item))
 
 
@@ -114,7 +129,7 @@ PATH is a list of strings which identify the position of the menu item in
 the menu hierarchy.  (\"File\" \"Save\") means the menu item called \"Save\"
 under the toplevel \"File\" menu.  (\"Menu\" \"Foo\" \"Item\") means the 
 menu item called \"Item\" under the \"Foo\" submenu of \"Menu\"."
-  (let* ((menubar (screen-menubar))
+  (let* ((menubar current-menubar)
 	 (pair (find-menu-item menubar path))
 	 (item (car pair))
 	 (menu (cdr pair)))
@@ -122,25 +137,13 @@ menu item called \"Item\" under the \"Foo\" submenu of \"Menu\"."
 	(signal 'error (list (if menu "No such menu item" "No such menu")
 			     path)))
     (aset item 2 t)
-    (set-screen-menubar menubar)
+    (set-menubar-dirty-flag)
     item))
 
 
-(defun add-menu-item (menu-path item-name function enabled-p)
-  "Add a menu item to some menu, creating the menu first if necessary.
-If the named item exists already, it is changed.
-MENU-PATH identifies the menu under which the new menu item should be inserted.
- It is a list of strings; for example, (\"File\") names the top-level \"File\"
- menu.  (\"File\" \"Foo\") names a hypothetical submenu of \"File\".
-ITEM-NAME is the string naming the menu item to be added.
-FUNCTION is the command to invoke when this menu item is selected.
- If it is a symbol, then it is invoked with `call-interactively', in the same
- way that functions bound to keys are invoked.  If it is a list, then the 
- list is simply evaluated.
-ENABLED-P controls whether the item is selectable or not."
-  (or menu-path (error "must specify a menu path"))
-  (or item-name (error "must specify an item name"))
-  (let* ((menubar (screen-menubar))
+(defun add-menu-item-1 (item-p menu-path item-name item-data enabled-p before)
+  (if before (setq before (downcase before)))
+  (let* ((menubar current-menubar)
 	 (menu (condition-case ()
 		   (car (find-menu-item menubar menu-path))
 		 (error nil)))
@@ -162,12 +165,51 @@ ENABLED-P controls whether the item is selectable or not."
 	    (setq so-far menu)
 	    (setq rest (cdr rest)))))
     (or menu (setq menu menubar))
-    (or item
-	(nconc menu (list (setq item (vector item-name function enabled-p)))))
-    (aset item 1 function)
-    (aset item 2 (not (null enabled-p)))
-    (set-screen-menubar menubar)
+    (if item
+	nil	; it's already there
+      (if item-p
+	  (setq item (vector item-name item-data enabled-p))
+	(setq item (cons item-name item-data)))
+      ;; if BEFORE is specified, try to add it there.
+      (if before
+	  (setq before (car (find-menu-item menu (list before)))))
+      (let ((rest menu)
+	    (added-before nil))
+	(while rest
+	  (if (eq before (car (cdr rest)))
+	      (progn
+		(setcdr rest (cons item (cdr rest)))
+		(setq rest nil added-before t))
+	    (setq rest (cdr rest))))
+	(if (not added-before) ; add the item to the end.
+	    (nconc menu (list item)))))
+    (if item-p
+	(progn
+	  (aset item 1 item-data)
+	  (aset item 2 (not (null enabled-p))))
+      (setcar item item-name)
+      (setcdr item item-data))
+    (set-menubar-dirty-flag)
     item))
+
+(defun add-menu-item (menu-path item-name function enabled-p &optional before)
+  "Add a menu item to some menu, creating the menu first if necessary.
+If the named item exists already, it is changed.
+MENU-PATH identifies the menu under which the new menu item should be inserted.
+ It is a list of strings; for example, (\"File\") names the top-level \"File\"
+ menu.  (\"File\" \"Foo\") names a hypothetical submenu of \"File\".
+ITEM-NAME is the string naming the menu item to be added.
+FUNCTION is the command to invoke when this menu item is selected.
+ If it is a symbol, then it is invoked with `call-interactively', in the same
+ way that functions bound to keys are invoked.  If it is a list, then the 
+ list is simply evaluated.
+ENABLED-P controls whether the item is selectable or not.
+BEFORE, if provided, is the name of a menu item before which this item should
+ be added, if this item is not on the menu already.  If the item is already
+ present, it will not be moved."
+  (or menu-path (error "must specify a menu path"))
+  (or item-name (error "must specify an item name"))
+  (add-menu-item-1 t menu-path item-name function enabled-p before))
 
 
 (defun delete-menu-item (path)
@@ -176,14 +218,14 @@ PATH is a list of strings which identify the position of the menu item in
 the menu hierarchy.  (\"File\" \"Save\") means the menu item called \"Save\"
 under the toplevel \"File\" menu.  (\"Menu\" \"Foo\" \"Item\") means the 
 menu item called \"Item\" under the \"Foo\" submenu of \"Menu\"."
-  (let* ((menubar (screen-menubar))
+  (let* ((menubar current-menubar)
 	 (pair (find-menu-item menubar path))
 	 (item (car pair))
 	 (menu (or (cdr pair) menubar)))
     (if (not item)
 	nil
       (delq item menu) ; menus begin with name, so this is ok.
-      (set-screen-menubar menubar)
+      (set-menubar-dirty-flag)
       item)))
 
 
@@ -194,7 +236,7 @@ the menu hierarchy.  (\"File\" \"Save\") means the menu item called \"Save\"
 under the toplevel \"File\" menu.  (\"Menu\" \"Foo\" \"Item\") means the 
 menu item called \"Item\" under the \"Foo\" submenu of \"Menu\".
 NEW-NAME is the string that the menu item will be printed as from now on."
-  (let* ((menubar (screen-menubar))
+  (let* ((menubar current-menubar)
 	 (pair (find-menu-item menubar path))
 	 (item (car pair))
 	 (menu (cdr pair)))
@@ -202,12 +244,32 @@ NEW-NAME is the string that the menu item will be printed as from now on."
 	(signal 'error (list (if menu "No such menu item" "No such menu")
 			     path)))
     (aset item 0 new-name)
-    (set-screen-menubar menubar)
+    (set-menubar-dirty-flag)
     item))
+
+(defun add-menu (menu-path menu-name menu-items &optional before)
+  "Add a menu to the menubar or one of its submenus.
+If the named menu exists already, it is changed.
+MENU-PATH identifies the menu under which the new menu should be inserted.
+ It is a list of strings; for example, (\"File\") names the top-level \"File\"
+ menu.  (\"File\" \"Foo\") names a hypothetical submenu of \"File\".
+ If MENU-PATH is nil, then the menu will be added to the menubar itself.
+MENU-NAME is the string naming the menu to be added.
+MENU-ITEMS is a list of menu item descriptions.
+ Each menu item should be a vector of three elements:
+   - a string, the name of the menu item;
+   - a symbol naming a command, or a form to evaluate;
+   - and t or nil, whether this item is selectable.
+BEFORE, if provided, is the name of a menu before which this menu should
+ be added, if this menu is not on its parent already.  If the menu is already
+ present, it will not be moved."
+  (or menu-name (error "must specify a menu name"))
+  (or menu-items (error "must specify some menu items"))
+  (add-menu-item-1 nil menu-path menu-name menu-items t before))
 
 
 
-(defun sensitize-edit-menu-hook (menubar)
+(defun sensitize-edit-menu-hook (nothing)
   "For use as a value of activate-menubar-hook.
 This function changes the sensitivity of the Edit menu items:
   Cut   sensitive only when emacs owns the primary X Selection.
@@ -218,7 +280,7 @@ This function changes the sensitivity of the Edit menu items:
   ;; the hair in here to not update the menubar unless something has changed
   ;; isn't really necessary (the menubar code is fast enough) but it makes
   ;; me feel better (and creates marginally less list garbage.)
-  (let* ((edit-menu (cdr (car (find-menu-item menubar '("Edit")))))
+  (let* ((edit-menu (cdr (car (find-menu-item current-menubar '("Edit")))))
 	 (cut   (car (find-menu-item edit-menu '("Cut"))))
 	 (copy  (car (find-menu-item edit-menu '("Copy"))))
 	 (paste (car (find-menu-item edit-menu '("Paste"))))
@@ -262,12 +324,9 @@ This function changes the sensitivity of the Edit menu items:
 	(progn (aset undo 0 undo-name)
 	       (aset undo 2 undo-state)
 	       (setq change-p t)))
-    ;; if we made any changes, return the modified menubar.
+    ;; if we made any changes, return nil
     ;; otherwise return t to indicate that we haven't done anything.
-    (if change-p
-	menubar
-      t)))
-
+    (not change-p)))
 
 ;; this version is too slow
 (defun format-buffers-menu-line (buffer)
@@ -291,12 +350,12 @@ nil means the buffer shouldn't be listed.  You can redefine this."
       nil
     buffer))
 
-(defun build-buffers-menu-hook (menubar)
+(defun build-buffers-menu-hook (nothing)
   "For use as a value of activate-menubar-hook.
 This function changes the contents of the \"Buffers\" menu to correspond
 to the current set of buffers.  You can control how the text of the menu
 items are generated by redefining the function `format-buffers-menu-line'."
-  (let ((buffer-menu (car (find-menu-item menubar '("Buffers"))))
+  (let ((buffer-menu (car (find-menu-item current-menubar '("Buffers"))))
 	name
 	buffers)
     (if (not buffer-menu)
@@ -320,7 +379,7 @@ items are generated by redefining the function `format-buffers-menu-line'."
 	  t  ; return t meaning "no change"
 	(setcdr buffer-menu buffers)
 	;; return the now-modified menubar to install.
-	menubar))))
+	nil))))
 
 (or (memq 'build-buffers-menu-hook activate-menubar-hook)
     (setq activate-menubar-hook
@@ -330,9 +389,6 @@ items are generated by redefining the function `format-buffers-menu-line'."
     (setq activate-menubar-hook
 	  (cons 'sensitize-edit-menu-hook activate-menubar-hook)))
 
-(defun install-default-menubar (screen)
-  (set-screen-menubar default-menubar screen))
-
-(setq create-screen-hook 'install-default-menubar)
+(set-menubar default-menubar)
 
 (provide 'menubar)

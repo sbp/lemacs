@@ -1,6 +1,6 @@
 ;;;; dired-awrh.el - an after-write-region-hook for Dired to
 ;;;; 		     automagically update Dired after saving.
-;;;; $Id: dired-awrh.el,v 1.14 1992/03/01 14:19:24 jwz Exp $
+;;;; Id: dired-awrh.el,v 1.14 1992/02/10 14:51:54 sk RelBeta 
 
 ;; Copyright (C) 1991 by Sebastian Kremer <sk@thp.uni-koeln.de>
 
@@ -22,7 +22,7 @@
 ;;    LCD Archive Entry:
 ;;    dired-awrh|Sebastian Kremer|sk@thp.uni-koeln.de
 ;;    |Automagically update Dired after saving buffers.
-;;    |$Date: 1992/03/01 14:19:24 $|$Revision: 1.14 $|
+;;    |Date: 1992/02/10 14:51:54 |Revision: 1.14 |
 
 ;; INSTALLATION ======================================================
 ;; 

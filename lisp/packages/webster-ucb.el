@@ -12,6 +12,7 @@
 ;;; 14 sep 91  Jamie Zawinski <jwz@lucid.com>  hacked on some more
 ;;; 19 feb 91  Jamie Zawinski <jwz@lucid.com>  added Lucid Emacs font support
 ;;; 15 apr 92  Jamie Zawinski <jwz@lucid.com>  added mouse support
+;;; 29 aug 92  Jamie Zawinski <jwz@lucid.com>  added 8-bit output
 
 (defvar webster-host "pasteur" "*The host with the webster server")
 (defvar webster-port "1964" "*The port on which the webster server listens")
@@ -26,6 +27,9 @@
 
 (defvar webster-fontify (string-match "Lucid" emacs-version)
   "*Set to t to use the Lucid GNU Emacs font-change mechanism.")
+
+(defvar webster-iso8859/1 (string-match "Lucid" emacs-version)
+  "*Set to t to print certain special characters using ISO-8859/1 codes.")
 
 (cond ((fboundp 'make-face)
        (or (find-face 'webster)
@@ -42,13 +46,37 @@
 	   (copy-face 'bold-italic 'webster-bold-italic))
        (or (find-face 'webster-small)
 	   (face-differs-from-default-p (make-face 'webster-small))
-	   (copy-face 'webster-bold 'webster-small))
+	   (progn
+	     (copy-face 'webster-bold 'webster-small)
+	     (set-face-underline-p 'webster-small t)))
+       (or (find-face 'webster-underline)
+	   (face-differs-from-default-p (make-face 'webster-underline))
+	   (set-face-underline-p 'webster-underline t))
+       (or (find-face 'webster-underline-italic)
+	   (face-differs-from-default-p (make-face 'webster-underline-italic))
+	   (progn
+	     (copy-face 'italic 'webster-underline-italic)
+	     (set-face-underline-p 'webster-underline-italic t)))
        ))
 
 (defun webster-fontify (start end face &optional highlight)
   (let ((e (make-extent start end (current-buffer))))
     (set-extent-face e face)
     (if highlight (set-extent-attribute e 'highlight))))
+
+(defconst webster-umlauts
+  '((?A . ?\304) (?E . ?\313) (?I . ?\317) (?O . ?\326) (?U . ?\334)
+    (?a . ?\344) (?e . ?\353) (?i . ?\357) (?o . ?\366) (?u . ?\374)
+    (?y . ?\377)))
+
+(defconst webster-graves
+  '((?A . ?\300) (?E . ?\310) (?I . ?\314) (?O . ?\322) (?U . ?\331)
+    (?a . ?\340) (?e . ?\350) (?i . ?\354) (?o . ?\362) (?u . ?\371)))
+
+(defconst webster-acutes
+  '((?A . ?\301) (?E . ?\311) (?I . ?\315) (?O . ?\323) (?U . ?\332)
+    (?Y . ?\335) (?a . ?\341) (?e . ?\351) (?i . ?\355) (?o . ?\363)
+    (?u . ?\372) (?y . ?\375)))
 
 ;;;
 ;;; Initial filter for ignoring information until successfully connected
@@ -226,9 +254,9 @@ mouse button and then clicking middle."
     (while (string-match "\\." text)
       (setq text (concat (substring text 0 (match-beginning 0))
 			 (substring text (match-end 0)))))
+    (webster-unISO text)
     (message "looking up %s..." (upcase text))
     (webster text)))
-
 
 (defun webster-quit ()
   "Close connection and quit webster-mode.  Buffer is not deleted."
@@ -270,6 +298,7 @@ Use webster-mode-hook for customization."
 				    (kill-buffer "*webster*")))))
   (set (make-local-variable 'webster-start-mark)
        (set-marker (make-marker) (point-max)))
+  (if webster-iso8859/1 (setq ctl-arrow 'iso-8859/1))
   (run-hooks 'webster-mode-hook))
 
 ;; Snatched from unix-apropos by Henry Kautz
@@ -287,14 +316,66 @@ Use webster-mode-hook for customization."
 (defconst webster-completion-table (make-vector 511 0))
 
 (defun webster-intern (string)
-  (intern (downcase string) webster-completion-table))
+  (intern (webster-strip-crud (webster-unISO (downcase string)))
+	  webster-completion-table))
+
+(defun webster-unISO (text)
+  ;; turn the ISO chars into the closest ASCII equiv (how they are indexed)
+  (while (string-match "\347" text) (aset text (match-beginning 0) ?c))
+  (while (string-match "\307" text) (aset text (match-beginning 0) ?C))
+  (while (string-match "\335" text) (aset text (match-beginning 0) ?Y))
+  (while (string-match "[\375\377]" text) (aset text (match-beginning 0) ?y))
+  (while (string-match "[\300-\305]" text) (aset text (match-beginning 0) ?A))
+  (while (string-match "[\310-\313]" text) (aset text (match-beginning 0) ?E))
+  (while (string-match "[\314-\317]" text) (aset text (match-beginning 0) ?I))
+  (while (string-match "[\322-\326]" text) (aset text (match-beginning 0) ?O))
+  (while (string-match "[\331-\334]" text) (aset text (match-beginning 0) ?U))
+  (while (string-match "[\340-\345]" text) (aset text (match-beginning 0) ?a))
+  (while (string-match "[\350-\353]" text) (aset text (match-beginning 0) ?e))
+  (while (string-match "[\354-\357]" text) (aset text (match-beginning 0) ?i))
+  (while (string-match "[\362-\366]" text) (aset text (match-beginning 0) ?o))
+  (while (string-match "[\371-\374]" text) (aset text (match-beginning 0) ?u))
+  text)
+
+(defun webster-strip-crud (text)
+  (while (string-match ".\b" text)
+    (setq text (concat (substring text 0 (match-beginning 0))
+		       (substring text (match-end 0)))))
+  text)
+
 
 (defun webster-textify-region (start end &optional nointern)
   (save-excursion
     (goto-char (1- end))
     (if (looking-at "[^\n]\n") (setq end (1+ end)))
     (save-restriction
+     (let ((case-fold-search nil))
       (narrow-to-region start end)
+      ;; translate silly "special character" codes into something we can use.
+      ;; we need to do this before nuking the recursive backspace codes.
+      (goto-char (point-min))
+      (while (re-search-forward "(\bQ[-a-z]+)\bQ" nil t)
+	(goto-char (match-beginning 0))
+	(let ((s (point))
+	      (e (match-end 0)))
+	  (forward-char 3)
+	  (cond
+	   ((looking-at "sub-dot")	 (delete-region s e) (insert ?\377))
+	   ((looking-at "breve")	 (delete-region s e) (insert ?\376))
+	   ((looking-at "sub-breve")     (delete-region s e) (insert ?\375))
+	   ((looking-at "hachek")	 (delete-region s e) (insert ?\374))
+	   ((looking-at "macron-tilda")  (delete-region s e) (insert ?\373))
+	   ((looking-at "sup-circle")    (delete-region s e) (insert ?\372))
+	   ((looking-at "cidilla")	 (delete-region s e) (insert ?\371))
+	   ((looking-at "sub-diaeresis") (delete-region s e) (insert ?\370))
+	   ((looking-at "sub-macron")    (delete-region s e) (insert ?\367))
+	   (t (delete-region (- e 3) e))))
+	(forward-char -1)
+	(delete-char -3)
+	(insert ?\b)
+	(forward-char 2)
+	)
+
       ;; nuke silly recursive backspace codes
       (goto-char (point-min))
       (while (search-forward "|\bB" nil t)
@@ -309,59 +390,194 @@ Use webster-mode-hook for customization."
 	(delete-char -1) (insert "~")
 	(if webster-fontify
 	    (webster-fontify (- (point) 1) (point) 'webster-bold-italic)))
-      ;; some conversions
+      ;; now convert lots of other magic codes...
       (goto-char (point-min))
       (while (search-forward "\b" nil t)
 	(delete-char -1)
 	(forward-char -1)
-	(cond ((looking-at "<(")
-	       (insert "<<")
-	       (if webster-fontify
-		   (let ((p (point))
-			 (e (and (save-excursion (search-forward ")\b>" nil t))
-				 (match-beginning 0))))
-		     (if e
-			 (webster-fontify p e 'webster-italic)))))
-	      ((looking-at ")>")
-	       (insert ">>"))
-	      ((looking-at "[a-z][-.]") ; overstrike
-	       (insert (following-char))
-	       (if webster-fontify
-		   (webster-fontify (- (point) 1) (point) 'webster-bold)))
-	      ((looking-at "[a-z][:_]")  ; umlaut or overbar
-	       (insert "  ")
-	       (forward-char -2))
-	      ((looking-at "([MXY]") ; start smallcaps, italic, or bold
-	       (cond ((and (not nointern)
-			   (looking-at "([MXY]\\([^\)]*\\))"))
-		      (webster-intern
-		       (buffer-substring (match-beginning 1) (match-end 1)))
-		      (if webster-fontify
-			  (let ((c (char-after (1- (match-beginning 1)))))
-			    (webster-fontify
-			     (match-beginning 1) (match-end 1)
-			     (cond ((= ?M c) 'webster-bold) ;##
-				   ((= ?X c) 'webster-italic)
-				   ((= ?Y c) 'webster-bold))
-			     (or (= ?M c)))))))
-	       nil)
-	      ((looking-at ")[MXY]") ; end smallcaps, italic, or bold
-	       nil)
-	      ((looking-at "[()][ABIJ]") ; start or end superscript/subscript
-	       nil)
-	      ((looking-at "[()][GRQ]") ; greek, APL, or Symbol
-	       nil)
-	      ((looking-at
-		(format "[%c][%c]" (following-char) (following-char)))
-	       nil)
-	      ((looking-at "-m")
-	       (insert "--"))
-	      (t ; ## debug
-	       (insert (following-char))
-	       (insert "\b")
-	       (insert (buffer-substring (+ 1 (point)) (+ 2 (point))))
-	       ))
+	(cond
+
+	 ((looking-at "([MXYAIJ]")	; start smallcaps/italic/bold/super/sub
+	  (looking-at "([MXYAIJ]\\([^\)]*\\))")
+	  (let ((start (match-beginning 1))
+		(end (match-end 1)))
+	    (and (not nointern) (looking-at "(M")
+		 (webster-intern (buffer-substring start end)))
+	    (if webster-fontify
+		(let ((c (char-after (1- start))))
+		  (webster-fontify start end
+				   (cond ((= ?M c) 'webster-bold)
+					 ((= ?X c) 'webster-italic)
+					 ((= ?Y c) 'webster-small)
+					 ((= ?A c) 'webster-underline)
+					 ((= ?I c) 'webster-underline)
+					 ((= ?J c) 'webster-underline-italic)
+					 )
+				   (= ?M c))))))
+
+	 ((looking-at "([BGR]")	; start greek/APL/symbol
+	  (and webster-fontify
+	       (looking-at "(\\(.\\)[^\)]*)\^H\\1")
+	       (let ((c (char-after (1- (match-beginning 1)))))
+		 (webster-fontify
+		  (match-beginning 0) (match-end 0) 'webster-small))))
+
+	 ((looking-at ")[ABGIJMRXY]")	; end font-shift
+	  nil)
+
+	 ((looking-at "<(")
+	  (insert (if webster-iso8859/1 ?\253 "<<"))
+	  (if webster-fontify
+	      (let ((p (point))
+		    (e (and (save-excursion (search-forward ")\b>" nil t))
+			    (match-beginning 0))))
+		(if e
+		    (webster-fontify p e 'webster-italic)))))
+
+	 ((looking-at ")>")
+	  (insert  (if webster-iso8859/1 ?\273 ">>")))
+
+	 ((looking-at "[a-z][-._]")	; lineover,dotover/under,over/underbar
+	  (insert (following-char))
+	  (if webster-fontify
+	      (webster-fontify (- (point) 1) (point) 'webster-underline)))
+
+	 ((looking-at "[a-zA-Z]:")	; umlaut
+	  (let (c)
+	    (if (and webster-iso8859/1
+		     (setq c (cdr (assq (following-char) webster-umlauts))))
+		(insert c)
+	      (insert (following-char))
+	      (insert (if webster-iso8859/1 ?\250 ?:)))))
+
+	 ((looking-at "[\"~][a-zA-Z]")	; umlaut
+	  (let (c)
+	    (delete-char 1)
+	    (if (and webster-iso8859/1
+		     (setq c (cdr (assq (following-char) webster-umlauts))))
+		(insert c)
+	      (insert (following-char))
+	      (insert (if webster-iso8859/1 ?\250 ?:)))
+	    (insert " ")
+	    (forward-char -1)))
+
+	 ((looking-at "[a-zA-Z]\)")	; grave
+	  (let (c)
+	    (if (and webster-iso8859/1
+		     (setq c (cdr (assq (following-char) webster-graves))))
+		(insert c)
+	      (insert (following-char))
+	      (insert "`"))))
+
+	 ((looking-at ">[a-zA-Z]")	; grave
+	  (let (c)
+	    (delete-char 1)
+	    (if (and webster-iso8859/1
+		     (setq c (cdr (assq (following-char) webster-graves))))
+		(insert c)
+	      (insert (following-char))
+	      (insert "`"))
+	    (insert " ")
+	    (forward-char -1)))
+
+	 ((looking-at "[a-zES]\(")	; acute
+	  (let (c)
+	    (if (and webster-iso8859/1
+		     (setq c (cdr (assq (following-char) webster-acutes))))
+		(insert c)
+	      (insert (following-char))
+	      (insert (if webster-iso8859/1 ?\264 ?\')))))
+
+	 ((looking-at "<[a-zA-Z]")	; acute
+	  (let (c)
+	    (delete-char 1)
+	    (if (and webster-iso8859/1
+		     (setq c (cdr (assq (following-char) webster-acutes))))
+		(insert c)
+	      (insert (following-char))
+	      (insert (if webster-iso8859/1 ?\264 ?\')))
+	    (insert " ")
+	    (forward-char -1)))
+
+	 ((looking-at ";[Cc]")		; ccedilla
+	  (delete-char 1)
+	  (if webster-iso8859/1
+	      (progn
+		(insert (if (= (following-char) ?C) ?\307 ?\347))
+		(insert ? ) (forward-char -1))
+	    (forward-char 1)
+	    (insert ?\,)))
+
+	 ((looking-at "|S")		; section
+	  (insert (if webster-iso8859/1 ?\247 "SS")))
+
+	 ((looking-at "|q")		; paragraph
+	  (insert (if webster-iso8859/1 ?\266 "PP")))
+
+	 ((looking-at "*o")		; centerdot
+	  (insert (if webster-iso8859/1 ?\267 ?\*)))
+
+	 ((looking-at "+=")		; plusminus
+	  (insert (if webster-iso8859/1 ?\261 "+/-")))
+
+	 ((looking-at "-:")		; division
+	  (insert (if webster-iso8859/1 ?\367 "+/-")))
+
+	 ((looking-at "-[xX]")		; multiplication
+	  (insert (if webster-iso8859/1 ?\327 "+/-")))
+
+	 ((looking-at "-m") (insert "--"))
+	 ((looking-at "-n") (insert "-"))
+	 ((looking-at "-/") (insert "\\"))
+	 ((looking-at ")|") (insert ?\[))
+	 ((looking-at "|)") (insert ?\]))
+	 ((looking-at "-3") (insert "..."))
+	 ((looking-at "=\\\\") (insert "$"))
+
+	 ((looking-at "'o")		; degree
+	  (insert (if webster-iso8859/1 ?\260 ?\*)))
+
+	 ((or (looking-at "nj")		; nj symbol
+	      (looking-at "|-")		; dagger
+	      (looking-at "|=")		; doubledagger
+	      (looking-at "|o")		; lowerphi
+	      (looking-at "'b")		; stroke
+	      )
+	  (if webster-fontify
+	      (webster-fontify (point) (+ (point) 2) 'webster-bold))
+	  (insert "  ")
+	  (forward-char -2))
+
+	 ((looking-at "[cC]\371")	; (\bQcidilla)\bQ
+	  (if webster-iso8859/1
+	      (insert (if (= (following-char) ?C) ?\307 ?\347))
+	    (forward-char 1)
+	    (insert ?\,)))
+
+	 ((or (looking-at "[a-zA-Z]\377")	; (\bQsub-dot)\bQ
+	      (looking-at "[a-zA-Z]\376")	; (\bQbreve)\bQ
+	      (looking-at "[a-zA-Z]\375")	; (\bQsub-breve)\bQ
+	      (looking-at "[a-zA-Z]\374")	; (\bQhachek)\bQ
+	      (looking-at "[a-zA-Z]\373")	; (\bQmacron-tilda)\bQ
+	      (looking-at "[a-zA-Z]\372")	; (\bQsup-circle)\bQ
+	      (looking-at "[a-zA-Z]\370")	; (\bQsub-diaeresis)\bQ
+	      (looking-at "[a-zA-Z]\367"))	; (\bQsub-macron)\bQ
+	  (forward-char 1) (insert " ") (forward-char -1)
+	  (webster-fontify (1- (point)) (point) 'webster-underline))
+
+	 ;; overstrike
+	 ((looking-at (format "[%c][%c]" (following-char) (following-char)))
+	  (insert (following-char))
+	  (if webster-fontify
+	      (webster-fontify (- (point) 1) (point) 'webster-bold)))
+
+	 (t				; ## debug
+	  (insert (following-char))
+	  (insert "\b")
+	  (insert (buffer-substring (+ 1 (point)) (+ 2 (point))))
+	  ))
 	(delete-char 2))
+
       (goto-char (point-min))
       (setq start (point)
 	    end (point-max))
@@ -379,7 +595,44 @@ Use webster-mode-hook for customization."
 	      (delete-horizontal-space)
 	      (insert "\n" (or fill-prefix "")))
 	  (skip-chars-forward " \n\t")))
-      )))
+      ))))
+
+
+(defun webster-pos (start end)
+  (save-excursion
+    (goto-char start)
+    (cond ((and (= start (1- end)) (looking-at "n")) "noun")
+	  ((or (not webster-fontify) (/= start (- end 2)))
+	   (buffer-substring start end))
+	  ((looking-at "ac") "adjective combinational form")
+	  ((looking-at "aj") "adjective")
+	  ((looking-at "as") "adjective suffix")
+	  ((looking-at "av") "adverb")
+	  ((looking-at "ca") "adjective combinational form")
+	  ((looking-at "cf") "combinational form")
+	  ((looking-at "cj") "conjunction")
+	  ((looking-at "da") "definite article")
+	  ((looking-at "ia") "indefinite article")
+	  ((looking-at "ij") "interjection")
+	  ((looking-at "is") "interjection suffix")
+	  ((looking-at "js") "adjective suffix")
+	  ((looking-at "nc") "noun combinational form")
+	  ((looking-at "np") "noun plural suffix")
+	  ((looking-at "ns") "noun suffix")
+	  ((looking-at "pf") "prefix")
+	  ((looking-at "pn") "pronoun")
+	  ((looking-at "pp") "preposition")
+	  ((looking-at "sf") "verb suffix")
+	  ((looking-at "tm") "trademark")
+	  ((looking-at "va") "verbal auxilliary")
+	  ((looking-at "vb") "verb")
+	  ((looking-at "vc") "verb combinational form")
+	  ((looking-at "vi") "verb intransitive")
+	  ((looking-at "vm") "verb impersonal")
+	  ((looking-at "vp") "verb imperfect")
+	  ((looking-at "vs") "verb suffix")
+	  ((looking-at "vt") "verb transitive")
+	  (t (buffer-substring start end)))))
 
 
 (defun webster-convert ()
@@ -455,12 +708,12 @@ Use webster-mode-hook for customization."
 	  ;; ignore accents
 	  (search-forward ";")
 	  (if (looking-at "[a-z]+")
-	      (setq pos (buffer-substring (point) (match-end 0))))
+	      (setq pos (webster-pos (point) (match-end 0))))
 	  (search-forward ";")
 	  (if (looking-at "[a-z]+")
-	      (setq posj (buffer-substring (point) (match-end 0))))
+	      (setq posj (webster-pos (point) (match-end 0))))
 	  (if (looking-at "[a-z]+")
-	      (setq pos2 (buffer-substring (point) (match-end 0))))
+	      (setq pos2 (webster-pos (point) (match-end 0))))
 	  (end-of-line)
 	  (delete-region p (point))
 	  (beginning-of-line)
@@ -573,7 +826,7 @@ Use webster-mode-hook for customization."
 	      (setq sub2 (buffer-substring (point) (match-end 0))))
 	  (search-forward ";")
 	  (if (looking-at "[a-z]+")
-	      (setq part (buffer-substring (point) (match-end 0))))
+	      (setq part (webster-pos (point) (match-end 0))))
 	  (search-forward ";")
 	  (delete-region p (point))
 	  (if (and sub2 (not (equal sub2 "1")))
@@ -585,8 +838,10 @@ Use webster-mode-hook for customization."
 	  (if (eq last-type ?L)
 	      (setq n (and n " ") sub1 (and sub1 " ") sub2 (and sub2 " ")))
 	  (if (and part (not (equal part last-part)))
-	      (progn
+	      (let ((p (point)))
 		(insert "   " part "\n")
+		(if webster-fontify
+		    (webster-fontify p (1- (point)) 'webster-italic))
 		(setq last-part part)))
 	  (indent-to (- 6 (length n)))
 	  (setq p (point))
@@ -627,6 +882,14 @@ Use webster-mode-hook for customization."
 	  (search-forward ";")
 	  (delete-region p (point)))
 	(insert " ")
+	(if (looking-at "[a-z][a-z]?;")
+	    (let* ((start (point))
+		   (end (1- (match-end 0)))
+		   (pos (webster-pos start end)))
+	      (delete-region start end)
+	      (insert pos)
+	      (if webster-fontify
+		  (webster-fontify start (point) 'webster-italic))))
 	(search-forward ";") (delete-char -1) (insert " ")
 	(search-forward ";") (delete-char -1) (insert " "))
 
@@ -710,4 +973,253 @@ Use webster-mode-hook for customization."
 		    (progn (forward-line -1) (looking-at "\n"))))
 	(delete-char -1))
       ))
-  (goto-char (point-min)))
+  (goto-char (point-min))
+  (cond ((search-forward "\^H" nil t)
+	 (goto-char (point-min))
+	 (insert
+	  "\n****\tThis definition contains unrecognized font-change codes."
+	  "\n****\tPlease tell jwz.\n\n")
+	 (goto-char (point-min))))
+  )
+
+
+;; Codes:
+;;
+;;	(A		start superscript	catalan
+;;	(B		start unknown		mixed number
+;;	(G		start greek		alpha
+;;	(I		start subscript		alcohol
+;;	(J		start subitalic		mixed number
+;;	(M		start small		mitten
+;;	(Q		start special		mitzvah
+;;	(R		start APL		mixed
+;;	(X		start italic		everywhere...
+;;	(Y		start bold		everywhere...
+;;	)A		end superscript		catalan
+;;	)B		end unknown		mixed number
+;;	)G		end greek		alpha
+;;	)I		end subscript		alcohol
+;;	)J		end subitalic		mixed number
+;;	)M		end small		mitten
+;;	)Q		end special		mitzvah
+;;	)R		end APL			mixed
+;;	)X		end italic		everywhere...
+;;	)Y		end bold		everywhere...
+;;	"a		a-umlaut		acetoacetic acid
+;;	"e		e-umlaut		agio
+;;	"i		i-umlaut		alcaic
+;;	"o		o-umlaut		ale
+;;	"u		u-umlaut		alpenglow
+;;	a:		a-umlaut		aardvark
+;;	n:		n-umlaut		pogy
+;;	o:		o-umlaut		coccyx
+;;	s:		s-umlaut		centrifugation
+;;	u:		u-umlaut		accouter
+;;	w:		w-umlaut		bourgeois
+;;	I:		I-umlaut		natural
+;;	~a		a-umlaut		alcove
+;;	~e		e-umlaut		Boxer
+;;	~i		i-umlaut		Cistercian
+;;	~o		o-umlaut		alcove
+;;	~u		u-umlaut		Boxer
+;;	~E		E-umlaut		arris
+;;	~O		O-umlaut		prix fixe
+;;	>e		e-grave			arriere-pensee
+;;	>a		a-grave			pompano
+;;	>u		u-grave			coca
+;;	>E		E-grave
+;;	u)		u-grave
+;;	o)		o-grave
+;;	i)		i-grave
+;;	s)		s-grave
+;;	;C		C-cedilla		compendia
+;;	;c		c-cedilla		babassu
+;;	<E		E-acute
+;;	<a		a-acute
+;;	<e		e-acute
+;;	S(		S-acute
+;;	c(		c-acute
+;;	i(		i-acute
+;;	o(		o-acute
+;;	r(		r-acute
+;;	s(		s-acute
+;;	y(		y-acute
+;;	)>		guillemotright		everywhere...
+;;	<(		guillemotleft		everywhere...
+;;	-m		longdash
+;;	n_		nj			babbling
+;;	'o		degree			
+;;	|)		]
+;;	|-		dagger
+;;	|=		doubledagger
+;;	|S		section
+;;	|o		lower-phi
+;;	|q		paragraph		paragraph
+;;	=\		"$"
+;;	(<		"<"
+;;	(|		"["
+;;	'b		stroke
+;;	*o		centerdot
+;;	+=		plusminus
+;;	-/		\
+;;	-3		"..."
+;;	-:		division
+;;	-X		multiplication
+;;	-n		"-"
+;;	-x		multiplication
+;;	''		' overstrike
+;;	::		: overstrike
+;;	;;		; overstrike
+;;	MM		M overstrike
+;;	a-		a-lineover
+;;	e-		e-lineover
+;;	i-		i-lineover
+;;	o-		o-lineover
+;;	u-		u-lineover
+;;	y-		y-lineover
+;;	A-		A-lineover
+;;	E-		E-lineover
+;;	I-		I-lineover
+;;	O-		O-lineover
+;;	U-		U-lineover
+;;	Q-		Q-lineover2
+;;	a.		a-dotover
+;;	e.		e-dotover
+;;	m.		m-dotover
+;;	n.		n-dotover
+;;	o.		o-dotover
+;;	r.		r-dotover
+;;	u.		u-dotover
+;;	e_		e-lineunder
+;;	h_		h-lineunder
+;;	k_		k-lineunder
+;;	r-		r-lineunder
+;;	r_		r-lineunder
+;;	t_		t-lineunder
+;;	u_		u-lineunder
+;;	k-		k-dotunder
+
+;; t(\bQsub-dot)\bQ		t-dotunder
+;; s(\bQsub-dot)\bQ		s-dotunder
+;; h(\bQsub-dot)\bQ		h-dotunder		aceldama
+;; n(\bQsub-dot)\bQ		n-dotunder
+;; r(\bQsub-dot)\bQ		r-dotunder
+;; d(\bQsub-dot)\bQ		d-dotunder
+;; z(\bQsub-dot)\bQ		z-dotunder
+;; l(\bQsub-dot)\bQ		l-dotunder
+;; S(\bQsub-dot)\bQ		S-dotunder
+;; H(\bQsub-dot)\bQ		H-dotunder
+;; o(\bQsub-dot)\bQ		o-dotunder
+;; a(\bQsub-dot)\bQ		a-dotunder
+;; e(\bQbreve)\bQ		e-breve
+;; u(\bQbreve)\bQ		u-breve
+;; i(\bQbreve)\bQ		i-breve
+;; a(\bQbreve)\bQ		a-breve
+;; A(\bQbreve)\bQ		A-breve
+;; s(\bQbreve)\bQ		s-breve
+;; n(\bQbreve)\bQ		n-breve
+;; E(\bQbreve)\bQ		E-breve
+;; y(\bQbreve)\bQ		y-breve
+;; o(\bQbreve)\bQ		o-breve
+;; h(\bQsub-breve)\bQ		h-breve
+;; e(\bQhachek)\bQ		e-hachek
+;; s(\bQhachek)\bQ		s-hachek
+;; z(\bQhachek)\bQ		z-hachek
+;; c(\bQhachek)\bQ		c-hachek
+;; j(\bQhachek)\bQ		j-hachek
+;; i(\bQhachek)\bQ		i-hachek
+;; u(\bQhachek)\bQ		u-hachek
+;; g(\bQhachek)\bQ		g-hachek
+;; r(\bQhachek)\bQ		r-hachek
+;; a(\bQhachek)\bQ		a-hachek
+;; C(\bQhachek)\bQ		C-hachek
+;; a(\bQmacron-tilda)\bQ	a-macrontilda
+;; i(\bQmacron-tilda)\bQ	i-macrontilda
+;; e(\bQmacron-tilda)\bQ	e-macrontilda
+;; a(\bQsup-circle)\bQ		a-circleover
+;; A(\bQsup-circle)\bQ		A-circleover
+;; e(\bQcidilla)\bQ		e-cedilla
+;; o(\bQcidilla)\bQ		o-cedilla
+;; a(\bQcidilla)\bQ		a-cedilla
+;; z(\bQsub-diaeresis)\bQ	z-umlautunder
+;; r(\bQsub-diaeresis)\bQ	r-umlautunder
+;; t(\bQsub-macron)\bQ		t-lineunder
+;; B(\bQ3 character overbar)\bQ	B-lineover3
+
+;; "U			unknown
+;; '-			unknown
+;; 'a 			unknown
+;; (j			unknown
+;; )o			unknown
+;; - 			unknown
+;; -0			unknown
+;; ->			unknown
+;; -M			unknown
+;; -N			unknown
+;; -O			unknown
+;; -s			unknown
+;; ;(			unknown
+;; <'			unknown
+;; <A			unknown
+;; =S			unknown
+;; >'			unknown
+;; B 			unknown
+;; G<			unknown
+;; G>			unknown
+;; I'			unknown
+;; O'			unknown
+;; S			unknown
+;; c|			unknown
+;; e@			unknown
+;; eg			unknown
+;; en			unknown
+;; er			unknown
+;; et			unknown
+;; i"			unknown
+;; l-			unknown
+;; m-			unknown
+;; n,			unknown
+;; nB			unknown
+;; o@			unknown
+;; os			unknown
+;; ot			unknown
+;; s,			unknown
+;; u@			unknown
+;; | 			unknown
+
+;; /a			unknown			alpha
+;; /b			unknown
+;; /c			unknown
+;; /d			unknown
+;; /e			unknown
+;; /g			unknown
+;; /h			unknown
+;; /i			unknown
+;; /k			unknown
+;; /l			unknown
+;; /m			unknown
+;; /n			unknown
+;; /p			unknown
+;; /r			unknown
+;; /s			unknown
+;; /t			unknown
+;; /u			unknown
+;; /v			unknown
+;; /w			unknown
+;; /x			unknown
+;; /z			unknown
+
+;; /C			unknown
+;; /D			unknown
+;; /F			unknown
+;; /G			unknown
+;; /I			unknown
+;; /L			unknown
+;; /N			unknown
+;; /O			unknown
+;; /P			unknown
+;; /S			unknown
+;; /U			unknown
+;; /V			unknown
+;; /W			unknown
+;; /X			unknown

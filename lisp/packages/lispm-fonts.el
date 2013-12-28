@@ -29,23 +29,28 @@
 (or (find-face 'variable)
     (progn
       (make-face 'variable)
-      (set-face-font 'variable "*-helvetica-medium-r-*-120-*")))
+      (set-face-font 'variable
+		     "-*-helvetica-medium-r-*-*-*-120-*-*-*-*-*-*")))
 
 (or (find-face 'variable-bold)
     (progn
-      (copy-face 'variable 'variable-bold)
-      (make-face-bold 'variable-bold)))
+      ;; This is no good because helvetica-12-bold is a LOT larger than
+      ;; helvetica-12-medium.  Someone really blew it there.
+      ;; (copy-face 'variable 'variable-bold)
+      ;; (make-face-bold 'variable-bold)
+      (set-face-font 'variable-bold
+		     "-*-helvetica-bold-r-*-*-*-100-*-*-*-*-*-*")))
 
 (or (find-face 'variable-italic)
     (progn
-      (copy-face 'variable 'variable-italic)
+      (copy-face 'variable-bold 'variable-italic) ; see above
+      (make-face-unbold 'variable-italic)
       (make-face-italic 'variable-italic)))
 
 (or (find-face 'variable-bold-italic)
     (progn
-      (copy-face 'variable 'variable-bold-italic)
-      (make-face-bold-italic 'variable-bold-italic)))
-
+      (copy-face 'variable-bold 'variable-bold-italic)
+      (make-face-italic 'variable-bold-italic)))
 
 (defconst lispm-font-to-face
   '(("tvfont"		. default)
@@ -126,9 +131,27 @@
 
 (defvar fonts)  ; the -*- line of the file will set this.
 
+(defun lispm-fontify-hack-local-variables ()
+  ;; Sometimes code has font-shifts in the -*- line, which means that the
+  ;; local variables will have been read incorrectly by the emacs-lisp reader.
+  ;; In particular, the `fonts' variable might be corrupted.  So if there
+  ;; are font-shifts in the prop line, re-parse it.
+  (if (let ((case-fold-search t))
+	(and (looking-at "[ \t]*;.*-\\*-.*fonts[ \t]*:.*-\\*-")
+	     (looking-at ".*\^F")))
+      (save-excursion
+	(save-restriction
+	  (end-of-line)
+	  (narrow-to-region (point-min) (point))
+	  (goto-char (point-min))
+	  (while (re-search-forward "\^F[0-9a-zA-Z*]" nil t)
+	    (delete-region (match-beginning 0) (match-end 0)))
+	  (hack-local-variables)))))
+
 (defun lispm-fontify-buffer ()
   (save-excursion
     (goto-char (point-min))
+    (lispm-fontify-hack-local-variables)
     (let ((font-stack nil)
 	  (p (point))
 	  c)

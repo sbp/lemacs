@@ -17,6 +17,9 @@ You should have received a copy of the GNU General Public License
 along with GNU Emacs; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
+#ifdef __STDC__
+#include <stdlib.h>
+#endif
 
 /* Define the fundamental Lisp data structures */
 
@@ -413,6 +416,8 @@ Lisp_Object;
 #define XPROCESS(a) ((struct Lisp_Process *) XPNTR(a))
 #ifdef LISP_FLOAT_TYPE
 #define XFLOAT(a) ((struct Lisp_Float *) XPNTR(a))
+#else
+#define XFLOAT(a) --- error!  No float support. ---
 #endif
 #define XEVENT(a) ((struct Lisp_Event *) XPNTR(a))
 #define XKEYMAP(a) ((struct Lisp_Keymap *) XPNTR(a))
@@ -440,16 +445,6 @@ Lisp_Object;
 struct Lisp_Cons
   {
     Lisp_Object car, cdr;
-  };
-
-/* Like a cons, but records info on where the text lives that it was read from */
-/* This is not really in use now */
-
-struct Lisp_Buffer_Cons
-  {
-    Lisp_Object car, cdr;
-    struct buffer *buffer;
-    int bufpos;
   };
 
 /* In a string or vector, the sign bit of the `size' is the gc mark bit */
@@ -530,61 +525,94 @@ typedef unsigned short GLYPH;
 
 #define NILP(x)  (XFASTINT (x) == XFASTINT (Qnil))
 
-/* #define LISTP(x) (XTYPE ((x)) == Lisp_Cons)*/
 #define CONSP(x) (XTYPE ((x)) == Lisp_Cons)
+#define SYMBOLP(x) (XTYPE ((x)) == Lisp_Symbol)
+#define FIXNUMP(x) (XTYPE ((x)) == Lisp_Int)
+#define MARKERP(x) (XTYPE ((x)) == Lisp_Marker)
+#define STRINGP(x) (XTYPE ((x)) == Lisp_String)
+#define VECTORP(x) (XTYPE ((x)) == Lisp_Vector)
+#define SUBRP(x) (XTYPE ((x)) == Lisp_Subr)
+#define PROCESSP(x) (XTYPE ((x)) == Lisp_Process)
+#define BUFFERP(x) (XTYPE ((x)) == Lisp_Buffer)
+#define WINDOWP(x) (XTYPE ((x)) == Lisp_Window)
+#define SCREENP(x) (XTYPE ((x)) == Lisp_Screen)
+#define KEYMAPP(x) (XTYPE ((x)) == Lisp_Keymap)
+#define COMPILEDP(x) (XTYPE ((x)) == Lisp_Compiled)
+#define EVENTP(x) (XTYPE ((x)) == Lisp_Event)
+#define EXTENTP(x) (XTYPE ((x)) == Lisp_Extent)
+#define EXTENT_REPLICA_P(x) (XTYPE ((x)) == Lisp_Extent_Replica)
+
+#ifdef LISP_FLOAT_TYPE
+#define FLOATP(x) (XTYPE ((x)) == Lisp_Float)
+#define NUMBERP(x) (FIXNUMP (x) || FLOATP (x))
+#else
+#define FLOATP(x) --- error! no float support. ---
+#define NUMBERP(x) (FIXNUMP (x))
+#endif
+
 #define EQ(x, y) (XFASTINT (x) == XFASTINT (y))
 
 #define CHECK_LIST(x, i) \
-  { if ((XTYPE ((x)) != Lisp_Cons) && !NILP (x)) x = wrong_type_argument (Qlistp, (x)); }
+  { if ((!CONSP ((x))) && !NILP (x)) x = wrong_type_argument (Qlistp, (x)); }
 
 #define CHECK_STRING(x, i) \
-  { if (XTYPE ((x)) != Lisp_String) x = wrong_type_argument (Qstringp, (x)); }
+  { if (!STRINGP ((x))) x = wrong_type_argument (Qstringp, (x)); }
 
 #define CHECK_CONS(x, i) \
-  { if (XTYPE ((x)) != Lisp_Cons) x = wrong_type_argument (Qconsp, (x)); }
+  { if (!CONSP ((x))) x = wrong_type_argument (Qconsp, (x)); }
 
 #define CHECK_SYMBOL(x, i) \
-  { if (XTYPE ((x)) != Lisp_Symbol) x = wrong_type_argument (Qsymbolp, (x)); }
+  { if (!SYMBOLP ((x))) x = wrong_type_argument (Qsymbolp, (x)); }
 
 #define CHECK_VECTOR(x, i) \
-  { if (XTYPE ((x)) != Lisp_Vector) x = wrong_type_argument (Qvectorp, (x)); }
+  { if (!VECTORP ((x))) x = wrong_type_argument (Qvectorp, (x)); }
 
 #define CHECK_BUFFER(x, i) \
-  { if (XTYPE ((x)) != Lisp_Buffer) x = wrong_type_argument (Qbufferp, (x)); }
+  { if (!BUFFERP ((x))) x = wrong_type_argument (Qbufferp, (x)); }
 
 #define CHECK_WINDOW(x, i) \
-  { if (XTYPE ((x)) != Lisp_Window) x = wrong_type_argument (Qwindowp, (x)); }
+  { if (!WINDOWP ((x))) x = wrong_type_argument (Qwindowp, (x)); }
 
 #define CHECK_EXTENT(x, i) \
-  { if (XTYPE ((x)) != Lisp_Extent) x = wrong_type_argument (Qextentp, (x)); }
+  { if (!EXTENTP ((x))) x = wrong_type_argument (Qextentp, (x)); }
 
 #define CHECK_EXTENT_REPLICA(x, i) \
-  { if (XTYPE ((x)) != Lisp_Extent_Replica) \
+  { if (!EXTENT_REPLICA_P ((x))) \
       x = wrong_type_argument (Qextent_replica_p, (x)); }
 
 #define CHECK_PROCESS(x, i) \
-  { if (XTYPE ((x)) != Lisp_Process) x = wrong_type_argument (Qprocessp, (x)); }
-
-#define CHECK_NUMBER(x, i) \
-  { if (XTYPE ((x)) != Lisp_Int) x = wrong_type_argument (Qintegerp, (x)); }
+  { if (!PROCESSP ((x))) x = wrong_type_argument (Qprocessp, (x)); }
 
 #define CHECK_EVENT(x, i) \
-  { if (XTYPE ((x)) != Lisp_Event) x = wrong_type_argument (Qeventp, (x)); }
+  { if (!EVENTP ((x))) x = wrong_type_argument (Qeventp, (x)); }
+
 #define CHECK_KEYMAP(x, i) \
-  { if (XTYPE ((x)) != Lisp_Keymap) x = wrong_type_argument (Qkeymapp, (x)); }
+  { if (!KEYMAPP ((x))) x = wrong_type_argument (Qkeymapp, (x)); }
+
+#define CHECK_FIXNUM(x, i) \
+  { if (!FIXNUMP ((x))) x = wrong_type_argument (Qintegerp, (x)); }
+
+#define CHECK_NUMBER(x, i)  \
+  { if (!NUMBERP (x)) x = wrong_type_argument (Qnumberp, (x)); }
 
 #define CHECK_NATNUM(x, i) \
-  { if (XTYPE ((x)) != Lisp_Int || XINT ((x)) < 0)	\
+  { if (!FIXNUMP ((x)) || XINT ((x)) < 0) \
       x = wrong_type_argument (Qnatnump, (x)); }
+
+#define CHECK_FIXNUM_COERCE_MARKER(x, i) \
+  { if (MARKERP ((x))) XFASTINT (x) = marker_position (x); \
+    else if (!FIXNUMP ((x))) \
+      x = wrong_type_argument (Qinteger_or_marker_p, (x)); }
+
+#define CHECK_NUMBER_COERCE_MARKER(x, i) \
+  { if (MARKERP ((x))) XFASTINT (x) = marker_position (x); \
+    else if (!NUMBERP ((x))) \
+      x = wrong_type_argument (Qnumber_or_marker_p, (x)); }
 
 /* The second check is looking for GCed markers still in use */
 #define CHECK_MARKER(x, i) \
-  { if (XTYPE ((x)) != Lisp_Marker) x = wrong_type_argument (Qmarkerp, (x)); \
-    if (XTYPE (XMARKER ((x))->chain) == Lisp_Int) abort (); }
-
-#define CHECK_NUMBER_COERCE_MARKER(x, i) \
-  { if (XTYPE ((x)) == Lisp_Marker) XFASTINT (x) = marker_position (x); \
-    else if (XTYPE ((x)) != Lisp_Int) x = wrong_type_argument (Qinteger_or_marker_p, (x)); }
+  { if (!MARKERP ((x))) x = wrong_type_argument (Qmarkerp, (x)); \
+    if (FIXNUMP (XMARKER ((x))->chain)) abort (); }
 
 #ifdef LISP_FLOAT_TYPE
 
@@ -592,28 +620,17 @@ typedef unsigned short GLYPH;
 #define DBL_DIG 16
 #endif
 
+#define CHECK_FLOAT(x, i) \
+{ if (!FLOATP (x)) x = wrong_type_argument (Qfloatp, (x)); }
+
 #define XFLOATINT(n) extract_float((n))
-
-#define CHECK_FLOAT(x, i)		\
-{ if (XTYPE (x) != Lisp_Float)	\
-    x = wrong_type_argument (Qfloatp, (x)); }
-
-#define CHECK_NUMBER_OR_FLOAT(x, i)	\
-{ if (XTYPE (x) != Lisp_Float && XTYPE (x) != Lisp_Int)	\
-    x = wrong_type_argument (Qinteger_or_floatp, (x)); }
-
-#define CHECK_NUMBER_OR_FLOAT_COERCE_MARKER(x, i) \
-{ if (XTYPE (x) == Lisp_Marker) XFASTINT (x) = marker_position (x);	\
-  else if (XTYPE (x) != Lisp_Int && XTYPE (x) != Lisp_Float)		\
-    x = wrong_type_argument (Qinteger_or_float_or_marker_p, (x)); }
 
 #else  /* Not LISP_FLOAT_TYPE */
 
-#define CHECK_NUMBER_OR_FLOAT CHECK_NUMBER
-
-#define CHECK_NUMBER_OR_FLOAT_COERCE_MARKER CHECK_NUMBER_COERCE_MARKER
+#define CHECK_FLOAT(x,i) --- error! no float support. ---
 
 #define XFLOATINT(n) XINT((n))
+
 #endif /* LISP_FLOAT_TYPE */
 
 #ifdef VIRT_ADDR_VARIES
@@ -704,17 +721,6 @@ extern void defsubr ();
 
 #define MANY -2
 #define UNEVALLED -1
-
-#define DEFSIMPLE(lname, fnname, sname, doc, valtype, setcomp, exp) \
-  DEFUN (lname, fnname, sname, 0, 0, 0, 0) () \
-  { \
-    Lisp_Object val; \
-    XSET (val, valtype, exp); \
-    return val; }
-
-#define DEFPRED(lname, fnname, sname, doc, boolexp) \
-  DEFUN (lname, fnname, sname, 0, 0, 0, 0) () \
-  { if (boolexp) return Qt; return Qnil; }
 
 extern void defvar_lisp ();
 extern void defvar_bool ();
@@ -848,6 +854,16 @@ struct gcpro
 	       &v1,&v2,&v3,&v4)
 #define UNGCPRO \
  debug_ungcpro(__FILE__, __LINE__,&gcpro1)
+/* Evaluate expr, UNGCPRO, and then return the value of expr.  */
+#define RETURN_UNGCPRO(expr)		\
+  do					\
+    {					\
+      Lisp_Object ret_ungc_val;		\
+      ret_ungc_val = (expr);		\
+      UNGCPRO;				\
+      return ret_ungc_val;		\
+    }					\
+  while (0)
 
 #else /* ! DEBUG_GCPRO */
 
@@ -875,6 +891,17 @@ struct gcpro
 
 #define UNGCPRO (gcprolist = gcpro1.next)
 
+/* Evaluate expr, UNGCPRO, and then return the value of expr.  */
+#define RETURN_UNGCPRO(expr)		\
+  do					\
+    {					\
+      Lisp_Object ret_ungc_val;		\
+      ret_ungc_val = (expr);		\
+      UNGCPRO;				\
+      return ret_ungc_val;		\
+    }					\
+  while (0)
+
 #endif /* ! DEBUG_GCPRO */
 
 /* Call staticpro (&var) to protect static variable `var'. */
@@ -898,10 +925,12 @@ extern Lisp_Object Qchar_or_string_p, Qmarkerp, Qvectorp;
 extern Lisp_Object Qinteger_or_marker_p, Qboundp, Qfboundp;
 extern Lisp_Object Qcdr;
 
+extern Lisp_Object Qnumberp, Qnumber_or_marker_p;
 #ifdef LISP_FLOAT_TYPE
-extern Lisp_Object Qfloatp, Qinteger_or_floatp, Qinteger_or_float_or_marker_p;
+extern Lisp_Object Qfloatp;
 #endif /* LISP_FLOAT_TYPE */
 
+extern Lisp_Object Qeval;
 extern Lisp_Object Qeventp;
 extern Lisp_Object Qkeymapp;
 extern Lisp_Object Qscreenp;
@@ -915,8 +944,8 @@ extern Lisp_Object Fvectorp (), Fstringp (), Farrayp (), Fsequencep ();
 extern Lisp_Object Fbufferp (), Fmarkerp (), Fsubrp (), Fchar_or_string_p ();
 extern Lisp_Object Finteger_or_marker_p ();
 #ifdef LISP_FLOAT_TYPE
-extern Lisp_Object Ffloatp(), Finteger_or_floatp();
-extern Lisp_Object Finteger_or_float_or_marker_p(), Ftruncate();
+extern Lisp_Object Ffloatp(), Fnumberp();
+extern Lisp_Object Fnumber_or_marker_p(), Ftruncate();
 #endif /* LISP_FLOAT_TYPE */
 extern Lisp_Object Fextentp ();
 extern Lisp_Object Fextent_replica_p ();
@@ -988,12 +1017,13 @@ extern Lisp_Object Fintern (), Fintern_soft (), Fload ();
 extern Lisp_Object Fget_file_char (), Fread_char ();
 extern Lisp_Object Feval_current_buffer (), Feval_region ();
 extern Lisp_Object intern (), oblookup ();
+int locate_file ();
 #define openp(path, str, suffix, storeptr, exec_only)\
     locate_file (path, str, suffix, storeptr, exec_only ? 1 /*X_OK*/ : -1)
 
 /* Defined in eval.c */
 extern Lisp_Object Qautoload, Qexit, Qinteractive, Qcommandp, Qdefun, Qmacro;
-extern Lisp_Object Vinhibit_quit, Vquit_flag;
+extern Lisp_Object Vinhibit_quit, Vquit_flag, Qinhibit_quit;
 extern Lisp_Object Vmocklisp_arguments, Qmocklisp, Qmocklisp_arguments;
 extern Lisp_Object Vautoload_queue;
 extern Lisp_Object Vrun_hooks;
@@ -1010,7 +1040,7 @@ extern Lisp_Object apply1 (), call0 (), call1 (), call2 (), call3 ();
 extern Lisp_Object apply_lambda ();
 extern Lisp_Object internal_catch ();
 extern Lisp_Object internal_condition_case ();
-extern void unbind_to ();
+extern void unbind_to (int speccount);
 extern void error ();
 
 /* Defined in editfns.c */
@@ -1060,8 +1090,11 @@ extern Lisp_Object Fscan_buffer ();
 /* defined in minibuf.c */
 
 extern Lisp_Object last_minibuf_string;
-extern Lisp_Object read_minibuf (), Fcompleting_read ();
-extern Lisp_Object Fread_from_minibuffer ();
+extern Lisp_Object Fcompleting_read ();
+extern Lisp_Object Fread_from_minibuffer (Lisp_Object prompt, 
+                                          Lisp_Object initial_contents,
+                                          Lisp_Object keymap, 
+                                          Lisp_Object read_crock);
 extern Lisp_Object Fread_variable ();
 extern Lisp_Object Fread_minibuffer (), Feval_minibuffer ();
 extern Lisp_Object Fread_string (), Fread_file_name ();
@@ -1089,7 +1122,7 @@ extern Lisp_Object Fcommand_execute (), Finput_pending_p ();
 extern Lisp_Object Qkeymap;
 extern Lisp_Object Fkey_description (), Fsingle_key_description ();
 extern Lisp_Object Fwhere_is_internal ();
-extern Lisp_Object access_keymap (), store_in_keymap ();
+extern Lisp_Object store_in_keymap ();
 extern Lisp_Object get_keyelt (), get_keymap();
 
 /* defined in indent.c */

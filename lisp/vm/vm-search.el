@@ -57,7 +57,7 @@
     (save-window-excursion
      (catch 'search-done
        (while t
-	 (or (>= unread-command-char 0)
+	 (or unread-command-event
 	     (progn
 	       (or (input-pending-p)
 		   (vm-isearch-message))
@@ -87,7 +87,7 @@
 	   ;; Meta character means exit search.
 	   (cond ((and (>= char 128)
 		       search-exit-option)
-		  (setq unread-command-char char)
+		  (setq unread-command-event (character-to-event char))
 		  (throw 'search-done t))
 		 ((eq char search-exit-char)
 		  ;; Esc means exit search normally.
@@ -163,7 +163,7 @@
 			       (/= char search-quote-char)
 			       (or (= char ?\177)
 				   (and (< char ? ) (/= char ?\t) (/= char ?\r))))
-			  (setq unread-command-char char)
+			  (setq unread-command-event (character-to-event char))
 			  (throw 'search-done t))
 			 (t
 			  ;; Any other character => add it to the
@@ -304,7 +304,7 @@
 	(if success
 	    (setq other-end
 		  (if forward (match-beginning 0) (match-end 0)))))
-    (quit (setq unread-command-char ?\C-g)
+    (quit (setq unread-command-event (character-to-event ?\C-g))
 	  (setq success nil))
     (invalid-regexp (setq invalid-regexp (car (cdr lossage)))
 		    (if (string-match "\\`Premature \\|\\`Unmatched \\|\\`Invalid "
@@ -340,7 +340,7 @@
     (if (eq char search-yank-word-char)
 	(setq message (if forward "VM Word search: " "VM Word search backward: "))
       ;; Otherwise let that 1 char be part of the search string.
-      (setq unread-command-char char))
+      (setq unread-command-event (character-to-event char)))
     (setq function
 	  (if (eq char search-yank-word-char)
 	      (if forward 'word-search-forward 'word-search-backward)

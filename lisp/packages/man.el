@@ -159,8 +159,6 @@ argument is given."
       (setq Manual-unformatted-directory-list
 	    (Manual-select-subdirectories Manual-directory-list "man"))))
 
-(autoload 'find-tag-tag "tags")  ;; jwz
-
 ;;
 ;; manual-entry  -- The "main" user function
 ;;
@@ -178,11 +176,19 @@ invoked to create this list from the MANPATH environment variable.
 See the variable Manual-topic-buffer which controls how the buffer
 is named.  See also the variables Manual-match-topic-exactly,
 Manual-query-multiple-pages, and Manual-buffer-view-mode."
-  (interactive (list (let ((thing (condition-case ()
-				      (find-tag-tag "Manual entry: ") ;; jwz
-				    (error (read-string "Manual entry: ")))))
-		       (if (consp thing) (car thing) thing))
-		     (prefix-numeric-value current-prefix-arg)))
+  (interactive
+   (list (let* ((fmh "-A-Za-z0-9_")
+		(default (save-excursion
+			   (buffer-substring
+			    (progn
+			      (re-search-backward "\\sw" nil t)
+			      (skip-chars-backward fmh) (point))
+			    (progn (skip-chars-forward fmh) (point)))))
+		(thing (read-string
+			(if (equal default "") "Manual entry: "
+			  (concat "Manual entry: (default " default ") ")))))
+	   (if (equal thing "") default thing))
+	 (prefix-numeric-value current-prefix-arg)))
   ;;(interactive "sManual entry (topic): \np")
   (Manual-directory-list-init nil)
   (let ((case-fold-search nil)		; let search be easy

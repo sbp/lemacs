@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Tue Apr 21 17:38:38 1992
-;;; from file /u/jwz/emacs19/lisp/debug.el
-;;; emacs version 19.0.2 Lucid.
-;;; bytecomp version 2.05; 9-mar-92.
+;;; compiled by jwz@thalidomide on Fri Aug 21 00:55:24 1992
+;;; from file /wg1/emacs-base/lisp/prim/debug.el
+;;; emacs version 19.2.9 Lucid.
+;;; bytecomp version 2.08;  7-aug-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -13,7 +13,7 @@
 (defvar debug-function-list nil "\
 List of functions currently set for debug on entry.")
 (byte-code "ÀÀ‡" [debug debugger] 1)
-(fset 'debug #[(&rest debugger-args) "ÀÁ!ˆÂÃ Â‰ÄÆÇ!)pÂ‰‰	\nÑŠÒ‹ˆ*\n.	‡" [message "Entering debugger..." nil match-data fundamental-mode default-major-mode generate-new-buffer "*Backtrace*" cursor-in-echo-area executing-macro debugger-step-after-exit debugger-old-buffer debugger-buffer debug-on-quit debug-on-error debugger-match-data debugger-value ((byte-code "À	!ˆÂ!‡" [kill-buffer debugger-buffer store-match-data debugger-match-data] 2)) ((byte-code "À	!ˆÂ ˆpÃÄÈ ˆ+ebˆÉ ˆ`ÊË!ˆÌyˆ`|ˆÍ ˆ@Ï>«›Ğcˆ@Ñ=«îÒÓÃ\"ˆÔÌ!ˆÕcˆÖyˆªİ@×=«ØcˆA@Úp\"ˆÛcˆÔÌ!ˆÜcˆÖyˆª¸@İ=«ŞcˆÚA@p\"ˆÛcˆª¡@Ã=«…ßcˆª•Ú@à=«…Aª‚p\"ˆÛcˆáâ!ˆÃàÃ#$áâ!ˆå ˆ+à‡" [pop-to-buffer debugger-buffer erase-buffer t 50 print-length print-escape-newlines standard-output backtrace debugger-mode search-forward "\n  debug(" 1 debugger-reenable debugger-args (lambda debug) "Entering:\n" debug backtrace-debug 4 delete-char 42 0 exit "Return value: " debugger-value prin1 10 32 error "Signalling: " "Beginning evaluation of function call form:\n" nil message "" buffer-read-only inhibit-trace recursive-edit] 3)) debug-on-next-call] 9 "\
+(fset 'debug #[(&rest debugger-args) "ÀÁ!ˆÂÃ Â‰ÄÆÇ!)pÂ‰‰	\nÑŠÒ‹ˆ*\n.	‡" [message "Entering debugger..." nil match-data fundamental-mode default-major-mode generate-new-buffer "*Backtrace*" cursor-in-echo-area executing-macro debugger-step-after-exit debugger-old-buffer debugger-buffer debug-on-quit debug-on-error debugger-match-data debugger-value ((byte-code "À	!ˆÂ!‡" [kill-buffer debugger-buffer store-match-data debugger-match-data] 2)) ((byte-code "À	!ˆÂ ˆpÃÄÈ ˆ+ebˆÉ ˆ`ÊË!ˆÌyˆ`|ˆÍ ˆ@Ï>«›Ğcˆ@Ñ=«îÒÓÃ\"ˆÔÌ!ˆÕcˆÖyˆªİ@×=«ØcˆA@Úp\"ˆÛcˆÔÌ!ˆÜcˆÖyˆª¸@İ=«ŞcˆÚA@p\"ˆÛcˆª¡@Ã=«…ßcˆª•Ú@à=«…Aª‚p\"ˆÛcˆáâ!ˆÃàÃ#$áâ!ˆå ˆ+à‡" [pop-to-buffer debugger-buffer erase-buffer t 50 print-length print-escape-newlines standard-output backtrace debugger-mode re-search-forward "\n[* ] debug(" 1 debugger-reenable debugger-args (lambda debug) "Entering:\n" debug backtrace-debug 4 delete-char 42 0 exit "Return value: " debugger-value prin1 10 32 error "Signalling: " "Beginning evaluation of function call form:\n" nil message "" buffer-read-only inhibit-trace recursive-edit] 3)) debug-on-next-call] 9 "\
 Enter debugger.  Returns if user says \"continue\".
 Arguments are mainly for use when this is called
  from the internals of the evaluator.

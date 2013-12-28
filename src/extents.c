@@ -165,7 +165,7 @@ static void soe_duplicate (int pos, EXTENT *copy_from, int copy_from_size,
 			   EXTENT trial_prev, struct buffer *b);
 static void soe_delq (EXTENT extent, struct buffer *b);
 static void soe_prune (struct buffer *b);
-static void init_buffer_cached_stack (struct buffer *b);
+void init_buffer_cached_stack (struct buffer *b);
 static void soe_clear (struct buffer *b);
 void free_buffer_cached_stack (struct buffer *b);
 static EXTENT_FRAGMENT befa_internal (int pos, struct buffer *buf);
@@ -243,6 +243,8 @@ static Lisp_Object Vextent_fragment_buffer;
 static struct extent_fragment extent_fragment;
 static struct extent_fragment default_extent_fragment;
 
+int extent_cache_invalid;	/* set this to force a recomputation */
+
 
 
 /*********************************
@@ -316,11 +318,63 @@ buffer_pos_to_extent_index (int pos, struct buffer *buf)
 static EXTENT 
 buffer_starting_extent (int index, struct buffer *buf)
 {
-  if (XTYPE (buf->extents) != Lisp_Extent)
-    return 0;
-  else
-    return XEXTENT (buf->extents);
+  struct stack_of_extents *soe = buf->cached_stack;
+  EXTENT first_extent = NULL;
+  EXTENT ext;
+  int i;
+
+  /* no extents on the buffer */
+  if (!EXTENTP (buf->extents))
+    return NULL;
+  
+  first_extent = XEXTENT (buf->extents);
+
+  /* no cache or cache not valid */
+  if (!soe || soe->buf_index <= 0)
+    return first_extent;
+
+  /* index is after the cached values */
+  if (index >= soe->buf_index)
+    {
+      ext = NULL;
+      for (i = 0; i < soe->stack_index; i++)
+	if (soe->stack [i]->end > index)
+	  {
+	    ext = soe->stack [i];
+	    break;
+	  }
+      if (!ext)
+	ext = soe->previous_extent;
+      return ext ? ext : first_extent;
+    }
+
+  /* index is before the cached values */
+  /* get the previous extent */
+  ext = soe->previous_extent;
+
+  /* no previous extent in the cache */
+  if (!ext)
+    return first_extent;
+	
+  /* previous is closer to index than to the beginning of the buffer */
+  if ((ext->end / 2) < index)
+    {
+      EXTENT starting_one = ext;
+
+      while (ext && ext->end >= index)
+	{
+          ext = ext->e_previous;
+          if (ext && ext->start < starting_one->start)
+	    starting_one = ext;
+        }
+      starting_one = starting_one->previous;
+      return (ext && starting_one) ? starting_one : first_extent;
+    }
+
+  /* default */
+  return first_extent;
 }
+
 
 void
 adjust_extents (int from, int to, int amount, struct buffer* buf)
@@ -329,7 +383,7 @@ adjust_extents (int from, int to, int amount, struct buffer* buf)
 
   if (NILP (buf->extents))
     return;
-  else if (XTYPE (buf->extents) != Lisp_Extent)
+  else if (!EXTENTP (buf->extents))
     abort ();
 
   current = buffer_starting_extent (from, buf);
@@ -354,7 +408,8 @@ adjust_extents (int from, int to, int amount, struct buffer* buf)
       current = current->next;
     }
   
-  if (buf->cached_stack->buf_index > 0
+  if (buf->cached_stack
+      && buf->cached_stack->buf_index > 0
       && buf->cached_stack->buf_index > from
       && buf->cached_stack->buf_index <= to)
     buf->cached_stack->buf_index += amount;
@@ -397,7 +452,7 @@ verify_extent_modification (struct buffer *buf, int from, int to)
 #endif
       NILP (buf->extents))
     return;
-  else if (XTYPE (buf->extents) != Lisp_Extent)
+  else if (!EXTENTP (buf->extents))
     abort();
   else
     map_extents (from, to, 0, verify_extent_mf, (void*)&ep, buf, 0);
@@ -426,7 +481,7 @@ splice_extent_into_buffer (EXTENT extent, Lisp_Object buffer)
 
   if (NILP (extents_root))
     buf->extents = extent_obj;
-  else if (XTYPE (extents_root) != Lisp_Extent)
+  else if (!EXTENTP (extents_root))
     abort();
   else
     {
@@ -543,8 +598,11 @@ make_extent_internal (int from, int to, Lisp_Object buffer, Extent_Data *ext)
   XSET(extent_obj, Lisp_Extent, extent);
 
   extent->buffer = buffer;
-  extent->data = (void *) ext;
   extent->flags = 0;
+#ifdef ENERGIZE
+  if (ext)
+    set_energize_extent_data (extent, ext);
+#endif
 
   extent->start = buffer_pos_to_extent_index (from, buf);
   extent->end = buffer_pos_to_extent_index (to, buf);
@@ -567,7 +625,7 @@ extent_endpoint (EXTENT extent, int endp)
     return -1;
   else if (EXTENT_DETACHED_P (extent))
     return 0;
-  else if (XTYPE (extent->buffer) == Lisp_Buffer)
+  else if (BUFFERP (extent->buffer))
     return extent_index_to_buffer_pos (i, XBUFFER(extent->buffer));
   else
     return i;
@@ -576,7 +634,9 @@ extent_endpoint (EXTENT extent, int endp)
 static void
 set_extent_flags (EXTENT extent)
 {
-  Extent_Data *ext = (Extent_Data *) extent->data;
+#ifdef ENERGIZE
+  Extent_Data *ext = energize_extent_data (extent);
+#endif
 
   /* clear every flag except the EF_DETACHED flag */
   if (EXTENT_DESTROYED_P (extent))
@@ -630,14 +690,17 @@ set_extent_flags (EXTENT extent)
 static void
 set_extent_attributes_index (EXTENT extent)
 {
-  Extent_Data *ext = (Extent_Data *) extent->data;
+#ifdef ENERGIZE
+  Extent_Data *ext = energize_extent_data (extent);
   int graphic_attributes;
 
   if (!ext) 
     extent->attr_index = -1;
-#ifdef ENERGIZE
   else
     {
+      extern Lisp_Object Venergize_attributes_mapping;
+      Lisp_Object face;
+
       switch (ext->extentType)
         {
         case CEAttribute:
@@ -660,9 +723,28 @@ set_extent_attributes_index (EXTENT extent)
       if (graphic_attributes >= GA_MAX) 
         graphic_attributes = GA_NO_CHANGE;
 
+      /* The Venergize_attributes_mapping global is an A-list of the form
+	 ((<kernel attribute number> <attribute name> . <emacs face id>)..)
+	 It is initialized by connect-to-energize in energize-init.el. */
+      if (CONSP (Venergize_attributes_mapping))
+	{
+	  face = Fassq (graphic_attributes, Venergize_attributes_mapping);
+	  if (CONSP (face))
+	    {
+	      face = XCONS(face)->cdr;
+	      if (CONSP (face))
+		{
+		  face = XCONS(face)->cdr;
+		  if (FIXNUMP (face))
+		    graphic_attributes = XINT (face);
+		}
+	    }
+	}
       extent->attr_index = graphic_attributes;
     }
-#endif /* ENERGIZE */
+#else /* ! ENERGIZE */
+  extent->attr_index = -1;
+#endif /* ! ENERGIZE */
   return;
 }
 
@@ -670,7 +752,7 @@ static void
 install_extent_glyphs (EXTENT extent)
 {
 #ifdef ENERGIZE
-  Extent_Data *ext = (Extent_Data *) extent->data;
+  Extent_Data *ext = energize_extent_data (extent);
 
   if (!ext || (ext->extentType != CEGeneric))
     return;
@@ -691,6 +773,9 @@ restore_extent_state (EXTENT extent)
 }
 
 #ifdef ENERGIZE
+extern BITS32
+generic_id_for_extent (Extent_Data *ext);
+
 static long
 extent_to_generic_id (Lisp_Object extent_obj)
 {
@@ -698,12 +783,9 @@ extent_to_generic_id (Lisp_Object extent_obj)
     return 0;
   else 
     {
-      Extent_Data *ext = (Extent_Data *) XEXTENT(extent_obj)->data;
-      if (ext && ext->u.generic.gData)
-        return (long) ext->u.generic.gData->id;
-      else
-        return 0;
-   }
+      Extent_Data *ext = energize_extent_data (XEXTENT (extent_obj));
+      return generic_id_for_extent (ext);
+    }
 }
 #endif /* ENERGIZE */
 
@@ -780,7 +862,7 @@ destroy_extent (EXTENT extent)
   extent->previous = 0;
   extent->e_next = 0;
   extent->e_previous = 0;
-  extent->data = 0;
+  extent->user_data = Qnil;
   extent->attr_index = 0;
   extent->buffer = Qnil;
 }
@@ -789,9 +871,7 @@ void
 update_extent (EXTENT extent, int from, int to, int set_endpoints,
 	       struct buffer *buf)
 {
-  Extent_Data *ext = (Extent_Data *) extent->data;
-  
-  if ((XTYPE (extent->buffer) != Lisp_Buffer) ||
+  if ((!BUFFERP (extent->buffer)) ||
       (XBUFFER(extent->buffer) != buf))
     error ("extent 0x%x not part of specified buffer %s", extent, 
            BUFNAME (buf));
@@ -904,7 +984,7 @@ map_extents
   else
     end = buffer_pos_to_extent_index (to, buf);
 
-  if (XTYPE (extents_root) != Lisp_Extent)
+  if (!EXTENTP (extents_root))
     abort();
   else 
     {
@@ -985,14 +1065,14 @@ All arguments except FUNCTION are optional, with FROM, TO, MAPARG, and\n\
 
   if (NILP (from)) XSET (from, Lisp_Int, BUF_BEG (XBUFFER (buffer)));
   if (NILP (to)) XSET (to, Lisp_Int, BUF_Z (XBUFFER (buffer)));
-  CHECK_NUMBER (from, 1);
-  CHECK_NUMBER (to, 2);
+  CHECK_FIXNUM (from, 1);
+  CHECK_FIXNUM (to, 2);
   check_from_to (XINT(from), XINT(to), (XBUFFER (buffer)));
   if (XINT(from) > XINT (to))
     error ("MAP-EXTENTS args FROM (== %d) and TO (== %d) are inconsistent.",
            XINT (from), XINT (to));
   
-  if (XTYPE (function) == Lisp_Subr)
+  if (SUBRP (function))
     {
       map_funct = (elisp_emf) XSUBR (function)->function;
       map_extents (XINT (from), XINT (to), map_funct, 0,
@@ -1042,14 +1122,14 @@ do_highlight (Lisp_Object extent_obj, int flag)
       Lisp_Object new_parent = 
         (EXTENTP (extent_obj))?(XEXTENT(extent_obj)->buffer):Qnil;
 
-      if (XTYPE(old_parent) == Lisp_Buffer)
+      if (BUFFERP (old_parent))
         {
           Vlast_highlighted_extent = Qnil;
           BUF_FACECHANGE (XBUFFER (old_parent))++;
           windows_or_buffers_changed++;
         }
 
-      if ((XTYPE(new_parent) == Lisp_Buffer) &&
+      if ((BUFFERP (new_parent)) &&
           !NILP (flag))
         {
           Vlast_highlighted_extent = extent_obj;
@@ -1103,14 +1183,11 @@ on extents without the 'highlight property.")
 Lisp_Object
 extent_glyph_at (EXTENT extent, int pos, int endp)
 {
-  if (extent && extent->data && (XTYPE(extent->buffer) == Lisp_Buffer))
-    {
-      Extent_Data *ext = (Extent_Data *) extent->data;
-
-      if (!ext)
-	return Qnil;
-
 #ifdef ENERGIZE
+  Extent_Data *ext;
+  if (extent && (BUFFERP (extent->buffer)) &&
+      (ext = energize_extent_data (extent)))
+    {
       if (endp)
         {
           if (pos == (extent_endpoint (extent, 1) - 1))
@@ -1125,9 +1202,9 @@ extent_glyph_at (EXTENT extent, int pos, int endp)
           else
             return Qnil;
         }
-#endif /* ENERGIZE */
     }
   else
+#endif /* ENERGIZE */
     return Qnil;
 }
 
@@ -1311,7 +1388,7 @@ extent_at (int pos, struct buffer *buf, int flag)
 {
   if (NILP (buf->extents))
     return 0;
-  else if (XTYPE (buf->extents) != Lisp_Extent)
+  else if (!EXTENTP (buf->extents))
     abort();
   else
     {
@@ -1350,7 +1427,7 @@ only its display properties.")
   extent = XEXTENT (extent_obj);
 
   if (NILP (XBUFFER (extent->buffer)->name))
-    error ("Deleting extent in killed buffed");
+    error ("Deleting extent in killed buffer");
 
   BUF_FACECHANGE (XBUFFER (extent->buffer))++;
   windows_or_buffers_changed++;
@@ -1368,10 +1445,10 @@ DEFUN ("update-extent", Fupdate_extent, Supdate_extent, 3, 3, 0,
   int to = XINT (end);
 
   CHECK_EXTENT (extent_obj, 0);
-  CHECK_NUMBER (start, 1);
-  CHECK_NUMBER (end, 2);
+  CHECK_FIXNUM (start, 1);
+  CHECK_FIXNUM (end, 2);
 
-  if (XTYPE (extent->buffer) != Lisp_Buffer
+  if (!BUFFERP (extent->buffer)
       || NILP (XBUFFER (extent->buffer)->name))
     error ("EXTENT arg to UPDATE-EXTENT doesn't belong to a buffer");
 
@@ -1410,11 +1487,11 @@ ATTRIBUTE must be one of the following symbols:\n\
 
   CHECK_EXTENT (extent_obj, 0);
   
-  if (XTYPE(extent->buffer) != Lisp_Buffer
+  if (!BUFFERP (extent->buffer)
       || NILP (XBUFFER (extent->buffer)->name))
     error ("EXTENT arg to SET-EXTENT-ATTRIBUTE doesn't belong to a buffer");
 
-  if (XTYPE (attr) == Lisp_Int)
+  if (FIXNUMP (attr))
     {
       int attr_num = XINT (attr);
       if (attr_num < 0)
@@ -1423,7 +1500,7 @@ ATTRIBUTE must be one of the following symbols:\n\
         attr_num = GA_NO_CHANGE;
       extent->attr_index = attr_num;
     }
-  else if (XTYPE (attr) == Lisp_Symbol)
+  else if (SYMBOLP (attr))
     {
       if (EQ (intern ("highlight"), attr))
         { SET_EXTENT_FLAG (extent, EF_HIGHLIGHT); }
@@ -1455,6 +1532,77 @@ ATTRIBUTE must be one of the following symbols:\n\
 }
 
 
+DEFUN ("extent-attributes", Fextent_attributes, Sextent_attributes, 1, 2, 0,
+ "Return a list of attributes of EXTENT.\n\
+This list may contain any or none of the following symbols:\n\
+\n\
+    highlight		highlight when the mouse moves over it\n\
+    write-protected	text within this extent will be unmodifyable\n\
+    invisible		don't display the text in this region\n\
+")
+  (extent_obj, raw_p)
+   Lisp_Object extent_obj, raw_p;
+{
+  Lisp_Object result = Qnil;
+  EXTENT extent = XEXTENT (extent_obj);
+  CHECK_EXTENT (extent_obj, 0);
+
+  if (!NILP (raw_p))
+    return make_number (extent->attr_index);
+
+  if (EXTENT_FLAG_P (extent, EF_HIGHLIGHT))
+    result = Fcons (intern ("highlight"), result);
+  if (EXTENT_FLAG_P (extent, EF_WRITE_PROTECT))
+    result = Fcons (intern ("write-protected"), result);
+  if (EXTENT_FLAG_P (extent, EF_INVISIBLE))
+    result = Fcons (intern ("invisible"), result);
+  if (EXTENT_FLAG_P (extent, EF_START_GLYPH))
+    result = Fcons (intern ("start-glyph"), result);
+  if (EXTENT_FLAG_P (extent, EF_END_GLYPH))
+    result = Fcons (intern ("end-glyph"), result);
+  if (EXTENT_FLAG_P (extent, EF_MENU))
+    result = Fcons (intern ("menu"), result);
+  if (EXTENT_FLAG_P (extent, EF_START_OPEN))
+    result = Fcons (intern ("start-open"), result);
+  if (EXTENT_FLAG_P (extent, EF_END_OPEN))
+    result = Fcons (intern ("end-open"), result);
+  if (EXTENT_FLAG_P (extent, EF_COLUMN))
+    result = Fcons (intern ("column"), result);
+  if (EXTENT_FLAG_P (extent, EF_DETACHED))
+    result = Fcons (intern ("detached"), result);
+  if (EXTENT_FLAG_P (extent, EF_WARN_MODIFY))
+    result = Fcons (intern ("warn-modify"), result);
+  if (!EXTENT_FLAG_P (extent, EF_DUPLICABLE))
+    result = Fcons (intern ("non-duplicable"), result);
+  return result;
+}
+
+DEFUN ("extent-data", Fextent_data, Sextent_data, 1, 1, 0,
+ "Return the user data associated with the given extent.\n\
+Set this using the `set-extent-data' function.")
+	(extent)
+	Lisp_Object extent;
+{
+  CHECK_EXTENT (extent, 0);
+  return XEXTENT (extent)->user_data;
+}
+
+DEFUN ("set-extent-data", Fset_extent_data, Sset_extent_data, 2, 2, 0,
+ "Set the user data slot of the given extent.\n\
+Access this using the `extent-data' function.")
+	(extent, data)
+	Lisp_Object extent, data;
+{
+  CHECK_EXTENT (extent, 0);
+#ifdef ENERGIZE
+  if (energize_extent_data (XEXTENT (extent)))
+    error ("thou shalt not change the user-data of Energize extents");
+#endif
+  XEXTENT (extent)->user_data = data;
+  return data;
+}
+
+
 DEFUN ("extent-at", Fextent_at, Sextent_at, 1, 3, 0,
        "Find \"smallest\" extent at POS in BUFFER having FLAG set.  BUFFER\n\
 defaults to the current buffer, FLAG defaults to nil, meaning that any\n\
@@ -1472,7 +1620,7 @@ extent at POS.")
   if (NILP (buffer))
     XSET (buffer, Lisp_Buffer, current_buffer);
 
-  CHECK_NUMBER (pos, 0);
+  CHECK_FIXNUM (pos, 0);
   CHECK_BUFFER (buffer, 1);
   check_from_to (position, position, XBUFFER (buffer));
 
@@ -1510,9 +1658,9 @@ return the first extent in the buffer.")
   (extent_obj)
    Lisp_Object extent_obj;
 {
-  if (XTYPE (extent_obj) == Lisp_Buffer)
+  if (BUFFERP (extent_obj))
     return XBUFFER (extent_obj)->extents;
-  else if (XTYPE (extent_obj) == Lisp_Extent)
+  else if (EXTENTP (extent_obj))
     {
       Lisp_Object return_val = Qnil;
       EXTENT next = XEXTENT(extent_obj)->next;
@@ -1538,12 +1686,12 @@ EXTENT is a buffer, return the first extent in the buffer.")
   (extent_obj)
    Lisp_Object extent_obj;
 {
-  if (XTYPE (extent_obj) == Lisp_Buffer)
+  if (BUFFERP (extent_obj))
     {
       Lisp_Object return_val;
       EXTENT tmp;
 
-      if (XTYPE (XBUFFER (extent_obj)->extents) == Lisp_Extent)
+      if (EXTENTP (XBUFFER (extent_obj)->extents))
         tmp = XEXTENT (XBUFFER (extent_obj)->extents);
       else
         return Qnil;
@@ -1554,7 +1702,7 @@ EXTENT is a buffer, return the first extent in the buffer.")
       XSET (return_val, Lisp_Extent, tmp);
       return return_val;
     }
-  else if (XTYPE (extent_obj) == Lisp_Extent)
+  else if (EXTENTP (extent_obj))
     {
       Lisp_Object return_val = Qnil;
       EXTENT next = XEXTENT(extent_obj)->e_next;
@@ -1639,7 +1787,7 @@ means compute the correct stack of extents for POSITION in BUFFER.")
     {
       struct stack_of_extents *tmp = buf->cached_stack;
       int pos;
-      CHECK_NUMBER (position, 1);
+      CHECK_FIXNUM (position, 1);
       pos = XINT (position);
       if ((pos < BUF_BEG(buf)) || (BUF_Z (buf) < pos))
         error ("Bad position %d for buffer %s", pos, BUFNAME (buf));
@@ -1687,7 +1835,7 @@ int verify_buffer_stack (struct buffer *buf)
 
   if (!soe)
     {
-      if (XTYPE (buf->extents) == Lisp_Extent)
+      if (EXTENTP (buf->extents))
         return -1;
       else if (buf->extents == Qnil)
         return 0;
@@ -1789,69 +1937,72 @@ int verify_buffer_stack (struct buffer *buf)
 static void soe_push (EXTENT extent, struct buffer *b)
 {
   struct stack_of_extents *soe = b->cached_stack;
-  int index = soe->buf_index;
-  int on_stack = 0;
-
-  if (index <= 0)
+  if (soe)
     {
-      soe_clear(b);
-      return;
-    }
-  else if (EXTENT_OVER_INDEX (extent, index))
-    on_stack = 1;
+      int index = soe->buf_index;
+      int on_stack = 0;
 
-  if (on_stack)
-    {
-      if (soe->stack_index == soe->stack_length)
+      if (index <= 0)
 	{
-	  soe->stack_length *= 2;
-	  soe->stack = 
-            (EXTENT*)xrealloc (soe->stack, 
-                               soe->stack_length * sizeof (EXTENT));
+	  soe_clear(b);
+	  return;
 	}
+      else if (EXTENT_OVER_INDEX (extent, index))
+	on_stack = 1;
 
-      if (soe->stack_index == 0)
+      if (on_stack)
 	{
-	  soe->stack[0] = extent;
-	  soe->stack_index = 1;
-	}
-      else
-	{
-	  EXTENT *cef, *cef_bound, *cef_copy, *cef_put_here;
+	  if (soe->stack_index == soe->stack_length)
+	    {
+	      soe->stack_length *= 2;
+	      soe->stack = 
+		(EXTENT*)xrealloc (soe->stack, 
+				   soe->stack_length * sizeof (EXTENT));
+	    }
 
-	  /* make sure that this guy isn't in the stack already */
-	  soe_delq (extent, b);
+	  if (soe->stack_index == 0)
+	    {
+	      soe->stack[0] = extent;
+	      soe->stack_index = 1;
+	    }
+	  else
+	    {
+	      EXTENT *cef, *cef_bound, *cef_copy, *cef_put_here;
+
+	      /* make sure that this guy isn't in the stack already */
+	      soe_delq (extent, b);
       
-	  cef = soe->stack;
-	  cef_copy = cef;
-	  cef_bound = cef + soe->stack_index;
-	  cef_put_here = cef_bound;
+	      cef = soe->stack;
+	      cef_copy = cef;
+	      cef_bound = cef + soe->stack_index;
+	      cef_put_here = cef_bound;
 
-	  while (cef < cef_bound)
-	    {
-	      if (EXTENT_LESS (extent, *cef))
+	      while (cef < cef_bound)
 		{
-		  cef_put_here = cef;
-		  break;
+		  if (EXTENT_LESS (extent, *cef))
+		    {
+		      cef_put_here = cef;
+		      break;
+		    }
+		  cef++;
 		}
-	      cef++;
-	    }
   
-	  cef = cef_bound;
-	  while (cef > cef_put_here)
-	    {
-	      *cef = *(cef - 1);
-	      cef--;
+	      cef = cef_bound;
+	      while (cef > cef_put_here)
+		{
+		  *cef = *(cef - 1);
+		  cef--;
+		}
+	      *cef_put_here = extent;
+	      soe->stack_index++;
 	    }
-	  *cef_put_here = extent;
-	  soe->stack_index++;
 	}
-    }
-  else if (extent->end < index)
-    {
-      EXTENT prev = soe->previous_extent;
-      if (!prev || EXTENT_E_LESS (prev, extent))
-	soe->previous_extent = extent;
+      else if (extent->end < index)
+	{
+	  EXTENT prev = soe->previous_extent;
+	  if (!prev || EXTENT_E_LESS (prev, extent))
+	    soe->previous_extent = extent;
+	}
     }
 }
 
@@ -1859,6 +2010,9 @@ static void soe_duplicate (int index, EXTENT *copy_from, int copy_from_size,
 			   EXTENT trial_prev, struct buffer *b)
 {
   struct stack_of_extents *soe = b->cached_stack;
+
+  if (!soe)
+    return;
 
   if (copy_from_size > 0)
     {
@@ -1893,42 +2047,46 @@ static void soe_duplicate (int index, EXTENT *copy_from, int copy_from_size,
 static void soe_delq (EXTENT extent, struct buffer *b)
 {
   struct stack_of_extents *soe = b->cached_stack;
-  EXTENT* cef = soe->stack;
-  EXTENT* cef_copy = cef;
-  EXTENT* cef_bound = cef + soe->stack_index;
-  int found = 0;
+  if (soe)
+    {
+      EXTENT* cef = soe->stack;
+      EXTENT* cef_copy = cef;
+      EXTENT* cef_bound = cef + soe->stack_index;
+      int found = 0;
 
-  while (cef < cef_bound)
-    {
-      if (extent == *cef)
-	{
-	  *cef = 0;
-	  found++;
-	}
-      cef++;
-    }
-  
-  if (found > 0)
-    {
-      cef = cef_copy; 
       while (cef < cef_bound)
 	{
-	  if (*cef)
+	  if (extent == *cef)
 	    {
-	      *cef_copy = *cef;
-	      cef_copy++;
+	      *cef = 0;
+	      found++;
 	    }
 	  cef++;
 	}
+  
+      if (found > 0)
+	{
+	  cef = cef_copy; 
+	  while (cef < cef_bound)
+	    {
+	      if (*cef)
+		{
+		  *cef_copy = *cef;
+		  cef_copy++;
+		}
+	      cef++;
+	    }
 
-      soe->stack_index = cef_copy - soe->stack;
+	  soe->stack_index = cef_copy - soe->stack;
+	}
+
+      if (extent == soe->previous_extent)
+	soe->previous_extent = extent->e_previous;
     }
-
-  if (extent == soe->previous_extent)
-    soe->previous_extent = extent->e_previous;
 }
 
-static void init_buffer_cached_stack (struct buffer *b)
+void 
+init_buffer_cached_stack (struct buffer *b)
 {
   if (!b->cached_stack)
     {
@@ -1946,15 +2104,21 @@ static void init_buffer_cached_stack (struct buffer *b)
 static void soe_clear (struct buffer *b)
 {
   struct stack_of_extents *soe = b->cached_stack;
-  soe->stack_index = 0;
-  soe->buf_index = 0;
-  soe->previous_extent = 0;
+  if (soe)
+    {
+      soe->stack_index = 0;
+      soe->buf_index = 0;
+      soe->previous_extent = 0;
+    }
 }
 
 static void soe_prune (struct buffer *b)
 {
   struct stack_of_extents *soe = b->cached_stack;
 
+  if (!soe)
+    return;
+  
   if (soe->buf_index <= 0)
     {
       soe_clear(b);
@@ -2246,6 +2410,7 @@ update_cache_forward (EXTENT_FRAGMENT ef, int buf_index, struct buffer* buf)
 
         last = next;
         next = next->next;
+	if (next == last) abort ();
       }
     while (next && (next->start == buf_index));
 
@@ -2387,12 +2552,13 @@ buffer_extent_fragment_at (int pos, struct buffer *buf, struct screen *s)
       default_extent_fragment.to = MAX_INT;
       return &default_extent_fragment;
     }
-  else if (XTYPE (buf->extents) != Lisp_Extent)
+  else if (!EXTENTP (buf->extents))
     abort ();
 
   buf_index = buffer_pos_to_extent_index (pos, buf);
   ef = &extent_fragment;
-  cache_valid = ((buf == ef->buf) && 
+  cache_valid = (!extent_cache_invalid &&
+		 (buf == ef->buf) && 
                  (BUF_MODIFF(buf) == ef->modiff) &&
 		 (BUF_FACECHANGE (buf) == ef->face_change));
 
@@ -2409,6 +2575,7 @@ buffer_extent_fragment_at (int pos, struct buffer *buf, struct screen *s)
     ef = befa_internal (pos, buf);
 
   setup_extent_fragment_face_ptr (s, ef);
+  extent_cache_invalid = 0;
   return ef;
 }
 
@@ -2422,6 +2589,7 @@ init_extent_fragment ()
   extent_fragment.extents_stack = (EXTENT *) xmalloc (l * sizeof (EXTENT));
 
   bzero ((char *) &default_extent_fragment, sizeof (default_extent_fragment));
+  extent_cache_invalid = 1;
 }
 
 /* Modify all of the extents as required for the insertion. At the
@@ -2488,7 +2656,7 @@ void process_extents_for_deletion (int from, int to, int start, int end,
 {
   if (NILP (buf->extents))
     return;
-  else if (XTYPE (buf->extents) != Lisp_Extent)
+  else if (!EXTENTP (buf->extents))
     abort();
   else
     {
@@ -2507,8 +2675,9 @@ void process_extents_for_deletion (int from, int to, int start, int end,
       map_extents (from, to, 0, process_extents_for_deletion_mf,
                    (void *) &peds, buf, 1);
 
-      if ((buf->cached_stack->buf_index >= start) && 
-	  (buf->cached_stack->buf_index < end))
+      if (buf->cached_stack
+	  && (buf->cached_stack->buf_index >= start)
+	  && (buf->cached_stack->buf_index < end))
 	buf->cached_stack->buf_index = start;
       soe_prune (buf);
     }
@@ -2518,7 +2687,7 @@ void process_extents_for_destruction (int from, int to, struct buffer *buf)
 {
   if (NILP (buf->extents))
     return;
-  else if (XTYPE (buf->extents) != Lisp_Extent)
+  else if (!EXTENTP (buf->extents))
     abort();
   else
     {
@@ -2585,7 +2754,7 @@ replicate_extents (int opoint, int length, struct buffer *buf)
 {
   if (NILP (buf->extents))
     return Qnil;
-  else if (XTYPE (buf->extents) != Lisp_Extent)
+  else if (!EXTENTP (buf->extents))
     abort();
   else
     {
@@ -2620,8 +2789,8 @@ void
 splice_in_extent_replicas (int opoint, int length, 
                            Lisp_Object dup_list, struct buffer *buf)
 {
-  if ((!NILP(buf->extents) && (XTYPE (buf->extents) != Lisp_Extent)) || 
-      (!NILP (dup_list) && (XTYPE (dup_list) != Lisp_Cons)))
+  if ((!NILP(buf->extents) && (!EXTENTP (buf->extents))) || 
+      (!NILP (dup_list) && (!CONSP (dup_list))))
     abort();
   if (NILP (dup_list))   
     return;
@@ -2635,7 +2804,7 @@ splice_in_extent_replicas (int opoint, int length,
         {
           Lisp_Object current_replica = Fcar (tail);
           /* only process replicas at the moment */
-          if (XTYPE (current_replica) == Lisp_Extent_Replica) 
+          if (EXTENT_REPLICA_P (current_replica)) 
             {
               DUP dup = XDUP (current_replica);
               EXTENT extent = XEXTENT (dup->extent);
@@ -2646,7 +2815,7 @@ splice_in_extent_replicas (int opoint, int length,
                 continue;
 
               /* paranoid testing which will go away eventually */
-              if ((XTYPE (dup->extent) != Lisp_Extent) ||
+              if ((!EXTENTP (dup->extent)) ||
                   (XBUFFER (extent->buffer) != buf))
                 abort ();
               
@@ -2684,7 +2853,7 @@ splice_in_extent_replicas (int opoint, int length,
         {
           Lisp_Object current_replica = Fcar (tail);
           /* only process replicas at the moment */
-          if (XTYPE (current_replica) == Lisp_Extent_Replica) 
+          if (EXTENT_REPLICA_P (current_replica)) 
             {
               DUP dup = XDUP (current_replica);
               EXTENT extent = XEXTENT (dup->extent);
@@ -2695,7 +2864,7 @@ splice_in_extent_replicas (int opoint, int length,
                 continue;
 
               /* paranoid testing which will go away eventually */
-              if ((XTYPE (dup->extent) != Lisp_Extent))
+              if ((!EXTENTP (dup->extent)))
                 abort ();
 
 	      /* Energize extents like topleve-forms can only be pasted 
@@ -2779,7 +2948,7 @@ add_to_replicas_lists
   for (tail = dup_list; !NILP (tail); tail = Fcdr(tail))
     {
       Lisp_Object current_replica = Fcar (tail);
-      if (XTYPE (current_replica) == Lisp_Extent_Replica) 
+      if (EXTENT_REPLICA_P (current_replica)) 
         {
           DUP dup = XDUP (current_replica);
           EXTENT extent = XEXTENT (dup->extent);
@@ -2798,7 +2967,7 @@ add_to_replicas_lists
           new_dup->end += offset;
    
           /* paranoid testing which will go away eventually */
-          if (XTYPE (dup->extent) != Lisp_Extent)
+          if (!EXTENTP (dup->extent))
             abort ();
               
           if (!gethash ((void *) extent, table, (void **) &pre_existing_cell))
@@ -2906,6 +3075,9 @@ syms_of_extents()
   defsubr(&Sdelete_extent);
   defsubr(&Supdate_extent);
   defsubr(&Sset_extent_attribute);
+  defsubr(&Sextent_attributes);
+  defsubr(&Sextent_data);
+  defsubr(&Sset_extent_data);
 #if 0
   defsubr(&Snext_e_extent);
   defsubr(&Sstack_of_extents);

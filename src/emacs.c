@@ -166,57 +166,6 @@ init_cmdargs (argc, argv, skip_args)
     }
 }
 
-#ifdef INVISIBLE_TERMINAL_KLUDGE
-
-#ifdef MAINTAIN_ENVIRONMENT
-extern char **environ;
-#endif
-
-#ifdef MAINTAIN_ENVIRONMENT
-
-/* This is the "real" getenv.  We need to use this before
-   init_environ is called, when MAINTAIN_ENVIRONMENT is defined. */
-
-static char *
-early_getenv (look_for)
-     char *look_for;
-{
-  char **env_p;
-  char *look_p;
-  char *within_p;
-
-  for (env_p = environ; *env_p; env_p++)
-    {
-      for (look_p = look_for, within_p = *env_p;
-	   ;
-	   look_p++, within_p++)
-	{
-	  char within_ch = *within_p;
-	  char look_ch = *look_p;
-
-	  /* If we got to the end of within, environ has a bogus entry */
-	  if (!within_ch)
-	    break;
-	  /* If we got to the end of look */
-	  if (!look_ch)
-	    /* If the next char in within is = */
-	    if (within_ch == '=')
-	      /* we win */
-	      return (within_p + 1);
-	    else
-	      break;
-	  if (look_ch != within_ch)
-	    break;
-	}
-    }
-  return (0);
-}
-#else
-#define early_getenv getenv
-#endif
-#endif
-
-
 /* DOT_FOUND_IN_SEARCH becomes non-zero when find_user_command ()
    encounters a `.' as the directory pathname while scanning the
    list of possible pathnames; i.e., if `.' comes before the directory
@@ -618,34 +567,6 @@ main (argc, argv, envp)
       noninteractive = 1;
     }
 
-  if (! noninteractive
-#ifdef USE_THE_INITIAL_SCREEN
-      && ! isatty (0)
-#endif
-      )
-    {
-#ifdef INVISIBLE_TERMINAL_KLUDGE
-      if (early_getenv("DISPLAY") && !inhibit_window_system)
-	{
-	  /* Need to use fresh strings here and not strings from 
-	   * read-only space */
-	  putenv(strdup ("TERM=invisible"));
-	  putenv(strdup ("TERMCAP=invisible:cm=:co#80:li#24:"));
-	}
-      else
-	{
-#endif
-#ifdef NON_X_DISPLAY_WORKS
-      fprintf (stderr, "emacs: standard input is not a tty\n");
-#else
-      fprintf (stderr, "Sorry, this Emacs only works under X for now\n");
-#endif
-      exit (1);
-#ifdef INVISIBLE_TERMINAL_KLUDGE
-	}
-#endif
-    }
-
   if (
 #ifndef CANNOT_DUMP
       ! noninteractive || initialized
@@ -820,6 +741,7 @@ main (argc, argv, envp)
       syms_of_events ();
       syms_of_event_alloc ();
       syms_of_event_stream ();
+      syms_of_font_lock ();
 
 #ifdef SYMS_SYSTEM
       SYMS_SYSTEM;
@@ -877,21 +799,17 @@ main (argc, argv, envp)
 			 : Fcar (Vcommand_line_args));
     free (progname);
 
-#if 0
-    Vexecution_path = Ftruename (full_program_name, Qnil);
-    if (NILP (Vexecution_path)) Vexecution_path = full_program_name;
-#else
     Vexecution_path = full_program_name;
-#endif
     Vinvocation_name = Ffile_name_nondirectory (full_program_name);
   }
 
-#ifdef BSD4_2
+#ifdef HAVE_TZSETWALL
   {
     /* fix for bug where emacs always thinks that it is in the
-       timezone wherein it was dumped */
-    extern void tzsetwall();
-    tzsetwall();
+       timezone wherein it was dumped
+     */
+    extern void tzsetwall ();
+    tzsetwall ();
   }
 #endif
 
@@ -986,7 +904,7 @@ all of which are called before Emacs is actually killed.")
   stop_vms_input ();
  #endif  */
   stuff_buffered_input (arg);
-  exit ((XTYPE (arg) == Lisp_Int) ? XINT (arg)
+  exit ((FIXNUMP (arg)) ? XINT (arg)
 #ifdef VMS
 	: 1
 #else

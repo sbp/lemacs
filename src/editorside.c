@@ -35,6 +35,7 @@
 #include <X11/StringDefs.h>
 #include <cdisplayctx.h>
 #include <wimage.h>
+#include <lwlib.h>
 
 /* Energize editor requests and I/O operations */
 #include "editorside.h"
@@ -45,10 +46,6 @@
 
 #include "extents-data.h"
 
-#include <dboxlib.h>
-#include <dbox.h>
-#include <notelib.h>
-#include <note.h>
 
 /************** Typedefs and Structs ***********************/
 
@@ -74,6 +71,8 @@ struct reply_wait {
   char		answered_p;
   char		status;
   char*		message;
+  Lisp_Object	menu_result;
+  Lisp_Object	only_name;
   struct reply_wait*	next;
 };
 
@@ -83,6 +82,10 @@ global_reply_wait;
 extern void free_all_x_bitmaps_indices (void);
 Lisp_Object Venergize_kernel_busy;
 Lisp_Object Qenergize_kernel_busy;
+Lisp_Object Venergize_attributes_mapping;
+Lisp_Object Venergize_kernel_busy_hook;
+Lisp_Object Venergize_menu_update_hook;
+Lisp_Object Qenergize_extent_data;
 
 /************************ Functions ********************/
 extern void free_all_x_bitmaps_indices (void);
@@ -90,6 +93,8 @@ extern Lisp_Object Venergize_kernel_busy;
 extern Lisp_Object make_extent_for_data
 (BufferInfo *binfo, Extent_Data *ext, int from, int to, int set_endpoints);
 
+static int
+wait_for_reply (struct reply_wait* rw);
 static Extent_Data *extent_to_data (Lisp_Object extent_obj);
 static char *copy_string (char *s);
 Lisp_Object word_to_lisp (unsigned int item);
@@ -167,13 +172,16 @@ void WriteExtent (Connection *conn, Extent_Data *ext,
 static char *get_buffer_as_string (unsigned int *len);
 static int write_an_extent (Lisp_Object extent_obj, void *arg);
 static void SaveBufferToEnergize (BufferInfo *binfo);
-static BITS32 generic_id_for_extent (Extent_Data *ext);
-static int get_energize_menu (Lisp_Object buffer, Lisp_Object extent_obj);
+BITS32 generic_id_for_extent (Extent_Data *ext);
+static Lisp_Object
+get_energize_menu (Lisp_Object buffer, Lisp_Object extent_obj, int selection_p,
+		   Lisp_Object only_name);
 static int something_answered_p (void *arg);
 void wait_delaying_user_input (int (*)(), void*);
 Lisp_Object Fenergize_request_menu (Lisp_Object buffer, Lisp_Object extent);
 Lisp_Object list_choices (Lisp_Object buffer, Lisp_Object extent_obj, 
-                          Lisp_Object only_name);
+                          Lisp_Object only_name,
+			  CProposeChoicesRequest* req);
 Lisp_Object Fenergize_list_menu (Lisp_Object buffer, Lisp_Object extent_obj, 
                                  Lisp_Object only_name);
 Lisp_Object Fenergize_execute_menu_item 
@@ -185,6 +193,8 @@ Lisp_Object Fset_energize_buffer_type_internal (Lisp_Object buffer,
 Lisp_Object Fenergize_buffer_p (Lisp_Object buffer);
 Lisp_Object Fenergize_buffer_id (Lisp_Object buffer);
 Lisp_Object Fenergize_request_kill_buffer (Lisp_Object buffer);
+static void
+HandleControlChange (Widget widget, BITS32 sheet_id, void* arg);
 void HandleLoggingRequest (Editor *editor, CLoggingRequest *creq);
 void HandleNewBufferRequest (Editor *editor, CNewBufferRequest *creq);
 void HandleModifyBufferRequest (Editor *editor, CModifyBufferRequest *creq);
@@ -193,7 +203,7 @@ static void MakeBufferAndExtentVisible
 void HandleEnsureVisibleRequest (Editor *editor, CEnsureVisibleRequest *creq);
 void HandleEnsureManyVisibleRequest 
 (Editor *editor, CEnsureManyVisibleRequest *creq);
-Lisp_Object HandleProposeMenuRequest 
+void HandleProposeChoicesRequest 
 (Editor *editor, CProposeChoicesRequest *creq);
 static void restore_current_buffer (Lisp_Object buffer);
 static void unmodify_buffer_and_kill_it (Lisp_Object buffer);
@@ -208,8 +218,6 @@ static void HandleBufferSheetRequest
 (Editor *editor, CSheetRequest *sreq, BITS32 buffer_id);
 static void note_being_destroyed (Widget w, XtPointer call_data, 
                                   XtPointer client_data);
-static void note_instantiated (BITS32 bufferId, BITS32 noteId, 
-                               NoteWidget nw, void *arg);
 static void HandlePostitRequest (Editor *editor, CGenericRequest *preq);
 static void HandleShowBusyRequest (Editor *editor, CGenericRequest *preq);
 static void add_in_connection_input_buffer (Connection *conn, char *s, int l);
@@ -334,7 +342,7 @@ extent_to_data (Lisp_Object extent_obj)
   if (!EXTENTP (extent_obj)) 
     return 0;
   else
-    ext = (Extent_Data *) XEXTENT(extent_obj)->data;
+    ext = energize_extent_data (XEXTENT (extent_obj));
   
   if (ext)
     {
@@ -531,10 +539,10 @@ free_Extent_Data
       Lisp_Object extent_obj = ext->extent;
       ext->extent = 0;
 
-      if (extent_obj && (XEXTENT (extent_obj)->data == (void *) ext))
+      if (extent_obj && ext == energize_extent_data (XEXTENT (extent_obj)))
         {
           detach_extent (XEXTENT(extent_obj));
-          XEXTENT (extent_obj)->data = 0;
+	  set_energize_extent_data (XEXTENT (extent_obj), 0);
         }
 
       ext->start_glyph_index = Qnil;
@@ -560,16 +568,18 @@ free_Extent_Data
 void
 energize_extent_finalization (EXTENT extent)
 {
-  Extent_Data *ext = (Extent_Data *)extent->data;
+  Extent_Data *ext = energize_extent_data (extent);
   Lisp_Object buffer = extent->buffer;
   BufferInfo *binfo;
 #if 1
   if (ext)
-    ext->extent = 0;
-  extent->data = 0;
+    {
+      ext->extent = 0;
+      set_energize_extent_data (extent, 0);
+    }
   return;
 #else
-  if (!ext || (XTYPE (buffer) != Lisp_Buffer))
+  if (!ext || (!BUFFERP (buffer)))
     return;
 
   binfo = energize_connection ? get_buffer_info_for_emacs_buffer (buffer, energize_connection) : 0;
@@ -579,7 +589,7 @@ energize_extent_finalization (EXTENT extent)
   else
     ext->extent = 0;
 
-  extent->data = 0;
+  set_energize_extent_data (extent, 0);
   return;
 #endif
 }
@@ -608,7 +618,7 @@ alloc_BufferInfo (Id id, Lisp_Object name, Lisp_Object filename,
   }else
     binfo->screen = Qnil;
 
-  /* try to re-use a buffer with the smae file name if one already exists.
+  /* try to re-use a buffer with the same file name if one already exists.
    * If a buffer already exists but is modified we should do a dialog and
    * ask the user what to do.  For now I'll just use a new buffer in that case.
    * ParseBuffer will erase the buffer.
@@ -643,14 +653,16 @@ alloc_BufferInfo (Id id, Lisp_Object name, Lisp_Object filename,
 
   energize_buffers_list = Fcons (buffer, energize_buffers_list);
 
-  if (nw){
-    Lisp_Object window = Fscreen_selected_window (binfo->screen);
-    Fset_window_buffer (window, binfo->emacs_buffer);
-    BLOCK_INPUT;
-    set_text_widget ((NoteWidget)nw,
-		     XSCREEN(binfo->screen)->display.x->widget);
-    UNBLOCK_INPUT;
-  }
+#if 0
+ *  if (nw){
+ *    Lisp_Object window = Fscreen_selected_window (binfo->screen);
+ *    Fset_window_buffer (window, binfo->emacs_buffer);
+ *    BLOCK_INPUT;
+ *    set_text_widget ((NoteWidget)nw,
+ *		     XSCREEN(binfo->screen)->display.x->widget);
+ *    UNBLOCK_INPUT;
+ *  }
+#endif
 
   return binfo;
 }
@@ -683,6 +695,44 @@ get_buffer_info_for_emacs_buffer (Lisp_Object emacs_buf, Editor *editor)
   else
     return (gethash ((void *)emacs_buf, editor->binfo_hash, (void *)&res)
 	    ? res : 0);
+}
+
+
+struct buffer_and_sheet_ids
+{
+  BITS32	buffer_id;
+  BITS32	sheet_id;
+};
+
+static void
+find_sheet_id (void* key, void* contents, void* arg)
+{
+  BufferInfo* binfo = (BufferInfo*)contents;
+  BITS32 buffer_id = (BITS32)key;
+  struct buffer_and_sheet_ids* result = (struct buffer_and_sheet_ids*)arg;
+  int i;
+
+  if (!result->buffer_id)
+    for (i = 0; i < binfo->n_p_sheets; i++)
+      if (binfo->p_sheet_ids [i] == result->sheet_id)
+	{
+	  result->buffer_id = buffer_id;
+	  return;
+	}
+}
+
+BITS32
+buffer_id_of_sheet (BITS32 id)
+{
+  Editor *editor = energize_connection;
+  struct buffer_and_sheet_ids basi;
+  if (!energize_connection)
+    return 0;
+
+  basi.buffer_id = 0;
+  basi.sheet_id = id;
+  maphash (find_sheet_id, editor->binfo_hash, (void*)&basi);
+  return basi.buffer_id;
 }
 
 long
@@ -752,10 +802,10 @@ set_buffer_type_for_emacs_buffer (Lisp_Object emacs_buf, Editor *editor,
 
       if (NILP (type)) return Qnil;
         
-      if (XTYPE (type) == Lisp_Symbol)
+      if (SYMBOLP (type))
         XSET (type, Lisp_String, XSYMBOL (type)->name);
 
-      if (XTYPE (type) == Lisp_String) 
+      if (STRINGP (type)) 
         type_string = (char *)XSTRING (type)->data;
 
       type_string = copy_string (type_string);
@@ -815,13 +865,48 @@ Post2 (char *msg, int a1, int a2)
 static EmacsPos
 EmacsPosForEnergizePos (EnergizePos energizePos)
 {
-  return (energizePos >= (1 << VALBITS))?(Fpoint_max()):(energizePos + 1);
+  return ((energizePos >= (1 << VALBITS))?Z:(energizePos + 1));
 }
 
 static EnergizePos
 EnergizePosForEmacsPos (EmacsPos emacs_pos)
 {
   return (emacs_pos - 1);
+}
+
+
+/* extent data */
+
+Extent_Data *
+energize_extent_data (EXTENT extent)
+{
+  Lisp_Object data = extent->user_data;
+  if (!CONSP (data) ||
+      !EQ (XCONS (data)->car, Qenergize_extent_data))
+    return 0;
+  data = XCONS (data)->cdr;
+  if (!FIXNUMP (XCONS (data)->car) || !FIXNUMP (XCONS (data)->cdr))
+    abort ();
+  return ((Extent_Data *)
+	  ((XUINT (XCONS (data)->car) << 16) | (XUINT (XCONS (data)->cdr))));
+}
+
+void
+set_energize_extent_data (EXTENT extent, Extent_Data *data)
+{
+  unsigned short high = ((unsigned int) data) >> 16;
+  unsigned short low = ((unsigned int) data) & 0xFFFF;
+  Lisp_Object old = extent->user_data;
+  if (NILP (old) || old == 0)
+    extent->user_data = Fcons (Qenergize_extent_data,
+			       Fcons (make_number (high), make_number (low)));
+  else if (!CONSP (old) || !EQ (XCONS (old)->car, Qenergize_extent_data))
+    abort ();
+  else
+    {
+      XFASTINT (XCONS (XCONS (old)->cdr)->car) = high;
+      XFASTINT (XCONS (XCONS (old)->cdr)->cdr) = low;
+    }
 }
 
 
@@ -1047,7 +1132,7 @@ uninstall_an_IMAGE (IMAGE image)
 Lisp_Object
 install_extent_IMAGE (EXTENT extent, IMAGE image, EGT glyph_type)
 {
-  Extent_Data *ext = (Extent_Data *) extent->data;
+  Extent_Data *ext = energize_extent_data (extent);
   int image_index;
   Lisp_Object return_value;
 
@@ -1473,6 +1558,10 @@ ParseBuffer (Connection *conn, CBuffer *cbu, Editor *editor,
 
   struct gcpro gcpro1, gcpro2, gcpro3, gcpro4;  
 
+  record_unwind_protect (save_restriction_restore, save_restriction_save ());
+
+  Fwiden ();
+
   GCPRO4 (buffer_name, pathname, pathname_directory, filename);
 
   name = CGetVstring (conn, &name_len);
@@ -1768,7 +1857,7 @@ forget_buffer (BufferInfo *binfo)
   BLOCK_INPUT;
   for (i = 0; i < binfo->n_p_sheets; i++)
     {
-      xc_destroy_dbox (binfo->p_sheet_ids [i]);
+      lw_destroy_all_widgets (binfo->p_sheet_ids [i]);
       if (binfo->p_sheet_ids [i] == debuggerpanel_sheet)
 	{
 	  debuggerpanel_sheet = 0;
@@ -1856,6 +1945,7 @@ SaveBufferToEnergize (BufferInfo *binfo)
   struct buffer *cur_buff = current_buffer;
   struct buffer *b = XBUFFER (binfo->emacs_buffer);
   int count = specpdl_ptr - specpdl;
+  Lisp_Object file_name;
   
   binfo_and_n_extents bane;
   
@@ -1868,7 +1958,13 @@ SaveBufferToEnergize (BufferInfo *binfo)
   cbu->flags = 0;
   cbu->nClass = 0;
   cbu->nGeneric = 0;
-  CWriteVstring0 (conn, "");    /* file name */
+
+  /* file name */
+  file_name = current_buffer->filename;
+  if (STRINGP (file_name))
+    CWriteVstring0 (conn, (char *)XSTRING (file_name)->data);
+  else
+    CWriteVstring0 (conn, "");
   CWriteVstring0 (conn, "");    /* directory name */
   CWriteVstring0 (conn, "");    /* buffer name */
   
@@ -1901,15 +1997,10 @@ SaveBufferToEnergize (BufferInfo *binfo)
   unbind_to (count);
 }
 
-static BITS32
+BITS32
 generic_id_for_extent (Extent_Data *ext)
 {
-  if (!ext)
-    return 0;
-  else if (!((ext->extentType == CEGeneric) && ext->u.generic.gData))
-    return ext->id;
-  else
-    return ext->u.generic.gData->id;
+  return ext ? ext->id : 0;
 }
 
 
@@ -1917,20 +2008,23 @@ generic_id_for_extent (Extent_Data *ext)
 
 
 /* gets the menu for the buffer/extent pair at the head of the request buffer.
-** returns 1 if succeeds, 0 otherwise (kernel connection closed, or not
-** connected) */
-static int
-get_energize_menu (Lisp_Object buffer, Lisp_Object extent_obj)
+** returns the propose choice request if succeeds, 0 otherwise (kernel 
+** connection closed, or not connected) */
+
+static Lisp_Object
+get_energize_menu (Lisp_Object buffer, Lisp_Object extent_obj, int selection_p,
+		   Lisp_Object only_name)
 {
   Connection*	conn;
   BITS32	buffer_id;
   BITS32	extent_id;
-  int result;
-  
+  int		result;
+  struct reply_wait rw;
+  struct gcpro gcpro1, gcpro2;
+
   if (!get_energize_connection_and_buffer_id (buffer,
 					      (void**)&conn,
-					      (long*)&buffer_id)
-      || !NILP (Venergize_kernel_busy))
+					      (long*)&buffer_id))
     return 0;
 
   if (EXTENTP (extent_obj))
@@ -1939,7 +2033,22 @@ get_energize_menu (Lisp_Object buffer, Lisp_Object extent_obj)
     extent_id = 0;
   
   CWriteQueryChoicesRequest (conn, buffer_id, extent_id);
-  result = CWaitProposeChoiceRequest (conn, buffer_id, extent_id);
+  conn->header->data =
+    selection_p ? CEChasCharSelection | CEChasObjectSelection : 0;
+  conn->header->serial = ++request_serial_number;
+  CWriteRequestBuffer (conn);
+
+  /* wait for the acknowledge */
+  rw.serial = request_serial_number;
+  rw.objectId = buffer_id;
+  rw.genericId = extent_id;
+  rw.menu_result = Qnil;
+  rw.only_name = only_name;
+  
+  GCPRO2 (rw.menu_result, rw.only_name);
+  wait_for_reply (&rw);
+  result = rw.menu_result;
+  UNGCPRO;
   return result;
 }
 
@@ -2021,6 +2130,9 @@ execute_energize_menu (Lisp_Object buffer, Extent_Data* ext, char* name,
     }
 
   CWriteExecuteChoicesRequest (conn, buffer_id, extent_id, item_id, 0, 0);
+  /* send the menu name */
+  if (energize_connection->minor >= 7)
+    CWriteVstring0 (conn, name);
   conn->header->serial = ++request_serial_number;
   conn->header->data = 0;
   switch (XTYPE (selection))
@@ -2043,7 +2155,7 @@ execute_energize_menu (Lisp_Object buffer, Extent_Data* ext, char* name,
 	/* writes the elements */
 	for (i = 0; i < XVECTOR (selection)->size; i++)
 	  {
-	    if (XTYPE (XVECTOR (selection)->contents [i]) == Lisp_Cons)
+	    if (CONSP (XVECTOR (selection)->contents [i]))
 	      data = lisp_to_word (XVECTOR (selection)->contents [i]);
 	    else
 	      data = XVECTOR (selection)->contents [i];
@@ -2057,7 +2169,7 @@ execute_energize_menu (Lisp_Object buffer, Extent_Data* ext, char* name,
 	Lisp_Object type = Fcar (selection);
 	Lisp_Object value = Fcdr (selection);
 	if (EQ (type, intern ("ENERGIZE_OBJECT"))
-	    && XTYPE (value) == Lisp_String)
+	    && STRINGP (value))
 	  {
 	    conn->header->data |= CEChasObjectSelection;
 	    CWriteN (conn, char, XSTRING (value)->data,
@@ -2075,7 +2187,6 @@ execute_energize_menu (Lisp_Object buffer, Extent_Data* ext, char* name,
   rw.objectId = buffer_id;
   rw.genericId = extent_id;
   rw.itemId = item_id;
-
   
   if (wait_for_reply (&rw) && !rw.status)
     {
@@ -2089,33 +2200,6 @@ execute_energize_menu (Lisp_Object buffer, Extent_Data* ext, char* name,
     }
 }
 
-DEFUN ("energize::request-menu", Fenergize_request_menu,
-       Senergize_request_menu, 2, 2, 0,
-       "(energize::request-menu buffer extent)\n\
-Request the set of menu options from the Energize server that are\n\
-appropriate to the buffer and the extent.  Extent can be (), in which case\n\
-the options are requested for the whole buffer.")
-   (buffer, extent)
-    Lisp_Object buffer, extent;
-{
-  Lisp_Object result = Qnil;
-  struct gcpro gcpro1;
-
-  CHECK_BUFFER (buffer, 1);
-  
-  if (!energize_connection || !energize_connection->conn) return Qnil;
-
-  GCPRO1 (result);
-  if (get_energize_menu (buffer, extent))
-    if (energize_connection && energize_connection->conn)
-      result = HandleProposeMenuRequest (energize_connection,
-					 ((CProposeChoicesRequest*)
-					  CReadEditorRequest (energize_connection->conn)));
-  notify_delayed_requests ();
-  UNGCPRO;
-  return result;
-}
-
 /* Returns a list of vectors representing the menu choices.  Next request
    in connection must be a ProposeChoices.  The list is 
    (buffer extent <item1> ... <itemN>).  <itemI> is (name id1 id2 flags).
@@ -2125,10 +2209,9 @@ the options are requested for the whole buffer.")
 
 Lisp_Object
 list_choices (Lisp_Object buffer, Lisp_Object extent_obj, 
-              Lisp_Object only_name)
+              Lisp_Object only_name, CProposeChoicesRequest* creq)
 {
   Connection *conn;
-  CProposeChoicesRequest *creq;
   int i;
   Lisp_Object item_list;
   Lisp_Object item;
@@ -2143,7 +2226,6 @@ list_choices (Lisp_Object buffer, Lisp_Object extent_obj,
   else
     return Qnil;
   
-  creq = (CProposeChoicesRequest*)CReadEditorRequest (conn);
   if (!creq || creq->head.reqType != ProposeChoicesRType)
     {
       CSkipRequest (conn);
@@ -2196,21 +2278,25 @@ list_choices (Lisp_Object buffer, Lisp_Object extent_obj,
 }
 
 DEFUN ("energize-list-menu", Fenergize_list_menu,
-       Senergize_list_menu, 2, 3, 0,
-       "(energize-list-menu buffer extent [only-name])\n\
+       Senergize_list_menu, 3, 4, 0,
+       "(energize-list-menu buffer extent selection-p [only-name])\n\
 Request the set of menu options from the Energize server that are\n\
 appropriate to the buffer and the extent.  Extent can be (), in which case\n\
-the options are requested for the whole buffer.  Returns the options as\n\
+the options are requested for the whole buffer.  Selection-p tells\n\
+if the selection is available on the dislpay emacs is using. \n\
+Returns the options as\n\
 a list that can be passed to energize-activate-menu.  Items\n\
 in the list can also be passed to energize-execute-menu-item.\n\
 The list is (buffer extent or () <item1> ... <itemN>).\n\
 where <itemI> is (name id1 id2 flags); idI is (high . low).\n\
 If optional argument only-name is provided only the item with name only-name\n\
 is returned, or () if no such item exists.")
-     (buffer, extent_obj, only_name)
+     (buffer, extent_obj, selection_p, only_name)
      Lisp_Object buffer, extent_obj, only_name;
 {
   Lisp_Object res;
+  CProposeChoicesRequest* req;
+
   CHECK_BUFFER (buffer, 1);
   
   if (!energize_connection || !energize_connection->conn) return Qnil;
@@ -2218,10 +2304,8 @@ is returned, or () if no such item exists.")
   if (!NILP (only_name))
     CHECK_STRING (only_name, 1);
   
-  if (get_energize_menu (buffer, extent_obj))
-    res = list_choices (buffer, extent_obj, only_name);
-  else
-    res = Qnil;
+  res = get_energize_menu (buffer, extent_obj, selection_p != Qnil,
+			   only_name);
   notify_delayed_requests ();
   return res;
 }
@@ -2260,6 +2344,33 @@ Lisp_Object buffer, extent_obj, item, selection, no_confirm;
   return Qt;
 }
 
+DEFUN ("energize-execute-command-internal", Fenergize_execute_command_internal,
+       Senergize_execute_command_internal, 3, 5, 0,
+       "(energize-execute-command-internal buffer extent command argument no-confirm)\n\
+Command is a string naming an energize command.  Sends a request to\n\
+execute this command inside the Energize server.\n\
+Optional fourth argument is a string or a vector to be used as the selection.\n\
+Optional fifth argument, if non NIL, tells Energize to not request \n\
+confirmation before executing the command.\n\
+\n\
+See also 'energize-list-menu'.")
+(buffer, extent_obj, command, selection, no_confirm)
+Lisp_Object buffer, extent_obj, command, selection, no_confirm;
+{
+  struct Lisp_Vector *v;
+  
+  if (!energize_connection || !energize_connection->conn) return Qnil;
+
+  CHECK_BUFFER (buffer, 1);
+  CHECK_STRING (command, 1);
+  
+  execute_energize_menu (buffer, extent_to_data (extent_obj),
+			 (char*)XSTRING (command)->data, 0, 0, selection,
+			 no_confirm);
+
+  return Qt;
+}
+
 /********************************* kill buffer interface ****************/
 
 DEFUN ("energize-buffer-type", Fenergize_buffer_type, Senergize_buffer_type,
@@ -2291,10 +2402,12 @@ the type is non-NIL symbol, else it returns NIL.")
   CHECK_BUFFER (buffer, 1);
   CHECK_SYMBOL (type, 1);
   
-  if (!(binfo = get_buffer_info_for_emacs_buffer (buffer, energize_connection))) 
+  if (!(binfo =
+	get_buffer_info_for_emacs_buffer (buffer, energize_connection))) 
     return Qnil;
   else 
-    return set_buffer_type_for_emacs_buffer (buffer, energize_connection, type);
+    return
+      set_buffer_type_for_emacs_buffer (buffer, energize_connection, type);
 }
 
 DEFUN ("energize-buffer-p", Fenergize_buffer_p, Senergize_buffer_p, 1, 1, 0,
@@ -2308,7 +2421,8 @@ an Energize buffer, otherwise NIL.")
   if (!energize_connection) return Qnil;
   
   CHECK_BUFFER (buffer, 1);
-  if (!(binfo = get_buffer_info_for_emacs_buffer (buffer, energize_connection)))
+  if (!(binfo =
+	get_buffer_info_for_emacs_buffer (buffer, energize_connection)))
     return Qnil;
   else
     return Qt;
@@ -2325,7 +2439,8 @@ Returns (high . low) if buffer is an Energize buffer, () otherwise")
   if (!energize_connection) return Qnil;
   
   CHECK_BUFFER (buffer, 1);
-  if (!(binfo = get_buffer_info_for_emacs_buffer (buffer, energize_connection)))
+  if (!(binfo =
+	get_buffer_info_for_emacs_buffer (buffer, energize_connection)))
     return Qnil;
   else
     return word_to_lisp (binfo->id);
@@ -2377,7 +2492,7 @@ HandleLoggingRequest (Editor *editor, CLoggingRequest *creq)
   {
     extern Lisp_Object Vexecution_path;
     char *execname = 
-      (XTYPE (Vexecution_path) == Lisp_String)?
+      (STRINGP (Vexecution_path))?
         ((char *) XSTRING(Vexecution_path)->data):0;
 
     switch (creq->type)
@@ -2564,94 +2679,55 @@ HandleEnsureManyVisibleRequest (Editor *editor,
   UNGCPRO;
 }
 
-/* propose a menu and returns the selected entry */
-Lisp_Object
-HandleProposeMenuRequest (Editor *editor, CProposeChoicesRequest *creq)
+/* Update the cached menus, ie update the menubar for now. */
+void
+HandleProposeChoicesRequest (Editor *editor, CProposeChoicesRequest *req)
 {
-  BufferInfo *binfo;
-  Extent_Data *ext = 0;
-  Connection *conn = editor->conn;
+  BufferInfo* binfo;
+  Lisp_Object buffer = Qnil;
+  Lisp_Object extent = Qnil;
+  Lisp_Object choices = Qnil;
+  struct gcpro gcpro1, gcpro2, gcpro3;
+  struct reply_wait* rw;
+
+  GCPRO3 (buffer, extent, choices);
   
-  CChoice *cmd;
-  char *cmdString;
-  int i;
-  unsigned int ignored;
-  unsigned int x;
-  unsigned int y;
-  int item;
-  struct gcpro gcpro1;
-  Lisp_Object selected_item = Qnil;
-  
-  extern struct screen *selected_screen;
-  Widget widget = selected_screen->display.x->widget;
-  Window xid = widget->core.window;
-  
-  if (!(binfo = get_buffer_info_for_id (creq->objectId, editor)))
+  /* get the buffer */
+  binfo = get_buffer_info_for_id (req->objectId, editor);
+  if (binfo)
+    buffer = binfo->emacs_buffer;
+  else
+    buffer = Qnil;
+
+  /* get the extent */
+  if (binfo && req->genericId)
     {
-      Post("Server attempt to show menu for a non registered buffer");
-      CSkipRequest (editor->conn);
-      return;
+      Extent_Data* ext = get_extent_data (req->genericId, binfo);
+      if (ext)
+	extent = ext->extent;
+      else
+	extent = Qnil;
     }
+  else
+    extent = Qnil;
   
-  if (creq->genericId)
+  /* find if we were waiting for a reply */
+  rw = find_wait_reply (req->head.serial);
+
+  /* handle the request */
+  if (rw && rw->objectId == req->objectId && rw->genericId == req->genericId)
     {
-      ext = get_extent_data (creq->genericId, binfo);
-      if (!ext)
-        {
-          Post("HandleProposeMenuRequest:: extent has not been registered");
-          return;
-        }
+      /* It's a reply for a get_energize_menu call */
+      rw->answered_p = True;
+      rw->status = 1;
+      rw->menu_result = list_choices (buffer, extent, rw->only_name, req);
     }
-  
-  GCPRO1 (selected_item);
-  /* create and display a menu with commands proposed by kernel */
-  clear_edit_options (peo);
-  CParseEditOptions (conn, creq, peo);
-  
-  BLOCK_INPUT;
-  
-/* ####
-  put_back_delayed_events (True);
- */
-
-  XQueryPointer (XtDisplay (widget), xid,
-                 (Window *)&ignored, (Window *)&ignored,
-                 (int *)&x, (int *)&y,
-                 (int *)&ignored, (int *)&ignored,
-                 &ignored);
-
-  {
-#ifdef FREE_CHECKING
-    extern void (*__free_hook)();
-    int checking_free = (__free_hook != 0);
-    
-    if (checking_free)
-      disable_strict_free_check ();
-#endif
-    item = activate_menu (widget, x, y, peo);
-#ifdef FREE_CHECKING
-    if (checking_free)
-      enable_strict_free_check ();
-#endif
-  }
-
-  UNBLOCK_INPUT;
-  
-  /* returns the selected item. */
-  if (item != -1)
+  else
     {
-      struct Lisp_Vector* v;
-      selected_item = Fmake_vector (4, Qnil);
-
-      v = XVECTOR (selected_item);
-      v->contents [0] = build_string (peo->options [item].name);
-      v->contents [1] = word_to_lisp (peo->options [item].id1);
-      v->contents [2] = Qnil;
-      v->contents [3] = peo->options [item].flags;
+      /* It's a menu update, call the hook */
+      choices = list_choices (buffer, extent, Qnil, req);
+      safe_funcall_hook (Venergize_menu_update_hook, 1, choices, Qnil, Qnil);
     }
-
-  UNGCPRO;
-  return selected_item;
 }
 
 /* called by unwind_protect */
@@ -2667,7 +2743,7 @@ unmodify_buffer_and_kill_it (Lisp_Object buffer)
 {
   int count = specpdl_ptr - specpdl;
 
-  if ((XTYPE (buffer) != Lisp_Buffer) || NILP (XBUFFER (buffer)->name)) 
+  if ((!BUFFERP (buffer)) || NILP (XBUFFER (buffer)->name)) 
     return;
   
   /* unmodify the buffer */
@@ -2852,13 +2928,9 @@ HandleBufferSheetRequest (Editor *editor, CSheetRequest *sreq,
   switch ((CSheetRSubtype) sreq->head.data)
     {
     case CSCreate:
-      /* The psheet should be created in all screens where the buffer is
-	 visible and not in the selected_screen.
-	 Use selected_screen temporarily to be able to see the p_sheet */
       BLOCK_INPUT;
-      xc_create_dbox ((Widget)0, (Widget)0, name, sreq->sheetId,
-		      buffer_id, 0, (select_callback)HandleControlChange,
-		      (void*)conn);
+      lw_register_widget (name, name, sreq->sheetId, NULL, NULL,
+			  HandleControlChange, NULL);
       UNBLOCK_INPUT;
       add_in_list_of_ids (&binfo->p_sheet_ids, &binfo->n_p_sheets,
 			  sreq->sheetId);
@@ -2866,30 +2938,25 @@ HandleBufferSheetRequest (Editor *editor, CSheetRequest *sreq,
 	debuggerpanel_sheet = sreq->sheetId;
       break;
       
-    case CSDelete:{
+    case CSDelete:
       remove_from_list_of_ids (&binfo->p_sheet_ids, &binfo->n_p_sheets,
 			       sreq->sheetId);
-
       BLOCK_INPUT;
-      xc_destroy_dbox (sreq->sheetId);
+      lw_destroy_all_widgets (sreq->sheetId);
       UNBLOCK_INPUT;
       if (sreq->sheetId == debuggerpanel_sheet)
 	{
 	  desired_debuggerpanel_exposed_p = 0;
 	  debuggerpanel_sheet = 0;
 	}
-    }
       break;
       
     case CSHide:
       {
 	struct screen *screen;
 	Lisp_Object rest;
-	Widget w;
-	int id = sreq->sheetId;
-
+	
 	BLOCK_INPUT;
-	xc_hide_dbox (id);
 	if (sreq->sheetId == debuggerpanel_sheet)
 	  desired_debuggerpanel_exposed_p = 0;
 	else
@@ -2897,25 +2964,13 @@ HandleBufferSheetRequest (Editor *editor, CSheetRequest *sreq,
 	    {
 	      screen = XSCREEN(Fcar(rest));
 	      if (SCREEN_IS_X (screen))
-		{
-		  w = xc_widget_instance_from_id
-		    (id, 0, screen->display.x->column_widget);
-		  if (w)
-		    {
-		      screen->display.x->desired_psheets = 0;
-		      screen->display.x->desired_psheet_count = 0;
-		      screen->display.x->desired_psheet_buffer = Qnil;
-		    }
-		}
+		make_psheets_desired (screen, Qnil);
 	    }
 	UNBLOCK_INPUT;
       }
       break;
       
     case CSShow:
-      BLOCK_INPUT;
-      xc_show_dbox (sreq->sheetId);
-      UNBLOCK_INPUT;
       if (sreq->sheetId == debuggerpanel_sheet)
 	desired_debuggerpanel_exposed_p = 1;
       else
@@ -2926,13 +2981,11 @@ HandleBufferSheetRequest (Editor *editor, CSheetRequest *sreq,
 	  for (rest = Vscreen_list; rest != Qnil; rest = Fcdr(rest))
 	    {
 	      screen = XSCREEN(Fcar(rest));
-	      window = XWINDOW(screen->selected_window);
-	      if (window->buffer == binfo->emacs_buffer)
+	      if (SCREEN_IS_X (screen))
 		{
-		  if (SCREEN_IS_X (screen) && !MINI_WINDOW_P (window))
-		    energize_show_menubar_of_buffer (window->screen,
-						     window->buffer,
-						     Qt);
+		  window = XWINDOW(screen->selected_window);
+		  if (window->buffer == binfo->emacs_buffer)
+		    make_psheets_desired (screen, binfo->emacs_buffer);
 		}
 	    }
 	}
@@ -2944,75 +2997,81 @@ HandleBufferSheetRequest (Editor *editor, CSheetRequest *sreq,
 static void
 note_being_destroyed (Widget w, XtPointer call_data, XtPointer client_data)
 {
-  NoteWidget nw = (NoteWidget)w;
-  Widget tw = get_text_widget (nw);
-  SCREEN_PTR s;
-  Lisp_Object screen;
-
-  if (tw){
-    s = (SCREEN_PTR)x_any_window_to_screen (XtWindow (tw));
-    if (s){
-      BLOCK_INPUT;
-      set_text_widget (nw, 0);
-      UNBLOCK_INPUT;
-      XSET (screen, Lisp_Screen, s);
-      Fdelete_screen (screen);
-    }
-  }
+#if 0
+ *  NoteWidget nw = (NoteWidget)w;
+ *  Widget tw = get_text_widget (nw);
+ *  SCREEN_PTR s;
+ *  Lisp_Object screen;
+ *
+ *  if (tw){
+ *    s = (SCREEN_PTR)x_any_window_to_screen (XtWindow (tw));
+ *    if (s){
+ *      BLOCK_INPUT;
+ *      set_text_widget (nw, 0);
+ *      UNBLOCK_INPUT;
+ *      XSET (screen, Lisp_Screen, s);
+ *      Fdelete_screen (screen);
+ *    }
+ *  }
+#endif
 }
 
-static void
-note_instantiated (BITS32 bufferId, BITS32 noteId, NoteWidget nw, void* arg)
-{
-  XtAddCallback ((Widget)nw, XtNdestroyCallback, note_being_destroyed, 0);
-  XtVaSetValues ((Widget)nw, "forceXtLoop", 1, 0);
-}
+#if 0
+ * static void
+ * note_instantiated (BITS32 bufferId, BITS32 noteId, NoteWidget nw, void* arg)
+ * {
+ *   XtAddCallback ((Widget)nw, XtNdestroyCallback, note_being_destroyed, 0);
+ *   XtVaSetValues ((Widget)nw, "forceXtLoop", 1, 0);
+ * }
+#endif
 
 static void
 HandlePostitRequest (Editor *editor, CGenericRequest *preq)
 {
-  BufferInfo* binfo;
-  Connection* conn = editor->conn;
-  NoteWidget notew;
-  
-  switch (preq->head.reqType)
-    {
-    case OpenPostitRType:{
-      if (!(binfo = get_buffer_info_for_id (preq->openpostit.bufferId,
- 					    editor)))
- 	{
- 	  Post("Server attempt to use postit in a non registered buffer");
- 	  CSkipRequest (conn);
- 	  return;
- 	}
-      
-      BLOCK_INPUT;
-      xc_create_note_window 
-        (&preq->openpostit, conn, note_instantiated, 0,
-         FONT_WIDTH (SCREEN_NORMAL_FACE (selected_screen).font),
-         TOTAL_HEIGHT (SCREEN_NORMAL_FACE (selected_screen).font));
-      UNBLOCK_INPUT;
-      add_in_list_of_ids (&binfo->note_ids, &binfo->n_notes,
- 			  preq->openpostit.bufferId);
-    }
-      break;
-      
-    case KillPostitRType:{
-      if (!(binfo = get_buffer_info_for_id (preq->killpostit.bufferId,
- 					    editor)))
- 	{
- 	  Post("Server attempt to kill postit in a non registered buffer");
- 	  CSkipRequest (conn);
- 	  return;
- 	}
-      
-      BLOCK_INPUT;
-      xc_destroy_note (preq->killpostit.postitId);
-      UNBLOCK_INPUT;
-      remove_from_list_of_ids (&binfo->note_ids, &binfo->n_notes,
- 			       preq->killpostit.postitId);
-      break;
-    }}
+#if 0
+ *   BufferInfo* binfo;
+ *   Connection* conn = editor->conn;
+ *   NoteWidget notew;
+ *   
+ *   switch (preq->head.reqType)
+ *     {
+ *     case OpenPostitRType:{
+ *       if (!(binfo = get_buffer_info_for_id (preq->openpostit.bufferId,
+ *  					    editor)))
+ *  	{
+ *  	  Post("Server attempt to use postit in a non registered buffer");
+ *  	  CSkipRequest (conn);
+ *  	  return;
+ *  	}
+ *       
+ *       BLOCK_INPUT;
+ *       xc_create_note_window 
+ *         (&preq->openpostit, conn, note_instantiated, 0,
+ *          FONT_WIDTH (SCREEN_NORMAL_FACE (selected_screen).font),
+ *          TOTAL_HEIGHT (SCREEN_NORMAL_FACE (selected_screen).font));
+ *       UNBLOCK_INPUT;
+ *       add_in_list_of_ids (&binfo->note_ids, &binfo->n_notes,
+ *  			  preq->openpostit.bufferId);
+ *     }
+ *       break;
+ *       
+ *     case KillPostitRType:{
+ *       if (!(binfo = get_buffer_info_for_id (preq->killpostit.bufferId,
+ *  					    editor)))
+ *  	{
+ *  	  Post("Server attempt to kill postit in a non registered buffer");
+ *  	  CSkipRequest (conn);
+ *  	  return;
+ *  	}
+ *       
+ *       BLOCK_INPUT;
+ *       xc_destroy_note (preq->killpostit.postitId);
+ *       UNBLOCK_INPUT;
+ *       remove_from_list_of_ids (&binfo->note_ids, &binfo->n_notes,
+ *  			       preq->killpostit.postitId);
+ *       break;
+ *     }}
+#endif
 }
 
 /* show busy */
@@ -3049,9 +3108,11 @@ HandleShowBusyRequest (Editor *editor, CGenericRequest *preq)
   Lisp_Object tail;
 
   char* why = CGetVstring (editor->conn, &len);
-  message (why);
+
   show_all_menubars_busy (preq->head.data);
   Venergize_kernel_busy = preq->head.data ? Qt : Qnil;
+  safe_funcall_hook (Venergize_kernel_busy_hook, 1, build_string (why), Qnil,
+		     Qnil);
 
   /* update the menubars if needed and kernel is not busy */
   if (!preq->head.data && needs_to_recompute_menubar_when_kernel_not_busy)
@@ -3062,7 +3123,7 @@ HandleShowBusyRequest (Editor *editor, CGenericRequest *preq)
       needs_to_recompute_menubar_when_kernel_not_busy = 0;
       for (tail = Vscreen_list; CONSP (tail); tail = XCONS (tail)->cdr)
 	{
-	  if (XTYPE (XCONS (tail)->car) != Lisp_Screen)
+	  if (!SCREENP (XCONS (tail)->car))
 	    continue;
 	  
 	  s = XSCREEN (XCONS (tail)->car);
@@ -3073,6 +3134,155 @@ HandleShowBusyRequest (Editor *editor, CGenericRequest *preq)
     }
 }
 
+static void
+HandleSheetRequest (Connection* conn, CSheetRequest* sreq, Widget parent)
+{
+  char* name = CGetVstring (conn, NULL);
+
+  switch ((CSheetRSubtype)sreq->head.data)
+    {
+    case CSCreate:
+      lw_create_widget (name, name, sreq->sheetId, 0, parent,
+			!sreq->bufferId, 0, HandleControlChange, 0);
+      break;
+    case CSDelete:
+      lw_destroy_all_widgets (sreq->sheetId);
+      break;
+      
+    case CSShow:
+      lw_pop_up_all_widgets (sreq->sheetId);
+      break;
+
+    case CSHide:
+      lw_pop_down_all_widgets (sreq->sheetId);
+      break;
+    }
+}
+
+static void
+HandleSetControlRequest (Connection* conn, CGenericRequest* creq)
+{
+  CSetControlRequest* sreq = &creq->setcontrol;
+  widget_value val;
+  widget_value* contents;
+
+  unsigned long i;
+  unsigned long n = sreq->nChoices;
+  
+  if (n > 1)
+    contents = (widget_value*)xmalloc (n * sizeof (widget_value));
+  else 
+    contents = NULL;
+  
+  val.name = CGetVstring (conn, NULL);
+  val.value = NULL;
+  val.key = NULL;
+  val.enabled = !(sreq->flags & CKInactive);
+  val.selected = !!(sreq->flags & CKSelected);
+  val.change = VISIBLE_CHANGE;
+  val.contents = contents;
+  val.call_data = NULL;
+  val.next = NULL;
+  val.toolkit_data = NULL;
+
+  if (n == 0)
+    {
+      ;
+    }
+  else if (n == 1)
+    {
+      CChoice* choice = CGet (conn, CChoice);
+      val.value = CGetVstring (conn, NULL);
+      /* Empty string mean use nothing */
+      if (!*val.value)
+	val.value = NULL;
+    }
+  else for (i = 0; i < n; i++)
+    {
+      widget_value* cur = &contents [i];
+      CChoice* choice = CGet (conn, CChoice);
+      cur->name = CGetVstring (conn, NULL);
+      cur->value = cur->name;
+      cur->key = NULL;
+      cur->enabled = !(choice->flags & CKInactive);
+      cur->selected = !!(choice->flags & CKSelected);
+      cur->change = VISIBLE_CHANGE;
+      cur->contents = NULL;
+      cur->call_data = NULL;
+      cur->next = i == n - 1 ? NULL : &contents [i + 1];
+      cur->toolkit_data = NULL;
+    }
+  lw_modify_all_widgets (sreq->sheetId, &val, True);
+  
+  if (contents)
+    free (contents);
+}
+    
+static void
+SendSheetStateChange (Connection* conn, BITS32 buffer_id, BITS32 sheet_id,
+		      int shown)
+{
+  CWriteSheetRequest (conn, shown ? CSShow : CSHide, sheet_id, buffer_id, "");
+}
+
+static void
+HandleControlChange (Widget widget, BITS32 sheet_id, void* arg)
+{
+  Connection* 	conn;
+  widget_value* val;
+  widget_value* cur;
+  widget_value* this_val = NULL;
+  char* 	this_name;
+
+  if (!energize_connection)
+    return;
+
+  conn = energize_connection->conn;
+  if (!conn)
+    return;
+
+  this_name = XtName (widget);
+  val = lw_get_all_values (sheet_id);
+
+  /* first send all the edited widgets */
+  for (cur = val; cur; cur = cur->next)
+    {
+      /* do not send the widget that ran the callback */
+      if (!strcmp (cur->name, this_name))
+	this_val = cur;
+      /* send the edited widgets */
+      else if (cur->edited)
+	{
+	  char* value = cur->value;
+	  unsigned int flags = 0;
+
+	  if (!cur->enabled)
+	    flags |= CKInactive;
+	  if (cur->selected)
+	    flags |= CKSelected;
+
+	  /* the kernel is brain dead and expect "1" and "0" as values
+	     for the checkbox objects.  So if value is NULL, make it be "0"
+	     or "1" depending on the selected state.  This is until we fix
+	     the kernel. */
+	  if (!value)
+	    value = cur->selected ? "1" : "0";
+
+	  CWriteSetControlRequest (conn, sheet_id, 0, cur->name, 1);
+	  CWriteChoice (conn, 0, flags, value, 0);
+	  CWriteLength (conn);
+	}
+    }
+
+  /* Then send the widget that ran the callback */
+  if (this_val)
+    {
+      CWriteSetControlRequest (conn, sheet_id, 0, this_val->name, 1);
+      CWriteChoice (conn, 0, 0, this_val->value, 0);
+      CWriteLength (conn);
+      CWriteRequestBuffer (conn);
+    }
+}
 
 /******************** Low level connection stuff ************************/
 static void
@@ -3136,8 +3346,13 @@ ProcessJustOneEnergizeRequest ()
           break;
           
         case AcceptConnectionRType:
-          Post("Energize connection accepted");
-          CSkipRequest(editor->conn);
+	  {
+	    CProtocol* proto = CGet (editor->conn, CProtocol);
+	    editor->major = proto->major;
+	    editor->minor = proto->minor;
+	    Post("Energize connection accepted");
+	    CSkipRequest(editor->conn);
+	  }
           break;
           
         case NewBufferRType:
@@ -3173,9 +3388,7 @@ ProcessJustOneEnergizeRequest ()
           break;
           
         case ProposeChoicesRType:
-	  /* HandleProposeMenuRequest(editor, &req->generic.proposechoices); */
-	  /* ignores extra propose choices now that menus are waited for */
-	  CSkipRequest (editor->conn);
+	  HandleProposeChoicesRequest (editor, &req->generic.proposechoices);
           break;
           
         case ChoiceExecutedRType:
@@ -3234,7 +3447,7 @@ ProcessJustOneEnergizeRequest ()
         case SheetRType:{
 	  BITS32 buffer_id = req->generic.sheet.bufferId;
 	  if (!buffer_id)
-	    buffer_id = xc_buffer_id_of_dbox (req->generic.sheet.sheetId);
+	    buffer_id = buffer_id_of_sheet (req->generic.sheet.sheetId);
 	  if (buffer_id)
 	    HandleBufferSheetRequest (editor, &req->generic.sheet, buffer_id);
 	  else
@@ -3244,7 +3457,7 @@ ProcessJustOneEnergizeRequest ()
 	      if (type == CSDelete || type ==CSHide)
 		select_screen (selected_screen);
 	      BLOCK_INPUT;
-	      HandleSheetRequest (editor->conn, (CGenericRequest*) req,
+	      HandleSheetRequest (editor->conn, &req->generic.sheet,
 				  selected_screen->display.x->widget);
 	      UNBLOCK_INPUT;
 	    }
@@ -3319,7 +3532,7 @@ setup_connection (Editor *ed, unsigned int id1, unsigned int id2)
   req->generic.queryconnection.cadillacId2 = id2;
   req->generic.queryconnection.nProtocols = 1;
   /* first numerical arg is major protocol number, second is minor */
-  CWriteProtocol(ed->conn, 0, 6, "editor");
+  CWriteProtocol(ed->conn, 0, 8, "editor");
   CWriteLength (ed->conn);
   CWriteRequestBuffer (ed->conn);
 };
@@ -3403,7 +3616,9 @@ ConnectToEnergize (char *server_str, char *arg)
           /* forces linking */
           NewPixmapImage (0);
           NewAttributeImage (0, 0);
-          NewNoteImage (0, 0);
+#if 0
+ *          NewNoteImage (0, 0);
+#endif
           UNBLOCK_INPUT;
           
           if ((flags = fcntl (energize_connection->conn->fdin, F_GETFL, 0)) == -1)
@@ -3464,8 +3679,8 @@ CloseConnection ()
       /* cleanup the busy state */
       show_all_menubars_busy (False);
       Venergize_kernel_busy = Qnil;
-      /* destroy all dialog boxes */
-      xc_destroy_dialogs ();
+      /* destroy all pop_up boxes */
+      lw_destroy_all_pop_ups ();
       UNBLOCK_INPUT;
 
       debuggerpanel_sheet = 0;
@@ -3587,7 +3802,7 @@ CheckBufferLock (Editor *editor, BufferInfo *binfo)
     return 0;
 
   /* If can't ask say we do not know */
-  if (!conn || !NILP (Venergize_kernel_busy))
+  if (!conn)
     return -1;
 
   /* Ask the kernel */
@@ -3993,6 +4208,17 @@ DEFUN ("energize-buffer-has-psheets-p", Fenergize_buffer_has_psheets_p,
   return Qnil;
 }
 
+DEFUN ("energize-protocol-level", Fenergize_protocol_level,
+       Senergize_protocol_level, 0, 0, 0,
+       "Returns the Energize protocol level.")
+     ()
+{
+  return
+    energize_connection
+      ? Fcons (energize_connection->major, energize_connection->minor)
+	: Qnil;
+}
+
 
 int
 get_energize_connection_and_buffer_id (Lisp_Object buffer, void **conn_ptr,
@@ -4037,7 +4263,7 @@ get_psheets_for_buffer (Lisp_Object buffer, int *count_ptr)
 void
 notify_that_sheet_has_been_hidden (BITS32 id)
 {
-  BITS32 buffer_id = xc_dbox_buffer_id (id);
+  BITS32 buffer_id = buffer_id_of_sheet (id);
   if (!buffer_id)
     return;
 
@@ -4060,9 +4286,9 @@ syms_of_editorside()
   energize_buffers_list = Qnil;
 
   defsubr(&Ssend_buffer_modified_request);
-  defsubr(&Senergize_request_menu);
   defsubr(&Senergize_list_menu);
   defsubr(&Senergize_execute_menu_item);
+  defsubr(&Senergize_execute_command_internal);
   defsubr(&Sconnect_to_energize_internal);
   defsubr(&Sconnected_to_energize_p);
   defsubr(&Sclose_connection_to_energize);
@@ -4080,6 +4306,7 @@ syms_of_editorside()
   defsubr(&Senergize_barf_if_buffer_locked);
   defsubr(&Senergize_psheets_visible_p);
   defsubr(&Senergize_buffer_has_psheets_p);
+  defsubr(&Senergize_protocol_level);
 
   DEFVAR_BOOL ("   inside-parse-buffer", &inside_parse_buffer,
                "internal variable used to control extent deletion.");
@@ -4113,6 +4340,18 @@ takes no arguments.");
   Venergize_kernel_busy = Qnil;
   Qenergize_kernel_busy = intern ("energize-kernel-busy");
 
+  DEFVAR_LISP ("energize-kernel-busy-hook", &Venergize_kernel_busy_hook,
+               "Hook called when the Energize kernel becomes busy or non busy.");
+  Venergize_kernel_busy_hook = Qnil;
+
+  DEFVAR_LISP ("energize-menu-update-hook", &Venergize_menu_update_hook,
+               "Hook called when the Energize kernel updates the menubar.");
+  Venergize_menu_update_hook = Qnil;
+
+  DEFVAR_LISP ("energize-attributes-mapping", &Venergize_attributes_mapping,
+	       "A-list to map kernel attributes indexes to Emacs attributes");
+  Venergize_attributes_mapping = Qnil;
+
   Qbefore_change_function = intern ("before-change-function");
 
   Qafter_change_function = intern ("after-change-function");
@@ -4131,7 +4370,9 @@ takes no arguments.");
   Qenergize_user_input_mode = intern ("energize-user-input-mode");
 
   Qenergize_make_many_buffers_visible
-    = intern ("energize::make-many-buffers-visible");
+    = intern ("energize-make-many-buffers-visible");
+
+  Qenergize_extent_data = intern ("energize-extent-data");
 
   Qbuffer_undo_list = intern ("buffer-undo-list");
 

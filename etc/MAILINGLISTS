@@ -1,8 +1,8 @@
 
-     Lucid GNU Emacs Electronic Mailing Lists.  Last Modified: 13-jun-92.
+     Lucid GNU Emacs Electronic Mailing Lists.  Last Modified:  7-jul-92.
 
-Lucid GNU Emacs has its own set of mailing lists which are distinct from
-the FSF GNU Emacs mailing lists.  They are
+Lucid GNU Emacs has its own set of mailing lists and newsgroups which
+are distinct from the FSF GNU Emacs mailing lists and newsgroups.  They are
 
    bug-lucid-emacs@lucid.com	For reporting all bugs in Lucid GNU Emacs,
 				including bugs in the compilation and
@@ -11,8 +11,14 @@ the FSF GNU Emacs mailing lists.  They are
    help-lucid-emacs@lucid.com	For random questions and conversation
 				about using Lucid GNU Emacs.
 
+These mailing lists are bidirectionally gatewayed into the USENET
+newsgroups alt.lucid-emacs.bug and alt.lucid-emacs.help, respectively.
+
 To be added or removed from these mailing lists, send mail to 
 bug-lucid-emacs-request@lucid.com or help-lucid-emacs-request@lucid.com.
+(If it is possible for you to read the messages via the newsgroups, we 
+would prefer that; the fewer people there are on the mailing lists, the
+less trouble they are to maintain.)
 
 Please do NOT send messages about problems with Lucid GNU Emacs to the
 FSF GNU Emacs newsgroups and mailing lists (listed below) unless you are
@@ -21,15 +27,12 @@ of GNU Emacs.  People who aren't subscribed to the Lucid GNU Emacs
 mailing lists most likely are not interested in hearing about problems
 with it.
 
-The above mailing lists are not yet gatewayed into newsgroups, but they
-will be soon.
-
 The bug-lucid-emacs and help-lucid-emacs mailing lists are archived on the
 machine labrea.Stanford.EDU (36.8.0.47) in the directory pub/gnu/lucid/.
 
-Aside from the names of the mailing lists corresponding to this version
-of emacs, the guidelines on using the mailing lists enumerated below
-still apply.  Please read them before sending mail.
+Aside from the names of the mailing lists and newsgroups corresponding
+to this version of emacs, the guidelines enumerated below still apply.
+Please read them before sending a message.
 
 -----------------------------------------------------------------------
 

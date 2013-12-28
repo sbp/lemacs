@@ -297,12 +297,12 @@ With arg N, push mark N/10 of the way from the true end."
   (goto-char (point-min))
   (zmacs-activate-region))
 
-(defun eval-current-buffer ()
+(defun eval-current-buffer (&optional printflag)
   "Evaluate the current buffer as Lisp code.
 Programs can pass argument PRINTFLAG which controls printing of output:
 nil means discard it; anything else is stream for print."
   (interactive)
-  (eval-buffer (current-buffer)))
+  (eval-buffer (current-buffer) printflag))
 
 (defun count-words-buffer (b)
   (interactive "b")
@@ -320,7 +320,8 @@ nil means discard it; anything else is stream for print."
       (while (< (point) fin)
 	(if (forward-word 1)
 	    (setq cnt (1+ cnt))))
-      (message "Region has %d words" cnt))))
+      (message "Region has %d words" cnt)
+      cnt)))
 
 (defun count-lines-region (start end)
   "Print number of lines in the region."
@@ -750,7 +751,7 @@ selection.")
   (save-excursion
     (goto-char (if (= (point) end) beg end))
     (if (pos-visible-in-window-p (point))
-	(sit-for 1))))
+	(sit-for 0))))
 
 (defun append-next-kill ()
   "Cause following command, if kill, to append to previous kill."
@@ -1480,6 +1481,7 @@ when close-paren is inserted.")
        (/= (char-syntax (char-after (- (point) 2))) ?\\ )
        blink-matching-paren
        (let* ((oldpos (point))
+	      (parse-sexp-ignore-comments t)
 	      (blinkpos)
 	      (mismatch))
 	 (save-excursion
@@ -1530,9 +1532,24 @@ when close-paren is inserted.")
 ; this is just something for the luser to see in a keymap -- this is not
 ;  how quitting works normally!
 (defun keyboard-quit ()
-  "Signal a  quit  condition."
+  "Signal a `quit' condition."
   (interactive)
   (signal 'quit nil))
+
+;;; right-thing-p?
+;(defun keyboard-quit ()
+;  "Signal a `quit' condition.
+;If this character is typed while lisp code is executing, it will be treated
+; as an interrupt.
+;If this character is typed at top-level, this simply beeps.
+;If `zmacs-regions' is true, and the zmacs region is active, then this
+; key deactivates the region without beeping or signalling."
+;  (interactive)
+;  (if (and zmacs-regions (zmacs-deactivate-region))
+;      ;; pseudo-zmacs compatibility: don't beep if this ^G is simply
+;      ;; deactivating the region.  If it is inactive, beep.
+;      nil
+;    (signal 'quit nil)))
 
 (define-key global-map "\C-g" 'keyboard-quit)
 

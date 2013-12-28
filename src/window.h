@@ -192,13 +192,13 @@ extern Lisp_Object Fselect_window ();
 extern Lisp_Object Fdisplay_buffer ();
 extern Lisp_Object Fset_window_buffer ();
 
-/* Prompt to display in front of the minibuffer contents */
-extern char *minibuf_prompt;
+/* Prompt to display in front of the minibuffer contents or nil */
+extern Lisp_Object Vminibuf_prompt;
 
 /* Message to display instead of minibuffer contents 
    This is what the functions error and message make,
    and command echoing uses it as well. It overrides the
-   minibuf_prompt as well as the buffer */
+   Vminibuf_prompt as well as the buffer */
 extern char *echo_area_glyphs;
 
 /* Depth in recursive edits */

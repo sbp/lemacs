@@ -1,0 +1,36 @@
+;;; compiled by jwz@watergate on Tue Aug 18 17:19:54 1992
+;;; from file /wg1/emacs-base/lisp/pcl-cvs/elib-node.el
+;;; emacs version 19.2.2 Lucid.
+;;; bytecomp version 2.08;  7-aug-92.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(provide 'elib-node)
+(fset 'elib-node-create '(macro . #[(left right data) "À	\nF‡" [vector left right data] 4 "\
+Create a tree node from LEFT, RIGHT and DATA."]))
+(fset 'elib-node-left '(macro . #[(node) "À	ÂE‡" [aref node 0] 3 "\
+Return the left pointer of NODE."]))
+(fset 'elib-node-right '(macro . #[(node) "À	ÂE‡" [aref node 1] 3 "\
+Return the right pointer of NODE."]))
+(fset 'elib-node-data '(macro . #[(node) "À	ÂE‡" [aref node 2] 3 "\
+Return the data of NODE."]))
+(fset 'elib-node-set-left '(macro . #[(node newleft) "À	ÂF‡" [aset node 0 newleft] 4 "\
+Set the left pointer of NODE to NEWLEFT."]))
+(fset 'elib-node-set-right '(macro . #[(node newright) "À	ÂF‡" [aset node 1 newright] 4 "\
+Set the right pointer of NODE to NEWRIGHT."]))
+(fset 'elib-node-set-data '(macro . #[(node newdata) "À	ÂF‡" [aset node 2 newdata] 4 "\
+Set the data of NODE to NEWDATA."]))
+(fset 'elib-node-branch '(macro . #[(node branch) "À	\nE‡" [aref node branch] 3 "\
+Get value of a branch of a node.
+NODE is the node, and BRANCH is the branch.
+0 for left pointer, 1 for right pointer and 2 for the data."]))
+(fset 'elib-node-set-branch '(macro . #[(node branch newval) "À	\nF‡" [aset node branch newval] 4 "\
+Set value of a branch of a node.
+NODE is the node, and BRANCH is the branch.
+0 for left pointer, 1 for the right pointer and 2 for the data.
+NEWVAL is new value of the branch."]))

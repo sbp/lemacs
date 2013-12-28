@@ -1,7 +1,7 @@
-;;; compiled by devin@watergate on Sat May 16 14:15:03 1992
+;;; compiled by jwz@watergate on Tue Aug 18 17:17:11 1992
 ;;; from file /wg1/emacs-base/lisp/gnus/gnusmisc.el
-;;; emacs version 19.0.16 Lucid.
-;;; bytecomp version 2.06; 23-apr-92.
+;;; emacs version 19.2.2 Lucid.
+;;; bytecomp version 2.08;  7-aug-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -13,8 +13,8 @@
 (byte-code "ÀÁ!ˆÂÃ!‡" [provide gnusmisc require gnus] 2)
 (defvar gnus-Browse-killed-mode-hook nil "\
 *A hook for GNUS Browse-Killed Mode.")
-(byte-code "ÀÁ!¬‚ÂÀÃ!¬‚ÄÀÅ!¬‚ÄÆÇÈÉ#ˆ	\n>¬†	\nB\n¬ÐË ÌÍ\"ˆÎÏÐ#ˆÎÑÒ#ˆÎÓÐ#ˆÎÔÒ#ˆÎÕÐ#ˆÎÖÒ#ˆÎ×Ø#ˆÎÙØ#ˆÎÚÛ#ˆÎÜÝ#ˆÎÞÝ#ˆÎßà#ˆÄ‡" [boundp gnus-Browse-killed-buffer "*Killed Newsgroup*" gnus-Browse-killed-mode-map nil gnus-winconf-browse-killed put gnus-Browse-killed-mode mode-class special gnus-buffer-list make-keymap suppress-keymap t define-key " " gnus-Group-next-group "" gnus-Group-prev-group "" "" "n" "p" "y" gnus-Browse-killed-yank "" "l" gnus-Browse-killed-groups "q" gnus-Browse-killed-exit "" "	" gnus-Info-find-node] 4)
-(fset 'gnus-Browse-killed-mode #[nil "À ˆÁÂ!«„Ãª‘ÄÅ!<«‰ÃÄÅ!ABª‚ÆÇÉ\nËÍ!ˆÏp!ˆÐÒÓ!‡" [kill-all-local-variables boundp mode-line-modified "--- " default-value mode-line-format "--- GNUS: Killed Newsgroups  %[(%m)%]----%3p-%-" gnus-Browse-killed-mode major-mode "Browse-Killed" mode-name "GNUS: Killed Newsgroups" mode-line-buffer-identification use-local-map gnus-Browse-killed-mode-map buffer-flush-undo t buffer-read-only run-hooks gnus-Browse-killed-mode-hook] 3 "\
+(byte-code "ÀÁ!¬‚ÂÀÃ!¬‚ÄÀÅ!¬‚ÄÆÇÈ\"ˆÉÊËÌ#ˆ	>¬†	B¬ÐÎ ÏÐ\"ˆÑÒÓ#ˆÑÔÕ#ˆÑÖÓ#ˆÑ×Õ#ˆÑØÓ#ˆÑÙÕ#ˆÑÚÛ#ˆÑÜÛ#ˆÑÝÞ#ˆÑßà#ˆÑáà#ˆÑâã#ˆÄ‡" [boundp gnus-Browse-killed-buffer "*Killed Newsgroup*" gnus-Browse-killed-mode-map nil gnus-winconf-browse-killed autoload timezone-make-date-arpa-standard "timezone" put gnus-Browse-killed-mode mode-class special gnus-buffer-list make-keymap suppress-keymap t define-key " " gnus-Group-next-group "" gnus-Group-prev-group "" "" "n" "p" "y" gnus-Browse-killed-yank "" "l" gnus-Browse-killed-groups "q" gnus-Browse-killed-exit "" "	" gnus-Info-find-node] 4)
+(fset 'gnus-Browse-killed-mode #[nil "À ˆÁÂ!«„Ãª‘ÄÅ!<«‰ÃÄÅ!ABª‚ÆÇÉ\nËÍ!ˆÏp!ˆÐÒÓ!‡" [kill-all-local-variables boundp mode-line-modified "--- " default-value mode-line-format "--- GNUS: Killed Newsgroups  %[(%m)%]----%3p-%-" gnus-Browse-killed-mode major-mode "Browse-Killed" mode-name "GNUS: Killed Newsgroups" mode-line-buffer-identification use-local-map gnus-Browse-killed-mode-map buffer-disable-undo t buffer-read-only run-hooks gnus-Browse-killed-mode-hook] 3 "\
 Major mode for browsing the killed newsgroups.
 All normal editing commands are turned off.
 Instead, these commands are available:
@@ -35,6 +35,9 @@ Yank current newsgroup to Newsgroup buffer." nil])
 Exit if the buffer is empty by deleting the window and killing the buffer."])
 (fset 'gnus-Browse-killed-exit #[nil "À	!«†ÂÀ	!!ˆÃ	!ˆ«„Å!ˆÆ‰‡" [get-buffer-window gnus-Browse-killed-buffer delete-window kill-buffer gnus-winconf-browse-killed set-window-configuration nil] 3 "\
 Exit this mode by deleting the window and killing the buffer." nil])
+(fset 'gnus-Group-kill-region #[(begin end) "ŠÀ	bˆÂyˆ`bˆÄˆ`\")S	bˆÂyˆÆ!)‡" [count-lines begin 0 end nil lines gnus-Group-kill-group] 3 "\
+Kill newsgroups in current region (excluding current point).
+The killed newsgroups can be yanked by using \\[gnus-Group-yank-group]." "r"])
 (fset 'gnus-Group-kill-group #[(n) "À‰ÄV«¶Å ‰¬…ÆÇÀ\"ˆÄyˆ`Èyˆ`|ˆÉ	!ˆSÊ!«YŠqˆÀebˆÌ@!cˆ*ªEÎÏÀÐ#*‡" [nil group buffer-read-only n 0 gnus-Group-group-name signal end-of-buffer 1 gnus-kill-newsgroup get-buffer gnus-Browse-killed-buffer gnus-Group-prepare-line gnus-killed-assoc search-forward ":" t] 5 "\
 Kill newsgroup on current line, repeated prefix argument N times.
 The killed newsgroups can be yanked by using \\[gnus-Group-yank-group]." "p"])
@@ -43,3 +46,7 @@ Yank the last newsgroup killed with \\[gnus-Group-kill-group],
 inserting it before the newsgroup on the line containging point." nil])
 (fset 'gnus-Group-insert-group #[(info) "¬„ÁÂ!ˆ¬†ÁÄÅ!!ˆÆÇ 	Ê\"ˆÌyˆÍ!cˆÎyˆÏÐÆÑ#*‡" [gnus-killed-assoc error "No killed newsgroups" gnus-have-all-newsgroups substitute-command-keys "Not all newsgroups are displayed.  Type \\[gnus-Group-list-all-groups] to display all newsgroups." nil gnus-Group-group-name group buffer-read-only gnus-insert-newsgroup info 0 gnus-Group-prepare-line -1 search-forward ":" t] 4 "\
 Insert newsgroup at current line using gnus-newsrc-assoc INFO."])
+(fset 'gnus-gmt-to-local #[nil "ŠŒ~ˆebˆeÀÁÂÃ#ˆ`}ˆebˆÄÅÂÆ#­™ÂÇ”Ç•{	Ç”Ç•|ˆÊÂ#c**‡" [search-forward "\n\n" nil move re-search-forward "^Date:[ 	]\\(.*\\)$" t 1 date buffer-read-only timezone-make-date-arpa-standard gnus-local-timezone] 5 "\
+Rewrite Date: field described in GMT to local in current buffer.
+The variable gnus-local-timezone is used for local time zone.
+Intended to be used with gnus-Article-prepare-hook."])

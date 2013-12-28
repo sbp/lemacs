@@ -2,7 +2,7 @@
 ;;; Copyright (C) 1985, 1986, 1987, 1992 Free Software Foundation, Inc.
 ;;; Created: 19 oct 90, Jamie Zawinski <jwz@lucid.com>
 ;;; Modified: 5 apr 92, Roland McGrath <roland@gnu.ai.mit.edu>
-;;; Last change 13-jun-92. jwz
+;;; Last change 27-aug-92. jwz
 
 ;;; This file is part of GNU Emacs.
 
@@ -212,7 +212,7 @@ no aliases, which is represented by this being a table with no entries.)")
 	        (forward-char 1)))
 	  (goto-char (point-min))
 	  (while (re-search-forward
-		  "^\\(a\\(lias\\|\\)\\|g\\(roup\\)\\|source\\)[ \t]+" nil t)
+		  "^\\(a\\(lias\\)?\\|g\\(roup\\)?\\|source\\)[ \t]+" nil t)
 	    (beginning-of-line)
 	    (if (looking-at "source[ \t]+\\([^ \t\n]+\\)")
 		(progn
@@ -516,7 +516,10 @@ characters which may be a part of the name of a mail-alias.")
 
 (defun mail-interactive-insert-alias (&optional alias)
   "Prompt for and insert a mail alias."
-  (interactive (list (completing-read "Expand alias: " mail-aliases nil t)))
+  (interactive (progn
+		(if (not (vectorp mail-aliases)) (mail-aliases-setup))
+		(list (completing-read "Expand alias: " mail-aliases nil t))))
+  (if (not (vectorp mail-aliases)) (mail-aliases-setup))
   (insert (or (and alias (symbol-value (intern-soft alias mail-aliases))) "")))
 
 (defun abbrev-hacking-next-line (&optional arg)
@@ -667,8 +670,8 @@ end of line."
 			(symbol-function 'vm-mail-internal)))
 	      (fset 'vm-mail-internal
 		    (function (lambda (&rest args)
-				(mail-aliases-setup-v18)
-				(apply 'vm-mail-internal-v18 args))))))
+				(apply 'vm-mail-internal-v18 args)
+				(mail-aliases-setup-v18))))))
 
        ;; If we're being loaded from mail-setup-hook or mail-mode-hook
        ;; as run from inside mail-setup or vm-mail-internal, then install

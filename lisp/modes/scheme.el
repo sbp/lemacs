@@ -23,8 +23,6 @@
 ;; of special forms.  Probably the code should be merged at some point 
 ;; so that there is sharing between both libraries.
 
-;;; $Header: scheme.el,v 1.1 91/03/20 23:43:33 eb Exp $
-
 (provide 'scheme)
 
 (defvar scheme-mode-syntax-table nil "")

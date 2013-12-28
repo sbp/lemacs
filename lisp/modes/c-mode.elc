@@ -1,7 +1,7 @@
-;;; compiled by devin@scylla on Fri Apr 24 11:45:48 1992
-;;; from file /wg1/emacs-base/lisp/c-mode.el
-;;; emacs version 19.0 Lucid.
-;;; bytecomp version 2.05; 9-mar-92.
+;;; compiled by jwz@thalidomide on Tue Sep  8 23:32:11 1992
+;;; from file /wg1/emacs-base/lisp/modes/c-mode.el
+;;; emacs version 19.2.23 Lucid.
+;;; bytecomp version 2.08; 27-aug-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -94,7 +94,7 @@ if that value is non-nil." nil])
 Like \\[fill-paragraph] but handle C comments.
 If point is inside a comment, the current paragraph of the comment
 is filled, preserving the comment indentation or line-starting decorations." "P"])
-(fset 'electric-c-brace #[(arg) "À\n¬¶l«³ŠÃÀxˆn)¬‰«§Å ˆÆ ˆcˆÅ ˆ«ŠÆ ˆ`ÈZÅ ˆŠ	«„	TbˆÉÊ!ˆ)	«ŒŠ	bˆËÌ\n!!)ª…ËÌ\n!!)‡" [nil insertpos arg " 	" c-auto-newline c-indent-line newline last-command-char 2 delete-char -1 self-insert-command prefix-numeric-value] 3 "\
+(fset 'electric-c-brace #[(arg) "À\n¬¶l«³ŠÃÀxˆn)¬‰«§Å ˆÆ ˆcˆÅ ˆ«ŠÆ ˆ`ÈZÅ ˆŠ	«„	TbˆÉÊ!ˆ)	«ŒŠ	bˆËÌ\n!!)ª‘ÍV«†ÎZËÌ\n!!)‡" [nil insertpos arg " 	" c-auto-newline c-indent-line newline last-command-char 2 delete-char -1 self-insert-command prefix-numeric-value 127 128] 3 "\
 Insert character and correct line's indentation." "P"])
 (byte-code "ÀÁMˆÂÃM‡" [c-insert-brackets #[nil "ÀcˆŠÁc)‡" [91 93] 1 nil nil] c-insert-braces #[nil "ÀÁ!ˆÂ ˆÃ ˆŠÂ ˆÄcˆÃ )‡" [electric-c-brace 1 newline c-indent-line 125] 2 nil nil]] 2)
 (fset 'electric-c-sharp-sign #[(arg) "ŠÀÁxˆn)«‡ÁÃ!)‡ÅÆ!!‡" [" 	" nil c-auto-newline electric-c-terminator arg self-insert-command prefix-numeric-value] 3 "\

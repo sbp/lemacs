@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Tue May 19 23:07:29 1992
-;;; from file /cadillac-th/jwz/emacs19/lisp/dired/gmhist-mh.el
-;;; emacs version 19.0.16 Lucid.
-;;; bytecomp version 2.06; 17-may-92.
+;;; compiled by jwz@watergate on Tue Aug 18 17:15:18 1992
+;;; from file /wg1/emacs-base/lisp/dired/gmhist-mh.el
+;;; emacs version 19.2.2 Lucid.
+;;; bytecomp version 2.08;  7-aug-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 

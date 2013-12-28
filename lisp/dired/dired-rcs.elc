@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Tue May 19 23:06:26 1992
-;;; from file /cadillac-th/jwz/emacs19/lisp/dired/dired-rcs.el
-;;; emacs version 19.0.16 Lucid.
-;;; bytecomp version 2.06; 17-may-92.
+;;; compiled by jwz@watergate on Tue Aug 18 17:13:45 1992
+;;; from file /wg1/emacs-base/lisp/dired/dired-rcs.el
+;;; emacs version 19.2.2 Lucid.
+;;; bytecomp version 2.08;  7-aug-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -10,8 +10,8 @@
 	     (string-lessp emacs-version "19")))
     (error "This file was compiled for Emacs19."))
 
-(defconst dired-rcs-version (substring "$Revision: 1.5 $" 11 -2) "\
-$Id: dired-rcs.el,v 1.5 1992/05/20 05:27:55 jwz Exp $")
+(defconst dired-rcs-version (substring "!Revision: 1.5 !" 11 -2) "\
+Id: dired-rcs.el,v 1.5 1991/11/06 13:06:22 sk RelBeta ")
 (require 'dired)
 (fset 'dired-rcs-mark-rcs-locked-files #[(&optional unflag-p) "À	Â\"‡" [dired-rcs-mark-rcs-files unflag-p t] 3 "\
 Mark all files that are under RCS control and RCS-locked.

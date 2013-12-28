@@ -1,11 +1,11 @@
 /* GNU Emacs routines to deal with syntax tables; also word and list parsing.
-   Copyright (C) 1985, 1987 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1987, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -39,7 +39,7 @@ Any vector of 256 elements will do.")
   (obj)
      Lisp_Object obj;
 {
-  if (XTYPE (obj) == Lisp_Vector && XVECTOR (obj)->size == 0400)
+  if (VECTORP (obj) && XVECTOR (obj)->size == 0400)
     return Qt;
   return Qnil;
 }
@@ -149,7 +149,7 @@ are listed in the documentation of `modify-syntax-entry'.")
   (ch)
      Lisp_Object ch;
 {
-  CHECK_NUMBER (ch, 0);
+  CHECK_FIXNUM (ch, 0);
   return make_number (syntax_code_spec[(int) SYNTAX (0xFF & XINT (ch))]);
 }
 
@@ -197,7 +197,7 @@ DEFUN ("modify-syntax-entry", Fmodify_syntax_entry, Smodify_syntax_entry, 2, 3,
   register enum syntaxcode code;
   Lisp_Object val;
 
-  CHECK_NUMBER (c, 0);
+  CHECK_FIXNUM (c, 0);
   CHECK_STRING (newentry, 1);
   if (NILP (syntax_table))
     syntax_table = current_buffer->syntax_table;
@@ -254,7 +254,7 @@ describe_syntax (value)
 
   Findent_to (make_number (16), make_number (1));
 
-  if (XTYPE (value) != Lisp_Int)
+  if (!FIXNUMP (value))
     {
       insert_string ("invalid");
       return;
@@ -500,7 +500,7 @@ and nil is returned.")
      Lisp_Object count;
 {
   int val;
-  CHECK_NUMBER (count, 0);
+  CHECK_FIXNUM (count, 0);
 
   if (!(val = scan_words (point, XINT (count))))
     {
@@ -850,9 +850,9 @@ If the depth is right but the count is not used up, nil is returned.")
   (from, count, depth)
      Lisp_Object from, count, depth;
 {
-  CHECK_NUMBER (from, 0);
-  CHECK_NUMBER (count, 1);
-  CHECK_NUMBER (depth, 2);
+  CHECK_FIXNUM (from, 0);
+  CHECK_FIXNUM (count, 1);
+  CHECK_FIXNUM (depth, 2);
 
   return scan_lists (XINT (from), XINT (count), XINT (depth), 0);
 }
@@ -871,8 +871,8 @@ but before count is used up, nil is returned.")
   (from, count)
      Lisp_Object from, count;
 {
-  CHECK_NUMBER (from, 0);
-  CHECK_NUMBER (count, 1);
+  CHECK_FIXNUM (from, 0);
+  CHECK_FIXNUM (count, 1);
 
   return scan_lists (XINT (from), XINT (count), 0, 1);
 }
@@ -1166,7 +1166,7 @@ DEFUN ("parse-partial-sexp", Fparse_partial_sexp, Sparse_partial_sexp, 2, 5, 0,
 
   if (!NILP (targetdepth))
     {
-      CHECK_NUMBER (targetdepth, 3);
+      CHECK_FIXNUM (targetdepth, 3);
       target = XINT (targetdepth);
     }
   else

@@ -38,6 +38,10 @@ extern void format_event_object ();
 
 Lisp_Object Vstandard_output, Qstandard_output;
 
+/* The subroutine object for external-debugging-output is kept here
+   for the convenience of the debugger.  */
+Lisp_Object Qexternal_debugging_output;
+ 
 #ifdef LISP_FLOAT_TYPE
 Lisp_Object Vfloat_output_format, Qfloat_output_format;
 #endif /* LISP_FLOAT_TYPE */
@@ -98,11 +102,11 @@ static char *printer_buffer_end;
    printer_buffer_end = printer_buffer + PRINTER_BUFFER_SIZE; \
    original = printcharfun; \
    if (NILP (printcharfun)) printcharfun = Qt; \
-   if (XTYPE (printcharfun) == Lisp_Buffer) \
+   if (BUFFERP (printcharfun)) \
      { if (XBUFFER (printcharfun) != current_buffer) \
 	 Fset_buffer (printcharfun); \
        printcharfun = Qnil;}\
-   if (XTYPE (printcharfun) == Lisp_Marker) \
+   if (MARKERP (printcharfun)) \
      { if (XMARKER (original)->buffer != current_buffer) \
          internal_set_buffer (XMARKER (original)->buffer); \
        old_point = point; \
@@ -112,7 +116,7 @@ static char *printer_buffer_end;
 
 #define PRINTFINISH \
    dump_printer_buffer (); \
-   if (XTYPE (original) == Lisp_Marker) \
+   if (MARKERP (original)) \
      Fset_marker (original, make_number (point), Qnil); \
    if (old_point >= 0) \
      SET_PT ((old_point >= start_point ? point - start_point : 0) + old_point); \
@@ -268,7 +272,7 @@ STREAM defaults to the value of `standard-output' (which see).")
 
   if (NILP (printcharfun))
     printcharfun = Vstandard_output;
-  CHECK_NUMBER (ch, 0);
+  CHECK_FIXNUM (ch, 0);
   PRINTPREPARE;
   PRINTCHAR (XINT (ch));
   PRINTFINISH;
@@ -543,7 +547,7 @@ float_to_string (buf, data)
   register int width;
       
   if (NILP (Vfloat_output_format)
-      || XTYPE (Vfloat_output_format) != Lisp_String)
+      || !STRINGP (Vfloat_output_format))
   lose:
     sprintf (buf, "%.16g", data);
   else			/* oink oink */
@@ -612,6 +616,9 @@ print (obj, printcharfun, escapeflag)
   char buf[30];
 
   QUIT;
+
+  if (print_depth == 0 && EQ (printcharfun, Qt))
+    printbufidx = strlen (SCREEN_MESSAGE_BUF (selected_screen));
 
   print_depth++;
 
@@ -737,7 +744,7 @@ print (obj, printcharfun, escapeflag)
 
     case Lisp_Cons:
       /* If deeper than spec'd depth, print placeholder.  */
-      if (XTYPE (Vprint_level) == Lisp_Int
+      if (FIXNUMP (Vprint_level)
 	  && print_depth > XINT (Vprint_level))
 	{
 	  strout ("...", -1, printcharfun);
@@ -747,7 +754,7 @@ print (obj, printcharfun, escapeflag)
       /* If print_readably is on, print (quote -foo-) as '-foo- */
       if (print_readably &&
 	  EQ (XCONS (obj)->car, Qquote) &&
-	  XTYPE (XCONS (obj)->cdr) == Lisp_Cons &&
+	  CONSP (XCONS (obj)->cdr) &&
 	  NILP (XCONS (XCONS (obj)->cdr)->cdr)) {
 	PRINTCHAR ('\'');
 	print (XCONS (XCONS (obj)->cdr)->car, printcharfun, escapeflag);
@@ -759,7 +766,7 @@ print (obj, printcharfun, escapeflag)
 	register int i = 0;
 	register int max = 0;
 
-	if (XTYPE (Vprint_length) == Lisp_Int)
+	if (FIXNUMP (Vprint_length))
 	  max = XINT (Vprint_length);
 	while (CONSP (obj))
 	  {
@@ -797,7 +804,7 @@ print (obj, printcharfun, escapeflag)
 	  }
       }
       PRINTCHAR (']');
-      if (!print_readably && XTYPE (obj) == Lisp_Compiled)
+      if (!print_readably && COMPILEDP (obj))
 	PRINTCHAR ('>');
       break;
 
@@ -808,10 +815,10 @@ print (obj, printcharfun, escapeflag)
           char *title = "";
 	  char *name = "";
 
-          if (XTYPE (XEXTENT(obj)->buffer) == Lisp_Buffer)
+          if (BUFFERP (XEXTENT(obj)->buffer))
             {
               struct buffer *buf = XBUFFER(XEXTENT(obj)->buffer);
-	      if (XTYPE (buf->name) == Lisp_String)
+	      if (STRINGP (buf->name))
 		{
 		  name = (char *)&(XSTRING(buf->name)->data[0]);
 		  title = "buffer ";
@@ -864,7 +871,7 @@ print (obj, printcharfun, escapeflag)
 		   XDUP(obj)->start, XDUP(obj)->end);
 	  
 	  strout ("#<dup ", -1, printcharfun);
-          if (XTYPE (XDUP(obj)->extent) == Lisp_Extent)
+          if (EXTENTP (XDUP(obj)->extent))
             {
               Lisp_Object extent_obj = XDUP(obj)->extent;
               int from = XINT(Fextent_start_position (extent_obj));
@@ -1046,7 +1053,7 @@ print (obj, printcharfun, escapeflag)
 
     case Lisp_Keymap:
       {
-	int size = XFASTINT (Fhashtable_fullness (XKEYMAP (obj)->table));
+	int size = XFASTINT (Fkeymap_fullness (obj));
 	sprintf (buf, "#<keymap %d entr%s>", size, (size == 1) ? "y" : "ies");
 	strout (buf, -1, printcharfun);
       }
@@ -1066,6 +1073,20 @@ print (obj, printcharfun, escapeflag)
 
   print_depth--;
 }
+
+
+DEFUN ("external-debugging-output", Fexternal_debugging_output,
+       Sexternal_debugging_output, 1, 1, 0,
+  "Write CHARACTER to stderr.\n\
+You can call print while debugging emacs, and pass it this function\n\
+to make it write to the debugging output.\n")
+  (character)
+     Lisp_Object character;
+{
+  CHECK_FIXNUM (character, 0);
+  putc (XINT (character), stderr);
+  return character;
+}
 
 void
 syms_of_print ()
@@ -1074,6 +1095,10 @@ syms_of_print ()
   Qprint_escape_newlines = intern ("print-escape-newlines");
   staticpro (&Qprint_readably);
   Qprint_readably = intern ("print-readably");
+
+  defsubr (&Sexternal_debugging_output);
+  Qexternal_debugging_output = intern ("external-debugging-output");
+  staticpro (&Qexternal_debugging_output);
 
   DEFVAR_LISP ("standard-output", &Vstandard_output,
     "Output stream `print' uses by default for outputting a character.\n\

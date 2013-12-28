@@ -2,7 +2,7 @@
 ;;; The optimization passes of the emacs-lisp byte compiler.
 
 ;; By Jamie Zawinski <jwz@lucid.com> and Hallvard Furuseth <hbf@ulrik.uio.no>.
-;; last modified  2-jun-92.
+;; last modified 22-jul-92.
 
 ;; This file is part of GNU Emacs.
 
@@ -233,9 +233,9 @@ after this is spliced in.  the provided list is destroyed."
   (let ((lambda (car form))
 	(values (cdr form)))
     (if (compiled-function-p lambda)
-	(setq lambda (list 'lambda (nth 0 form)
-			   (list 'byte-code
-				 (nth 1 form) (nth 2 form) (nth 3 form)))))
+	(setq lambda (list 'lambda (aref lambda 0)
+			   (list 'byte-code (aref lambda 1)
+				 (aref lambda 2) (aref lambda 3)))))
     (let ((arglist (nth 1 lambda))
 	  (body (cdr (cdr lambda)))
 	  optionalp restp

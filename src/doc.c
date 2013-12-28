@@ -47,8 +47,8 @@ get_doc_string (filepos)
   register int count;
   extern char *index ();
 
-  if (XTYPE (Vexec_directory) != Lisp_String
-      || XTYPE (Vdoc_file_name) != Lisp_String)
+  if (!STRINGP (Vexec_directory)
+      || !STRINGP (Vdoc_file_name))
     return Qnil;
 
   name = (char *) alloca (XSTRING (Vexec_directory)->size
@@ -111,34 +111,34 @@ DEFUN ("documentation", Fdocumentation, Sdocumentation, 1, 1, 0,
   Lisp_Object tem;
 
   fun = fun1;
-  while (XTYPE (fun) == Lisp_Symbol)
+  while (SYMBOLP (fun))
     fun = Fsymbol_function (fun);
-  if (XTYPE (fun) == Lisp_Subr)
+  if (SUBRP (fun))
     {
       if (XSUBR (fun)->doc == 0) return Qnil;
       if ((int) XSUBR (fun)->doc >= 0)
 	return Fsubstitute_command_keys (build_string (XSUBR (fun)->doc));
       return Fsubstitute_command_keys (get_doc_string (- (int) XSUBR (fun)->doc));
     }
-  if (XTYPE (fun) == Lisp_Compiled)
+  if (COMPILEDP (fun))
     {
       if (XVECTOR (fun)->size <= COMPILED_DOC_STRING)
 	return Qnil;
       tem = XVECTOR (fun)->contents[COMPILED_DOC_STRING];
-      if (XTYPE (tem) == Lisp_String)
+      if (STRINGP (tem))
 	return Fsubstitute_command_keys (tem);
-      if (XTYPE (tem) == Lisp_Int && XINT (tem) >= 0)
+      if (FIXNUMP (tem) && XINT (tem) >= 0)
 	return Fsubstitute_command_keys (get_doc_string (XFASTINT (tem)));
       return Qnil;
     }
-  if (XTYPE (fun) == Lisp_Keymap)
+  if (KEYMAPP (fun))
     return build_string ("Prefix command (definition is a keymap of subcommands).");
-  if (XTYPE (fun) == Lisp_String)
+  if (STRINGP (fun))
     return build_string ("Keyboard macro.");
   if (!CONSP (fun))
     return Fsignal (Qinvalid_function, Fcons (fun, Qnil));
   funcar = Fcar (fun);
-  if (XTYPE (funcar) != Lisp_Symbol)
+  if (!SYMBOLP (funcar))
     return Fsignal (Qinvalid_function, Fcons (fun, Qnil));
   if (XSYMBOL (funcar) == XSYMBOL (Qkeymap))
     return build_string ("Prefix command (definition is a list whose cdr is an alist of subcommands.)");
@@ -146,9 +146,9 @@ DEFUN ("documentation", Fdocumentation, Sdocumentation, 1, 1, 0,
       || XSYMBOL (funcar) == XSYMBOL (Qautoload))
     {
       tem = Fcar (Fcdr (Fcdr (fun)));
-      if (XTYPE (tem) == Lisp_String)
+      if (STRINGP (tem))
 	return Fsubstitute_command_keys (tem);
-      if (XTYPE (tem) == Lisp_Int && XINT (tem) >= 0)
+      if (FIXNUMP (tem) && XINT (tem) >= 0)
 	return Fsubstitute_command_keys (get_doc_string (XFASTINT (tem)));
       return Qnil;
     }
@@ -171,7 +171,7 @@ stored in the `etc/DOC' file.")
   register Lisp_Object tem;
 
   tem = Fget (sym, prop);
-  if (XTYPE (tem) == Lisp_Int)
+  if (FIXNUMP (tem))
     tem = get_doc_string (XINT (tem) > 0 ? XINT (tem) : - XINT (tem));
   return Fsubstitute_command_keys (tem);
 }
@@ -248,7 +248,7 @@ when doc strings are referred to later in the dumped Emacs.")
 	{
 	  end = index (p, '\n');
 	  sym = oblookup (Vobarray, p + 2, end - p - 2);
-	  if (XTYPE (sym) == Lisp_Symbol)
+	  if (SYMBOLP (sym))
 	    {
 	      if (p[1] == 'V')
 		{
@@ -263,11 +263,11 @@ when doc strings are referred to later in the dumped Emacs.")
 		{
 		  fun = XSYMBOL (sym)->function;
 
-		  if (XTYPE (fun) == Lisp_Cons &&
+		  if (CONSP (fun) &&
 		      EQ (XCONS (fun)->car, Qmacro))
 		    fun = XCONS (fun)->cdr;
 
-		  if (XTYPE (fun) == Lisp_Subr)
+		  if (SUBRP (fun))
 		    XSUBR (fun)->doc = (char *) - (pos + end + 1 - buf);
 		  else if (CONSP (fun))
 		    {
@@ -276,15 +276,14 @@ when doc strings are referred to later in the dumped Emacs.")
 			{
 			  tem = Fcdr (Fcdr (fun));
 			  if (CONSP (tem) &&
-			      XTYPE (XCONS (tem)->car) == Lisp_Int)
+			      FIXNUMP (XCONS (tem)->car))
 			    XFASTINT (XCONS (tem)->car) = (pos + end + 1 - buf);
 			}
 		    }
-		  else if (XTYPE (fun) == Lisp_Compiled)
+		  else if (COMPILEDP (fun))
 		    {
 		      if (XVECTOR (fun)->size > COMPILED_DOC_STRING &&
-			  XTYPE (XVECTOR (fun)->contents[COMPILED_DOC_STRING])
-			  == Lisp_Int)
+			  FIXNUMP (XVECTOR (fun)->contents[COMPILED_DOC_STRING]))
 			XFASTINT (XVECTOR (fun)->contents[COMPILED_DOC_STRING])
 			  = (pos + end + 1 - buf);
 		    }

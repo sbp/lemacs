@@ -155,26 +155,42 @@ memory_full ()
 
 /* like malloc and realloc but check for no memory left */
 
-long *
+void *
 xmalloc (size)
      int size;
 {
   register long *val;
 
+  /* It is necessary to block SIGIO interrupts around calls to malloc()
+     because the SIGIO handler interrogates the X queue to see if a
+     control-g keypress event is pending.  It does this by calling
+     XCheckIfEvent(), which can call malloc() in order to expand its
+     internal buffers.  As malloc is not reentrant, this can corrupt
+     the malloc lists.
+
+     This is generally only a problem within the first few seconds after
+     emacs has started up, because the X event buffers tend to reach a
+     stable size fairly early, but it is a *potential* problem at all
+     times.
+   */
+  BLOCK_INPUT;
   val = (long *) malloc (size);
+  UNBLOCK_INPUT;
 
   if (!val && size) memory_full ();
   return val;
 }
 
-long *
+void *
 xrealloc (block, size)
-     long *block;
+     void *block;
      int size;
 {
   register long *val;
 
+  BLOCK_INPUT;	/* see comment above */
   val = (long *) realloc (block, size);
+  UNBLOCK_INPUT;
 
   if (!val && size) memory_full ();
   return val;
@@ -213,14 +229,14 @@ static void
 init_extents ()
 {
   extent_block
-    = (struct extent_block *) malloc (sizeof (struct extent_block));
+    = (struct extent_block *) xmalloc (sizeof (struct extent_block));
   extent_block->next = 0;
   bzero (extent_block->extents, sizeof extent_block->extents);
   extent_block_index = 0;
   extent_free_list = 0;
 
   dup_block
-    = (struct dup_block *) malloc (sizeof (struct dup_block));
+    = (struct dup_block *) xmalloc (sizeof (struct dup_block));
   dup_block->next = 0;
   bzero (dup_block->dups, sizeof dup_block->dups);
   dup_block_index = 0;
@@ -243,7 +259,7 @@ make_extent ()
       if (extent_block_index == EXTENT_BLOCK_SIZE)
 	{
 	  register struct extent_block *newi
-	    = (struct extent_block *) malloc (sizeof (struct extent_block));
+	    = (struct extent_block *) xmalloc (sizeof (struct extent_block));
 
 	  if (!newi)
 	    memory_full ();
@@ -257,10 +273,8 @@ make_extent ()
 	}
       val = &extent_block->extents[extent_block_index++];
     }
-
+  val->user_data = Qnil;
   INCREMENT_CONS_COUNTER (sizeof (struct extent));
-
-
   return val;
 }
 
@@ -280,7 +294,7 @@ make_extent_replica ()
       if (dup_block_index == DUP_BLOCK_SIZE)
 	{
 	  struct dup_block *newd
-	    = (struct dup_block *) malloc (sizeof (struct dup_block));
+	    = (struct dup_block *) xmalloc (sizeof (struct dup_block));
 
 	  if (!newd)
 	    memory_full ();
@@ -329,7 +343,7 @@ struct Lisp_Float *float_free_list;
 void
 init_float ()
 {
-  float_block = (struct float_block *) malloc (sizeof (struct float_block));
+  float_block = (struct float_block *) xmalloc (sizeof (struct float_block));
   float_block->next = 0;
   bzero (float_block->floats, sizeof float_block->floats);
   float_block_index = 0;
@@ -359,7 +373,8 @@ make_float (float_value)
     {
       if (float_block_index == FLOAT_BLOCK_SIZE)
 	{
-	  register struct float_block *new = (struct float_block *) malloc (sizeof (struct float_block));
+	  register struct float_block *new =
+	    (struct float_block *) xmalloc (sizeof (struct float_block));
 	  if (!new) memory_full ();
 	  VALIDATE_LISP_STORAGE (new, sizeof *new);
 	  new->next = float_block;
@@ -403,7 +418,7 @@ struct Lisp_Cons *cons_free_list;
 void
 init_cons ()
 {
-  cons_block = (struct cons_block *) malloc (sizeof (struct cons_block));
+  cons_block = (struct cons_block *) xmalloc (sizeof (struct cons_block));
   cons_block->next = 0;
   bzero (cons_block->conses, sizeof cons_block->conses);
   cons_block_index = 0;
@@ -434,7 +449,8 @@ DEFUN ("cons", Fcons, Scons, 2, 2, 0,
     {
       if (cons_block_index == CONS_BLOCK_SIZE)
 	{
-	  register struct cons_block *new = (struct cons_block *) malloc (sizeof (struct cons_block));
+	  register struct cons_block *new =
+	    (struct cons_block *) xmalloc (sizeof (struct cons_block));
 	  if (!new) memory_full ();
 	  VALIDATE_LISP_STORAGE (new, sizeof *new);
 	  new->next = cons_block;
@@ -477,7 +493,7 @@ DEFUN ("make-list", Fmake_list, Smake_list, 2, 2, 0,
   register Lisp_Object val;
   register int size;
 
-  if (XTYPE (length) != Lisp_Int || XINT (length) < 0)
+  if (!FIXNUMP (length) || XINT (length) < 0)
     length = wrong_type_argument (Qnatnump, length);
   size = XINT (length);
 
@@ -501,11 +517,12 @@ See also the function `vector'.")
   register Lisp_Object vector;
   register struct Lisp_Vector *p;
 
-  if (XTYPE (length) != Lisp_Int || XINT (length) < 0)
+  if (!FIXNUMP (length) || XINT (length) < 0)
     length = wrong_type_argument (Qnatnump, length);
   sizei = XINT (length);
 
-  p = (struct Lisp_Vector *) malloc (sizeof (struct Lisp_Vector) + (sizei - 1) * sizeof (Lisp_Object));
+  p = (struct Lisp_Vector *)
+    xmalloc (sizeof (struct Lisp_Vector) + (sizei - 1) * sizeof (Lisp_Object));
   if (p == 0)
     memory_full ();
   VALIDATE_LISP_STORAGE (p, 0);
@@ -598,7 +615,8 @@ struct Lisp_Symbol *symbol_free_list;
 void
 init_symbol ()
 {
-  symbol_block = (struct symbol_block *) malloc (sizeof (struct symbol_block));
+  symbol_block =
+    (struct symbol_block *) xmalloc (sizeof (struct symbol_block));
   symbol_block->next = 0;
   bzero (symbol_block->symbols, sizeof symbol_block->symbols);
   symbol_block_index = 0;
@@ -626,7 +644,8 @@ Its value and function definition are void, and its property list is nil.")
     {
       if (symbol_block_index == SYMBOL_BLOCK_SIZE)
 	{
-	  struct symbol_block *new = (struct symbol_block *) malloc (sizeof (struct symbol_block));
+	  struct symbol_block *new =
+	    (struct symbol_block *) xmalloc (sizeof (struct symbol_block));
 	  if (!new) memory_full ();
 	  new->next = symbol_block;
 	  VALIDATE_LISP_STORAGE (new, sizeof *new);
@@ -665,7 +684,8 @@ struct Lisp_Marker *marker_free_list;
 void
 init_marker ()
 {
-  marker_block = (struct marker_block *) malloc (sizeof (struct marker_block));
+  marker_block = (struct marker_block *)
+    xmalloc (sizeof (struct marker_block));
   marker_block->next = 0;
   bzero (marker_block->markers, sizeof marker_block->markers);
   marker_block_index = 0;
@@ -689,7 +709,8 @@ DEFUN ("make-marker", Fmake_marker, Smake_marker, 0, 0, 0,
     {
       if (marker_block_index == MARKER_BLOCK_SIZE)
 	{
-	  struct marker_block *new = (struct marker_block *) malloc (sizeof (struct marker_block));
+	  struct marker_block *new =
+	    (struct marker_block *) xmalloc (sizeof (struct marker_block));
 	  if (!new) memory_full ();
 	  VALIDATE_LISP_STORAGE (new, sizeof *new);
 	  new->next = marker_block;
@@ -776,14 +797,15 @@ struct string_chars_block *first_string_chars_block;
 static void
 init_strings ()
 {
-  string_block = (struct string_block *) malloc (sizeof (struct string_block));
+  string_block =
+    (struct string_block *) xmalloc (sizeof (struct string_block));
   string_block->next = 0;
   bzero (string_block->strings, sizeof string_block->strings);
   string_block_index = 0;
   string_free_list = 0;
 
   first_string_chars_block = 
-    (struct string_chars_block *) malloc (sizeof (struct string_chars_block));
+    (struct string_chars_block *) xmalloc (sizeof (struct string_chars_block));
   current_string_chars_block = first_string_chars_block;
   current_string_chars_block->prev = 0;
   current_string_chars_block->next = 0;
@@ -806,7 +828,7 @@ make_string_internal ()
       if (string_block_index == STRING_BLOCK_SIZE)
 	{
 	  struct string_block *new_sb
-	    = (struct string_block *) malloc (sizeof (struct string_block));
+	    = (struct string_block *) xmalloc (sizeof (struct string_block));
 
 	  if (!new_sb)
 	    memory_full ();
@@ -834,7 +856,7 @@ allocate_string_chars (size, fullsize)
   
   if (BIG_STRING_SIZE (size))
     {
-      s_chars = (struct string_chars *) malloc (fullsize);
+      s_chars = (struct string_chars *) xmalloc (fullsize);
       if (!s_chars)
 	memory_full ();
     }
@@ -853,7 +875,7 @@ allocate_string_chars (size, fullsize)
       /* Make a new current string chars block */
       struct string_chars_block *new = 
         (struct string_chars_block *) 
-          malloc (sizeof (struct string_chars_block));
+          xmalloc (sizeof (struct string_chars_block));
       if (!new)
 	memory_full ();
 
@@ -906,9 +928,9 @@ Both LENGTH and INIT must be numbers.")
   register Lisp_Object val;
   register unsigned char *p, *end, c;
 
-  if (XTYPE (length) != Lisp_Int || XINT (length) < 0)
+  if (!FIXNUMP (length) || XINT (length) < 0)
     length = wrong_type_argument (Qnatnump, length);
-  CHECK_NUMBER (init, 1);
+  CHECK_FIXNUM (init, 1);
   val = make_uninit_string (XINT (length));
   c = XINT (init);
   p = XSTRING (val)->data;
@@ -1188,7 +1210,8 @@ mark_one_extent (extent)
   if (!EXTENT_MARKED_P (extent))
     {
       MARK_EXTENT (extent);
-      mark_object (&(extent->buffer));
+      mark_object (&extent->buffer);
+      mark_object (&extent->user_data);
     }
 }
 
@@ -1202,9 +1225,9 @@ mark_extents (extent)
       EXTENT e = extent;
       while (e)
         {
-	  MARK_EXTENT_LIST (e);
 	  if (!EXTENT_MARKED_P (e))
 	    mark_one_extent (e);
+	  MARK_EXTENT_LIST (e);
           e = e->next;
         }
     }
@@ -1423,13 +1446,13 @@ mark_buffer (buffer)
   XMARK (buf->name);
 
   /* mark the extents attached to this string, if any */
-  if (XTYPE (buf->extents) == Lisp_Extent)
+  if (EXTENTP (buf->extents))
     {
       EXTENT ext = XEXTENT (buf->extents);
       if (!EXTENT_LIST_MARKED_P (ext))
 	mark_extents (ext);
     }
-  else if (!NILP (buf->extents))
+  else if (!NILP (buf->extents) && buf->extents)
     mark_object (&buf->extents);
 
 #undef MARKED_SLOT
@@ -1570,6 +1593,7 @@ gc_sweep ()
 	    if (!EXTENT_MARKED_P (extent))
 	      {
                 bzero ((char *) extent, sizeof (struct extent));
+		extent->user_data = Qnil;
 		extent->next = extent_free_list;
 		extent_free_list = extent;
 #ifdef ENERGIZE
@@ -1910,9 +1934,9 @@ Garbage collection happens automatically if you cons more than\n\
       if (i < MAX_SAVE_STACK)
 	{
 	  if (stack_copy == 0)
-	    stack_copy = (char *) malloc (stack_copy_size = i);
+	    stack_copy = (char *) xmalloc (stack_copy_size = i);
 	  else if (stack_copy_size < i)
-	    stack_copy = (char *) realloc (stack_copy, (stack_copy_size = i));
+	    stack_copy = (char *) xrealloc (stack_copy, (stack_copy_size = i));
 	  if (stack_copy)
 	    {
 	      if ((int) (&stack_top_variable - stack_bottom) > 0)

@@ -58,7 +58,7 @@ In this case, a prefix argument means ``previous error''.  Otherwise,
 use the original definition of next-error."
   (interactive "P")
   (if (energize-buffer-p (current-buffer))
-      (execute-energize-choice (if arg "previouserror" "nexterror") t)
+      (energize-execute-command (if arg "previouserror" "nexterror"))
     (energize-orig-next-error arg)))
 
 (defun energize-previous-error (&optional arg)
@@ -67,16 +67,18 @@ In this case, a prefix argument means ``next error''.  Otherwise,
 use the original definition of previous-error."
   (interactive "P")
   (if (energize-buffer-p (current-buffer))
-      (execute-energize-choice (if arg "nexterror" "previouserror") t)
+      (energize-execute-command (if arg "nexterror" "previouserror"))
     (energize-orig-previous-error arg)))
 
 (defun energize-set-visited-file-name (filename)
   "This is illegal for Energize buffers."
   (interactive "FSet visited file name: ")
-  (if (and (energize-buffer-p (current-buffer))
+  (if (and (energize-write-file-buffer-p)
 	   (not (equal filename buffer-file-name)))
       (error "Can't change the name associated with a Energize buffer.")
-    (energize-orig-set-visited-file-name filename)))
+    (energize-orig-set-visited-file-name filename)
+    (if (energize-buffer-p (current-buffer))
+	(energize-mode-internal))))
 
 
 (defun energize-find-file-noselect (filename &optional nowarn)
@@ -98,12 +100,16 @@ about, it will be correctly annotated."
   (if (= 0 (energize-bits 1024))
       (energize-announce (get 'energize 'energize))))
 
+(defun energize-write-file-buffer-p ()
+  (and (energize-buffer-p (current-buffer))
+       (not (eq major-mode 'energize-project-mode))))
+
 (defun energize-write-file (filename)
   "When executed on an Energize buffer, this will cause all annotations
 to be lost (that is, the buffer will become a normal buffer, not one that
 the Energize server knows about.)"
   (interactive
-   (list (let ((prompt (if (energize-buffer-p (current-buffer))
+   (list (let ((prompt (if (energize-write-file-buffer-p)
 			   "Write Energize buffer to file: "
 			 "Write file: ")))
 	   (if buffer-file-name
@@ -111,7 +117,7 @@ the Energize server knows about.)"
 	     (read-file-name prompt (cdr (assq 'default-directory
 					       (buffer-local-variables)))
 			     nil nil (buffer-name))))))
-  (if (not (energize-buffer-p (current-buffer)))
+  (if (not (energize-write-file-buffer-p))
       (energize-orig-write-file filename)
     ;; else...
     (if (and (file-exists-p filename)
@@ -135,15 +141,7 @@ the server.
   (interactive "P")
   (if (not (energize-buffer-p (current-buffer)))
       (energize-orig-gdb-break arg)
-    (let ((item (energize-list-menu (current-buffer) nil
-				    "setbreakpoint")))
-      (or item (error "can't set a breakpoint now"))
-      (energize-execute-menu-item
-       (current-buffer) nil item
-       (save-excursion
-	 (vector (energize-buffer-id (current-buffer))
-		 (progn (beginning-of-line) (1- (point)))
-		 (progn (end-of-line) (1- (point)))))))))
+    (energize-execute-command "setbreakpoint")))
 
 
 (defun energize-beginning-of-defun (&optional arg)
@@ -218,12 +216,10 @@ With a numeric argument, move forward over that many forms."
 	  (name (or buffer-file-name (buffer-name (current-buffer))))
 	  (setmodes (or buffer-backed-up (backup-buffer)))
 	  (save-completed-normally nil))
-      (if energize-kernel-busy
-	  (error "Can't save file now, Energize server is busy"))
       (message "saving %s to Energize..." name)
       (unwind-protect
 	  (let ((inhibit-quit t))
-	    (execute-energize-choice "save" t)
+	    (energize-execute-command "save")
 	    (setq save-completed-normally (connected-to-energize-p)))
 	;; protected
 	(if (not save-completed-normally)
@@ -285,7 +281,7 @@ With a numeric argument, move forward over that many forms."
 	(file-error
 	 (error (if (connected-to-energize-p) ; oh give me a break...
 		    "file \"%s\" not saved"
-        "Server crash!  file \"%s\" may have been deleted.  You're welcome.")
+        "Energize server crash while saving \"%s\".  File may have been deleted.")
 		(file-name-nondirectory (cdr evil)))))))
 
 
@@ -296,7 +292,7 @@ With a numeric argument, move forward over that many forms."
       (error "energize-revert-buffer-hook called for a non-energize buffer"))
   (widen)
   (cond ((equal file buffer-file-name)		; reverting from energize
-	 (execute-energize-choice "revert" t))
+	 (energize-execute-command "revert"))
 	(t					; reverting from autosave
 	 (if (not (file-exists-p file))
 	     (error "File %s no longer exists!" file))
@@ -370,7 +366,7 @@ dialog box and edits its definition.  Otherwise, invokes `find-tag'."
 	(if (equal "" def) (setq def default))
 	def))))
   (if (energize-buffer-p (current-buffer))
-      (execute-energize-choice "editdef" t def t)
+      (energize-execute-command "editdef" () def t)
     (find-tag def)))
 
 (define-key global-map "\M-." 'energize-edit-definition)
@@ -380,6 +376,46 @@ dialog box and edits its definition.  Otherwise, invokes `find-tag'."
   (interactive)
   (or (y-or-n-p "Disconnect from Energize? ") (error "not confirmed"))
   (disconnect-from-energize))
+
+
+;;; Functions to add commands to the project buffers
+(defun energize-insert-slots (l)
+  (if (not (eq major-mode 'energize-project-mode))
+      (error "Command available only in project buffers"))
+  (beginning-of-line)
+  (while (and (not (looking-at "$"))
+	      (not (eq (point) (point-max))))
+    (next-line 1))
+  (let ((pad 20) i)
+    (newline)
+    (save-excursion
+      (mapcar '(lambda (i)
+		 (insert-char 32 (- pad (length i)))
+		 (insert i)
+		 (insert 32)
+		 (newline))
+	      l))
+    (end-of-line)))
+
+(defun energize-insert-file-target ()
+  (interactive)
+  (energize-insert-slots '("Object File:"
+			   "Build Options: incremental compile"
+			   "Compiler Switches:"
+			   "Using:")))
+
+(defun energize-insert-executable-target ()
+  (interactive)
+  (energize-insert-slots '("Executable:" "Build Options:" "Using:")))
+
+(defun energize-insert-library-target ()
+  (interactive)
+  (energize-insert-slots '("Library:" "Build Options:" "Using:")))
+
+(defun energize-insert-collection-target ()
+  (interactive)
+  (energize-insert-slots '("Collection:" "Build Options:" "Using:")))
+
 
 
 ;;; Keymaps for Energize buffers.
@@ -501,6 +537,14 @@ dialog box and edits its definition.  Otherwise, invokes `find-tag'."
   )
 
 
+(defvar energize-menu-state nil
+  "State of the energize menu items of the buffer.  
+Automatically updated by the kernel when the state changes")
+
+(defvar energize-default-menu-state nil
+  "State of the energize default menu items.  
+Automatically updated by the kernel when the state changes")
+
 (defun energize-mode-internal ()
   ;; initialize stuff common to all energize buffers (hooks, etc).
   (make-local-variable 'write-file-hooks)
@@ -516,6 +560,8 @@ dialog box and edits its definition.  Otherwise, invokes `find-tag'."
   ;;
   (make-local-variable 'require-final-newline)
   (setq require-final-newline t)
+  ;;
+  (make-local-variable 'energize-menu-state)
   ;;
   (run-hooks 'energize-mode-hook))
 
@@ -554,7 +600,9 @@ In addition to the normal editing commands, the following keys are bound:
   (use-local-map energize-project-map)
   (setq major-mode 'energize-project-mode
 	mode-name "Project")
-  (energize-non-file-mode-internal)
+  ;; in later revisions of the kernel the project is really a file.
+  (if (< (cdr (energize-protocol-level)) 8)
+      (energize-non-file-mode-internal))
   (run-hooks 'energize-project-mode-hook))
 
 (defun energize-breakpoint-mode ()
@@ -667,10 +715,10 @@ always use ``Build Target''."
   (or (and (not p)
 	   (condition-case nil
 	       (progn
-		 (execute-energize-choice "buildanddebug" t)
+		 (energize-execute-command "buildanddebug")
 		 t)
 	     (error nil)))
-      (execute-energize-choice "incrementalbuild" t)))
+      (energize-execute-command "incrementalbuild")))
 
 ;;; Dired-like commands
 
@@ -684,7 +732,8 @@ always use ``Build Target''."
 	  (setq e (extent-at (point) (current-buffer)))
 	  (if (and (not (eq e last-e))
 		   (not (eq last-e 'none)))
-	      (setq result (energize-list-menu (current-buffer) e command)))
+	      (setq result
+		    (energize-menu-item-for-name e command)))
 	  (forward-char (if prev -1 1))
 	  (setq last-e e))))
     (if result e)))
@@ -730,9 +779,8 @@ always use ``Build Target''."
 	       (error
 		(concat "no following field on this line that handles the `"
 			command "' Energize command.")))))
-    (energize-execute-menu-item (current-buffer) e
-				(energize-list-menu (current-buffer)
-						    e command))))
+    (energize-execute-command command e)))
+
 (defun energize-top-build-and-debug ()
   "Execute the `Build and Debug' command on the project at or following point."
   (interactive)

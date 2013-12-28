@@ -1,11 +1,11 @@
 /* Simple built-in editing commands.
-   Copyright (C) 1985 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -41,7 +41,7 @@ On reaching end of buffer, stop and signal error.")
   if (NILP (n))
     XFASTINT (n) = 1;
   else
-    CHECK_NUMBER (n, 0);
+    CHECK_FIXNUM (n, 0);
 
   to = (point + XINT (n));
   if (to < BEGV)
@@ -69,7 +69,7 @@ On attempt to pass beginning or end of buffer, stop and signal error.")
   if (NILP (n))
     XFASTINT (n) = 1;
   else
-    CHECK_NUMBER (n, 0);
+    CHECK_FIXNUM (n, 0);
 
   XSETINT (n, - XINT (n));
   return Fforward_char (n);
@@ -94,7 +94,7 @@ With positive ARG, a non-empty line at the end counts as one line\n\
     count = 1;
   else
     {
-      CHECK_NUMBER (n, 0);
+      CHECK_FIXNUM (n, 0);
       count = XINT (n);
     }
 
@@ -121,7 +121,7 @@ If scan reaches end of buffer, stop there without error.")
   if (NILP (n))
     XFASTINT (n) = 1;
   else
-    CHECK_NUMBER (n, 0);
+    CHECK_FIXNUM (n, 0);
 
   Fforward_line (make_number (XINT (n) - 1));
   return Qnil;
@@ -141,7 +141,7 @@ If scan reaches end of buffer, stop there without error.")
   if (NILP (n))
     XFASTINT (n) = 1;
   else
-    CHECK_NUMBER (n, 0);
+    CHECK_FIXNUM (n, 0);
 
   if (XINT (n) != 1)
     Fforward_line (make_number (XINT (n) - 1));
@@ -162,7 +162,7 @@ ARG was explicitly specified.")
   (n, killflag)
      Lisp_Object n, killflag;
 {
-  CHECK_NUMBER (n, 0);
+  CHECK_FIXNUM (n, 0);
 
   if (NILP (killflag))
     {
@@ -197,7 +197,7 @@ ARG was explicitly specified.")
   (n, killflag)
      Lisp_Object n, killflag;
 {
-  CHECK_NUMBER (n, 0);
+  CHECK_FIXNUM (n, 0);
   return Fdelete_char (make_number (-XINT (n)), killflag);
 }
 
@@ -209,7 +209,7 @@ Whichever character you type to run this command is inserted.")
   (arg)
      Lisp_Object arg;
 {
-  CHECK_NUMBER (arg, 0);
+  CHECK_FIXNUM (arg, 0);
 
   if (NILP (Vlast_command_char))
     Fsignal (Qerror,

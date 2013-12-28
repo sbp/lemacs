@@ -1,4 +1,5 @@
 /* Configuration file for the NeXT machine. */
+/* last modified 22 July, 1992 by <anderson@sapir.cog.jhu.edu>  */
 /*    Copyright (C) 1985, 1986 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
@@ -53,11 +54,22 @@ and this notice must be preserved on all copies.  */
 #define NO_UNION_TYPE
 
 /* Sun can't write competent compilers */
-#define COMPILER_REGISTER_BUG
+/* #define COMPILER_REGISTER_BUG */
 
 /* XINT must explicitly sign-extend */
 
 #define EXPLICIT_SIGN_EXTEND
+
+#define LIB_STANDARD -lsys_s 
+#define environ _environ
+#define NO_REMAP
+#define UNEXEC unexNeXT.o
+
+#ifndef FSCALE
+#define FSCALE 256
+#endif                   
+
+#define LIBS_MACHINE -lcs   /* needed for putenv - sra */
 
 /* Data type of load average, as read out of kmem.  */
 
@@ -89,4 +101,10 @@ and this notice must be preserved on all copies.  */
 #define SYSTEM_MALLOC
 
 #define HAVE_UNIX_DOMAIN
+
+#define NEXT_KERNEL_FILE "/mach"
+#undef KERNEL_FILE
+
+#define LD_SWITCH_SYSTEM -X -noseglinkedit
+
 

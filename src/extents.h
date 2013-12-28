@@ -30,9 +30,9 @@ struct extent
   struct extent *previous;
   struct extent *e_next;
   struct extent *e_previous;
-  void *data;
   int attr_index;
   Lisp_Object buffer;
+  Lisp_Object user_data;
 };
 
 
@@ -82,8 +82,6 @@ typedef struct extent *EXTENT;
 
 /* obliterated? */
 #define EXTENT_DESTROYED_P(e) (EXTENT_FLAG_P(e, EF_DESTROYED))
-
-#define EXTENTP(e) (XTYPE (e) == Lisp_Extent)
 
 /* special graphics attribute meaning "use what anyone else's attributes" */
 #define GA_NO_CHANGE 0
@@ -151,7 +149,6 @@ struct extent_fragment
   int number_of_extents;
   EXTENT *extents_stack;
   int extents_stack_length;
-  struct _attributes *attr_ptr;
   struct face *fp;
 };
 

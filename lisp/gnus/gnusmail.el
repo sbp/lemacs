@@ -1,6 +1,5 @@
 ;;; Mail reply commands for GNUS newsreader
 ;; Copyright (C) 1990 Masanobu UMEDA
-;; $Header: gnusmail.el,v 1.1 91/06/03 23:34:10 jwz Exp $
 
 ;; This file is part of GNU Emacs.
 
@@ -24,14 +23,16 @@
 
 ;; Provides mail reply and mail other window command using usual mail
 ;; interface and mh-e interface.
-;; 
-;; To use MAIL: set the variables gnus-mail-reply-method and
-;; gnus-mail-other-window-method to gnus-mail-reply-using-mail and
-;; gnus-mail-other-window-using-mail, respectively.
 ;;
-;; To use MH-E: set the variables gnus-mail-reply-method and
-;; gnus-mail-other-window-method to gnus-mail-reply-using-mhe and
-;; gnus-mail-other-window-using-mhe, respectively.
+;; To use MAIL: set the variables gnus-mail-reply-method to
+;; gnus-mail-reply-using-mail, gnus-mail-forward-method to
+;; gnus-mail-forward-using-mail, and gnus-mail-other-window-method to
+;; gnus-mail-other-window-using-mail.
+;;
+;; To use MH-E: set the variables gnus-mail-reply-method to
+;; gnus-mail-reply-using-mhe, gnus-mail-forward-method to
+;; gnus-mail-forward-using-mhe, and gnus-mail-other-window-method to
+;; gnus-mail-other-window-using-mhe.
 
 (autoload 'news-mail-reply "rnewspost")
 (autoload 'news-mail-other-window "rnewspost")
@@ -56,9 +57,21 @@ Customize the variable gnus-mail-reply-method to use another mailer."
   (funcall gnus-mail-reply-method yank))
 
 (defun gnus-Subject-mail-reply-with-original ()
-  "Reply mail to news author with original article."
+  "Reply mail to news author with original article.
+Customize the variable gnus-mail-reply-method to use another mailer."
   (interactive)
   (gnus-Subject-mail-reply t))
+
+(defun gnus-Subject-mail-forward ()
+  "Forward the current message to another user.
+Customize the variable gnus-mail-forward-method to use another mailer."
+  (interactive)
+  (gnus-Subject-select-article)
+  (switch-to-buffer gnus-Article-buffer)
+  (widen)
+  (delete-other-windows)
+  (bury-buffer gnus-Article-buffer)
+  (funcall gnus-mail-forward-method))
 
 (defun gnus-Subject-mail-other-window ()
   "Compose mail in other window.
@@ -85,6 +98,31 @@ Optional argument YANK means yank original article."
 	(mail-yank-original nil)
 	(goto-char last)
 	)))
+
+(defun gnus-mail-forward-using-mail ()
+  "Forward the current message to another user using mail."
+  ;; This is almost a carbon copy of rmail-forward in rmail.el.
+  (let ((forward-buffer (current-buffer))
+	(subject
+	 (concat "[" gnus-newsgroup-name "] "
+		 ;;(mail-strip-quoted-names (gnus-fetch-field "From")) ": "
+		 (or (gnus-fetch-field "Subject") ""))))
+    ;; If only one window, use it for the mail buffer.
+    ;; Otherwise, use another window for the mail buffer
+    ;; so that the Rmail buffer remains visible
+    ;; and sending the mail will get back to it.
+    (if (if (one-window-p t)
+	    (mail nil nil subject)
+	  (mail-other-window nil nil subject))
+	(save-excursion
+	  (goto-char (point-max))
+	  (insert "------- Start of forwarded message -------\n")
+	  (insert-buffer forward-buffer)
+	  (goto-char (point-max))
+	  (insert "------- End of forwarded message -------\n")
+	  ;; You have a chance to arrange the message.
+	  (run-hooks 'gnus-mail-forward-hook)
+	  ))))
 
 (defun gnus-mail-other-window-using-mail ()
   "Compose mail other window using mail."

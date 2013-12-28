@@ -504,6 +504,12 @@ National Semiconductor 32000 (m-ns32000.h; s-usg5-2.h)
   This is for a complete machine from National Semiconductor,
   running Genix.  Changes merged in version 19.
 
+NeXT (m-NeXT.h, s-bsd4-3.h)
+
+  This has only been tried with PenCom's "co-Xist" package, which is an
+  implementation of X11 for the NeXT.  There is not yet an emacs port that
+  uses NeXTStep directly.
+
 NCR Tower 32 running System V release 2 (m-tower32.h; s-usg5-2-2.h)
 
   Works as of 17.56.  If you change src/ymakefile so that CFLAGS includes

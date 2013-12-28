@@ -1,49 +1,116 @@
-Info file: gnus,    -*-Text-*-
-produced by texinfo-format-buffer
-from file: gnus.texinfo
+Info file ../info/gnus, produced by Makeinfo, -*- Text -*- from input
+file gnus.texinfo.
 
+   This file documents GNUS, the GNU Emacs newsreader.
 
+   Copyright (C) 1989 Fujitsu Laboratories LTD.  Copyright (C) 1990
+Masanobu UMEDA.
 
-This file documents GNUS, the GNU Emacs newsreader.
-
-Copyright (C) 1989 Fujitsu Laboratories LTD.
-Copyright (C) 1990 Masanobu UMEDA.
-
-Permission is granted to make and distribute verbatim copies of this
+   Permission is granted to make and distribute verbatim copies of this
 manual provided the copyright notice and this permission notice are
 preserved on all copies.
 
-Permission is granted to copy and distribute modified versions of this
-manual under the conditions for verbatim copying, provided also that the
-sections entitled "Distribution" and "GNUS General Public License"
-are included exactly as in the original, and provided that the entire
-resulting derived work is distributed under the terms of a permission
-notice identical to this one.
+   Permission is granted to copy and distribute modified versions of
+this manual under the conditions for verbatim copying, provided also
+that the sections entitled "Distribution" and "GNUS General Public
+License" are included exactly as in the original, and provided that
+the entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
 
-Permission is granted to copy and distribute translations of this manual
-into another language, under the above conditions for modified versions,
-except that the sections entitled "Distribution" and "GNUS General
-Public License" may be included in a translation approved by the author
-instead of in the original English.
-
+   Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that the sections entitled "Distribution" and "GNUS
+General Public License" may be included in a translation approved by
+the author instead of in the original English.
 
 
-File: gnus  Node: Scrolling, Prev: Moving Among Articles, Up: Reading Articles, Next: Marking Articles
+File: gnus,  Node: Moving Among Articles,  Next: Scrolling,  Prev: Browsing Headers,  Up: Reading Articles
+
+Moving Among Articles
+---------------------
+
+   The commands described here are for moving the point on headers, and
+then automatically selecting articles.
+
+`n'
+     Read the next article, skipping marked articles
+     (`gnus-Subject-next-unread-article').
+
+`p'
+     Read the previous article, skipping marked articles
+     (`gnus-Subject-prev-unread-article').
+
+`N'
+     Read the next article (`gnus-Subject-next-article').
+
+`P'
+     Read the previous article (`gnus-Subject-prev-article').
+
+`M-C-n'
+     Read the next article with the same subject as the current article
+     (`gnus-Subject-next-same-subject').
+
+`M-C-p'
+     Read the previous article with the same subject as the current
+     article (`gnus-Subject-prev-same-subject').
+
+`M-x gnus-Subject-next-unread-same-subject'
+     Read the next article with the same subject as the current
+     article, skipping marked articles.
+
+`M-x gnus-Subject-prev-unread-same-subject'
+     Read the previous article with the same subject as the current
+     article, skipping marked articles.
+
+`.'
+     Read the first unread article
+     (`gnus-Subject-first-unread-article').
+
+`l'
+     Read the article selected last (`gnus-Subject-goto-last-article').
+
+`J NUMBER RET'
+     Read the article specified by the article NUMBER
+     (`gnus-Subject-goto-article').
+
+   If the variable `gnus-auto-select-same' is non-`nil', the commands
+`n' and `p' (`gnus-Subject-next-unread-article' and
+`gnus-Subject-prev-unread-article') move the point to unread articles
+with the same subject as the current article like the commands `M-x
+gnus-Subject-next-unread-same-subject' and `M-x
+gnus-Subject-prev-unread-same-subject', respectively.  If you are used
+to running `rn -S', set the variable to non-`nil'.
+
+   If the variable `gnus-auto-extend-newsgroup' is non-`nil', the
+commands `N' and `P' (`gnus-Subject-next-article' and
+`gnus-Subject-prev-article') extend visible articles to forward and
+backward if possible.
+
+   The variable `gnus-auto-select-next' defines the behavior of GNUS
+when there is no unread article in the current newsgroup and a command
+selecting the next unread article is executed.  If the variable is
+non-`nil', the next newsgroup containing unread articles is selected
+automatically.
+
+   *Note Variables::, for more information on customization.
+
+
+File: gnus,  Node: Scrolling,  Next: Marking Articles,  Prev: Moving Among Articles,  Up: Reading Articles
 
 Scrolling Within an Article
 ---------------------------
 
-  Type `SPC' (`gnus-Subject-next-page') to scroll to the next page of
-the current article.  If no article is selected yet, an article near the
-point is selected and its first page is displayed in the Article buffer.
-The next unread article is selected automatically if `SPC' is typed at
-the end of the message.
+   Type `SPC' (`gnus-Subject-next-page') to scroll to the next page of
+the current article.  If no article is selected yet, an article near
+the point is selected and its first page is displayed in the Article
+buffer.  The next unread article is selected automatically if `SPC' is
+typed at the end of the message.
 
 `SPC'
      Scroll to the next page of the current article
      (`gnus-Subject-next-page').  Select it first if no article is
-     selected yet.  Select the next unread article automatically at the
-     end of the message.
+     selected yet.  Select the next unread article automatically at
+     the end of the message.
 
 `DEL'
      Scroll to the previous page of the current article
@@ -80,42 +147,44 @@ the end of the message.
      Force to read the current article again
      (`gnus-Subject-show-article').
 
-  If the Article buffer is not visible, it is popped up under the
+   If the Article buffer is not visible, it is popped up under the
 Subject buffer when necessary.  The height of the Subject buffer and
 that of the Article buffer can be customized by using the variable
 `gnus-window-configuration'.
 
-  The command `C-c C-r' (`gnus-Subject-caesar-message') rotates all
-letters in the message body of the current article by 13 places.
-Japanese characters are rotated by 47 places.  Running the command twice
-on the same article results the original message.
+   The command `C-c C-r' (`gnus-Subject-caesar-message') rotates all
+letters in the message body of the current article by 13 places. 
+Japanese characters are rotated by 47 places.  Running the command
+twice on the same article results the original message.
 
-  If the variable `gnus-break-pages' is non-`nil', the message is broken
-into pages at page delimiters specified by the variable
+   If the variable `gnus-break-pages' is non-`nil', the message is
+broken into pages at page delimiters specified by the variable
 `gnus-page-delimiter'.  The command `w'
 (`gnus-Subject-stop-page-breaking') temporary suspends page breaks.
 
-  The variable `gnus-ignored-headers' specifies header fields which
+   The variable `gnus-ignored-headers' specifies header fields which
 should be ignored.  The command `v' (`gnus-Subject-show-all-headers')
 shows all headers of the current article, while the command `t'
 (`gnus-Subject-toggle-header') toggles the headers.
 
-  *Note Variables::, and *Note Hooks::, for more information on
+   *Note Variables::, and *note Hooks::., for more information on
 customization.
 
 
-File: gnus  Node: Marking Articles, Prev: Scrolling, Up: Reading Articles, Next: Thread-based Reading
+File: gnus,  Node: Marking Articles,  Next: Thread-based Reading,  Prev: Scrolling,  Up: Reading Articles
 
 Marking Articles
 ----------------
 
-  GNUS uses three kinds of marks to indicate article status.
+   GNUS uses three kinds of marks to indicate article status.
 
    * White space ` ' for newly arrived articles.
+
    * Dash `-' for articles marked as unread.
+
    * Any other characters for articles marked as read.
 
-  The status is displayed at the beginning of each line of the Subject
+   The status is displayed at the beginning of each line of the Subject
 buffer.  Commands for marking or removing these marks are as follows:
 
 `d'
@@ -143,8 +212,8 @@ buffer.  Commands for marking or removing these marks are as follows:
      (`gnus-Subject-clear-mark-backward').
 
 `k'
-     Mark articles with the same subject as the current article as read,
-     and then select the next unread article
+     Mark articles with the same subject as the current article as
+     read, and then select the next unread article
      (`gnus-Subject-kill-same-subject-and-select').
 
 `C-k'
@@ -165,7 +234,7 @@ buffer.  Commands for marking or removing these marks are as follows:
 `M-x gnus-Subject-catch-up-all'
      Mark all articles as read.
 
-  It is helpful to delete headers marked as read while reading a large
+   It is helpful to delete headers marked as read while reading a large
 newsgroup.  The command `x' (`gnus-Subject-delete-marked-as-read')
 deletes headers marked as read.  The command `X'
 (`gnus-Subject-delete-marked-with') deletes headers which have a
@@ -180,27 +249,27 @@ specific mark.
      (`gnus-Subject-delete-marked-with').
 
 
-File: gnus  Node: Thread-based Reading, Prev: Marking Articles, Up: Reading Articles, Next: Digest Articles
+File: gnus,  Node: Thread-based Reading,  Next: Digest Articles,  Prev: Marking Articles,  Up: Reading Articles
 
 Reading Based on Conversation Threads
 -------------------------------------
 
-  Conversations on the usenet news usually contain several threads under
-a single subject.  This makes it difficult to know which article follows
-which without reading references directly.  It would be useful if we
-could read articles based on conversation threads.
+   Conversations on the usenet news usually contain several threads
+under a single subject.  This makes it difficult to know which article
+follows which without reading references directly.  It would be useful
+if we could read articles based on conversation threads.
 
-  GNUS enables you this thread-based reading.  The reader can follow
-threads of conversation, mark threads as read, and go up and down thread
-trees.  The command `M-C-t' (`gnus-Subject-toggle-threads') toggles
-showing conversation threads in Subject Mode.  If it is turned on,
-Subject buffer is displayed in a tree structured form according to what
-each article was a reply to.
+   GNUS enables you this thread-based reading.  The reader can follow
+threads of conversation, mark threads as read, and go up and down
+thread trees.  The command `M-C-t' (`gnus-Subject-toggle-threads')
+toggles showing conversation threads in Subject Mode.  If it is turned
+on, Subject buffer is displayed in a tree structured form according to
+what each article was a reply to.
 
 `M-C-t'
      Toggle thread-based reading (`gnus-Subject-toggle-threads').
 
-`M-C-s '
+`M-C-s'
      Show thread subtrees (`gnus-Subject-show-thread').
 
 `M-x gnus-Subject-show-all-threads'
@@ -228,29 +297,29 @@ each article was a reply to.
      Mark articles under current thread as read
      (`gnus-Subject-kill-thread').
 
-  Thread subtrees can be hidden by using the command `M-C-h'
+   Thread subtrees can be hidden by using the command `M-C-h'
 (`gnus-Subject-hide-thread'), and the hidden subtrees can be shown by
 using the command `M-C-s' (`gnus-Subject-show-thread').
 
-  If the variable `gnus-thread-hide-killed' is non-`nil', thread
-subtrees killed by the command `M-C-k' (`gnus-Subject-kill-thread') are
-hidden automatically.
+   If the variable `gnus-thread-hide-killed' is non-`nil', thread
+subtrees killed by the command `M-C-k' (`gnus-Subject-kill-thread')
+are hidden automatically.
 
-  If you want to hide thread subtrees initially, set the variable
+   If you want to hide thread subtrees initially, set the variable
 `gnus-thread-hide-subtree' to non-`nil'.
 
-  If you want to enable thread-based reading automatically, set the
+   If you want to enable thread-based reading automatically, set the
 variable `gnus-show-threads' to non-`nil'.
 
-  *Note Variables::, for more information on customization.
+   *Note Variables::, for more information on customization.
 
 
-File: gnus  Node: Digest Articles, Prev: Thread-based Reading, Up: Reading Articles
+File: gnus,  Node: Digest Articles,  Prev: Thread-based Reading,  Up: Reading Articles
 
 Reading Digest Articles
 -----------------------
 
-  "Digest article" is a message containing many messages in "digest"
+   "Digest article" is a message containing many messages in "digest"
 format.  Since a digest article contains many messages in one article,
 it is a little bit difficult to read it on a per message basis.  The
 following commands make it easier to read each message in a digest.
@@ -267,19 +336,19 @@ following commands make it easier to read each message in a digest.
      Read the current digest article using Rmail
      (`gnus-Subject-rmail-digest').
 
-  The commands `C-c C-n' and `C-c C-p' (`gnus-Subject-next-digest' and
-`gnus-Subject-prev-digest') scroll a digest article to the next and
-previous digested message, respectively.  The variable
+   The commands `C-c C-n' and `C-c C-p' (`gnus-Subject-next-digest'
+and `gnus-Subject-prev-digest') scroll a digest article to the next
+and previous digested message, respectively.  The variable
 `gnus-digest-separator' specifies a regexp which separates digested
 messages.
 
-  The command `C-d' (`gnus-Subject-rmail-digest') runs Rmail on a digest
-article and makes it possible to read messages not in digest form using
-Rmail Mode.  *Note Rmail: (emacs)Rmail, for more information on Rmail
-Mode.  Use the hook `gnus-Select-article-hook' to run Rmail on digest
-articles automatically.
+   The command `C-d' (`gnus-Subject-rmail-digest') runs Rmail on a
+digest article and makes it possible to read messages not in digest
+form using Rmail Mode.  *note Rmail: (emacs)Rmail, for more
+information on Rmail Mode.  Use the hook `gnus-Select-article-hook' to
+run Rmail on digest articles automatically.
 
-  Digest articles in some newsgroups of USENET cannot be read using
+   Digest articles in some newsgroups of USENET cannot be read using
 Rmail.  In this case, a message `Article is not a digest' is displayed
 in the echo area of Emacs.  This means that these articles are not
 written in the proper digest format.  It is, however, possible to read
@@ -287,12 +356,12 @@ these incomplete digest articles by modifying the message headers or
 bodies appropriately using the hook `gnus-Select-digest-hook'.  *Note
 Hooks::, to modify incomplete digest articles.
 
-  If the variable `gnus-digest-show-summary' is non-`nil', a summary of
-the digest article is also displayed automatically when Rmail is
+   If the variable `gnus-digest-show-summary' is non-`nil', a summary
+of the digest article is also displayed automatically when Rmail is
 invoked.
 
 
-File: gnus  Node: Searching Articles, Prev: Reading Articles, Up: Subject Commands, Next: Referencing Articles
+File: gnus,  Node: Searching Articles,  Next: Referencing Articles,  Prev: Reading Articles,  Up: Subject Commands
 
 Searching Articles
 ==================
@@ -308,29 +377,29 @@ Searching Articles
 
 `M-S REGEXP RET'
      Search for articles containing a match for REGEXP backward
-     (`gnus-Subject-search-article-backward').  If REGEXP is empty, the
-     last regexp used is used again.
+     (`gnus-Subject-search-article-backward').  If REGEXP is empty,
+     the last regexp used is used again.
 
 `& FIELD RET REGEXP RET COMMAND RET'
-     Execute COMMAND on articles containing a match for REGEXP in FIELD
-     of the headers (`gnus-Subject-execute-command').  If FIELD is
-     empty, the entire article is searched for.
+     Execute COMMAND on articles containing a match for REGEXP in
+     FIELD of the headers (`gnus-Subject-execute-command').  If FIELD
+     is empty, the entire article is searched for.
 
-  The command `s' (`gnus-Subject-isearch-article') does an incremental
-search on the current article.  The commands `M-s' and `M-S'
-(`gnus-Subject-search-article-forward' and
-`gnus-Subject-search-article-backward') search for articles containing a
-match for regexp.  The search starts from the current point of the
+   The command `s' (`gnus-Subject-isearch-article') does an
+incremental search on the current article.  The commands `M-s' and
+`M-S' (`gnus-Subject-search-article-forward' and
+`gnus-Subject-search-article-backward') search for articles containing
+a match for regexp.  The search starts from the current point of the
 current article.
 
-  The command `&' (`gnus-Subject-execute-command') interactively reads
-the field name of article headers, regexp, and a valid command key
-sequence.  It then searches for articles having a field that contains a
-match for the regexp, and then executes the command specified by the key
-sequence on them.
+   The command `&' (`gnus-Subject-execute-command') interactively
+reads the field name of article headers, regexp, and a valid command
+key sequence.  It then searches for articles having a field that
+contains a match for the regexp, and then executes the command
+specified by the key sequence on them.
 
 
-File: gnus  Node: Referencing Articles, Prev: Searching Articles, Up: Subject Commands, Next: Saving Articles
+File: gnus,  Node: Referencing Articles,  Next: Saving Articles,  Prev: Searching Articles,  Up: Subject Commands
 
 Referencing Articles
 ====================
@@ -342,32 +411,32 @@ Referencing Articles
 
 `M-r MESSAGE-ID RET'
      Refer to the article by using the MESSAGE-ID
-     (`gnus-Subject-refer-article').  With an empty MESSAGE-ID, go back
-     to the origin.
+     (`gnus-Subject-refer-article').  With an empty MESSAGE-ID, go
+     back to the origin.
 
-  The command `^' (`gnus-Subject-refer-parent-article') refers to parent
-article of the current article.  The child article is remembered in
-internal history, and it is possible to return to the child by giving a
-prefix argument to the command.
+   The command `^' (`gnus-Subject-refer-parent-article') refers to
+parent article of the current article.  The child article is
+remembered in internal history, and it is possible to return to the
+child by giving a prefix argument to the command.
 
-  The commands `^' and `M-r' (`gnus-Subject-refer-parent-article' and
-`gnus-Subject-refer-article') share the same internal history.  You can
-thus go back to a child using the command `M-r' with an empty
+   The commands `^' and `M-r' (`gnus-Subject-refer-parent-article' and
+`gnus-Subject-refer-article') share the same internal history.  You
+can thus go back to a child using the command `M-r' with an empty
 Message-ID.
 
-  Type `g' (`gnus-Subject-show-article') to go back to the origin from
-the visited articles directly.
+   Type `g' (`gnus-Subject-show-article') to go back to the origin
+from the visited articles directly.
 
-  *Note Article Commands::, to refer to articles by using Message-IDs
+   *Note Article Commands::, to refer to articles by using Message-IDs
 included in the messages.
 
 
-File: gnus  Node: Saving Articles, Prev: Referencing Articles, Up: Subject Commands, Next: Sorting Headers
+File: gnus,  Node: Saving Articles,  Next: Sorting Headers,  Prev: Referencing Articles,  Up: Subject Commands
 
 Saving Articles
 ===============
 
-  GNUS provides four different formats for saving articles: Rmail
+   GNUS provides four different formats for saving articles: Rmail
 format, Unix mailbox format, MH folder, and article format.  If you set
 the variable `gnus-default-article-saver' to your favorite article
 saver, you can save an article using the command `o'
@@ -396,16 +465,16 @@ saver is the function `gnus-Subject-save-in-rmail'.
      Send contents of the current article to the COMMAND subprocess
      (`gnus-Subject-pipe-output').
 
-  If the variable `gnus-save-all-headers' is non-`nil', all headers of
-an article are saved.
+   If the variable `gnus-save-all-headers' is non-`nil', all headers
+of an article are saved.
 
-  The variable `gnus-article-save-directory' specifies a directory in
+   The variable `gnus-article-save-directory' specifies a directory in
 which articles are saved to by the functions
 `gnus-Subject-save-in-mail', `gnus-Subject-save-in-rmail', and
 `gnus-Subject-save-in-file'.  It is initialized from the `SAVEDIR'
 environment variable.  The default directory is `~/News'.
 
-  The variables `gnus-mail-save-name', `gnus-rmail-save-name',
+   The variables `gnus-mail-save-name', `gnus-rmail-save-name',
 `gnus-folder-save-name', and `gnus-file-save-name' specify functions
 generating default file name to which articles are saved using
 `gnus-Subject-save-in-mail', `gnus-Subject-save-in-rmail',
@@ -413,15 +482,15 @@ generating default file name to which articles are saved using
 respectively.  The function is called with NEWSGROUP, HEADERS, and
 optional LAST-NAME.
 
-  *Note Variables::, for more information on customization.
+   *Note Variables::, for more information on customization.
 
 
-File: gnus  Node: Sorting Headers, Prev: Saving Articles, Up: Subject Commands, Next: Followup and Reply
+File: gnus,  Node: Sorting Headers,  Next: Followup and Reply,  Prev: Saving Articles,  Up: Subject Commands
 
 Sorting Headers
 ===============
 
-  The headers listed in the Subject buffer can be sorted by number,
+   The headers listed in the Subject buffer can be sorted by number,
 subject, date, or author of articles.  Sorting is stable, so it is
 possible to combine them to sort the headers with multiple keys.  To
 sort in reverse order, give a prefix argument to the commands.
@@ -442,11 +511,12 @@ sort in reverse order, give a prefix argument to the commands.
 `C-c C-s C-a'
      Sort the headers by author (`gnus-Subject-sort-by-author').
 
-  It is also possible to sort the headers automatically when a newsgroup
-is selected using the hook `gnus-Select-group-hook' (*Note Hooks::).
+   It is also possible to sort the headers automatically when a
+newsgroup is selected using the hook `gnus-Select-group-hook' (*note
+Hooks::.).
 
 
-File: gnus  Node: Followup and Reply, Prev: Sorting Headers, Up: Subject Commands, Next: Exiting Newsgroup
+File: gnus,  Node: Followup and Reply,  Next: Exiting Newsgroup,  Prev: Sorting Headers,  Up: Subject Commands
 
 Followup and Reply
 ==================
@@ -461,22 +531,22 @@ Followup and Reply
 `a'
      Compose a new article (`gnus-Subject-post-news').
 
-  Type `a' (`gnus-Subject-post-news') to post a new article.  If the
+   Type `a' (`gnus-Subject-post-news') to post a new article.  If the
 variable `gnus-interactive-post' is non-`nil', the newsgroup, subject,
 and distribution are asked for interactively.  The command `f'
 (`gnus-Subject-post-reply') fills these values in automatically from
 those of the original article.  Type `C-c C-y'
 (`news-reply-yank-original') to include the original article.  The
-command `F' (`gnus-Subject-post-reply-with-original') yanks the original
-article automatically.  If you want to followup to several articles in a
-single article and want to include them in it, type `F' for each of
-them.  You will be asked if a text being edited should be erased.  You
-should answer `n' to the question.
+command `F' (`gnus-Subject-post-reply-with-original') yanks the
+original article automatically.  If you want to followup to several
+articles in a single article and want to include them in it, type `F'
+for each of them.  You will be asked if a text being edited should be
+erased.  You should answer `n' to the question.
 
-  If the variable `gnus-novice-user' is non-`nil', your confirmations
+   If the variable `gnus-novice-user' is non-`nil', your confirmations
 will be required for composing a new article.
 
-  The major mode for composing a new article is "News Mode" which is
+   The major mode for composing a new article is "News Mode" which is
 borrowed from `rnewspost.el'.  Type `C-h m' (`describe-mode') to get
 more help on News Mode.
 
@@ -484,36 +554,47 @@ more help on News Mode.
      Cancel the current article you posted
      (`gnus-Subject-cancel-article').
 
-  Suppose you post an article and then later realize that you made a
-horrible mistake.  You really do not want anyone to see your article.
+   Suppose you post an article and then later realize that you made a
+horrible mistake.  You really do not want anyone to see your article. 
 You want the article to be removed from any machines that it may have
-reached.  The command `C' (`gnus-Subject-cancel-article') is intended to
-do this.  First select the offending article as current, then type `C'.
+reached.  The command `C' (`gnus-Subject-cancel-article') is intended
+to do this.  First select the offending article as current, then type
+`C'.
 
 `r'
-     Reply to the author of the current article (`gnus-Subject-mail-reply').
+     Reply to the author of the current article
+     (`gnus-Subject-mail-reply').
 
 `R'
      Reply to the author of the current article with the original
      article (`gnus-Subject-mail-reply-with-original').
 
+`C-c C-f'
+     Forward the current message to another user. 
+     (`gnus-Subject-mail-forward').
+
 `m'
-     Compose a mail message in other window (`gnus-Subject-mail-other-window').
+     Compose a mail message in other window
+     (`gnus-Subject-mail-other-window').
 
-  Use the command `r' (`gnus-Subject-mail-reply') to reply to the author
-of the article.  Type `C-c C-y' to include the original article.  The
-command `R' (`gnus-Subject-mail-reply-with-original') yanks the original
-article automatically.
+   Use the command `r' (`gnus-Subject-mail-reply') to reply to the
+author of the article.  Type `C-c C-y' to include the original
+article.  The command `R' (`gnus-Subject-mail-reply-with-original')
+yanks the original article automatically.
 
-  Mail message composer is defaulted to use Mail Mode.  If you want to
-use mh-e letter Mode instead of it, set the variable
-`gnus-mail-reply-method' to `gnus-mail-reply-using-mhe' and the variable
+   When composing a mail message, the message composer (or mailer) is
+selected by the values of the variables `gnus-mail-reply-method',
+`gnus-mail-forward-method', and `gnus-mail-other-window-method'. 
+These are defaulted to use Mail Mode.  If you want to use mh-e letter
+Mode instead of it, set the variable `gnus-mail-reply-method' to
+`gnus-mail-reply-using-mhe', variable `gnus-mail-forward-method' to
+`gnus-mail-forward-using-mhe', and the variable
 `gnus-mail-other-window-method' to `gnus-mail-other-window-using-mhe'.
-It is possible to use other mailers by customizing these variables.
-*Note Mail Mode: (emacs)Mail Mode, for more information on Mail Mode.
+ It is possible to use other mailers by customizing these variables. 
+*note Mail Mode: ( emacs)Mail Mode, for more information on Mail Mode.
 
 
-File: gnus  Node: Exiting Newsgroup, Prev: Followup and Reply, Up: Subject Commands, Next: Other Subject Commands
+File: gnus,  Node: Exiting Newsgroup,  Next: Other Subject Commands,  Prev: Followup and Reply,  Up: Subject Commands
 
 Exiting the Current Newsgroup
 =============================
@@ -546,19 +627,19 @@ Exiting the Current Newsgroup
      Record unread articles information, then select the previous
      newsgroup containing unread articles.
 
-  The command `G' (`gnus-Subject-reselect-current-group') selects the
+   The command `G' (`gnus-Subject-reselect-current-group') selects the
 current newsgroup again after temporary exiting the newsgroup.  If no
-articles remain unread, all articles in the newsgroup will be selected.
-A prefix argument to the command means to select all articles in the
-newsgroup.
+articles remain unread, all articles in the newsgroup will be
+selected.  A prefix argument to the command means to select all
+articles in the newsgroup.
 
 
-File: gnus  Node: Other Subject Commands, Prev: Exiting Newsgroup, Up: Subject Commands
+File: gnus,  Node: Other Subject Commands,  Prev: Exiting Newsgroup,  Up: Subject Commands
 
 Miscellaneous Commands
 ======================
 
-  Other miscellaneous commands are described here.
+   Other miscellaneous commands are described here.
 
 `M-k'
      Edit a local KILL file applied to the current newsgroup
@@ -582,12 +663,12 @@ Miscellaneous Commands
      Manual::, to prepare an Info file of GNUS.
 
 
-File: gnus  Node: Article Commands, Prev: Subject Commands, Up: Top, Next: KILL File
+File: gnus,  Node: Article Commands,  Next: KILL File,  Prev: Subject Commands,  Up: Top
 
 Article Commands
 ****************
 
-  In the Article buffer the following commands are available:
+   In the Article buffer the following commands are available:
 
 `SPC'
      Scroll text of the current window (`gnus-Article-next-page').
@@ -617,19 +698,19 @@ Article Commands
      Read Info on Article Mode (`gnus-Info-find-node').  *Note Texinfo
      Manual::, to prepare an Info file of GNUS.
 
-  The command `r' (`gnus-Article-refer-article') searches for the
+   The command `r' (`gnus-Article-refer-article') searches for the
 Message-ID around the point, and refers to the article specified by it
-if found.  Use the command `o' (`gnus-Article-pop-article') to return to
-the previous article.  *Note Referencing Articles::, for referencing
-parent articles easily.
+if found.  Use the command `o' (`gnus-Article-pop-article') to return
+to the previous article.  *Note Referencing Articles::, for
+referencing parent articles easily.
 
 
-File: gnus  Node: KILL File, Prev: Article Commands, Up: Top, Next: Customization
+File: gnus,  Node: KILL File,  Next: Customization,  Prev: Article Commands,  Up: Top
 
 KILL File
 *********
 
-  The purpose of a KILL file and its usage are described here.
+   The purpose of a KILL file and its usage are described here.
 
 * Menu:
 
@@ -642,100 +723,101 @@ KILL File
 * Advanced Kills::              Advanced kill processing.
 
 
-File: gnus  Node: What KILL Files Do, Prev: KILL File, Up: KILL File, Next: Making a KILL File
+File: gnus,  Node: What KILL Files Do,  Next: Making a KILL File,  Prev: KILL File,  Up: KILL File
 
 What KILL Files Do
 ==================
 
-  A "KILL" file contains lisp expressions to be applied to a selected
-newsgroup.  The purpose is to mark articles as read on the basis of some
-set of regexps.
+   A "KILL" file contains lisp expressions to be applied to a selected
+newsgroup.  The purpose is to mark articles as read on the basis of
+some set of regexps.
 
-  There are two kinds of KILL files, global and local.  A global KILL
-file is applied to every newsgroup, and a local KILL file to a specified
-newsgroup.  Since a global KILL file is applied to every newsgroup, for
-better performance use a local one.
+   There are two kinds of KILL files, global and local.  A global KILL
+file is applied to every newsgroup, and a local KILL file to a
+specified newsgroup.  Since a global KILL file is applied to every
+newsgroup, for better performance use a local one.
 
 
-File: gnus  Node: Making a KILL File, Prev: What KILL Files Do, Up: KILL File, Next: Editing KILL Files
+File: gnus,  Node: Making a KILL File,  Next: Editing KILL Files,  Prev: What KILL Files Do,  Up: KILL File
 
 Making a KILL File
 ==================
 
-  A KILL file can contain any kind of Emacs lisp expressions expected to
-be evaluated in the Subject buffer.  Writing lisp programs for this
+   A KILL file can contain any kind of Emacs lisp expressions expected
+to be evaluated in the Subject buffer.  Writing lisp programs for this
 purpose is not easy because the internal working of GNUS must be
 well-known.  For this reason, GNUS provides a general function which
 does this easily for non-lisp programmers.
 
      (gnus-kill FIELD REGEXP &optional COMMAND ALL)
 
-The `gnus-kill' function executes commands available in Subject Mode by
-their key sequences.  `gnus-kill' must be called with FIELD, REGEXP, and
-optional COMMAND and ALL.  FIELD is a string representing the header
-field or an empty string.  If FIELD is an empty string, the entire
-article body is searched for.  REGEXP is a string which is compared with
-FIELD value.  COMMAND is a string representing a valid key sequence in
-Subject Mode or a lisp expression.  COMMAND is default to
-`(gnus-Subject-mark-as-read nil "X")'.  Make sure that COMMAND is
-executed in the Subject buffer.  If the second optional argument ALL is
-non-`nil', the COMMAND is applied to articles which are already marked
-as read or unread.  Articles which are marked are skipped over by
-default.
+The `gnus-kill' function executes commands available in Subject Mode
+by their key sequences.  `gnus-kill' must be called with FIELD,
+REGEXP, and optional COMMAND and ALL.  FIELD is a string representing
+the header field or an empty string.  If FIELD is an empty string, the
+entire article body is searched for.  REGEXP is a string which is
+compared with FIELD value.  COMMAND is a string representing a valid
+key sequence in Subject Mode or a lisp expression.  COMMAND is default
+to `(gnus-Subject-mark-as-read nil "X")'.  Make sure that COMMAND is
+executed in the Subject buffer.  If the second optional argument ALL
+is non-`nil', the COMMAND is applied to articles which are already
+marked as read or unread.  Articles which are marked are skipped over
+by default.
 
-  For example, if you want to mark articles of which subjects contain
+   For example, if you want to mark articles of which subjects contain
 the string `AI' as read, a possible KILL file may look like:
 
      (gnus-kill "Subject" "AI")
 
-  If you want to mark articles with `D' instead of `X', you can use the
-following expression:
+   If you want to mark articles with `D' instead of `X', you can use
+the following expression:
 
      (gnus-kill "Subject" "AI" "d")
 
 In this example it is assumed that the command
 `gnus-Subject-mark-as-read-forward' is assigned to `d' in Subject Mode.
 
-  It is possible to delete unnecessary headers which are marked with `X'
-in a KILL file by using the function `gnus-expunge' as follows:
+   It is possible to delete unnecessary headers which are marked with
+`X' in a KILL file by using the function `gnus-expunge' as follows:
 
      (gnus-expunge "X")
 
-  If the Subject buffer is empty after applying KILL files, GNUS will
+   If the Subject buffer is empty after applying KILL files, GNUS will
 exit the selected newsgroup normally.  If headers which are marked with
-`D' are deleted in a KILL file, it is impossible to read articles which
-are marked as read in the previous GNUS sessions.  Marks other than `D'
-should be used for articles which should really be deleted.
+`D' are deleted in a KILL file, it is impossible to read articles
+which are marked as read in the previous GNUS sessions.  Marks other
+than `D' should be used for articles which should really be deleted.
 
-  All sorts of searches in Subject Mode normally ignore the case of the
-text they are searching through.  If you do not want to ignore the case,
-set the variable `case-fold-search' to `nil'.
+   All sorts of searches in Subject Mode normally ignore the case of
+the text they are searching through.  If you do not want to ignore the
+case, set the variable `case-fold-search' to `nil'.
 
 
-File: gnus  Node: Editing KILL Files, Prev: Making a KILL File, Up: KILL File, Next: Example of a KILL File
+File: gnus,  Node: Editing KILL Files,  Next: Example of a KILL File,  Prev: Making a KILL File,  Up: KILL File
 
 Editing KILL Files
 ==================
 
-  The command `M-K' in Subject Mode and Group Mode
-(`gnus-Subject-edit-global-kill' and `gnus-Group-edit-global-kill') pops
-up an Emacs buffer for editing a global KILL file.  A global KILL file
-is created in the directory specified by the variable
+   The command `M-K' in Subject Mode and Group Mode
+(`gnus-Subject-edit-global-kill' and `gnus-Group-edit-global-kill')
+pops up an Emacs buffer for editing a global KILL file.  A global KILL
+file is created in the directory specified by the variable
 `gnus-article-save-directory' (default to `~/News'), and its file name
 is specified by the variable `gnus-kill-file-name' (default to `KILL').
 
-  The command `M-k' in Subject Mode and Group Mode
+   The command `M-k' in Subject Mode and Group Mode
 (`gnus-Subject-edit-local-kill' and `gnus-Group-edit-local-kill') pops
-up an Emacs buffer for editing a local KILL file.  A local KILL file for
-a newsgroup NEWS.GROUP is created as `NEWS.GROUP.KILL' in the directory
-specified by the variable `gnus-article-save-directory' if the variable
-`gnus-use-long-file-name' is non-`nil'.  Otherwise, if the variable
-`gnus-use-long-file-name' is `nil', the file is created as
+up an Emacs buffer for editing a local KILL file.  A local KILL file
+for a newsgroup NEWS.GROUP is created as `NEWS.GROUP.KILL' in the
+directory specified by the variable `gnus-article-save-directory' if
+the variable `gnus-use-long-file-name' is non-`nil'.  Otherwise, if the
+variable `gnus-use-long-file-name' is `nil', the file is created as
 `NEWS/GROUP/KILL' under the same directory.
 
-  The major mode of these buffers is "KILL-File Mode".  This mode is
-specialized for editing Emacs lisp programs the same as Emacs-Lisp Mode.
-In addition to Emacs-Lisp Mode, the following commands are available:
+   The major mode of these buffers is "KILL-File Mode".  This mode is
+specialized for editing Emacs lisp programs the same as Emacs-Lisp
+Mode.  In addition to Emacs-Lisp Mode, the following commands are
+available:
 
 `C-c C-k C-s'
      Insert a template of a kill command on subject
@@ -761,26 +843,26 @@ In addition to Emacs-Lisp Mode, the following commands are available:
      Read Info on KILL file (`gnus-Info-find-node').  *Note Texinfo
      Manual::, to prepare an Info file of GNUS.
 
-  If KILL-File Mode is invoked from Subject Mode by the command
+   If KILL-File Mode is invoked from Subject Mode by the command
 `gnus-Subject-edit-local-kill' or `gnus-Subject-edit-global-kill', the
 commands `C-c C-k C-s' and `C-c C-k C-a'
 (`gnus-Kill-file-kill-by-subject' and `gnus-Kill-file-kill-by-author')
-insert a kill command on the subject and author of an article where the
-point is on, respectively.  Otherwise, a template of a kill command is
-inserted.
+insert a kill command on the subject and author of an article where
+the point is on, respectively.  Otherwise, a template of a kill
+command is inserted.
 
-  The commands `C-c C-a' and `C-c C-e' (`gnus-Kill-file-apply-buffer'
+   The commands `C-c C-a' and `C-c C-e' (`gnus-Kill-file-apply-buffer'
 and `gnus-Kill-file-apply-last-sexp') can be used to test kill commands
 being edited in current buffer.  The kill commands are applied to
 current newsgroup.
 
 
-File: gnus  Node: Example of a KILL File, Prev: Editing KILL Files, Up: KILL File, Next: Background Kills
+File: gnus,  Node: Example of a KILL File,  Next: Background Kills,  Prev: Editing KILL Files,  Up: KILL File
 
 Example of a KILL File
 ======================
 
-  The following is an example of a local KILL file for newsgroup
+   The following is an example of a local KILL file for newsgroup
 `control'.  This is currently being used by the author.
 
      ;; Apply to the newsgroup `control' if the NNTP server is flab.
@@ -791,12 +873,12 @@ Example of a KILL File
            (gnus-expunge "X")))
 
 
-File: gnus  Node: Background Kills, Prev: Example of a KILL File, Up: KILL File, Next: Advanced Kills
+File: gnus,  Node: Background Kills,  Next: Advanced Kills,  Prev: Example of a KILL File,  Up: KILL File
 
 Background Kill Processing
 ==========================
 
-  Kill processing may take long time.  If it becomes terribly
+   Kill processing may take long time.  If it becomes terribly
 frustrating, try background kill processing using the following shell
 command:
 
@@ -804,46 +886,49 @@ command:
 
 where NEWSGROUPS argument is newsgroup names separated by either white
 spaces or a comma.  `!' preceding a newsgroup name means negation, and
-`all' matches anything else.  These interpretations are the same as the
-options line of the startup file (*Note Startup File::).
+`all' matches anything else.  These interpretations are the same as
+the options line of the startup file (*note Startup File::.).
 
 
-File: gnus  Node: Advanced Kills, Prev: Background Kills, Up: KILL File
+File: gnus,  Node: Advanced Kills,  Prev: Background Kills,  Up: KILL File
 
 Advanced Kill Processing
 ========================
 
-  Internally, applying kills means to run the hook
+   Internally, applying kills means to run the hook
 `gnus-Apply-kill-hook'.  It is called after the Subject buffer is
 prepared for a selected newsgroup.  The default hook is the function
 `gnus-apply-kill-file' which loads a global KILL file and a local KILL
 file in this order.  A different style of the kill processing can be
 implemented by customizing this hook.
 
-  For example, if you think a global KILL file is unnecessary, you can
+   For example, if you think a global KILL file is unnecessary, you can
 use the following hook which applies only a local KILL file.  This
 change can save the time for checking the existence of a global KILL
 file.
 
      (setq gnus-Apply-kill-hook
-           '(lambda ()
+           (function
+            (lambda ()
               ;; Apply a local KILL file.
-              (load (gnus-newsgroup-kill-file gnus-newsgroup-name) t nil t)))
+              (load (gnus-newsgroup-kill-file gnus-newsgroup-name) t nil t))))
 
-  On the contrary, the following example enables only a global KILL
+   On the contrary, the following example enables only a global KILL
 file.
 
      (setq gnus-Apply-kill-hook
-           '(lambda ()
+           (function
+            (lambda ()
               ;; Apply a global KILL file.
-              (load (gnus-newsgroup-kill-file nil) t nil t)))
+              (load (gnus-newsgroup-kill-file nil) t nil t))))
 
-  Here is an advanced example that drastically reduces the time for
+   Here is an advanced example that drastically reduces the time for
 applying KILL files.  This hook does the kill processing directly
 without loading the KILL files.
 
      (setq gnus-Apply-kill-hook
-           '(lambda ()
+           (function
+            (lambda ()
               ;; Apply to the newsgroup `control'
               ;; if the NNTP server is flab.
               (and (string-equal gnus-nntp-server "flab")
@@ -851,16 +936,16 @@ without loading the KILL files.
                    (progn
                      (gnus-kill "Subject" "ihave flab\\|sendme")
                      (gnus-kill "Subject" "cancel\\|newgroup\\|rmgroup" "d")
-                     (gnus-expunge "X")))))
+                     (gnus-expunge "X"))))))
 
 
-File: gnus  Node: Customization, Prev: KILL File, Up: Top, Next: Problems
+File: gnus,  Node: Customization,  Next: Problems,  Prev: KILL File,  Up: Top
 
 Customizing GNUS
 ****************
 
-  Appendix A describes the variables and hooks for simple customization
-and the variables for localization.
+   Appendix A describes the variables and hooks for simple
+customization and the variables for localization.
 
 * Menu:
 
@@ -871,533 +956,5 @@ and the variables for localization.
 * Directory Variables:: Variables for localizing private directory environment.
 
 * Hooks::               Function hooks for customizing GNUS.
-
-
-File: gnus  Node: Variables, Prev: Customization, Up: Customization, Next: NNTP Variables
-
-Common Variables
-================
-
-`gnus-nntp-server'
-
-     Specifies the name of the host running the NNTP server.  The
-     variable is initialized from the `NNTPSERVER' environment variable.
-     If the server name is preceded by a colon such as `:Mail', the
-     user's private directory `~/Mail' is used as a news spool.  *Note
-     NNTP Server::, and *Note Private Directory::, for more information.
-
-`gnus-nntp-service'
-
-     Specifies a service name of NNTP, usually a string `"nntp"'.  In a
-     few instances, it must be the number `119'.  To use a local news
-     spool of your machine rather than NNTP, set the variable to `nil'.
-     *Note NNTP Service::, and *Note Local News Spool::, for more
-     information.
-
-`gnus-your-domain'
-
-     Specifies the domain which is the domain part of your mail address
-     excluding the local host name of your machine.  The environment
-     variable `DOMAINNAME' is used instead if defined.  If the function
-     `system-name' returns the full Internet name, there is no need to
-     define the domain.  *Note Domain and Organization: Domain, for more
-     information.
-
-`gnus-your-organization'
-
-     Specifies the organization you belong to.  The environment variable
-     `ORGANIZATION' is used instead if defined.  If the value begins
-     with a slash, it is taken as the name of a file whose contents are
-     read for the value.  *Note Domain and Organization: Domain, for
-     more information.
-
-`gnus-use-generic-from'
-
-     Non-`nil' means the local host name of your machine will not appear
-     in the `From:' field of article headers.  If the variable is a
-     string, it is used as your domain instead of the definition by the
-     variable `gnus-your-domain' or the environment variable
-     `DOMAINNAME'.  *Note GENERICFROM::, for more information.
-
-`gnus-use-generic-path'
-
-     Non-`nil' means the NNTP server name will not appear in the `Path:'
-     field of article headers.  If the variable is a string, it is used
-     in the `Path:' field as the NNTP server name instead of the
-     definition by the variable `gnus-nntp-server'.  *Note
-     GENERICPATH::, for more information.
-
-`gnus-startup-file'
-
-     Specifies a startup file of the Bnews system, usually `.newsrc'.
-     If there is a file named `.newsrc-SERVER', it is used instead when
-     talking to SERVER.  *Note Startup File::, for more information.
-
-`gnus-signature-file'
-
-     Specifies a signature file of the Bnews system, usually
-     `.signature'.  If there is a file named `.signature-DISTRIBUTION',
-     it is used instead when posting an article in DISTRIBUTION.  Set
-     the variable to `nil' to prevent appending the signature file
-     automatically.
-
-`gnus-use-cross-reference'
-
-     Specifies what to do with cross references (`Xref:' field).  If it
-     is `nil', cross references are ignored.  If it is `t', articles in
-     subscribed newsgroups are only marked as read.  Otherwise, if it is
-     not `nil' nor `t', articles in all newsgroups are marked as read.
-
-`gnus-use-followup-to'
-
-     Specifies what to do with `Followup-To:' field.  If it is `nil',
-     its value is ignored.  If it is non-`nil', its value is used as
-     followup newsgroups.  Especially, if it is `t' and you are going to
-     followup to an article in which `poster' is specified, your
-     confirmation is required.
-
-`gnus-use-full-window'
-
-     Non-`nil' means to take up the entire screen of Emacs.  If the
-     variable is `nil', the windows used by GNUS will be restricted to
-     the bounds of the original window.  This is very useful if you want
-     to read articles while you do other work in other windows.
-
-`gnus-window-configuration'
-
-     Specifies the configuration of the Group Mode window, the Subject
-     Mode window, and the Article Mode window.  The window configuration
-     can be specified for each action of GNUS (e.g. selecting a
-     newsgroup or selecting an article).  This is quite useful if you
-     are using a slow terminal since the update of Emacs windows can be
-     minimized by displaying these three windows same time.
-
-     The variable must be a list of `(ACTION (G S A))', where ACTION is
-     an action being performed, and G, S, and A are the relative heights
-     of the Group Mode window, the Subject Mode window, and the Article
-     Mode window, respectively.  ACTION is `SelectNewsgroup',
-     `ExitNewsgroup', `SelectArticle', or `ExpandSubject'.
-
-     The following example is the default window configuration:
-
-          (setq gnus-window-configuration
-                '((SelectNewsgroup (0 1 0))
-                  (ExitNewsgroup   (1 0 0))
-                  (SelectArticle   (0 3 10))
-                  (ExpandSubject   (0 1 0))))
-
-     The following is an example of yet another two windows mode.  Article
-     buffer is always displayed on a screen.  This is useful on a slow
-     terminal.
-
-          (setq gnus-window-configuration
-                '((SelectNewsgroup (0 1 0))
-                  (ExitNewsgroup   (1 0 3))
-                  (SelectArticle   (0 1 3))
-                  (ExpandSubject   (0 1 0))))
-
-     The following is an example of three windows mode.  Three buffers are
-     always displayed on a screen.  This is also useful on a slow terminal.
-
-          (setq gnus-window-configuration
-                '((SelectNewsgroup (1 4 0))
-                  (ExitNewsgroup   (1 1 3))
-                  (SelectArticle   (1 1 3))
-                  (ExpandSubject   (1 4 0))))
-
-`gnus-large-newsgroup'
-
-     Specifies the number of the articles which indicates a large
-     newsgroup.  If the number of articles in a newsgroup is greater
-     than this value, the number of articles to be selected is asked
-     for.  If the given value N is positive, the last N articles are
-     selected.  If N is negative, the first N articles are selected.  An
-     empty string means to select all articles.
-
-`gnus-author-copy'
-
-     Specifies a file name saving a copy of an article posted using
-     `FCC:' field.  The variable is initialized from the `AUTHORCOPY'
-     environment variable.  The specified file name is inserted in
-     `FCC:' field, so you have a chance to change the file name or
-     disable saving a copy by editing this field.
-
-     If the first character of the value is not ``|'', the article is
-     saved to the specified file using the function specified by the
-     variable `gnus-author-copy-saver'.  The default function
-     `rmail-output' saves in Unix mailbox format.  Instead, if the first
-     character is ``|'', the contents of the article is send to a
-     program specified by the rest of the value.  For example, articles
-     can be saved in an MH folder by the following:
-
-          (setq gnus-author-copy 
-                "|/usr/local/lib/mh/rcvstore +Article")
-
-`gnus-author-copy-saver'
-
-     Specifies a function to save an author copy to.  The function is
-     called with a file name to save a copy to.  The default function
-     `rmail-output' saves in Unix mailbox format.
-
-`gnus-use-long-file-name'
-
-     Non-`nil' means that a newsgroup name is used as a default file
-     name to save articles to.  If it is `nil', the directory form of a
-     newsgroup name is used instead.  It is set to nil by default if the
-     variable `system-type' is either `usg-unix-v' or `xenix'.
-
-`gnus-mail-save-name'
-`gnus-rmail-save-name'
-`gnus-folder-save-name'
-`gnus-file-save-name'
-
-     Specifies a function generating a file name to save articles to.
-     The function is called with NEWSGROUP, HEADERS, and optional
-     LAST-NAME.  NEWSGROUP is a string representing the current
-     newsgroup name.  HEADERS is a vector containing headers of the
-     current article.  Macros and functions accessing contents of the
-     HEADERS are defined as `nntp-header-FIELD' and `gnus-header-FIELD',
-     respectively.  The following functions are provided as file name
-     generators by default:
-
-     `gnus-numeric-save-name'
-          Return a file name like `NEWS.GROUP/NUMBER' or
-          `NEWS/GROUP/NUMBER' according to the variable
-          `gnus-use-long-file-name'.
-
-     `gnus-Numeric-save-name'
-          Return a file name like `NEWS.GROUP/NUMBER' or
-          `NEWS/GROUP/NUMBER' according to the variable
-          `gnus-use-long-file-name'.
-
-     `gnus-plain-save-name'
-          Return a file name like `NEWS.GROUP' or `NEWS/GROUP/news'
-          according to the variable `gnus-use-long-file-name'.
-
-     `gnus-Plain-save-name'
-          Return a file name like `NEWS.GROUP' or `NEWS/GROUP/news'
-          according to the variable `gnus-use-long-file-name'.
-
-     `gnus-folder-save-name'
-          Return a folder name like `+NEWS.GROUP' or `+NEWS/GROUP'
-          according to the variable `gnus-use-long-file-name'.
-
-     `gnus-Folder-save-name'
-          Return a folder name like `+NEWS.GROUP' or `+NEWS/GROUP'
-          according to the variable `gnus-use-long-file-name'.
-
-`gnus-default-article-saver'
-
-     Specifies a function to save articles in your favorite format using
-     the command `gnus-Subject-save-article'.  The function must be
-     interactively funcallable.  In other words, it must be an Emacs
-     command.  The functions currently provided are as follows:
-
-     `gnus-Subject-save-in-mail'
-          Save articles in Unix mailbox format.
-
-     `gnus-Subject-save-in-rmail'
-          Save articles in Rmail format.
-
-     `gnus-Subject-save-in-folder'
-          Save articles in an MH folder.
-
-     `gnus-Subject-save-in-file'
-          Save articles in article format.
-
-`gnus-article-save-directory'
-
-     Specifies a directory name to save articles in using the commands
-     `gnus-Subject-save-in-mail', `gnus-Subject-save-in-rmail', and
-     `gnus-Subject-save-in-file'.  The variable is initialized from the
-     `SAVEDIR' environment variable.  Its default value is `~/News'.
-
-`gnus-kill-file-name'
-
-     Specifies a file name of KILL file (*Note KILL File::).  Its
-     default value is `KILL'.
-
-`gnus-default-distribution'
-
-     Specifies a distribution inserted automatically when no distribution is
-     specified.
-
-`gnus-novice-user'
-
-     Non-`nil' means you are a novice to USENET.  If it is non-`nil',
-     verbose messages may be displayed or your confirmations may be
-     required.
-
-`gnus-interactive-post'
-
-     Non-`nil' means that newsgroup, subject, and distribution are asked
-     for interactively when composing a new article.
-
-`gnus-user-login-name'
-
-     Specifies your login name.  The login name is got from the `USER'
-     and `LOGNAME' environment variables and the function
-     `user-login-name', if undefined.
-
-`gnus-user-full-name'
-
-     Specifies your full name.  The full name is got from the `NAME'
-     environment variable and the function `user-full-name', if
-     undefined.
-
-`gnus-show-all-headers'
-
-     Non-`nil' means all headers of an article are shown.
-
-`gnus-save-all-headers'
-
-     Non-`nil' means all headers of an article are saved in a file.
-
-`gnus-show-threads'
-
-     Non-`nil' means conversation threads are displayed in a tree
-     structured form according to references in Subject Mode.
-
-`gnus-thread-hide-subject'
-
-     Non-`nil' means subjects of lower level threads are hidden if the
-     thread-based reading is turned on.
-
-`gnus-thread-hide-subtree'
-
-     Non-`nil' means thread subtrees are hidden initially.  If thread
-     subtrees are hidden, you have to run the command
-     `gnus-Subject-show-thread' by hand or by using
-     `gnus-Select-article-hook' to show them.
-
-`gnus-thread-hide-killed'
-
-     Non-`nil' means killed thread subtrees are hidden automatically.
-
-`gnus-thread-ignore-subject'
-
-     Non-`nil' means subject differences are ignored but only references
-     are taken into account in constructing threads trees.  If it is
-     non-`nil' and thread subtrees are hidden, some commands work with
-     subjects may not work properly.
-
-`gnus-thread-indent-level'
-
-     Specifies indentation level of thread subtrees.
-
-`gnus-auto-extend-newsgroup'
-
-     Non-`nil' means visible articles are automatically extended to
-     forward and backward if possible when the commands `N' and `P'
-     (`gnus-Subject-next-article' and `gnus-Subject-prev-article') are
-     executed in Subject Mode.
-
-`gnus-auto-select-first'
-
-     Non-`nil' means the first unread article is selected automatically
-     when a newsgroup is selected.  If you'd like to prevent automatic
-     selection of the first unread article in some newsgroups, set the
-     variable to `nil' in the hook `gnus-Select-group-hook' or
-     `gnus-Apply-kill-hook' (*Note Hooks::).
-
-`gnus-auto-select-next'
-
-     Non-`nil' means the next newsgroup is selected automatically at the
-     end of the newsgroup.  If the value is `t' and the next newsgroup
-     is empty (no unread articles), GNUS will exit Subject Mode and go
-     back to Group Mode.  If the value is neither `nil' nor `t', GNUS
-     won't exit Subject Mode but will select the following unread
-     newsgroup.  If the value is `quietly', the next unread newsgroup
-     will be selected without any confirmations.
-
-`gnus-auto-select-same'
-
-     Non-`nil' means an article with the same subject as the current
-     article is selected automatically like `rn -S'.
-
-`gnus-auto-center-subject'
-
-     Non-`nil' means that the cursor is always kept centered in the
-     Subject Mode window.
-
-`gnus-break-pages'
-
-     Non-`nil' means an article is broken into pages at page delimiters.
-     The page delimiter is specified by the variable
-     `gnus-page-delimiter'.  This may not work with some versions of GNU
-     Emacs earlier than version 18.50.
-
-`gnus-page-delimiter'
-
-     Specifies regexp describing line-beginnings that separate pages of
-     articles.  Its default value is `"^\^L"'.
-
-`gnus-digest-show-summary'
-
-     Non-`nil' means that a summary of digest messages is shown when
-     reading a digest article using the command
-     `gnus-Subject-rmail-digest'.
-
-`gnus-digest-separator'
-
-     Specifies a regexp which separates messages in a digest article.
-     Changes to this variable only affect the commands
-     `gnus-Subject-next-digest' and `gnus-Subject-prev-digest', but not
-     the command `gnus-Subject-rmail-digest'.
-
-`gnus-optional-headers'
-
-     Specifies a function which generates an optional string displayed
-     in the Subject buffer.  The function is called with an article
-     HEADERS, and must return a string excluding `[' and `]'.  HEADERS
-     is a vector containing headers of the current article.  Macros and
-     functions accessing contents of the HEADERS are defined as
-     `nntp-header-FIELD' and `gnus-header-FIELD', respectively.
-
-     GNUS provides two functions as follows:
-
-     `gnus-optional-lines-and-from'
-          Return a string like "NNN:AUTHOR", where NNN is the number of
-          lines in an article and AUTHOR is the name of the author.
-
-     `gnus-optional-lines'
-          Return a string like "NNN", where NNN is the number of lines
-          in an article.
-
-     *Note Hooks::, to change optional headers according to selected
-     newsgroups.
-
-`gnus-Info-directory'
-
-     Specifies a directory where the GNUS Info file is placed.  It is
-     not necessary to change this variable unless you install an Info
-     file in a directory different from the variable `Info-directory'.
-     *Note Texinfo Manual::, for more information.
-
-`gnus-mail-reply-method'
-
-     Specifies a function to begin composing reply mail messages.  The
-     function will be called with an optional argument which means yank
-     original article automatically if non-`nil'.  To use Mail Mode, set
-     the variable to `gnus-mail-reply-using-mail'.  To use mh-e letter
-     Mode, set the variable to `gnus-mail-reply-using-mhe'.
-
-`gnus-mail-other-window-method'
-
-     Specifies a function to begin composing mail messages in other
-     window.  To use Mail Mode, set the variable to
-     `gnus-mail-other-window-using-mail'.  To use mh-e letter Mode, set
-     the variable to `gnus-mail-other-window-using-mhe'.
-
-`gnus-subscribe-newsgroup-method'
-
-     Specifies a function called with a newsgroup name when a new newsgroup
-     is found.  The following default definition adds new newsgroup at the
-     beginning of newsgroups:
-
-          (setq gnus-subscribe-newsgroup-method
-                '(lambda (newsgroup)
-                   (gnus-subscribe-newsgroup newsgroup
-                                             (car (car gnus-newsrc-assoc)))))
-
-     Instead, if you want to add new newsgroup at the end of newsgroups, use
-     the following:
-
-          (setq gnus-subscribe-newsgroup-method
-                '(lambda (newsgroup)
-                   (gnus-subscribe-newsgroup newsgroup nil)))
-
-     If you want to prevent adding new newsgroups automatically and want
-     to subscribe them later using the command `U'
-     (`gnus-Group-unsubscribe-group') in the Newsgroup buffer, use the
-     following:
-
-          (setq gnus-subscribe-newsgroup-method
-                '(lambda (newsgroup) nil))        ;Do nothing.
-
-     The following final example must be the most useful for you who
-     want not to add new newsgroups automatically.  This definition
-     subscribes a new newsgroup first, and then kills it.  The killed
-     newsgroups can be added to the subscription list interactively
-     using Browse-Killed Mode (*Note Maintenance::).
-
-          (setq gnus-subscribe-newsgroup-method
-                '(lambda (newsgroup)
-                   (gnus-subscribe-newsgroup newsgroup)
-                   (gnus-kill-newsgroup newsgroup)))
-
-
-
-File: gnus  Node: NNTP Variables, Prev: Variables, Up: Customization, Next: Spool Variables
-
-NNTP Specific Variables
-=======================
-
-`nntp-buggy-select'
-
-     Non-`nil' means the select routine of your operating system is
-     buggy.  GNUS may hang up while waiting for NNTP server responses.
-     The problem may be solved by setting the variable to `t'.  *Note
-     NNTP Problems::, for more information.
-
-`nntp-maximum-request'
-
-     Specifies the maximum number of requests to be sent to the NNTP
-     server at one time.  GNUS may hang up while retrieving headers of a
-     large newsgroup because sending many requests to the NNTP server
-     without reading replies to them causes deadlock.  In this case, set
-     the variable to a lower number.  *Note NNTP Problems::, for more
-     information.
-
-`nntp-large-newsgroup'
-
-     Specifies the number of articles which indicates a large newsgroup.
-     If the number of articles is greater than the value, verbose
-     messages will be shown to indicate the current status.
-
-`tcp-program-name'
-
-     Specifies a program which establishes communications between Emacs and
-     the NNTP server.  Its default value is `tcp' which is distributed as
-     `tcp.c' with other files of GNUS (*Note Files of GNUS::).  If your
-     Emacs has the function `open-network-stream', there is no need to
-     define this variable.
-
-
-
-File: gnus  Node: Spool Variables, Prev: NNTP Variables, Up: Customization, Next: Directory Variables
-
-Local News Spool Specific Variables
-===================================
-
-`nnspool-inews-program'
-
-     Specifies a program to post news.  This is default to the variable
-     `news-inews-program' which is default to `inews'.
-
-`nnspool-inews-switches'
-
-     Specifies switches for the function `nnspool-request-post' to pass
-     to the command `inews' for posting news.  Its default value is
-     `("-h")'.
-
-`nnspool-spool-directory'
-
-     Specifies a directory of a local news spool.  This is default to the
-     variable `news-path' which is default to `/usr/spool/news'.
-
-`nnspool-active-file'
-
-     Specifies an active file of the Bnews system for a local news
-     spool.  Its default value is `/usr/lib/news/active'.
-
-`nnspool-history-file'
-
-     Specifies a history file of the Bnews system for a local news
-     spool.  Its default value is `/usr/lib/news/history'.  Some
-     machines may not have this file.  In this case, commands to refer
-     to articles by Message-IDs will not work at all (*Note Referencing
-     Articles::).
-
 
 

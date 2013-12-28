@@ -9,15 +9,6 @@
 ;;; 	 liberte@a.cs.uiuc.edu  or  ihnp4!uiucdcs!liberte
 ;;; I will continue to upgrade hide-ifdef-mode
 ;;; with your contributions and will eventually offer it to FSF.
-;;;
-;;; $Header: hideif.el,v 1.2 92/01/28 14:07:58 eb Exp $
-;;;
-;;; $Log:	hideif.el,v $
-Revision 1.2  92/01/28  14:07:58  eb
-Reverse args in where-is-internal.
-
-Revision 1.1  91/03/20  23:43:07  eb
-Initial revision
 
 ;;; Revision 1.7  88/02/16  03:12:58  liberte
 ;;; Fixed comments and doc strings.

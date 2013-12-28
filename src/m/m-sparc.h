@@ -47,11 +47,15 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define sparc
 #endif
 
-#ifdef __GNUC__
+#ifdef USE_GCC
 # define C_OPTIMIZE_SWITCH -O
+#else
+#ifdef USE_LCC
+# define C_OPTIMIZE_SWITCH -O4 -G
 #else
      /* This level of optimization is reported to work.  */
 # define C_OPTIMIZE_SWITCH -O2
+#endif
 #endif
 
 /* Use type int rather than a union, to represent Lisp_Object */

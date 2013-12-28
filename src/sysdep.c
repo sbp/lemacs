@@ -1,5 +1,5 @@
 /* Interfaces to system-dependent kernel and library entries.
-   Copyright (C) 1985, 1986, 1987, 1988, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1987, 1988, 1990, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -68,8 +68,16 @@ extern char *sys_errlist[];
 #include <iodef.h>
 #include <ssdef.h>
 #include <descrip.h>
+#include <fibdef.h>
+#include <atrdef.h>
 #include <ctype.h>
+#include <string.h>
+#ifdef __GNUC__
+#include <sys/file.h>
+#else
 #include <file.h>
+#endif
+#undef F_SETFL
 #ifndef RAB$C_BID
 #include <rab.h>
 #endif
@@ -77,11 +85,8 @@ extern char *sys_errlist[];
 #endif /* VMS */
 
 #ifndef BSD4_1
-#ifdef BSD /* this is done this way to avoid defined(BSD) || defined (USG)
+#ifdef BSD /* this is done this way to avoid defined (BSD) || defined (USG)
 	      because the vms compiler doesn't grok `defined' */
-#ifdef O_NDELAY
-#undef O_NDELAY
-#endif
 #include <fcntl.h>
 #endif
 #ifdef USG
@@ -89,19 +94,42 @@ extern char *sys_errlist[];
 #endif
 #endif /* not 4.1 bsd */
 
-#include <sys/ioctl.h>
-
-#ifdef APOLLO
-#undef TIOCSTART
-#endif
+/* Get DGUX definition for FASYNC - DJB */
+#ifdef DGUX
+#include <sys/file.h>
+#endif /* DGUX */
 
 #ifdef BSD
+#include <sys/ioctl.h>
 #ifdef BSD4_1
 #include <wait.h>
 #else /* not 4.1 */
 #include <sys/wait.h>
 #endif /* not 4.1 */
 #endif /* BSD */
+
+#ifdef STRIDE
+#include <sys/ioctl.h>
+#endif 
+
+#ifdef NEED_TERMIOS
+#include <sys/termios.h>
+#endif
+
+#ifdef mips
+#include <sys/ioctl.h>
+#endif 
+
+#ifdef _SEQUENT_
+#include <sys/stropts.h>
+#endif /* _SEQUENT_ */
+
+#ifdef AIX
+/* Get files for keyboard remapping */
+#define HFNKEYS 2
+#include <sys/hft.h>
+#include <sys/devinfo.h>
+#endif
 
 /* Get rid of LLITOUT in 4.1, since it is said to stimulate kernel bugs.  */
 #ifdef BSD4_1
@@ -110,7 +138,34 @@ extern char *sys_errlist[];
 #endif /* 4.1 */
 
 #ifdef HAVE_TERMIO
+#if defined(AIX) && defined(i386)
+#include <termios.h>		/* needs to be before termio.h for aix ps/2  */
+#endif
+#ifndef NO_TERMIO
 #include <termio.h>
+#endif
+#ifdef HAVE_TCATTR
+#define TERMINAL struct termios
+#else /* not HAVE_TCATTR */
+#define TERMINAL struct termio
+#endif /* not HAVE_TCATTR */
+
+#ifdef IBMR2AIX
+#include <termios.h>
+#ifdef TIOCGETP
+#undef TIOCGETP
+#endif /* no TIOCGETP */
+#define TIOCGETP TCGETS
+#undef TIOCSETN
+#define TIOCSETN TCSETSW
+#undef TIOCSETP
+#define TIOCSETP TCSETSF
+#undef TCSETAW
+#define TCSETAW TCSETS
+#else /* not IBMR2AIX */
+#ifdef HAVE_TCATTR
+#include <termios.h>
+#endif /* HAVE_TCATTR */
 #undef TIOCGETP
 #define TIOCGETP TCGETA
 #undef TIOCSETN
@@ -119,14 +174,27 @@ extern char *sys_errlist[];
 #define TIOCSETN TCSETAW
 #undef TIOCSETP
 #define TIOCSETP TCSETAF
-#define TERMINAL struct termio
+#endif /* not IBMR2AIX */
+
 #define OSPEED(str) (str.c_cflag & CBAUD)
 #define SETOSPEED(str,new) (str.c_cflag = (str.c_cflag & ~CBAUD) | (new))
 #define TABS_OK(str) ((str.c_oflag & TABDLY) != TAB3)
 #endif /* HAVE_TERMIO */
 
-#ifdef BROKEN_TIOCGETC
+#ifndef HAVE_TCATTR /* If HAVE_TCATTR, this is a primitive.  */
+#define tcgetattr(fd, addr) ioctl (fd, TIOCGETP, addr)
+#endif
+
+#ifdef XENIX
 #undef TIOCGETC  /* Avoid confusing some conditionals that test this.  */
+#endif
+
+#ifdef BROKEN_TIOCGETC
+#undef TIOCGETC
+#endif
+
+#ifdef BROKEN_TIOCGWINSZ
+#undef TIOCGWINSZ
 #endif
 
 #ifndef HAVE_TERMIO
@@ -143,33 +211,65 @@ extern char *sys_errlist[];
 
 #ifdef USG
 #include <sys/utsname.h>
-#include <memory.h>
 #include <string.h>
+#ifndef MEMORY_IN_STRING_H
+#include <memory.h>
+#endif
 #ifdef TIOCGWINSZ
-#ifdef NEED_SIOCTL
+#ifndef IRIS_4D
+#ifndef mips
+#ifndef aix386
+#ifndef NO_SIOCTL_H
+/* Some USG systems with TIOCGWINSZ need this file; some don't have it.
+   We don't know how to distinguish them.
+   If this #include gets an error, just delete it.  */
 #include <sys/sioctl.h>
 #endif
 #ifdef NEED_PTEM_H
 #include <sys/stream.h>
 #include <sys/ptem.h>
 #endif
+#endif /* not aix386 */
+#endif /* not mips */
+#endif /* not IRIS_4D */
 #endif /* TIOCGWINSZ */
-#ifdef NEED_TIME_H
-#include <time.h>
-#else /* not NEED_TIME_H */
 #ifdef HAVE_TIMEVAL
+#ifdef HPUX
+#include <time.h>
+#else
 #include <sys/time.h>
+#endif
 #endif /* HAVE_TIMEVAL */
-#endif /* not NEED_TIME_H */
 #endif /* USG */
 
+#ifdef VMS
+#include "window.h"
+#endif
+  
 #ifdef NEED_BSDTTY
 #include <sys/bsdtty.h>
 #endif 
 
+#if defined (HPUX) && defined (HAVE_PTYS)
+#include <sys/ptyio.h>
+#endif
+  
+#ifdef AIX
+#include <sys/pty.h>
+#include <unistd.h>
+#endif /* AIX */
+
+#ifdef SYSV_PTYS
+#include <sys/tty.h>
+#include <sys/pty.h>
+#endif
+
 #ifdef BROKEN_FIONREAD
 #undef FIONREAD
+#undef FASYNC
 #endif
+
+extern int interrupt_char;
 
 #include "dispextern.h"
 #include "screen.h"
@@ -183,9 +283,7 @@ extern char *sys_errlist[];
 #include "ndir.h"
 #endif /* NONSYSTEM_DIR_LIBRARY */
 
-#ifndef sigmask
-#define sigmask(no) (1L << ((no) - 1))
-#endif
+#include "emacssignal.h"
 
 /* Define SIGCHLD as an alias for SIGCLD.  There are many conditionals
    testing SIGCHLD.  */
@@ -259,14 +357,30 @@ discard_tty_input ()
   if (noninteractive)
     return;
 
+  /* Discarding input is not safe when the input could contain
+     replies from the X server.  So don't do it.  */
+  if (read_socket_hook)
+    return;
+
 #ifdef VMS
   end_kbd_input ();
   SYS$QIOW (0, input_chan, IO$_READVBLK|IO$M_PURGE, input_iosb, 0, 0,
 	    &buf, 0, 0, terminator_mask, 0, 0);
   queue_kbd_input ();
 #else /* not VMS */
-  ioctl (0, TIOCGETP, &buf);
+#ifdef APOLLO
+  {
+    int zero = 0;
+    ioctl (0, TIOCFLUSH, &zero);
+  }
+#else /* not Apollo */
+  tcgetattr (0, &buf);
+#ifndef HAVE_TCATTR
   ioctl (0, TIOCSETP, &buf);
+#else
+  tcsetattr (0, TCSAFLUSH, &buf);
+#endif
+#endif /* not Apollo */
 #endif /* not VMS */
 }
 
@@ -298,13 +412,15 @@ init_baud_rate ()
 		&sg.class, 12, 0, 0, 0, 0 );
 #else
       SETOSPEED (sg, B9600);
-      ioctl (0, TIOCGETP, &sg);
+      tcgetattr (0, &sg);
 #endif /* not VMS */
       ospeed = OSPEED (sg);
     }
-  baud_rate = ospeed == 0 ? 1200
-    : ospeed < sizeof baud_convert / sizeof baud_convert[0]
-      ? baud_convert[ospeed] : 9600;
+  
+  baud_rate = (ospeed < sizeof baud_convert / sizeof baud_convert[0]
+	       ? baud_convert[ospeed] : 9600);
+  if (baud_rate == 0)
+    baud_rate = 1200;
 }
 
 /*ARGSUSED*/
@@ -326,18 +442,12 @@ wait_without_blocking ()
 #else
   croak ("wait_without_blocking");
 #endif
-  synch_process_alive = 0;
 }
 
 #endif /* not subprocesses */
 
 int wait_debugging;   /* Set nonzero to make following function work under dbx
 		         (at least for bsd).  */
-
-void
-wait_for_termination_signal (dummy)
-     int dummy;
-{}
 
 /* Wait for subprocess with process id `pid' to terminate and
    make sure it will get eliminated (not remain forever as a zombie) */
@@ -348,28 +458,68 @@ wait_for_termination (pid)
   while (1)
     {
 #ifdef subprocesses
-#ifdef VMS
-      int status;
-
-      status = sys$forcex (&pid, 0, 0);
-      break;
-#else /* not VMS */
-      /* Exit if the process has terminated.  */
-      if (!synch_process_alive)
+#if defined (BSD) || (defined (HPUX) && !defined (HPUX_5))
+      /* Note that kill returns -1 even if the process is just a zombie now.
+	 But inevitably a SIGCHLD interrupt should be generated
+	 and child_sig will do wait3 and make the process go away. */
+      /* There is some indication that there is a bug involved with
+	 termination of subprocesses, perhaps involving a kernel bug too,
+	 but no idea what it is.  Just as a hunch we signal SIGCHLD to see
+	 if that causes the problem to go away or get worse.  */
+#ifdef BSD4_1
+      extern int synch_process_pid;
+      sighold (SIGCHLD);
+      if (synch_process_pid == 0)
+	{
+          sigrelse (SIGCHLD);
+	  break;
+	}
+      if (wait_debugging)
+	sleep (1);
+      else
+	sigpause (SIGCHLD);
+#else /* not BSD4_1 */
+      sigsetmask (sigmask (SIGCHLD));
+      if (0 > kill (pid, 0))
+        {
+	  sigsetmask (SIGEMPTYMASK);
+	  kill (getpid (), SIGCHLD);
+	  break;
+	}
+      if (wait_debugging)
+	sleep (1);
+      else
+	sigpause (SIGEMPTYMASK);
+#endif /* not BSD4_1 */
+#else /* not BSD, and not HPUX version >= 6 */
+#ifdef UNIPLUS
+      if (0 > kill (pid, 0))
 	break;
-
-      /* Otherwise wait 1 second or until a signal comes in.  */
-      signal (SIGALRM, wait_for_termination_signal);
-      alarm (1);
-      pause ();
-      alarm (0);
-      signal (SIGALRM, SIG_IGN);
-#endif /* not VMS */
+      wait (0);
+#else /* neither BSD nor UNIPLUS: random sysV */
+#ifdef HAVE_SYSV_SIGPAUSE
+      sighold (SIGCHLD);
+      if (0 > kill (pid, 0))
+	{
+	  sigrelse (SIGCHLD);
+	  break;
+	}
+      sigpause (SIGCHLD);
+#else /* not HAVE_SYSV_SIGPAUSE */
+      if (0 > kill (pid, 0))
+	break;
+      /* Using sleep instead of pause avoids timing error.
+	 If the inferior dies just before the sleep,
+	 we lose just one second.  */
+      sleep (1);
+#endif /* not HAVE_SYSV_SIGPAUSE */
+#endif /* not UNIPLUS */
+#endif /* not BSD, and not HPUX version >= 6 */
 #else /* not subprocesses */
 #ifndef BSD4_1
       if (0 > kill (pid, 0))
 	break;
-      wait (0);
+      sleep (1);
 #else /* BSD4_1 */
       int status;
       status = wait (0);
@@ -403,7 +553,6 @@ flush_pending_output (channel)
 #endif
 }
 
-#ifndef VMS
 /*  Set up the terminal at the other end of a pseudo-terminal that
     we will be controlling an inferior through.
     It should not echo or do line-editing, since that is done
@@ -414,7 +563,7 @@ child_setup_tty (out)
 {
   TERMINAL s;
 
-  ioctl (out, TIOCGETP, &s);
+  tcgetattr (out, &s);
 #ifdef HAVE_TERMIO
   s.c_oflag |= OPOST;		/* Enable output postprocessing */
   s.c_oflag &= ~ONLCR;		/* Disable map of NL to CR-NL on output */
@@ -431,31 +580,53 @@ child_setup_tty (out)
   s.c_cc[VEOF] = 04;		/* insure that EOF is Control-D */
   s.c_cc[VERASE] = 0377;	/* disable erase processing */
   s.c_cc[VKILL] = 0377;		/* disable kill processing */
+#ifdef IRIS_4D /* This is needed for the sake of process_send_signal.
+		  Probably a wide class of systems need something like this,
+		  but in 18.58, let's be cautious.  */
+  s.c_cc[VSWTCH] = 032;
+#endif
 #ifdef HPUX
   s.c_cflag = (s.c_cflag & ~CBAUD) | B9600; /* baud rate sanity */
 #endif /* HPUX */
 
-#ifdef IBMAIX
-/* AIX enhanced edit looses NULs, so disable it */
+#ifdef AIX
+/* AIX enhanced edit loses NULs, so disable it */
+#ifndef IBMR2AIX
   s.c_line = 0;
   s.c_iflag &= ~ASCEDIT;
+#endif
   /* Also, PTY overloads NUL and BREAK.
      don't ignore break, but don't signal either, so it looks like NUL.  */
   s.c_iflag &= ~IGNBRK;
   s.c_iflag &= ~BRKINT;
-/* QUIT and INTR work better as signals, so disable character forms */
+#if defined(TIOCGPGRP) && defined(TIOCGLTC) && defined(TIOCGETC)
+  /* the QUIT and INTR character are used in process_send_signal
+     so set them here to something useful.  */
+  if (s.c_cc[VQUIT] == 0377)
+    s.c_cc[VQUIT] = '\\'&037;	/* Control-\ */
+  if (s.c_cc[VINTR] == 0377)
+    s.c_cc[VINTR] = 'C'&037;	/* Control-C */
+#else /* no TIOCGPGRP or no TIOCGLTC or no TIOCGETC */
+  /* QUIT and INTR are sent using system calls, so disable character forms.  */
   s.c_cc[VQUIT] = 0377;
   s.c_cc[VINTR] = 0377;
-  s.c_cc[VEOL] = 0377;
   s.c_lflag &= ~ISIG;
+#endif /* no TIOCGPGRP or no TIOCGLTC or no TIOCGETC */
+  s.c_cc[VEOL] = 0377;
   s.c_cflag = (s.c_cflag & ~CBAUD) | B9600; /* baud rate sanity */
-#endif /* IBMAIX */
+#endif /* AIX */
 
 #else /* not HAVE_TERMIO */
   s.sg_flags &= ~(ECHO | CRMOD | ANYP | ALLDELAY | RAW | LCASE | CBREAK | TANDEM);
+  s.sg_erase = 0377;
+  s.sg_kill = 0377;
 #endif /* not HAVE_TERMIO */
 
+#ifndef HAVE_TCATTR
   ioctl (out, TIOCSETN, &s);
+#else
+  tcsetattr (out, TCSADRAIN, &s);
+#endif
 
 #ifdef BSD4_1
   if (interrupt_input)
@@ -468,7 +639,6 @@ child_setup_tty (out)
   }
 #endif /* RTU */
 }
-#endif /* not VMS */
 
 #endif /* subprocesses */
 
@@ -476,10 +646,14 @@ child_setup_tty (out)
 setpgrp_of_tty (pid)
      int pid;
 {
+#ifdef IBMR2AIX
+  tcsetpgrp ( 0, pid);
+#else
 #ifdef TIOCSPGRP
   ioctl (0, TIOCSPGRP, &pid);
 #else
   /* Just ignore this for now and hope for the best */
+#endif
 #endif
 }
 
@@ -504,17 +678,6 @@ sys_suspend ()
       int status = LIB$ATTACH (&parent_id) & 1;
       signal (SIGINT, oldsig);
       return status;
-    }
-  else
-    {
-      struct {
-	int	l;
-	char	*a;
-      } d_prompt;
-      d_prompt.l = sizeof("Emacs: ");		/* Our special prompt */
-      d_prompt.a = "Emacs: ";			/* Just a reminder */
-      lib$spawn (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, &d_prompt, 0);
-      return 1;
     }
   return -1;
 #else
@@ -568,11 +731,10 @@ sys_suspend ()
 	   which somehow wedges the hp compiler.  So instead... */
 
 	dir = intern ("default-directory");
-	/* Can't use NULL */
-	if (XFASTINT (Fboundp (dir)) == XFASTINT (Qnil))
+	if (NILP (Fboundp (dir)))
 	  goto xyzzy;
 	dir = Fsymbol_value (dir);
-	if (XTYPE (dir) != Lisp_String)
+	if (!STRINGP (dir))
 	  goto xyzzy;
 
 	str = (unsigned char *) alloca (XSTRING (dir)->size + 2);
@@ -591,11 +753,9 @@ sys_suspend ()
       write (1, "Can't execute subshell", 22);
       _exit (1);
     }
-
   save_signal_handlers (&saved_handlers);
   wait_for_termination (pid);
   restore_signal_handlers (&saved_handlers);
-
 #endif /* no USG_JOBCTRL */
 #endif /* no SIGTSTP */
 #endif /* not VMS */
@@ -654,8 +814,7 @@ reset_sigio ()
 request_sigio ()
 {
 #ifdef SIGWINCH
-  int omask = sigblock (0);
-  sigsetmask (omask & ~sigmask (SIGWINCH));
+  sigunblock (sigmask (SIGWINCH));
 #endif
 #ifdef HAVE_X_WINDOWS
   if (x_file_descriptor)
@@ -740,13 +899,11 @@ int lmode;			/* Current lmode value. */
    but if so, this does no harm,
    and using the same name avoids wasting the other one's space.  */
 
-#ifndef NCR486 /* OBE -- use extern decl from stdio.h... */
-#ifdef USG
+#if defined (USG) || defined (DGUX)
 unsigned char _sobuf[BUFSIZ+8];
 #else
 char _sobuf[BUFSIZ];
 #endif
-#endif /* ! NCR486 */
  
 #ifdef TIOCGLTC
 static struct ltchars new_ltchars = {-1,-1,-1,-1,-1,-1};
@@ -757,7 +914,7 @@ static struct ltchars new_ltchars = {-1,-1,-1,-1,-1,-1};
 
 init_sys_modes ()
 {
-  TERMINAL sg;
+  TERMINAL tty;
 #ifdef TIOCGETC
   struct tchars tchars;
 #endif
@@ -773,17 +930,17 @@ init_sys_modes ()
 
 #ifdef VMS
   if (!input_ef)
-    input_ef = get_kbd_event_flag ();
-    /* LIB$GET_EF (&input_ef); */
+    LIB$GET_EF (&input_ef);
   SYS$CLREF (input_ef);
   waiting_for_ast = 0;
   if (!timer_ef)
-    timer_ef = get_timer_event_flag ();
-    /* LIB$GET_EF (&timer_ef); */
+    LIB$GET_EF (&timer_ef);
   SYS$CLREF (timer_ef);
   if (!process_ef)
-    LIB$GET_EF (&process_ef);
-  SYS$CLREF (process_ef);
+    {
+      LIB$GET_EF (&process_ef);
+      SYS$CLREF (process_ef);
+    }
   if (input_ef / 32 != process_ef / 32)
     croak ("Input and process event flags in different clusters.");
   if (input_ef / 32 != timer_ef / 32)
@@ -798,83 +955,104 @@ init_sys_modes ()
   sys_access_reinit ();
 #endif
 #else /* not VMS */
-  ioctl (0, TIOCGETP, &old_gtty);
+  tcgetattr (0, &old_gtty);
 #endif /* not VMS */
   if (!read_socket_hook && EQ (Vwindow_system, Qnil))
     {
-      sg = old_gtty;
+      tty = old_gtty;
 
 #ifdef HAVE_TERMIO
-      sg.c_iflag |= (IGNBRK);	/* Ignore break condition */
-      sg.c_iflag &= ~ICRNL;	/* Disable map of CR to NL on input */
+      tty.c_iflag |= (IGNBRK);	/* Ignore break condition */
+      tty.c_iflag &= ~ICRNL;	/* Disable map of CR to NL on input */
 #ifdef ISTRIP
-      sg.c_iflag &= ~ISTRIP;	/* don't strip 8th bit on input */
+      tty.c_iflag &= ~ISTRIP;	/* don't strip 8th bit on input */
 #endif
-      sg.c_lflag &= ~ECHO;	/* Disable echo */
-      sg.c_lflag &= ~ICANON;	/* Disable erase/kill processing */
-      sg.c_lflag |= ISIG;	/* Enable signals */
+      tty.c_lflag &= ~ECHO;	/* Disable echo */
+      tty.c_lflag &= ~ICANON;	/* Disable erase/kill processing */
+      tty.c_lflag |= ISIG;	/* Enable signals */
       if (flow_control)
 	{
-	  sg.c_iflag |= IXON;	/* Enable start/stop output control */
+	  tty.c_iflag |= IXON;	/* Enable start/stop output control */
 #ifdef IXANY
-	  sg.c_iflag &= ~IXANY;
+	  tty.c_iflag &= ~IXANY;
 #endif /* IXANY */
 	}
       else
-	sg.c_iflag &= ~IXON;	/* Disable start/stop output control */
-      sg.c_oflag &= ~ONLCR;	/* Disable map of NL to CR-NL on output */
-      sg.c_oflag &= ~TAB3;	/* Disable tab expansion */
+	tty.c_iflag &= ~IXON;	/* Disable start/stop output control */
+      tty.c_oflag &= ~ONLCR;	/* Disable map of NL to CR-NL on output */
+      tty.c_oflag &= ~TAB3;	/* Disable tab expansion */
 #ifdef CS8
       if (meta_key)
 	{
-	  sg.c_cflag |= CS8;	/* allow 8th bit on input */
-	  sg.c_cflag &= ~PARENB;/* Don't check parity */
+	  tty.c_cflag |= CS8;	/* allow 8th bit on input */
+	  tty.c_cflag &= ~PARENB;/* Don't check parity */
 	}
 #endif
-      sg.c_cc[VINTR] = '\007';	/* ^G gives SIGINT */
-      /* Set up C-g for both SIGQUIT and SIGINT.
+      tty.c_cc[VINTR] = interrupt_char;	/* ^G gives SIGINT */
+      /* Set up C-g (usually) for both SIGQUIT and SIGINT.
 	 We don't know which we will get, but we handle both alike
 	 so which one it really gives us does not matter.  */
-      sg.c_cc[VQUIT] = '\007';
-      sg.c_cc[VMIN] = 1;	/* Input should wait for at least 1 char */
-      sg.c_cc[VTIME] = 0;	/* no matter how long that takes.  */
+      tty.c_cc[VQUIT] = interrupt_char;
+      tty.c_cc[VMIN] = 1;	/* Input should wait for at least 1 char */
+      tty.c_cc[VTIME] = 0;	/* no matter how long that takes.  */
 #ifdef VSWTCH
-      sg.c_cc[VSWTCH] = CDEL;	/* Turn off shell layering use of C-z */
+      tty.c_cc[VSWTCH] = CDEL;	/* Turn off shell layering use of C-z */
 #endif /* VSWTCH */
-#ifdef IBMAIX
+#if defined (mips) || defined (HAVE_TCATTR)
+      /* The following code looks like the right thing in general,
+		but it is said to cause a crash on USG V.4.
+		Let's play safe by turning it on only for the MIPS.  */
+#ifdef VSUSP
+      tty.c_cc[VSUSP] = CDEL;	/* Turn off mips handling of C-z.  */
+#endif /* VSUSP */
+#ifdef V_DSUSP
+      tty.c_cc[V_DSUSP] = CDEL;	/* Turn off mips handling of C-y.  */
+#endif /* V_DSUSP */
+#endif /* mips or HAVE_TCATTR */
+
+#ifdef AIX
+#ifndef IBMR2AIX
       /* AIX enhanced edit loses NULs, so disable it */
-      sg.c_line = 0;
-      sg.c_iflag &= ~ASCEDIT;
+      tty.c_line = 0;
+      tty.c_iflag &= ~ASCEDIT;
+#else
+      tty.c_cc[VSTRT] = 255;
+      tty.c_cc[VSTOP] = 255;
+      tty.c_cc[VSUSP] = 255;
+      tty.c_cc[VDSUSP] = 255;
+#endif /* IBMR2AIX */
       /* Also, PTY overloads NUL and BREAK.
 	 don't ignore break, but don't signal either, so it looks like NUL.
 	 This really serves a purpose only if running in an XTERM window
 	 or via TELNET or the like, but does no harm elsewhere.  */
-      sg.c_iflag &= ~IGNBRK;
-      sg.c_iflag &= ~BRKINT;
-#endif
+      tty.c_iflag &= ~IGNBRK;
+      tty.c_iflag &= ~BRKINT;
+#endif /* AIX */
+
 #else /* if not HAVE_TERMIO */
 #ifdef VMS
-      sg.tt_char |= TT$M_NOECHO;
-      if (meta_key)
-	sg.tt_char |= TT$M_EIGHTBIT
+      tty.tt_char |= TT$M_NOECHO | TT$M_EIGHTBIT;
       if (flow_control)
-	sg.tt_char |= TT$M_TTSYNC;
+	tty.tt_char |= TT$M_TTSYNC;
       else
-	sg.tt_char &= ~TT$M_TTSYNC;
-      sg.tt2_char |= TT2$M_PASTHRU | TT2$M_XON;
+	tty.tt_char &= ~TT$M_TTSYNC;
+      tty.tt2_char |= TT2$M_PASTHRU | TT2$M_XON;
 #else /* not VMS (BSD, that is) */
-      sg.sg_flags &= ~(ECHO | CRMOD | XTABS);
-      if (meta_key)
-	sg.sg_flags |= ANYP;
-      sg.sg_flags |= interrupt_input ? RAW : CBREAK;
+      tty.sg_flags &= ~(ECHO | CRMOD | XTABS);
+      tty.sg_flags |= ANYP;
+      tty.sg_flags |= interrupt_input ? RAW : CBREAK;
 #endif /* not VMS (BSD, that is) */
 #endif /* not HAVE_TERMIO */
 
 #ifdef VMS
       SYS$QIOW (0, input_chan, IO$_SETMODE, &input_iosb, 0, 0,
-		&sg.class, 12, 0, 0, 0, 0);
+		&tty.class, 12, 0, 0, 0, 0);
 #else
-      ioctl (0, TIOCSETN, &sg);
+#ifndef HAVE_TCATTR
+      ioctl (0, TIOCSETN, &tty);
+#else
+      tcsetattr (0, TCSADRAIN, &tty);
+#endif
 #endif /* not VMS */
 
       /* This code added to insure that, if flow-control is not to be used,
@@ -882,12 +1060,24 @@ init_sys_modes ()
 #ifdef TCXONC
       if (!flow_control) ioctl (0, TCXONC, 1);
 #endif
+#ifndef APOLLO
 #ifdef TIOCSTART
       if (!flow_control) ioctl (0, TIOCSTART, 0);
 #endif
+#endif
 
-#ifdef IBMAIX
+#ifdef AIX
       hft_init ();
+#ifdef IBMR2AIX
+  {
+    /* IBM's HFT device usually thinks a ^J should be LF/CR.  We need it
+       to be only LF.  This is the way that is done. */
+    struct termio tty;
+
+    if (ioctl (1, HFTGETID, &tty) != -1)
+      write (1, "\033[20l", 5);
+  }
+#endif
 #endif
 
 #ifdef F_SETFL
@@ -916,7 +1106,7 @@ init_sys_modes ()
 
       /* Note: if not using CBREAK mode, it makes no difference how we set this */
       tchars = new_tchars;
-      tchars.t_intrc = 07;
+      tchars.t_intrc = interrupt_char;
       if (flow_control)
 	{
 	  tchars.t_startc = '\021';
@@ -959,12 +1149,8 @@ init_sys_modes ()
 #ifdef _IOFBF
   /* This symbol is defined on recent USG systems.
      Someone says without this call USG won't really buffer the file
-     even with a call to setbuf(). */
-#ifdef NCR486
-  setvbuf (stdout, _sobuf, _IOFBF, BUFSIZ+8);
-#else
+     even with a call to setbuf. */
   setvbuf (stdout, _sobuf, _IOFBF, sizeof _sobuf);
-#endif /* NCR486 */
 #else
   setbuf (stdout, _sobuf);
 #endif
@@ -990,16 +1176,16 @@ init_sys_modes ()
    
 tabs_safe_p ()
 {
-  TERMINAL sg;
+  TERMINAL tty;
   if (noninteractive)
     return 1;
 #ifdef VMS
-  SYS$QIOW (0, input_chan, IO$_SENSEMODE, &sg, 0, 0,
-	    &sg.class, 12, 0, 0, 0, 0);
+  SYS$QIOW (0, input_chan, IO$_SENSEMODE, &tty, 0, 0,
+	    &tty.class, 12, 0, 0, 0, 0);
 #else
-  ioctl (0, TIOCGETP, &sg);
+  tcgetattr (0, &tty);
 #endif /* not VMS */
-  return (TABS_OK(sg));
+  return (TABS_OK (tty));
 }
 
 /* Get terminal size from system.
@@ -1031,11 +1217,11 @@ get_screen_size (widthp, heightp)
   *heightp = size.ws_row;
 #else /* not TIOCGWNSIZ */
 #ifdef VMS
-  TERMINAL sg;
-  SYS$QIOW (0, input_chan, IO$_SENSEMODE, &sg, 0, 0,
-	    &sg.class, 12, 0, 0, 0, 0);
-  *widthp = sg.scr_wid;
-  *heightp = sg.scr_len;
+  TERMINAL tty;
+  SYS$QIOW (0, input_chan, IO$_SENSEMODE, &tty, 0, 0,
+	    &tty.class, 12, 0, 0, 0, 0);
+  *widthp = tty.scr_wid;
+  *heightp = tty.scr_len;
 #else /* system doesn't know size */
   *widthp = 0;
   *heightp = 0;
@@ -1059,6 +1245,18 @@ reset_sys_modes ()
   clear_end_of_line (SCREEN_WIDTH (selected_screen));
   /* clear_end_of_line may move the cursor */
   cursor_to (SCREEN_HEIGHT (selected_screen) - 1, 0);
+  cmputc ('\r');
+#ifdef IBMR2AIX
+  {
+    /* HFT devices normally use ^J as a LF/CR.  We forced it to 
+       do the LF only.  Now, we need to reset it. */
+    struct termio tty;
+
+    if (ioctl (1, HFTGETID, &tty) != -1)
+      write (1, "\033[20h", 5);
+  }
+#endif
+
   reset_terminal_modes ();
   fflush (stdout);
 #ifdef BSD
@@ -1094,10 +1292,14 @@ reset_sys_modes ()
   SYS$QIOW (0, input_chan, IO$_SETMODE, &input_iosb, 0, 0,
 	    &old_gtty.class, 12, 0, 0, 0, 0);
 #else /* not VMS */
+#ifndef HAVE_TCATTR
   while (ioctl (0, TCSETAW, &old_gtty) < 0 && errno == EINTR);
+#else
+  while (tcsetattr (0, TCSADRAIN, &old_gtty) < 0 && errno == EINTR);
+#endif
 #endif /* not VMS */
 
-#ifdef IBMAIX
+#ifdef AIX
   hft_reset ();
 #endif
 }
@@ -1158,7 +1360,7 @@ setup_pty (fd)
    This is called each time Emacs is resumed, also, but does nothing
    because input_chain is no longer zero.  */
 
-init_vms_input()
+init_vms_input ()
 {
   int status;
   
@@ -1201,7 +1403,6 @@ kbd_input_ast ()
 {
   register int c = -1;
   int old_errno = errno;
-  extern int *input_available_clear_word;
 
   if (waiting_for_ast)
     SYS$SETEF (input_ef);
@@ -1232,8 +1433,6 @@ kbd_input_ast ()
   if (c >= 0)
     kbd_buffer_store_char (c);
 
-  if (input_available_clear_word)
-    *input_available_clear_word = 0;
   errno = old_errno;
 }
 
@@ -1255,12 +1454,15 @@ wait_for_kbd_input ()
   if (!detect_input_pending ())
     {
       /* No timing error: wait for flag to be set.  */
+      set_waiting_for_input (0);
       SYS$WFLOR (input_ef, input_eflist);
+      clear_waiting_for_input (0);
       if (!detect_input_pending ())
 	/* Check for subprocess input availability */
 	{
 	  int dsp = have_process_input || process_exited;
 
+	  sys$clref (process_ef);
 	  if (have_process_input)
 	    process_command_input ();
 	  if (process_exited)
@@ -1281,7 +1483,7 @@ wait_for_kbd_input ()
    and therefore there is no I/O request queued when we return.
    SYS$SETAST is used to avoid a timing error.  */
 
-end_kbd_input()
+end_kbd_input ()
 {
 #ifdef ASTDEBUG
   printf ("At end_kbd_input.\n");
@@ -1311,8 +1513,10 @@ input_wait_timeout (timeval)
      int timeval;		/* Time to wait, in seconds */
 {
   int time [2];
-  
-  LIB$EMUL (&timeval, &-10000000, &0, time); 	  /* Convert to VMS format */
+  static int zero = 0;
+  static int large = -10000000; 
+
+  LIB$EMUL (&timeval, &large, &zero, time); 	  /* Convert to VMS format */
 
   /* If already something, avoid doing system calls.  */
   if (detect_input_pending ())
@@ -1341,8 +1545,10 @@ sys_sleep (timeval)
      int timeval;
 {
   int time [2];
-  
-  LIB$EMUL (&timeval, &-10000000, &0, time); 	  /* Convert to VMS format */
+  static int zero = 0;
+  static int large = -10000000; 
+
+  LIB$EMUL (&timeval, &large, &zero, time); 	  /* Convert to VMS format */
 
   SYS$CANTIM (1, 0);
   if (SYS$SETIMR (timer_ef, time, 0, 1) & 1) /* Set timer */
@@ -1387,8 +1593,8 @@ unrequest_sigio ()
 
 /*
  *	Return the address of the start of the text segment prior to
- *	doing an unexec().  After unexec() the return value is undefined.
- *	See crt0.c for further explanation and _start().
+ *	doing an unexec.  After unexec the return value is undefined.
+ *	See crt0.c for further explanation and _start.
  *
  */
 
@@ -1400,7 +1606,7 @@ start_of_text ()
   return ((char *) TEXT_START);
 #else
 #ifdef GOULD
-  extern csrt();
+  extern csrt ();
   return ((char *) csrt);
 #else /* not GOULD */
 #ifdef NeXT
@@ -1416,7 +1622,7 @@ start_of_text ()
 
 /*
  *	Return the address of the start of the data segment prior to
- *	doing an unexec().  After unexec() the return value is undefined.
+ *	doing an unexec.  After unexec the return value is undefined.
  *	See crt0.c for further information and definition of data_start.
  *
  *	Apparently, on BSD systems this is etext at startup.  On
@@ -1428,7 +1634,7 @@ start_of_text ()
  *	On Uniplus+ systems with shared text, data starts at a
  *	fixed address.  Each port (from a given oem) is generally
  *	different, and the specific value of the start of data can
- *	be obtained via the UniPlus+ specific "uvar(2)" system call,
+ *	be obtained via the UniPlus+ specific "uvar" system call,
  *	however the method outlined in crt0.c seems to be more portable.
  *
  *	Probably what will have to happen when a USG unexec is available,
@@ -1440,7 +1646,11 @@ start_of_text ()
  *
  */
  
+#ifdef __STDC__
 void *
+#else
+char *
+#endif
 start_of_data ()
 {
 #ifdef DATA_START
@@ -1457,7 +1667,7 @@ start_of_data ()
 
 /*
  *	Return the address of the end of the text segment prior to
- *	doing an unexec().  After unexec() the return value is undefined.
+ *	doing an unexec.  After unexec the return value is undefined.
  */
  
 char *
@@ -1479,7 +1689,7 @@ end_of_text ()
  
 /*
  *	Return the address of the end of the data segment prior to
- *	doing an unexec().  After unexec() the return value is undefined.
+ *	doing an unexec.  After unexec the return value is undefined.
  */
 
 char *
@@ -1488,13 +1698,7 @@ end_of_data ()
 #ifdef DATA_END
   return ((char *) DATA_END);
 #else
-#ifdef __NeXT__
-  static int edata;
-
-  edata = get_edata();
-#else
   extern int edata;
-#endif                     /* __NeXT__ */
   return ((char *) &edata);
 #endif
 }
@@ -1517,8 +1721,15 @@ char *
 get_system_name ()
 {
 #ifdef USG
+#ifdef BROKEN_UNAME
+  /* Implementation of uname is broken on Irix as of version 3.3.  */
+  static char hostname[256];
+  gethostname (hostname, sizeof (hostname));
+  return hostname;
+#else
   uname (&get_system_name_name);
   return (get_system_name_name.nodename);
+#endif
 #else /* Not USG */
 #ifdef BSD4_1
   return sysname;
@@ -1526,7 +1737,7 @@ get_system_name ()
   static char system_name_saved[32];
 #ifdef VMS
   char *sp;
-  if ((sp = egetenv("SYS$NODE")) == 0)
+  if ((sp = egetenv ("SYS$NODE")) == 0)
     sp = "vax-vms";
   else
     {
@@ -1544,7 +1755,6 @@ get_system_name ()
 #endif /* not USG */
 }
 
-#ifndef VMS
 #ifndef HAVE_SELECT
 
 #ifdef HAVE_X_WINDOWS
@@ -1588,11 +1798,14 @@ select (nfds, rfds, wfds, efds, timeout)
      int *rfds, *wfds, *efds, *timeout;
 {
   int ravail = 0, orfds = 0, old_alarm;
+  int timeoutval = timeout ? *timeout : 100000;
+  int *local_timeout = &timeoutval;
+  extern int kbd_count;
   extern int proc_buffered_char[];
 #ifndef subprocesses
-  int child_changed = 0;
+  int process_tick = 0, update_tick = 0;
 #else
-  extern int child_changed;
+  extern int process_tick, update_tick;
 #endif
   int (*old_trap) ();
   unsigned char buf;
@@ -1609,7 +1822,8 @@ select (nfds, rfds, wfds, efds, timeout)
 
   /* If we are looking only for the terminal, with no timeout,
      just read it and wait -- that's more efficient.  */
-  if (orfds == 1 && *timeout == 100000 && !child_changed)
+  if (orfds == 1 && (!timeout || *timeout == 100000)
+      && process_tick == update_tick)
     {
       if (! detect_input_pending ())
 	read_input_waiting ();
@@ -1660,14 +1874,15 @@ select (nfds, rfds, wfds, efds, timeout)
 		}
 	    }
 	}
-      if (*timeout == 0 || ravail != 0 || child_changed)
+      if (*local_timeout == 0 || ravail != 0 || process_tick != update_tick)
 	break;
       old_alarm = alarm (0);
       old_trap = (int (*)()) signal (SIGALRM, select_alarm);
       select_alarmed = 0;
       alarm (SELECT_PAUSE);
       /* Wait for a SIGALRM (or maybe a SIGTINT) */
-      while (select_alarmed == 0 && *timeout != 0 && child_changed == 0)
+      while (select_alarmed == 0 && *local_timeout != 0
+	     && process_tick == update_tick)
 	{
 	  /* If we are interested in terminal input,
 	     wait by reading the terminal.
@@ -1675,13 +1890,13 @@ select (nfds, rfds, wfds, efds, timeout)
 	  if (orfds & 1)
 	    {
 	      read_input_waiting ();
-	      if (detect_input_pending ())
+	      if (kbd_count)
 		select_alarmed = 1;
 	    }
 	  else
-	    pause();
+	    pause ();
 	}
-      (*timeout) -= SELECT_PAUSE;
+      (*local_timeout) -= SELECT_PAUSE;
       /* Reset the old alarm if there was one */
       alarm (0);
       signal (SIGALRM, old_trap);
@@ -1694,7 +1909,7 @@ select (nfds, rfds, wfds, efds, timeout)
 	  else
 	    alarm (old_alarm);
 	}
-      if (*timeout == 0)  /* Stop on timer being cleared */
+      if (*local_timeout == 0)  /* Stop on timer being cleared */
 	break;
     }
   return ravail;
@@ -1738,7 +1953,6 @@ read_input_waiting ()
 }
 
 #endif /* not HAVE_SELECT */
-#endif /* not VMS */
 
 #ifdef BSD4_1
 /* VARARGS */
@@ -1837,6 +2051,79 @@ sigbit (i)
 #endif /* subprocesses */
 #endif /* BSD4_1 */
 
+/* POSIX signals support - DJB */
+/* Anyone with POSIX signals should have ANSI C declarations */
+
+#ifdef POSIX_SIGNALS
+
+sigset_t signal_empty_mask, signal_full_mask;
+static struct sigaction new_action, old_action;
+
+init_signals ()
+{
+#ifdef POSIX_SIGNALS
+  sigemptyset (&signal_empty_mask);
+  sigfillset (&signal_full_mask);
+#endif
+}
+
+typedef int (*signal_handler_t) ();
+
+signal_handler_t
+sys_signal (int signal_number, signal_handler_t action)
+{
+#ifdef DGUX
+  /* This gets us restartable system calls for efficiency.
+     The "else" code will works as well. */
+  return (berk_signal (signal_number, action));
+#else
+  sigemptyset (&new_action.sa_mask);
+  new_action.sa_handler = action;
+  new_action.sa_flags = NULL;
+  new_action (signal_number, &new_action, &old_action);
+  return (old_action.sa_handler);
+#endif /* DGUX */
+}
+
+int
+sys_sigpause (sigset_t new_mask)
+{
+  /* pause emulating berk sigpause... */
+  sigsuspend (&new_mask);
+  return (EINTR);
+}
+
+/* I'd like to have these guys return pointers to the mask storage in here,
+   but there'd be trouble if the code was saving multiple masks.  I'll be
+   safe and pass the structure.  It normally won't be more than 2 bytes
+   anyhow. - DJB */
+
+sigset_t
+sys_sigblock (sigset_t new_mask)
+{
+  sigset_t old_mask;
+  sigprocmask (SIG_BLOCK, &new_mask, &old_mask);
+  return (old_mask);
+}
+
+sigset_t
+sys_sigunblock (sigset_t new_mask)
+{
+  sigset_t old_mask;
+  sigprocmask (SIG_UNBLOCK, &new_mask, &old_mask);
+  return (old_mask);
+}
+
+sigset_t
+sys_sigsetmask (sigset_t new_mask)
+{
+  sigset_t old_mask;
+  sigprocmask (SIG_SETMASK, &new_mask, &old_mask);
+  return (old_mask);
+}
+
+#endif /* POSIX_SIGNALS */
+
 #ifndef BSTRING
 
 void
@@ -1853,7 +2140,8 @@ bzero (b, length)
     length -= max_str;
     b += max_str;
   }
-  (void) LIB$MOVC5 (&zero, &zero, &zero, &length, b);
+  max_str = length;
+  (void) LIB$MOVC5 (&zero, &zero, &zero, &max_str, b);
 #else
   while (length-- > 0)
     *b++ = 0;
@@ -1876,7 +2164,8 @@ bcopy (b1, b2, length)
     b1 += max_str;
     b2 += max_str;
   }
-  (void) LIB$MOVC3 (&length, b1, b2);
+  max_str = length;
+  (void) LIB$MOVC3 (&max_str, b1, b2);
 #else
   while (length-- > 0)
     *b2++ = *b1++;
@@ -1904,12 +2193,29 @@ bcmp (b1, b2, length)	/* This could be a macro! */
 }
 #endif /* not BSTRING */
 
+#ifdef BSD4_1
+long random ()
+{
+  return (rand ());
+}
+
+srandom (arg)
+     int arg;
+{
+  srand (arg);
+}
+#endif /* BSD4_1 */
+
+#ifdef HPUX
+#ifdef X11
+#define HAVE_RANDOM
+#endif
+#endif
+
 #ifdef USG
-
-#ifndef NCR486  /* OBE -- defined in libX11.a */
-
+#ifndef HAVE_RANDOM
 /*
- *	The BSD random(3) returns numbers in the range of
+ *	The BSD random returns numbers in the range of
  *	0 to 2e31 - 1.  The USG rand(3C) returns numbers in the
  *	range of 0 to 2e15 - 1.  This is probably not significant
  *	in this usage.
@@ -1928,23 +2234,9 @@ srandom (arg)
   srand (arg);
 }
 
-#endif /* ! NCR486 */
-
+#endif /* HAVE_RANDOM */
 #endif /* USG */
 
-#ifdef BSD4_1
-long random ()
-{
-  /* Arrange to return a range centered on zero.  */
-  return (rand () << 15) + rand () - (1 << 29);
-}
-
-srandom (arg)
-     int arg;
-{
-  srand (arg);
-}
-#endif /* BSD4_1 */
 
 #ifdef VMS
 
@@ -1961,7 +2253,7 @@ sys_getenv (name)
   register char *val;
   static char buf[256];
   static struct dsc$descriptor_s equiv
-    = {sizeof(buf), DSC$K_DTYPE_T, DSC$K_CLASS_S, buf};
+    = {sizeof (buf), DSC$K_DTYPE_T, DSC$K_CLASS_S, buf};
   static struct dsc$descriptor_s d_name
     = {0, DSC$K_DTYPE_T, DSC$K_CLASS_S, 0};
   short eqlen;
@@ -2062,7 +2354,8 @@ sys_open (path, oflag, mode)
 {
   register int rtnval;
   
-  while ((rtnval = open (path, oflag, mode)) == -1 && errno == EINTR);
+  while ((rtnval = open (path, oflag, mode)) == -1
+	 && (errno == EINTR));
   return (rtnval);
 }
 
@@ -2075,7 +2368,8 @@ sys_close (fd)
 {
   register int rtnval;
 
-  while ((rtnval = close(fd)) == -1 && errno == EINTR);
+  while ((rtnval = close (fd)) == -1
+	 && (errno == EINTR));
   return rtnval;
 }
 
@@ -2091,7 +2385,8 @@ sys_read (fildes, buf, nbyte)
 {
   register int rtnval;
   
-  while ((rtnval = read (fildes, buf, nbyte)) == -1 && errno == EINTR);
+  while ((rtnval = read (fildes, buf, nbyte)) == -1
+	 && (errno == EINTR));
   return (rtnval);
 }
 
@@ -2103,7 +2398,8 @@ sys_write (fildes, buf, nbyte)
 {
   register int rtnval;
 
-  while ((rtnval = write (fildes, buf, nbyte)) == -1 && errno == EINTR);
+  while ((rtnval = write (fildes, buf, nbyte)) == -1
+	 && (errno == EINTR));
   return (rtnval);
 }
 
@@ -2127,7 +2423,7 @@ sys_write (fildes, buf, nbyte)
 
 char *sys_siglist[NSIG + 1] =
 {
-#ifdef IBMAIX
+#ifdef AIX
 /* AIX has changed the signals a bit */
   "bogus signal",			/* 0 */
   "hangup",				/* 1  SIGHUP */
@@ -2161,7 +2457,7 @@ char *sys_siglist[NSIG + 1] =
   "HFT retract",			/* 29 SIGRETRACT */
   "HFT sound done",			/* 30 SIGSOUND */
   "HFT input ready",			/* 31 SIGMSG */
-#else /* not IBMAIX */
+#else /* not AIX */
   "bogus signal",			/* 0 */
   "hangup",				/* 1  SIGHUP */
   "interrupt",				/* 2  SIGINT */
@@ -2182,7 +2478,7 @@ char *sys_siglist[NSIG + 1] =
   "user defined signal 2",		/* 17 SIGUSR2 */
   "death of a child",			/* 18 SIGCLD */
   "power-fail restart",			/* 19 SIGPWR */
-#endif /* not IBMAIX */
+#endif /* not AIX */
   0
   };
 
@@ -2217,7 +2513,9 @@ getwd (pathname)
   return pathname;
 }
 
-#endif /* HAVE_GETWD */
+#endif /* not HAVE_GETWD */
+
+#ifndef HAVE_RENAME
 
 /*
  *	Emulate rename using unlink/link.  Note that this is
@@ -2226,8 +2524,8 @@ getwd (pathname)
  */
 
 rename (from, to)
-     char *from;
-     char *to;
+     const char *from;
+     const char *to;
 {
   if (access (from, 0) == 0)
     {
@@ -2238,8 +2536,9 @@ rename (from, to)
     }
   return (-1);
 }
+#endif /* not HAVE_RENAME */
 
-#ifndef NCR486
+#ifndef HAVE_SETPRIORITY
 /* We are picking setpriority up in /usr/ucblib/libucb.a. -- MLC *
 
 /* Set priority value to PRIO.  */
@@ -2253,7 +2552,7 @@ setpriority (which, who, prio)
   nice (prio - nice (0));
 }
 
-#endif /* NCR486 */
+#endif /* HAVE_SETPRIORITY */
 
 #ifndef HAVE_VFORK
 
@@ -2300,8 +2599,8 @@ utimes (name, tvp)
 #endif /* IRIS_UTIME */
 
 
+#if 0
 #ifdef HPUX
-#ifndef HAVE_PERROR
 
 /* HPUX curses library references perror, but as far as we know
    it won't be called.  Anyway this definition will do for now.  */
@@ -2310,8 +2609,8 @@ perror ()
 {
 }
 
-#endif /* not HAVE_PERROR */
 #endif /* HPUX */
+#endif /* 0 */
 
 #ifndef HAVE_DUP2
 
@@ -2325,20 +2624,23 @@ dup2 (oldd, newd)
      int oldd;
      int newd;
 {
-  register int fd;
+  register int fd, ret;
   
   sys_close (newd);
 
 #ifdef F_DUPFD
   fd = fcntl (oldd, F_DUPFD, newd);
   if (fd != newd)
-    error ("cant dup2(%i,%i) : %s", oldd, newd, sys_errlist[errno]);
+    error ("cant dup2 (%i,%i) : %s", oldd, newd, sys_errlist[errno]);
 #else
-  while ((fd = dup (oldd)) != newd)
-    {
-      dup2 (oldd, newd);
-      sys_close (fd);
-    }
+  fd = dup (old);
+  if (fd == -1)
+    return -1;
+  if (fd == new)
+    return new;
+  ret = dup2 (old,new);
+  sys_close (fd);
+  return ret;
 #endif
 }
 
@@ -2351,7 +2653,6 @@ dup2 (oldd, newd)
  */
 
 #ifdef subprocesses
-#ifndef VMS
 #ifndef HAVE_GETTIMEOFDAY
 #ifdef HAVE_TIMEVAL
  
@@ -2364,13 +2665,11 @@ gettimeofday (tp, tzp)
 
   tp->tv_sec = time ((long *)0);    
   tp->tv_usec = 0;
-  tzp->tz_minuteswest = -1;
 }
  
 #endif
 #endif
-#endif
-#endif /* subprocess && !HAVE_GETTIMEOFDAY && HAVE_TIMEVAL && !VMS */
+#endif /* subprocess && !HAVE_GETTIMEOFDAY && HAVE_TIMEVAL */
   
 /*
  *	This function will go away as soon as all the stubs fixed. (fnf)
@@ -2386,22 +2685,97 @@ croak (badfunc)
 
 #endif /* USG */
 
+#ifdef DGUX
+
+char *sys_siglist[NSIG + 1] =
+{
+  "NULL signal",			 /*  0 SIGNULL   */
+  "hangup",				 /*  1 SIGHUP    */
+  "interrupt",		       		 /*  2 SIGINT    */
+  "quit",				 /*  3 SIGQUIT   */
+  "illegal instruction",		 /*  4 SIGILL    */
+  "trace trap",				 /*  5 SIGTRAP   */
+  "abort termination",			 /*  6 SIGABRT   */
+  "SIGEMT",				 /*  7 SIGEMT    */
+  "floating point exception",		 /*  8 SIGFPE    */
+  "kill",				 /*  9 SIGKILL   */
+  "bus error",				 /* 10 SIGBUS    */
+  "segmentation violation",		 /* 11 SIGSEGV   */
+  "bad argument to system call",	 /* 12 SIGSYS    */
+  "write on a pipe with no reader",	 /* 13 SIGPIPE   */
+  "alarm clock",			 /* 14 SIGALRM   */
+  "software termination signal",	 /* 15 SIGTERM   */
+  "user defined signal 1",		 /* 16 SIGUSR1   */
+  "user defined signal 2",		 /* 17 SIGUSR2   */
+  "child stopped or terminated",	 /* 18 SIGCLD    */
+  "power-fail restart",			 /* 19 SIGPWR    */
+  "window size changed",		 /* 20 SIGWINCH  */
+  "undefined",				 /* 21           */
+  "pollable event occured",		 /* 22 SIGPOLL   */
+  "sendable stop signal not from tty",	 /* 23 SIGSTOP   */
+  "stop signal from tty",		 /* 24 SIGSTP    */
+  "continue a stopped process",		 /* 25 SIGCONT   */
+  "attempted background tty read",	 /* 26 SIGTTIN   */
+  "attempted background tty write",	 /* 27 SIGTTOU   */
+  "undefined",				 /* 28           */
+  "undefined",				 /* 29           */
+  "undefined",				 /* 30           */
+  "undefined",				 /* 31           */
+  "undefined",				 /* 32           */
+  "socket (TCP/IP) urgent data arrival", /* 33 SIGURG    */
+  "I/O is possible",			 /* 34 SIGIO     */
+  "exceeded cpu time limit",		 /* 35 SIGXCPU   */
+  "exceeded file size limit",		 /* 36 SIGXFSZ   */
+  "virtual time alarm",			 /* 37 SIGVTALRM */
+  "profiling time alarm",		 /* 38 SIGPROF   */
+  "undefined",				 /* 39           */
+  "file record locks revoked",		 /* 40 SIGLOST   */
+  "undefined",				 /* 41           */
+  "undefined",				 /* 42           */
+  "undefined",				 /* 43           */
+  "undefined",				 /* 44           */
+  "undefined",				 /* 45           */
+  "undefined",				 /* 46           */
+  "undefined",				 /* 47           */
+  "undefined",				 /* 48           */
+  "undefined",				 /* 49           */
+  "undefined",				 /* 50           */
+  "undefined",				 /* 51           */
+  "undefined",				 /* 52           */
+  "undefined",				 /* 53           */
+  "undefined",				 /* 54           */
+  "undefined",				 /* 55           */
+  "undefined",				 /* 56           */
+  "undefined",				 /* 57           */
+  "undefined",				 /* 58           */
+  "undefined",				 /* 59           */
+  "undefined",				 /* 60           */
+  "undefined",				 /* 61           */
+  "undefined",				 /* 62           */
+  "undefined",				 /* 63           */
+  "notification message in mess. queue", /* 64 SIGDGNOTIFY */
+  0
+};
+
+#endif /* DGUX */
+
 /* Directory routines for systems that don't have them. */
 
 #ifdef SYSV_SYSTEM_DIR
 
 #include <dirent.h>
 
-#ifndef IBMAIX
+#ifndef HAVE_CLOSEDIR
 int
 closedir (dirp)
-     register DIR *dirp;              /* stream from opendir() */
+     register DIR *dirp;              /* stream from opendir */
 {
   sys_close (dirp->dd_fd);
   free ((char *) dirp->dd_buf);       /* directory block defined in <dirent.h> */
   free ((char *) dirp);
 }
-#endif /* not IBMAIX */
+#endif /* not HAVE_CLOSEDIR */
+
 #endif /* SYSV_SYSTEM_DIR */
 
 #ifdef NONSYSTEM_DIR_LIBRARY
@@ -2547,7 +2921,7 @@ readdirver (dirp)
 
 /* Functions for VMS */
 #ifdef VMS
-#include <pwd.h>
+#include "pwd.h"
 #include <acldef.h>
 #include <chpdef.h>
 #include <jpidef.h>
@@ -2564,7 +2938,7 @@ vmserrstr (status)
   static char buf[257];
 
   bufadr[0] = sizeof buf - 1;
-  bufadr[1] = buf;
+  bufadr[1] = (int) buf;
   if (! (SYS$GETMSG (status, &len, bufadr, 0x1, 0) & 1))
     return "untranslatable VMS error status";
   buf[len] = '\0';
@@ -2581,7 +2955,7 @@ vmserrstr (status)
 #ifdef VMS4_4
 
 #define DESCRIPTOR(name,string) struct dsc$descriptor_s name = \
-	{ strlen(string), DSC$K_DTYPE_T, DSC$K_CLASS_S, string }
+	{ strlen (string), DSC$K_DTYPE_T, DSC$K_CLASS_S, string }
 
 typedef union {
     struct {
@@ -2592,10 +2966,12 @@ typedef union {
     } s;
     int end;
 } item;
-#define buflen s.s_buflen
-#define code s.s_code
-#define bufadr s.s_bufadr
-#define retlenadr s.s_retlenadr
+
+#define ITEMSETUP(CODE,VAR,RETLEN)			\
+	itemlst[cnt].s.s_buflen = sizeof (VAR);		\
+	itemlst[cnt].s.s_code = CODE;			\
+	itemlst[cnt].s.s_bufadr = (char *) &VAR;		\
+	itemlst[cnt++].s.s_retlenadr = (unsigned short *) &RETLEN
 
 #define R_OK 4	/* test for read permission */
 #define W_OK 2	/* test for write permission */
@@ -2617,37 +2993,86 @@ sys_access (path, mode)
   
   if (mode == F_OK)
     return access (path, mode);
-  if (user == NULL && (user = getenv ("USER")) == NULL)
+  if (user == NULL && (user = (char *) getenv ("USER")) == NULL)
     return -1;
   {
-	int stat;
-	int flags;
-	int acces;
-	int dummy;
-	item itemlst[3];
-	DESCRIPTOR(path_desc, path);
-	DESCRIPTOR(user_desc, user);
- 
-	flags = 0;
-	acces = 0;
-	if ((mode & X_OK) && ((stat = access(path, mode)) < 0 || mode == X_OK))
-	    return stat;
-	if (mode & R_OK)
-	    acces |= CHP$M_READ;
-	if (mode & W_OK)
-	    acces |= CHP$M_WRITE;
-	itemlst[0].buflen = sizeof (int);
-	itemlst[0].code = CHP$_FLAGS;
-	itemlst[0].bufadr = &flags;
-	itemlst[0].retlenadr = &dummy;
-	itemlst[1].buflen = sizeof (int);
-	itemlst[1].code = CHP$_ACCESS;
-	itemlst[1].bufadr = &acces;
-	itemlst[1].retlenadr = &dummy;
-	itemlst[2].end = CHP$_END;
-	stat = SYS$CHECK_ACCESS(&ACL$C_FILE, &path_desc, &user_desc, itemlst);
-	return stat == SS$_NORMAL ? 0 : -1;
-    }
+    int stat;
+    int flags;
+    int acces;
+    int dummy;
+    int cnt;
+    int prvmask[2];
+    item itemlst[8];
+    struct FAB fab;
+    struct XABPRO xab;
+    char  *aclbuf;
+    
+    flags = 0;
+    acces = 0;
+    if ((mode & X_OK) && ((stat = access(path, mode)) < 0 || mode == X_OK))
+      return stat;
+    if (mode & R_OK)
+      flags |= CHP$M_READ;
+    if (mode & W_OK)
+      flags |= CHP$M_WRITE;
+    
+    acces = flags;
+
+    /* Find privilege bits */
+    stat = sys$setprv (0, 0, 0, prvmask);
+    
+    /* Open the file, and find the particulars.  */
+    fab = cc$rms_fab;
+    fab.fab$b_fac = FAB$M_GET;
+    fab.fab$l_fna = path;
+    fab.fab$b_fns = strlen (path);
+    fab.fab$l_xab = (char*) &xab;
+    xab = cc$rms_xabpro;
+    xab.xab$l_aclbuf = (char*) alloca(60);   /* Use 60 initially */;
+    xab.xab$w_aclsiz = 60;
+    stat = sys$open (&fab, 0, 0);
+    if (! (stat & 1))
+      return -1;
+    /* If ACL was not empty (2512) and error occurred, then deny access.  */
+    if ((xab.xab$l_aclsts != 2512) && (! (xab.xab$l_aclsts & 1)))
+      return -1;
+    sys$close (&fab, 0, 0);
+    
+    /* See if we allocated enough space for the ACL.  If not, create a larger
+       buffer (now that we now know the actual size), and do it again.  */
+    
+    if(xab.xab$w_acllen > xab.xab$w_aclsiz){
+      xab.xab$l_aclbuf = (char *) alloca(xab.xab$w_acllen);
+      xab.xab$w_aclsiz = xab.xab$w_acllen;
+      xab.xab$l_aclctx = 0;
+      stat = sys$open (&fab, 0, 0);
+      if (! (stat & 1))
+	return -1;
+      sys$close (&fab, 0, 0);
+    };
+    cnt=0;
+    ITEMSETUP(CHP$_OWNER,xab.xab$l_uic,dummy);
+    ITEMSETUP(CHP$_PROT,xab.xab$w_pro,dummy);
+    ITEMSETUP(CHP$_ACCESS,acces,dummy);
+    ITEMSETUP(CHP$_FLAGS,flags,dummy);
+    
+    if (xab.xab$w_acllen != 0)
+      {	
+	itemlst[cnt].s.s_buflen = xab.xab$w_acllen;
+	itemlst[cnt].s.s_code = CHP$_ACL;
+	itemlst[cnt].s.s_bufadr = xab.xab$l_aclbuf;
+	itemlst[cnt++].s.s_retlenadr = (unsigned short *) &dummy;
+      };
+    
+    ITEMSETUP(CHP$_PRIV,prvmask,dummy);
+    /*  ITEMSETUP(CHP$_PRIVUSED,pused,pusedl); For diagnostic purposes only  */
+    itemlst[cnt].s.s_buflen = 0;
+    itemlst[cnt].s.s_code = CHP$_END;
+    
+    /* SYS$CHECK_ACCESS can get privileges wrong.  SYS$CHKPRO will not.  */
+    stat = SYS$CHKPRO(itemlst);
+    return stat == SS$_NORMAL ? 0 : -1;
+  }
 }
 
 #else /* not VMS4_4 */
@@ -2673,8 +3098,9 @@ sys_access (filename, type)
 {
   struct FAB fab;
   struct XABPRO xab;
-  int status, prvmask[2], size, i, typecode, acl_controlled;
+  int status, size, i, typecode, acl_controlled;
   unsigned int *aclptr, *aclend, aclbuf[60];
+  union prvdef prvmask;
 
   /* Get UIC and GRP values for protection checking.  */
   if (uic == 0)
@@ -2691,7 +3117,7 @@ sys_access (filename, type)
 
   /* Check write protection. */
     
-#define	CHECKPRIV(bit)    (prvmask[bit / 32] & (1 << (bit % 32)))
+#define	CHECKPRIV(bit)    (prvmask.bit)
 #define	WRITEABLE(field)  (! ((xab.xab$w_pro >> field) & XAB$M_NOWRITE))
 
   /* Find privilege bits */
@@ -2976,19 +3402,38 @@ sys_write (fildes, buf, nbytes)
 {
   register char *p;
   register char *e;
-  int retval, sum;
+  int sum = 0;
+  struct stat st;
+
+  fstat (fildes, &st);
   p = buf;
-  sum = 0;
   while (nbytes > 0)
     {
-      e =  p + min (MAXIOSIZE, nbytes) - 1;
-      while (*e != '\n' && e > p) e--;
-      if (p == e)		/* Ok.. so here we add a newline... sigh. */
-	e = p + min (MAXIOSIZE, nbytes) - 1;
-      retval = write (fildes, p, e - p + 1);
-      if (retval != e - p + 1) return -1;
-      p = e + 1;
-      sum = sum + retval;
+      int len, retval;
+
+      /* Handle fixed-length files with carriage control.  */
+      if (st.st_fab_rfm == FAB$C_FIX
+	  && ((st.st_fab_rat & (FAB$M_FTN | FAB$M_CR)) != 0))
+	{
+	  len = st.st_fab_mrs;
+	  retval = write (fildes, p, min (len, nbytes));
+	  if (retval != len)
+	    return -1;
+	  retval++;	/* This skips the implied carriage control */
+	}
+      else
+	{
+	  e =  p + min (MAXIOSIZE, nbytes) - 1;
+	  while (*e != '\n' && e > p) e--;
+	  if (p == e)		/* Ok.. so here we add a newline... sigh. */
+	    e = p + min (MAXIOSIZE, nbytes) - 1;
+	  len = e + 1 - p;
+	  retval = write (fildes, p, len);
+	  if (retval != len)
+	    return -1;
+	}
+      p += retval;
+      sum += retval;
       nbytes -= retval;
     }
   return sum;
@@ -2997,6 +3442,10 @@ sys_write (fildes, buf, nbytes)
 /* Create file NEW copying its attributes from file OLD.  If
    OLD is 0 or does not exist, create based on the value of
    vms_stmlf_recfm. */
+
+/* Protection value the file should ultimately have.
+   Set by create_copy_attrs, and use by rename_sansversions.  */
+static unsigned short int fab_final_pro;
 
 int
 creat_copy_attrs (old, new)
@@ -3012,7 +3461,7 @@ creat_copy_attrs (old, new)
       fab.fab$b_fac = FAB$M_GET;
       fab.fab$l_fna = old;
       fab.fab$b_fns = strlen (old);
-      fab.fab$l_xab = &xabpro;
+      fab.fab$l_xab = (char *) &xabpro;
       xabpro = cc$rms_xabpro;
       xabpro.xab$l_aclbuf = aclbuf;
       xabpro.xab$w_aclsiz = sizeof aclbuf;
@@ -3028,7 +3477,7 @@ creat_copy_attrs (old, new)
 		   Wouldn't need to do this if there were some system imposed
 		   limit on the size of an ACL, but I can't find any such. */
 		{
-		  xabpro.xab$l_aclbuf = alloca (xabpro.xab$w_acllen);
+		  xabpro.xab$l_aclbuf = (char *) alloca (xabpro.xab$w_acllen);
 		  xabpro.xab$w_aclsiz = xabpro.xab$w_acllen;
 		  if (sys$open (&fab, 0, 0) & 1)
 		    sys$close (&fab, 0, 0);
@@ -3050,6 +3499,14 @@ creat_copy_attrs (old, new)
       fab.fab$b_rfm = vms_stmlf_recfm ? FAB$C_STMLF : FAB$C_VAR;
       fab.fab$b_rat = FAB$M_CR;
     }
+  /* Set the file protections such that we will be able to manipulate
+     this file.  Once we are done writing and renaming it, we will set
+     the protections back.  */
+  if (old)
+    fab_final_pro = xabpro.xab$w_pro;
+  else
+    sys$setdfprot (0, &fab_final_pro);
+  xabpro.xab$w_pro &= 0xff0f; /* set O:rewd for now. This is set back later. */
   /* Create the new file with either default attrs or attrs copied
      from old file. */
   if (!(SYS$CREATE (&fab, 0, 0) & 1))
@@ -3063,6 +3520,11 @@ creat_copy_attrs (old, new)
 #ifdef creat
 #undef creat
 #include <varargs.h>
+#ifdef __GNUC__
+#ifndef va_count
+#define va_count(X) ((X) = *(((int *) &(va_alist)) - 1))
+#endif
+#endif
 
 sys_creat (va_alist)
      va_dcl
@@ -3247,7 +3709,7 @@ vms_truncate (fn)
 static struct UAF retuaf;
 
 struct UAF *
-get_uaf_name(uname)
+get_uaf_name (uname)
      char * uname;
 {
   register status;
@@ -3265,14 +3727,14 @@ get_uaf_name(uname)
   /* initialize rab fields */
   uaf_rab.rab$l_fab = &uaf_fab;
   /* open the User Authorization File */
-  status = sys$open(&uaf_fab);
+  status = sys$open (&uaf_fab);
   if (!(status&1))
     {
       errno = EVMSERR;
       vaxc$errno = status;
       return 0;
     }
-  status = sys$connect(&uaf_rab);
+  status = sys$connect (&uaf_rab);
   if (!(status&1))
     {
       errno = EVMSERR;
@@ -3285,7 +3747,7 @@ get_uaf_name(uname)
   uaf_rab.rab$b_rac = RAB$C_KEY;
   uaf_rab.rab$l_ubf = (char *)&retuaf;
   uaf_rab.rab$w_usz = sizeof retuaf;
-  status = sys$get(&uaf_rab);
+  status = sys$get (&uaf_rab);
   if (!(status&1))
     {
       errno = EVMSERR;
@@ -3293,14 +3755,14 @@ get_uaf_name(uname)
       return 0;
     }
   /* close the User Authorization File */
-  status = sys$disconnect(&uaf_rab);
+  status = sys$disconnect (&uaf_rab);
   if (!(status&1))
     {
       errno = EVMSERR;
       vaxc$errno = status;
       return 0;
     }
-  status = sys$close(&uaf_fab);
+  status = sys$close (&uaf_fab);
   if (!(status&1))
     {
       errno = EVMSERR;
@@ -3311,7 +3773,7 @@ get_uaf_name(uname)
 }
 
 struct UAF *
-get_uaf_uic(uic)
+get_uaf_uic (uic)
      unsigned long uic;
 {
   register status;
@@ -3329,14 +3791,14 @@ get_uaf_uic(uic)
   /* initialize rab fields */
   uaf_rab.rab$l_fab = &uaf_fab;
   /* open the User Authorization File */
-  status = sys$open(&uaf_fab);
+  status = sys$open (&uaf_fab);
   if (!(status&1))
     {
       errno = EVMSERR;
       vaxc$errno = status;
       return 0;
     }
-  status = sys$connect(&uaf_rab);
+  status = sys$connect (&uaf_rab);
   if (!(status&1))
     {
       errno = EVMSERR;
@@ -3350,7 +3812,7 @@ get_uaf_uic(uic)
   uaf_rab.rab$b_rac = RAB$C_KEY;
   uaf_rab.rab$l_ubf = (char *)&retuaf;
   uaf_rab.rab$w_usz = sizeof retuaf;
-  status = sys$get(&uaf_rab);
+  status = sys$get (&uaf_rab);
   if (!(status&1))
     {
       errno = EVMSERR;
@@ -3358,14 +3820,14 @@ get_uaf_uic(uic)
       return 0;
     }
   /* close the User Authorization File */
-  status = sys$disconnect(&uaf_rab);
+  status = sys$disconnect (&uaf_rab);
   if (!(status&1))
     {
       errno = EVMSERR;
       vaxc$errno = status;
       return 0;
     }
-  status = sys$close(&uaf_fab);
+  status = sys$close (&uaf_fab);
   if (!(status&1))
     {
       errno = EVMSERR;
@@ -3421,7 +3883,7 @@ getpwnam (name)
 #else
   char * user;
   char * dir;
-  char * full;
+  unsigned char * full;
 #endif /* READ_SYSUAF */
   char *ptr = name;
 
@@ -3441,7 +3903,7 @@ getpwnam (name)
       retpw.pw_uid = getuid ();
       retpw.pw_gid = getgid ();
       strcpy (retpw.pw_name, name);
-      if (full = egetenv ("FULLNAME"))
+      if (full = (unsigned char*) egetenv ("FULLNAME"))
 	strcpy (retpw.pw_gecos, full);
       else
 	*retpw.pw_gecos = '\0';
@@ -3535,16 +3997,16 @@ delete_logical_name (varname)
   return LIB$DELETE_LOGICAL (&envdsc, &lnmdsc);
 }
 
-ulimit()
+ulimit ()
 {}
 
-setpriority()
+setpriority ()
 {}
 
-setpgrp()
+setpgrp ()
 {}
 
-execvp()
+execvp ()
 {
   error ("execvp system call not implemented");
 }
@@ -3588,6 +4050,85 @@ rename (from, to)
       vaxc$errno = status;
       return -1;
     }
+}
+
+/* This function renames a file like `rename', but it strips
+   the version number from the "to" filename, such that the "to" file is
+   will always be a new version.  It also sets the file protection once it is
+   finished.  The protection that we will use is stored in fab_final_pro,
+   and was set when we did a creat_copy_attrs to create the file that we
+   are renaming.
+
+   We could use the chmod function, but Eunichs uses 3 bits per user category
+   to describe the protection, and VMS uses 4 (write and delete are seperate
+   bits).  To maintain portability, the VMS implementation of `chmod' wires
+   the W and D bits together.  */
+
+ 
+static struct fibdef fib;	/* We need this initialized to zero */
+char vms_file_written[NAM$C_MAXRSS];
+
+int
+rename_sans_version (from,to)
+     char *from, *to;
+{
+  short int chan;
+  int stat;
+  short int iosb[4];
+  int status;
+  struct FAB to_fab = cc$rms_fab;
+  struct NAM to_nam = cc$rms_nam;
+  struct dsc$descriptor fib_d ={sizeof (fib),0,0,(char*) &fib};
+  struct dsc$descriptor fib_attr[2]
+    = {{sizeof (fab_final_pro),ATR$C_FPRO,0,(char*) &fab_final_pro},{0,0,0,0}};
+  char to_esn[NAM$C_MAXRSS];
+
+  $DESCRIPTOR (disk,to_esn);
+
+  to_fab.fab$l_fna = to;
+  to_fab.fab$b_fns = strlen (to);
+  to_fab.fab$l_nam = &to_nam;
+  to_fab.fab$l_fop = FAB$M_NAM;
+
+  to_nam.nam$l_esa = to_esn;
+  to_nam.nam$b_ess = sizeof to_esn;
+
+  status = SYS$PARSE (&to_fab, 0, 0); /* figure out the full file name */
+
+  if (to_nam.nam$l_fnb && NAM$M_EXP_VER)
+    *(to_nam.nam$l_ver) = '\0';
+
+  stat = rename (from, to_esn);
+  if (stat < 0)
+    return stat;
+
+  strcpy (vms_file_written, to_esn);
+
+  to_fab.fab$l_fna = vms_file_written; /* this points to the versionless name */
+  to_fab.fab$b_fns = strlen (vms_file_written);
+
+  /* Now set the file protection to the correct value */
+  sys$open (&to_fab, 0, 0);	/* This fills in the nam$w_fid fields */
+
+  /* Copy these fields into the fib */
+  fib.fib$r_fid_overlay.fib$w_fid[0] = to_nam.nam$w_fid[0];
+  fib.fib$r_fid_overlay.fib$w_fid[1] = to_nam.nam$w_fid[1];
+  fib.fib$r_fid_overlay.fib$w_fid[2] = to_nam.nam$w_fid[2];
+
+  sys$close (&to_fab, 0, 0);
+
+  stat = sys$assign (&disk, &chan, 0, 0); /* open a channel to the disk */
+  if (!stat)
+    lib$signal (stat);
+  stat = sys$qiow (0, chan, IO$_MODIFY, iosb, 0, 0, &fib_d,
+		   0, 0, 0, &fib_attr, 0);
+  if (!stat)
+    lib$signal (stat);
+  stat = sys$dassgn (chan);
+  if (!stat)
+    lib$signal (stat);
+  strcpy (vms_file_written, to_esn); /* We will write this to the screen*/
+  return 0;
 }
 
 link (file, new)
@@ -3678,16 +4219,34 @@ srandom (seed)
 }
 #endif /* VMS */
 
-#ifdef IBMAIX
+#ifdef WRONG_NAME_INSQUE
 
-/* Get files for keyboard remapping */
-#define HFNKEYS 2
-#include <sys/hft.h>
-#include <sys/devinfo.h>
+insque(q,p)
+     caddr_t q,p;
+{
+  _insque(q,p);
+}
+
+#endif
+
+#ifdef AIX
 
 /* Called from init_sys_modes.  */
 hft_init ()
 {
+  int junk;
+
+  /* If we're not on an HFT we shouldn't do any of this.  We determine
+     if we are on an HFT by trying to get an HFT error code.  If this
+     call fails, we're not on an HFT. */ 
+#ifdef IBMR2AIX
+  if (ioctl (0, HFQERROR, &junk) < 0)
+    return;
+#else /* not IBMR2AIX */
+  if (ioctl (0, HFQEIO, 0) < 0)
+    return;
+#endif /* not IBMR2AIX */
+
   /* On AIX the default hft keyboard mapping uses backspace rather than delete
      as the rubout key's ASCII code.  Here this is changed.  The bug is that
      there's no way to determine the old mapping, so in reset_sys_modes
@@ -3703,11 +4262,19 @@ hft_init ()
     keymap.hf_nkeys = 2;
     keymap.hfkey[0].hf_kpos = 15;
     keymap.hfkey[0].hf_kstate = HFMAPCHAR | HFSHFNONE;
+#ifdef IBMR2AIX
+    keymap.hfkey[0].hf_keyidh = '<';
+#else /* not IBMR2AIX */
     keymap.hfkey[0].hf_page = '<';
+#endif /* not IBMR2AIX */
     keymap.hfkey[0].hf_char = 127;
     keymap.hfkey[1].hf_kpos = 15;
     keymap.hfkey[1].hf_kstate = HFMAPCHAR | HFSHFSHFT;
+#ifdef IBMR2AIX
+    keymap.hfkey[1].hf_keyidh = '<';
+#else /* not IBMR2AIX */
     keymap.hfkey[1].hf_page = '<';
+#endif /* not IBMR2AIX */
     keymap.hfkey[1].hf_char = 127;
     hftctl (0, HFSKBD, &buf);
   }
@@ -3724,19 +4291,36 @@ hft_reset ()
 {
   struct hfbuf buf;
   struct hfkeymap keymap;
+  int junk;
+
+#ifdef IBMR2AIX
+  if (ioctl (0, HFQERROR, &junk) < 0)
+    return;
+#else /* not IBMR2AIX */
+  if (ioctl (0, HFQEIO, 0) < 0)
+    return;
+#endif /* not IBMR2AIX */
 
   buf.hf_bufp = (char *)&keymap;
-  buf.hf_buflen = sizeof(keymap);
+  buf.hf_buflen = sizeof (keymap);
   keymap.hf_nkeys = 2;
   keymap.hfkey[0].hf_kpos = 15;
   keymap.hfkey[0].hf_kstate = HFMAPCHAR | HFSHFNONE;
+#ifdef IBMR2AIX
+  keymap.hfkey[0].hf_keyidh = '<';
+#else /* not IBMR2AIX */
   keymap.hfkey[0].hf_page = '<';
+#endif /* not IBMR2AIX */
   keymap.hfkey[0].hf_char = 8;
   keymap.hfkey[1].hf_kpos = 15;
   keymap.hfkey[1].hf_kstate = HFMAPCHAR | HFSHFSHFT;
+#ifdef IBMR2AIX
+  keymap.hfkey[1].hf_keyidh = '<';
+#else /* not IBMR2AIX */
   keymap.hfkey[1].hf_page = '<';
+#endif /* not IBMR2AIX */
   keymap.hfkey[1].hf_char = 8;
   hftctl (0, HFSKBD, &buf);
 }
 
-#endif /* IBMAIX */
+#endif /* AIX */

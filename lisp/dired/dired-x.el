@@ -1,8 +1,8 @@
 ;; dired-x.el - Extra DIRED commands for Emacs.
 
-(defconst dired-extra-version (substring "$Revision: 1.192 $" 11 -2)
-  "$Id: dired-x.el,v 1.191 1992/05/14 11:41:54 sk RelBeta $")
-
+(defconst dired-extra-version (substring "!Revision: 1.191 !" 11 -2)
+  "Id: dired-x.el,v 1.191 1992/05/14 11:41:54 sk RelBeta ")
+  
 ;; Copyright (C) 1991 Sebastian Kremer.
 
 ;; This file is part of GNU Emacs.
@@ -25,7 +25,7 @@
 ;;    LCD Archive Entry:
 ;;    dired-x|Sebastian Kremer|sk@thp.uni-koeln.de
 ;;    |Extra Features for Tree Dired
-;;    |$Date: 92/05/20 12:22:17 $|$Revision: 1.192 $|
+;;    |Date: 1992/05/14 11:41:54 |Revision: 1.191 |
 
 ;; INSTALLATION ======================================================
 

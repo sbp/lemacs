@@ -1,11 +1,11 @@
 /* Define screen-object for GNU Emacs.
-   Copyright (C) 1988 Free Software Foundation, Inc.
+   Copyright (C) 1988, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -184,7 +184,6 @@ typedef struct screen *SCREEN_PTR;
 #define SCREEN_MINIBUF_WINDOW(s) (s)->minibuffer_window
 #define SCREEN_ROOT_WINDOW(s) (s)->root_window
 #define SCREEN_SELECTED_WINDOW(s) (s)->selected_window
-#define SCREENP(s) (XTYPE(s) == Lisp_Screen)
 #define SET_GLYPHS_SCREEN(glyphs,screen) ((glyphs)->screen = (screen))
 #define SCREEN_INSERT_COST(s) (s)->insert_line_cost    
 #define SCREEN_DELETE_COST(s) (s)->delete_line_cost    
@@ -197,7 +196,7 @@ typedef struct screen *SCREEN_PTR;
 #define SCREEN_HIGHLIGHT_FACE(s) (*(s)->faces [2])
 
 #define CHECK_SCREEN(x, i) \
-  { if (XTYPE ((x)) != Lisp_Screen) x = wrong_type_argument (Qscreenp, (x)); }
+  { if (!SCREENP ((x))) x = wrong_type_argument (Qscreenp, (x)); }
 extern Lisp_Object Qscreenp;
 
 extern struct screen *selected_screen;

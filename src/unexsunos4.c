@@ -21,7 +21,10 @@
  *  __DYNAMIC and data_start,  just make sure that pre-crt0.o (the name
  *  is somewhat abused here) is loaded first!
  *
- * $Log:	unexsunos4.c,v $
+ * $Log: unexsunos4.c,v $
+ * Revision 1.1.1.1  1992/06/29  22:26:39  devin
+ * initial
+ *
  * Revision 100.1  92/04/13  17:21:41  devin
  * FCS release
  * 

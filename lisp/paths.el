@@ -1,11 +1,11 @@
 ;; Define pathnames for use by various Emacs commands.
-;; Copyright (C) 1986, 1988 Free Software Foundation, Inc.
+;; Copyright (C) 1986, 1988, 1992 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -51,6 +51,7 @@
 (defvar mh-lib
   (cond ((file-directory-p "/usr/new/lib/mh") "/usr/new/lib/mh/")
 	((file-directory-p "/usr/local/lib/mh") "/usr/local/lib/mh/")
+	((file-directory-p "/usr/lib/mh") "/usr/lib/mh")
 	(t "/usr/local/bin/mh/"))
   "Directory of MH library")
 

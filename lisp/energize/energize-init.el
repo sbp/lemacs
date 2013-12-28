@@ -1,50 +1,19 @@
 ;;; -*- Mode:Emacs-Lisp -*-
 
+(defmacro pop (l)
+  (list 'prog1 (list 'car l) (list 'setq l (list 'cdr l))))
 
-(defun energize-multi-screen-mode ()
-  "Call this function to put Energize into multi-screen mode.
-A single screen (emacs X Window) will be created for the debugger buffer,
-and a new screen will be created for each Browser buffer."
-  (interactive)
-  (put 'energize-debugger-mode 'screen-name 'debugger)
-  (put 'energize-browser-mode 'screen-name 'browser)
-;  (put 'browser 'instance-limit 0)
-  (put 'energize-manual-entry-mode 'screen-name 'manual)
-  t)
+(defmacro push (o l)
+  (list 'setq l (list 'cons o l)))
 
-(defun energize-single-screen-mode ()
-  "Call this function to put Energize into single-screen mode.
-All buffers will be displayed in the currently selected screen."
-  (interactive)
-  (remprop 'energize-debugger-mode 'screen-name)
-  (remprop 'energize-browser-mode 'screen-name)
-;  (remprop 'browser 'instance-limit)
-  (remprop 'energize-manual-entry-mode 'screen-name)
-  nil)
-
-(energize-single-screen-mode)
+;;; Function to present buffers as requested by the energize kernel
 
 (defvar energize-auto-raise-screen t
   "If T screens are automatically raised when Energize wants to show them.")
 
 (defvar energize-auto-deiconify-screen ()
-  "If T screens are automatically deiconified when Energize wants to show them.")
-
-(setq before-change-function 'notify-send-buffer-modified-request)
-(setq first-change-function 'energize-barf-if-buffer-locked)
-
-(defun notify-send-buffer-modified-request (start end)
-  ;; This gets pretty deep, and is called when things are already pretty
-  ;; deep, so we've got to bump the limits a bit.
-;  (let ((max-specpdl-size (* 2 max-specpdl-size))
-;	(max-lisp-eval-depth (* 2 max-lisp-eval-depth)))
-    (send-buffer-modified-request t start end))
-;  )
-
-(setq energize-kernel-modification-hook nil)
-(setq energize-buffer-modified-hook 'send-buffer-modified-request)
-(setq energize-create-buffer-hook 'energize-buffer-creation-hook-function)
-
+  "If T screens are automatically deiconified when Energize wants to
+show them.")
 
 (defun energize-request-kill-buffer-if-dead (buffer)
   (cond ((not (bufferp buffer)) t)
@@ -83,13 +52,6 @@ All buffers will be displayed in the currently selected screen."
           (ding t)))
     buffer-extent-list))
 
-(defmacro pop (l)
-  (list 'prog1 (list 'car l) (list 'setq l (list 'cdr l))))
-
-(defmacro push (o l)
-  (list 'setq l (list 'cons o l)))
-
-;;
 (defun energize-list-windows (screen)
   (let ((windows ())
 	(window (screen-root-window screen))
@@ -186,7 +148,6 @@ All buffers will be displayed in the currently selected screen."
 	(while dedicated-windows
 	  (set-window-buffer-dedicated (pop dedicated-windows) nil))))))
 
-
 (defun energize-main-buffer-of-list (list)
   ;; Given an alternating list of buffers and extents, pick out the
   ;; "interesting" buffer.  If one of the buffers is in debugger-mode,
@@ -215,92 +176,88 @@ All buffers will be displayed in the currently selected screen."
 	       (select-screen (window-screen window)))))
     (energize-show-all-buffers buffer-extent-list go-there)))
 
-(defun energize::make-many-buffers-visible (buffer-extent-list go-there)
+(defun energize-make-many-buffers-visible-function (arg)
   "First arg is a list of buffers and extents. All those should be
 made visible at the same time.  If the second argument is T then point
 should be moved to the first character of the extent of the first
 buffer, or to the buffer if no extent is specified for this buffer.  
 If second argument is NIL point should not change."
-  (setq buffer-extent-list 
-        (energize-prune-killed-buffers-from-list buffer-extent-list))
-  (if buffer-extent-list
-      (progn (energize-make-buffers-visible buffer-extent-list go-there)
-	     (let ((screen (selected-screen)))
-	       (if go-there
-		   (cond ((not (screen-visible-p screen))
-			  (if energize-auto-deiconify-screen
-			      (progn (sit-for 0)
-				     (make-screen-visible screen))))
-			 ((not (screen-totally-visible-p screen))
-			  (if energize-auto-raise-screen
-			      (progn (sit-for 0)
-				     (make-screen-visible screen))))))))))
+  (let ((buffer-extent-list (car arg))
+	(go-there (cdr arg)))
+    (setq buffer-extent-list 
+	  (energize-prune-killed-buffers-from-list buffer-extent-list))
+    (if buffer-extent-list
+	(progn (energize-make-buffers-visible buffer-extent-list go-there)
+	       (let ((screen (selected-screen)))
+		 (if go-there
+		     (cond ((not (screen-visible-p screen))
+			    (if energize-auto-deiconify-screen
+				(progn (sit-for 0)
+				       (make-screen-visible screen))))
+			   ((not (screen-totally-visible-p screen))
+			    (if energize-auto-raise-screen
+				(progn (sit-for 0)
+				       (make-screen-visible screen)))))))))))
 
-;;;
+(defvar energize-make-many-buffers-visible-should-enqueue-event t
+  "Special variable bound by energize-execute-command to allow the
+buffers to be selected while the command is executed")
 
-(defun get-any-buffer-size (buffer)
-  (if (eq buffer (current-buffer))
-      (buffer-size)
-      (save-excursion
-        (set-buffer buffer)
-        (buffer-size))))
+(defun energize-make-many-buffers-visible (buffer-extent-list go-there)
+  "First arg is a list of buffers and extents. All those should be
+made visible at the same time.  If the second argument is T then point
+should be moved to the first character of the extent of the first
+buffer, or to the buffer if no extent is specified for this buffer.  
+If second argument is NIL point should not change."
+  (if energize-make-many-buffers-visible-should-enqueue-event
+      (enqueue-eval-event 'energize-make-many-buffers-visible-function
+			  (cons buffer-extent-list nil))
+    (energize-make-many-buffers-visible-function
+     (cons buffer-extent-list t))))
 
-(defun menu-extent-at (pos buffer)
-  (if (null pos)
-      nil
-    (extent-at pos buffer 'menu)))
+;;; Multi and single screen modes
 
-;;; functions to execute the menu with the keyboard
+(defun energize-multi-screen-mode ()
+  "Call this function to put Energize into multi-screen mode.
+A single screen (emacs X Window) will be created for the debugger buffer,
+and a new screen will be created for each Browser buffer."
+  (interactive)
+  (put 'energize-debugger-mode 'screen-name 'debugger)
+  (put 'energize-browser-mode 'screen-name 'browser)
+  (put 'energize-manual-entry-mode 'screen-name 'manual)
+  t)
 
-(defun default-selection-value-for-item (menu-item)
-  (let ((flags (aref menu-item 3)))
-    (cond ((= (logand flags 2) 2)
-	   (if (x-selection-owner-p 'PRIMARY)
-	       (x-get-selection-internal 'PRIMARY 'STRING)))
-	  ((= (logand flags 4) 4)
-	   (if (x-selection-owner-p 'PRIMARY)
-	       (x-get-selection-internal 'PRIMARY 'ENERGIZE_OBJECT)))
-	  ((= (logand flags 128) 128)
-	   (if (x-selection-owner-p 'SECONDARY)
-	       (x-get-selection-internal 'SECONDARY 'STRING)))
-	  ((= (logand flags 256) 256)
-	   (if (x-selection-owner-p 'SECONDARY)
-	       (x-get-selection-internal 'SECONDARY 'ENERGIZE_OBJECT))))))
-  
+(defun energize-single-screen-mode ()
+  "Call this function to put Energize into single-screen mode.
+All buffers will be displayed in the currently selected screen."
+  (interactive)
+  (remprop 'energize-debugger-mode 'screen-name)
+  (remprop 'energize-browser-mode 'screen-name)
+  (remprop 'energize-manual-entry-mode 'screen-name)
+  nil)
 
-(defun energize-execute-menu-item-with-selection (buffer
-						  extent
-						  item
-						  selection
-						  no-confirm)
-  (if (/= 0 (logand 1 (aref item 3)))
-      (error "The `%s' command is inappropriate in this context"
-	     (aref item 0)))
-  (if (null selection)
-      (setq selection (default-selection-value-for-item item)))
-  (energize-execute-menu-item buffer extent item selection no-confirm))
+(energize-single-screen-mode)
 
-  
-(defun execute-energize-choice (name &optional use-background-menu selection
-				     no-confirm)
-  (interactive "sExecute Energize choice named: ")
-  (if (not (stringp name))
-      (error "Can't execute a choice, %s, that is not a string" name))
-  (if energize-kernel-busy
-      (error "Can't execute Energize command %s, server is busy" name))
-  (let* ((b (current-buffer))
-	 (extent (if use-background-menu
-		     nil
-		     (let ((tmp (menu-extent-at (point) b)))
-		       (if (energize-extent-menu-p tmp) 
-			   tmp
-			   nil))))
-	 (i (energize-list-menu b extent name)))
-    (if (not i) (error "No choice named %s" name))
-    (energize-execute-menu-item-with-selection b extent i selection
-					       no-confirm)))
+;;; Function to initialize the energize faces
 
-;;; function to connect to energize
+(setq energize-attributes-mapping 
+  '((51 attributeSectionHeader) (54 attributeBrowserHeader)
+    (68 attributeWriteProtected) (69 attributeModifiedText)
+    (1 attributeBold) (2 attributeItalic) (3 attributeBoldItalic)
+    (4 attributeSmall) (50 attributeGlyph) (52 attributeToplevelFormGlyph)
+    (53 attributeModifiedToplevelFormGlyph)))
+
+(defun energize-initialize-faces ()
+  (setq energize-attributes-mapping
+	(mapcar (function (lambda (l)
+			    (cons (car l)
+				  (cons (car (cdr l))
+					(face-id
+					 (or (find-face (car (cdr l)))
+					     (make-face (car (cdr l)))))))))
+		energize-attributes-mapping)))
+
+;;; Function to connect to energize
 
 (defun connect-to-energize (server &optional enarg)
   "Connect this emacs to a Energize server.
@@ -311,20 +268,22 @@ userid USER."
   (interactive (if (connected-to-energize-p)
 		   (error "Already connected to the server.") ; you bogon.
 		 (list (read-string "connect to energize server: "))))
-;; line info column is broken for now
-;;  (x-show-lineinfo-column)
   (if (connected-to-energize-p)
       (error "Already connected to the server.")) ; you bogon.
   (if (or (null server)  (equal server ""))
       (setq server (system-name)))
-  (connect-to-energize-internal server enarg))
+  (connect-to-energize-internal server enarg)
+  ;; initialize the attribute-vector
+  (energize-initialize-faces))
 
 (defun disconnect-from-energize ()
   (interactive)
   "Close the connection to energize"
-;;##  (x-hide-lineinfo-column)
   (close-connection-to-energize))
 
+;;; Misc Energize hook functions
+
+;;; Buffer creation hook
 
 (defun energize-buffer-creation-hook-function (buffer)
   (save-excursion
@@ -371,88 +330,52 @@ userid USER."
 		      'energize-debugger-buffer)))
 	(evi-mode))))
 
-(defun request-energize-extent-menu (event)
-  (interactive "e")
-  "Bring up te energize menu for the extent or beeps if there is no extent
-below the mouse"
-  (display-menu (function (lambda (buffer pos s e)
-		  (let ((extent (if (extentp (event-glyph event))
-				    (event-glyph event)
-				    (menu-extent-at pos buffer))))
-		    (if (or (null extent)
-			    (not (energize-extent-menu-p extent)))
-			(error "No energize menu here")
-			(force-highlight-extent extent t)
-			(sit-for 0)
-			(let ((item (energize::request-menu buffer extent)))
-			  (if item
-			      (energize-execute-menu-item-with-selection
-			       buffer extent item nil nil)))
-			; do not dehighlight the extent until mouse moves
-			;  -- this is bug 10602
-			; (force-highlight-extent extent ())
-			))))
-		event))
+(setq energize-create-buffer-hook 'energize-buffer-creation-hook-function)
 
-(defun request-energize-buffer-menu (event)
-  (interactive "e")
-  "Bring up the energize menu for the buffer"
-  (display-menu (function (lambda (buffer pos s e)
-			    (let ((item (energize::request-menu buffer nil)))
-			      (if item
-				  (energize-execute-menu-item-with-selection
-				   buffer nil item nil nil)))))
-                event))
+;;; Buffer modified hook
 
-(defun display-menu (menu-proc event)
-  "Call the menu-proc with information gotten from arg (the buffer, 
-cursor position, and selection positions) so that it can bring up a menu."
-  (if energize-kernel-busy
-      (error "Can't activate Energize menu, server busy"))
-  (let ((buffer (window-buffer (event-window event)))
-	(pos (event-point event)))
-    (or (bufferp buffer)
-        (error (format "event's buffer, %s, isn't a buffer" buffer)))
-    (select-window (event-window event))
-    (funcall menu-proc buffer pos nil nil)))
+(defun notify-send-buffer-modified-request (start end)
+  (send-buffer-modified-request t start end))
+
+(setq before-change-function 'notify-send-buffer-modified-request)
+
+;;; Energize kernel busy hook
+
+(defun energize-message-if-not-in-minibuffer (reason)
+  (if (not (eq (selected-window) (minibuffer-window)))
+      (message reason)))
+
+(setq energize-kernel-busy-hook 'energize-message-if-not-in-minibuffer)
+
+;;; set-buffer-modified-p hook
+
+(setq energize-buffer-modified-hook 'send-buffer-modified-request)
+
+;;; hook in editorside.c
+
+(setq energize-kernel-modification-hook nil)
 
 
-;;; Here's a converter that makes emacs understand how to convert to
-;;; selections of type ENERGIZE.  Eventually the Energize server won't
-;;; be using the selection mechanism any more, I hope.
+;; command line
 
-(defun xselect-convert-to-energize (selection type value)
-  (let (str id start end tmp)
-    (cond ((and (consp value)
-		(markerp (car value))
-		(markerp (cdr value)))
-	   (setq id (energize-buffer-id (marker-buffer (car value)))
-		 start (1- (marker-position (car value)))  ; zero based
-		 end (1- (marker-position (cdr value)))))
-	  ((extentp value)
-	   (setq id (extent-to-generic-id value)
-		 start 0
-		 end 0)))
-    (if (null id)
-	nil
-      (setq str (make-string 12 0))
-      (if (< end start) (setq tmp start start end end tmp))
-      (aset str 0 (logand (ash (car id) -8) 255))
-      (aset str 1 (logand (car id) 255))
-      (aset str 2 (logand (ash (cdr id) -8) 255))
-      (aset str 3 (logand (cdr id) 255))
-      (aset str 4 (logand (ash start -24) 255))
-      (aset str 5 (logand (ash start -16) 255))
-      (aset str 6 (logand (ash start -8) 255))
-      (aset str 7 (logand start 255))
-      (aset str 8 (logand (ash end -24) 255))
-      (aset str 9 (logand (ash end -16) 255))
-      (aset str 10 (logand (ash end -8) 255))
-      (aset str 11 (logand end 255))
-      (cons 'ENERGIZE_OBJECT str))))
+(setq command-switch-alist
+      (append command-switch-alist
+	      '(("-context"	. command-line-process-energize)
+		("-energize"	. command-line-process-energize)
+		("-beam-me-up"	. command-line-process-energize))))
 
 
-(or (assq 'ENERGIZE_OBJECT selection-converter-alist)
-    (setq selection-converter-alist
-	  (cons '(ENERGIZE_OBJECT . xselect-convert-to-energize)
-		selection-converter-alist)))
+(defun command-line-process-energize (arg)
+  (let ((e-arg (car command-line-args-left))
+	(e-host (getenv "ENERGIZE"))) ; maybe nil
+    (if (and e-arg (string-match "\\`[0-9a-fA-F]+[,][0-9a-fA-F]+\\'" e-arg))
+	(setq command-line-args-left (cdr command-line-args-left))
+      (setq e-arg nil))
+    (message "Connecting to Energize...") 
+    (sit-for 0)
+    (condition-case ()
+	(connect-to-energize e-host e-arg)
+      (error
+       (beep)
+       (message "Failed to connect to Energize at %s." e-host)
+       (sit-for 1)))))

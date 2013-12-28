@@ -58,6 +58,13 @@
 ;;; file contrib/xkeycaps.tar.Z, which is a graphical front end to xmodmap
 ;;; that hides xmodmap's arcane syntax from you.
 ;;;
+;;; If for some reason you don't want to have a dedicated compose key on your
+;;; keyboard, you can use some other key as the prefix.  For example, to make
+;;; "Meta-Shift-C" act as a compose key (so that "M-C , c" would insert the
+;;; character "ccedilla") you could do
+;;;
+;;;    (global-set-key "\M-C" compose-map)
+;;;
 ;;; I believe the bindings encoded in this file are the same as those used
 ;;; by OpenWindows versions 2 and 3, and DEC VT320 terminals.  Please let me
 ;;; know if you think otherwise.
@@ -661,6 +668,9 @@
 		   (define-key binding "\C-h" 'compose-help)
 		   (define-key binding 'help 'compose-help)))))
  compose-map nil)
+
+;; Make display display the accented letters
+(setq ctl-arrow 'display-accented-letters)
 
 
 (provide 'x-compose)

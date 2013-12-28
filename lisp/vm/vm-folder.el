@@ -987,7 +987,8 @@ visited folder."
 	   (old-buffer-modified-p (buffer-modified-p))
            ;; crash box could contain a letter bomb...
 	   ;; force user notification of file variables.
-	   (inhibit-local-variables t))
+	   (inhibit-local-variables t)
+	   (enable-local-variables nil))
        (setq crash-buf (find-file-noselect vm-crash-box))
        (goto-char (point-max))
        (insert-buffer-substring crash-buf
@@ -1230,6 +1231,7 @@ See the documentation for vm-mode for more information."
   ;; set inhibit-local-variables non-nil to protect
   ;; against letter bombs.
   (let ((inhibit-local-variables t)
+	(enable-local-variables nil)
 	(full-startup (not (bufferp folder)))
 	mail-buffer already-existed)
     (setq mail-buffer

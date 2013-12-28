@@ -1,8 +1,8 @@
 ;;;; dired-num.el - Renaming with numbers in Tree Dired.
 
-(defconst dired-num-version (substring "$Revision: 1.2 $" 11 -2)
-  "$Id: dired-num.el,v 1.2 1992/05/20 05:27:10 jwz Exp $")
-
+(defconst dired-num-version (substring "!Revision: 1.2 !" 11 -2)
+  "Id: dired-num.el,v 1.2 1991/10/15 13:24:10 sk RelBeta ")
+  
 ;; Copyright (C) 1991 by Sebastian Kremer <sk@thp.uni-koeln.de>
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -23,7 +23,7 @@
 ;;    LCD Archive Entry:
 ;;    dired-num|Sebastian Kremer|sk@thp.uni-koeln.de
 ;;    |Renaming with numbers in Tree Dired. 
-;;    |$Date: 1992/05/20 05:27:10 $|$Revision: 1.2 $|
+;;    |Date: 1991/10/15 13:24:10 |Revision: 1.2 |
 
 ;; INSTALLATION ======================================================
 ;; 

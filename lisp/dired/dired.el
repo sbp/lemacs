@@ -1,11 +1,11 @@
-;; DIRED commands for Emacs.  $Revision: 6.1 $
-;; Copyright (C) 1985, 1986, 1991 Free Software Foundation, Inc.
+;; DIRED commands for Emacs. Revision: 6.0 
+;; Copyright (C) 1985, 1986, 1991, 1992 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -22,10 +22,10 @@
 
 (provide 'dired)
 
-(defconst dired-version (substring "$Revision: 6.1 $" 11 -2)
+(defconst dired-version (substring "!Revision: 6.0 !" 11 -2)
   "The revision number of Tree Dired (as string).  The complete RCS id is:
 
-  $Id: dired.el,v 6.0 1992/05/15 14:25:45 sk RelBeta $
+  !Id: dired.el,v 6.0 1992/05/15 14:25:45 sk RelBeta !
 
 Don't forget to mention this when reporting bugs to:
 

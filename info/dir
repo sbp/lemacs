@@ -18,7 +18,7 @@ File: dir	Node: Top	This is the top of the INFO tree
 * Info:     (info).	Documentation browsing system.
 
 * Emacs:    (emacs).	The extensible self-documenting text editor.
-			This manual is for Lucid GNU Emacs 19.0.
+			This manual is for Lucid GNU Emacs 19.3.
 
 * Dired:    (dired).	Manual for Tree Dired.
 
@@ -51,3 +51,5 @@ File: dir	Node: Top	This is the top of the INFO tree
 * Termcap:  (termcap).	The termcap library, which enables application
 			programs to handle all types of character-display
 			terminals.
+
+* CVS:      (pcl-cvs).  The front end to CVS.

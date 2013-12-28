@@ -111,7 +111,19 @@ DEFUN ("char-to-string", Fchar_to_string, Schar_to_string, 1, 1, 0,
      Lisp_Object n;
 {
   char c;
-  CHECK_NUMBER (n, 0);
+
+  if (EVENTP (n))
+    {
+      Lisp_Object ch = Fevent_to_character (n, Qt);
+      if (NILP (ch))
+	return
+	  Fsignal (Qerror,
+		   Fcons (build_string ("character has no ASCII equivalent"),
+			  Fcons (Fcopy_event (n, Qnil), Qnil)));
+      n = ch;
+    }
+
+  CHECK_FIXNUM (n, 0);
 
   c = XINT (n);
   return make_string (&c, 1);
@@ -187,7 +199,7 @@ Beginning of buffer is position (point-min), end is (point-max).")
   (n)
      register Lisp_Object n;
 {
-  CHECK_NUMBER_COERCE_MARKER (n, 0);
+  CHECK_FIXNUM_COERCE_MARKER (n, 0);
 
   SET_PT (in_accessible_range (current_buffer, XINT (n)));
   return n;
@@ -256,13 +268,14 @@ DEFUN ("zmacs-deactivate-region", Fzmacs_deactivate_region,
        Szmacs_deactivate_region, 0, 0, 0,
  "Make the region between `point' and `mark' no longer be in the active\n\
 (hilighted) state, if `zmacs-regions' is true.  You shouldn't need to call\n\
-this; the command loop calls it when appropriate.")
+this; the command loop calls it when appropriate.\n\
+Returns t if the region had been active, nil otherwise.")
     ()
 {
   if (! zmacs_region_active_p) return Qnil;
   zmacs_region_active_p = 0;
   if (!NILP (Vrun_hooks)) call1 (Vrun_hooks, Qzmacs_deactivate_region_hook);
-  return Qnil;
+  return Qt;
 }
 
 
@@ -463,7 +476,7 @@ If POS is out of range, the value is nil.")
   register Lisp_Object val;
   register int n;
 
-  CHECK_NUMBER_COERCE_MARKER (pos, 0);
+  CHECK_FIXNUM_COERCE_MARKER (pos, 0);
 
   n = XINT (pos);
   if (n < BEGV || n >= ZV) return Qnil;
@@ -569,9 +582,9 @@ if we can figure out a reasonably easy way to get that information.")
     int top, bottom;
     CHECK_CONS (arg, 1);
     top = Fcar(arg), bottom = Fcdr(arg);
-    if (XTYPE (bottom) == Lisp_Cons) bottom = Fcar (bottom);
-    CHECK_NUMBER (top, 1);
-    CHECK_NUMBER (bottom, 1);
+    if (CONSP (bottom)) bottom = Fcar (bottom);
+    CHECK_FIXNUM (top, 1);
+    CHECK_FIXNUM (bottom, 1);
     now = (XINT (top) << 16) | XINT (bottom);
   }
   tem = (char *) ctime (&now);
@@ -582,7 +595,7 @@ if we can figure out a reasonably easy way to get that information.")
   return build_string (buf);
 }
 
-#ifdef unix
+#ifndef VMS
 
 DEFUN ("set-default-file-mode", Fset_default_file_mode, Sset_default_file_mode, 1, 1, "p",
   "Set Unix `umask' value to ARGUMENT, and return old value.\n\
@@ -590,7 +603,7 @@ The `umask' value is the default protection mode for new files.")
   (nmask)
      Lisp_Object nmask;
 {
-  CHECK_NUMBER (nmask, 0);
+  CHECK_FIXNUM (nmask, 0);
   return make_number (umask (XINT (nmask)));
 }
 
@@ -602,7 +615,7 @@ DEFUN ("unix-sync", Funix_sync, Sunix_sync, 0, 0, "",
   return Qnil;
 }
 
-#endif /* unix */
+#endif /* !VMS */
 
 void
 insert1 (arg)
@@ -628,12 +641,12 @@ Any other markers at the point of insertion remain before the text.")
     {
       tem = args[argnum];
     retry:
-      if (XTYPE (tem) == Lisp_Int)
+      if (FIXNUMP (tem))
 	{
 	  str[0] = XINT (tem);
 	  insert_raw_string (str, 1);
 	}
-      else if (XTYPE (tem) == Lisp_String)
+      else if (STRINGP (tem))
 	{
 	  insert_from_string (tem, 0, XSTRING (tem)->size);
 	}
@@ -663,12 +676,12 @@ Any other markers at the point of insertion also end up after the text.")
     {
       tem = args[argnum];
     retry:
-      if (XTYPE (tem) == Lisp_Int)
+      if (FIXNUMP (tem))
 	{
 	  str[0] = XINT (tem);
 	  insert_before_markers (str, 1);
 	}
-      else if (XTYPE (tem) == Lisp_String)
+      else if (STRINGP (tem))
 	{
 	  insert_from_string_before_markers (tem, 0, XSTRING (tem)->size);
 	}
@@ -693,8 +706,8 @@ Both arguments are required.")
   register int strlen;
   register int i, n;
 
-  CHECK_NUMBER (chr, 0);
-  CHECK_NUMBER (count, 1);
+  CHECK_FIXNUM (chr, 0);
+  CHECK_FIXNUM (count, 1);
 
   n = XINT (count);
   if (n < 0)
@@ -764,14 +777,14 @@ They default to the beginning and the end of BUFFER.")
     beg = BUF_BEGV (bp);
   else
     {
-      CHECK_NUMBER_COERCE_MARKER (b, 0);
+      CHECK_FIXNUM_COERCE_MARKER (b, 0);
       beg = XINT (b);
     }
   if (NILP (e))
     end = BUF_ZV (bp);
   else
     {
-      CHECK_NUMBER_COERCE_MARKER (e, 1);
+      CHECK_FIXNUM_COERCE_MARKER (e, 1);
       end = XINT (e);
     }
 
@@ -814,8 +827,8 @@ and don't mark the buffer as really changed.")
   register int pos, stop, look;
 
   validate_region (&start, &end);
-  CHECK_NUMBER (fromchar, 2);
-  CHECK_NUMBER (tochar, 3);
+  CHECK_FIXNUM (fromchar, 2);
+  CHECK_FIXNUM (tochar, 3);
 
   pos = XINT (start);
   stop = XINT (end);
@@ -932,8 +945,8 @@ or markers) bounding the text that should remain visible.")
 {
   register int i;
 
-  CHECK_NUMBER_COERCE_MARKER (b, 0);
-  CHECK_NUMBER_COERCE_MARKER (e, 1);
+  CHECK_FIXNUM_COERCE_MARKER (b, 0);
+  CHECK_FIXNUM_COERCE_MARKER (e, 1);
 
   if (XINT (b) > XINT (e))
     {
@@ -1047,7 +1060,7 @@ the argument used by %d or %c must be a number.")
 #ifdef MULTI_SCREEN
   extern Lisp_Object Vglobal_minibuffer_screen;
 
-  if (XTYPE (Vglobal_minibuffer_screen) == Lisp_Screen)
+  if (SCREENP (Vglobal_minibuffer_screen))
     Fmake_screen_visible (Vglobal_minibuffer_screen);
 #endif
 
@@ -1094,7 +1107,7 @@ The argument used for %d, %o, %x or %c must be a number.")
 	int minlen;
 
 	/* Process a numeric arg and skip it.  */
-	minlen = atoi (format);
+	minlen = atoi ((char *) format);
 	if (minlen > 0)
 	  total += minlen;
 	else
@@ -1115,18 +1128,18 @@ The argument used for %d, %o, %x or %c must be a number.")
 	    args[n] = tem;
 	    goto string;
 	  }
-	else if (XTYPE (args[n]) == Lisp_Symbol)
+	else if (SYMBOLP (args[n]))
 	  {
 	    XSET (args[n], Lisp_String, XSYMBOL (args[n])->name);
 	    goto string;
 	  }
-	else if (XTYPE (args[n]) == Lisp_String)
+	else if (STRINGP (args[n]))
 	  {
 	  string:
 	    total += XSTRING (args[n])->size;
 	  }
 	/* Would get MPV otherwise, since Lisp_Int's `point' to low memory.  */
-	else if (XTYPE (args[n]) == Lisp_Int && *format != 's')
+	else if (FIXNUMP (args[n]) && *format != 's')
 	  total += 10;
 	else
 	  {
@@ -1143,7 +1156,7 @@ The argument used for %d, %o, %x or %c must be a number.")
       {
 	if (n >= nargs)
 	  strings[n] = (unsigned char *) "";
-	else if (XTYPE (args[n]) == Lisp_Int)
+	else if (FIXNUMP (args[n]))
 	  /* We checked above that the corresponding format effector
 	     isn't %s, which would cause MPV.  */
 	  strings[n] = (unsigned char *) XINT (args[n]);
@@ -1200,8 +1213,8 @@ Case is ignored if `case-fold-search' is non-nil in the current buffer.")
      register Lisp_Object c1, c2;
 {
   unsigned char *downcase = DOWNCASE_TABLE;
-  CHECK_NUMBER (c1, 0);
-  CHECK_NUMBER (c2, 1);
+  CHECK_FIXNUM (c1, 0);
+  CHECK_FIXNUM (c2, 1);
 
   if (!NILP (current_buffer->case_fold_search)
       ? downcase[0xff & XFASTINT (c1)] == downcase[0xff & XFASTINT (c2)]

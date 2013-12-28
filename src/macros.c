@@ -1,11 +1,11 @@
 /* Keyboard macros.
-   Copyright (C) 1985, 1986 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -109,7 +109,7 @@ An argument of zero means repeat until error.")
   if (NILP (arg))
     XFASTINT (arg) = 1;
   else
-    CHECK_NUMBER (arg, 0);
+    CHECK_FIXNUM (arg, 0);
 
   if (defining_kbd_macro)
     {
@@ -270,9 +270,9 @@ COUNT is a repeat count, or nil for once, or 0 for infinite loop.")
     repeat = XINT (prefixarg);
 
   final = macro;
-  while (XTYPE (final) == Lisp_Symbol && !EQ (final, Qunbound))
+  while (SYMBOLP (final) && !EQ (final, Qunbound))
     final = XSYMBOL (final)->function;
-  if (XTYPE (final) != Lisp_String && XTYPE (final) != Lisp_Vector)
+  if (!STRINGP (final) && !VECTORP (final))
     CHECK_STRING (final, 0);
 
   XFASTINT (tem) = executing_macro_index;
@@ -288,8 +288,8 @@ COUNT is a repeat count, or nil for once, or 0 for infinite loop.")
       internal_catch (Qexecute_kbd_macro, command_loop_1, Qnil);
     }
   while (--repeat &&
-	 (XTYPE (Vexecuting_macro) == Lisp_String ||
-	  XTYPE (Vexecuting_macro) == Lisp_Vector));
+	 (STRINGP (Vexecuting_macro) ||
+	  VECTORP (Vexecuting_macro)));
 
   UNGCPRO;
   unbind_to (count);

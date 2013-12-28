@@ -1,11 +1,11 @@
 /* Buffer insertion/deletion and gap motion for GNU Emacs.
-   Copyright (C) 1985, 1986, 1991 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1991, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -384,7 +384,7 @@ insert_relocatable_raw_string (string, length, obj)
 {
   struct gcpro gcpro1;
   Lisp_Object dup_list = 
-    (XTYPE (obj) == Lisp_String)?(XSTRING(obj)->dup_list):Qnil;
+    (STRINGP (obj))?(XSTRING(obj)->dup_list):Qnil;
   Lisp_Object temp;
   int opoint = point;
 
@@ -409,7 +409,7 @@ insert_relocatable_raw_string (string, length, obj)
   MODIFF++;
 
   /* string may have been relocated up to this point */
-  if (XTYPE (obj) == Lisp_String)
+  if (STRINGP (obj))
     string = XSTRING (obj) -> data;
 
   bcopy (string, GPT_ADDR, length);
@@ -436,7 +436,7 @@ insert_from_string (obj, pos, length)
   unsigned char *string = XSTRING (obj)->data;
   struct gcpro gcpro1;
   Lisp_Object dup_list = 
-    (XTYPE (obj) == Lisp_String) ? (XSTRING (obj)->dup_list) : Qnil;
+    (STRINGP (obj)) ? (XSTRING (obj)->dup_list) : Qnil;
   Lisp_Object temp;
   int opoint = point;
 
@@ -463,7 +463,7 @@ insert_from_string (obj, pos, length)
   MODIFF++;
 
   /* string may have been relocated up to this point */
-  if (XTYPE (obj) == Lisp_String)
+  if (STRINGP (obj))
     string = XSTRING (obj) -> data;
 
   bcopy (string, GPT_ADDR, length);

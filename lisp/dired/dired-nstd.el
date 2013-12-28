@@ -1,7 +1,5 @@
 ;;; -*- Mode:Emacs-Lisp -*-
-;;; $Id: dired-nstd.el,v 1.15 1992/03/01 14:22:33 jwz Exp $
-;;; Jamie Zawinski <jwz@lucid.com> 7-apr-91
-;;; last modified  7-may-91.
+;;; Jamie Zawinski <jwz@lucid.com> 7-may-91
 ;;;
 ;;; This makes dired buffers which display multiple directories display
 ;;; them in a tree rather than in an "ls -R"-like format.  Which, as every
@@ -14,6 +12,20 @@
 ;;;     -rw-r--r--  1 jwz          1750 Mar 12 15:04 ange-ftp-dired.elc
 ;;;   -rw-r--r--  1 jwz          3151 Mar 29 00:01 symbol-syntax.el
 ;;;   -rw-r--r--  1 jwz          1504 Mar 29 01:01 symbol-syntax.elc
+
+;;; This program is free software; you can redistribute it and/or modify
+;;; it under the terms of the GNU General Public License as published by
+;;; the Free Software Foundation; either version 2, or (at your option)
+;;; any later version.
+;;;
+;;; This program is distributed in the hope that it will be useful,
+;;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;; GNU General Public License for more details.
+;;;
+;;; A copy of the GNU General Public License can be obtained from this
+;;; program's author (send electronic mail to the above address) or from
+;;; Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 (defconst dired-subdir-alist nil
   "Association list of subdirectories and their buffer positions:

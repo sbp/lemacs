@@ -57,7 +57,7 @@ extern int sys_nerr;
 #endif /* HAVE_TIMEVAL */
 #endif /* not NEED_TIME_H */
 
-#ifdef HPUX
+#ifdef HPUX_NET
 #include <netio.h>
 #include <errnet.h>
 #endif
@@ -775,7 +775,7 @@ If the file does not exist, or is otherwise unable to be resolved,\n\
   expanded_name = Fexpand_file_name (name, defalt);
   UNGCPRO;
 
-  if (!(XTYPE (expanded_name) == Lisp_String)) return Qnil;
+  if (!(STRINGP (expanded_name))) return Qnil;
 
   if (XSTRING (expanded_name)->size >= sizeof (resolved_path))
     while (1)
@@ -1428,9 +1428,9 @@ that the old one has.  (This works on only some systems.)")
   }
 
   if (NILP (ok_if_already_exists)
-      || XTYPE (ok_if_already_exists) == Lisp_Int)
+      || FIXNUMP (ok_if_already_exists))
     barf_or_query_if_file_exists (newname, (unsigned char *) "copy to it",
-				  XTYPE (ok_if_already_exists) == Lisp_Int);
+				  FIXNUMP (ok_if_already_exists));
 
   ifd = open (XSTRING (filename)->data, 0);
   if (ifd < 0)
@@ -1569,9 +1569,9 @@ This is what happens in interactive use with M-x.")
   filename = Fexpand_file_name (filename, Qnil);
   newname = Fexpand_file_name (newname, Qnil);
   if (NILP (ok_if_already_exists)
-      || XTYPE (ok_if_already_exists) == Lisp_Int)
+      || FIXNUMP (ok_if_already_exists))
     barf_or_query_if_file_exists (newname, (unsigned char *) "rename to it",
-				  XTYPE (ok_if_already_exists) == Lisp_Int);
+				  FIXNUMP (ok_if_already_exists));
 #ifndef BSD4_1
   if (0 > rename ((char *) XSTRING (filename)->data,
 		  (char *) XSTRING (newname)->data))
@@ -1618,10 +1618,10 @@ This is what happens in interactive use with M-x.")
   filename = Fexpand_file_name (filename, Qnil);
   newname = Fexpand_file_name (newname, Qnil);
   if (NILP (ok_if_already_exists)
-      || XTYPE (ok_if_already_exists) == Lisp_Int)
+      || FIXNUMP (ok_if_already_exists))
     barf_or_query_if_file_exists (newname,
 				  (unsigned char *) "make it a new name",
-				  XTYPE (ok_if_already_exists) == Lisp_Int);
+				  FIXNUMP (ok_if_already_exists));
   unlink (XSTRING (newname)->data);
   if (0 > link (XSTRING (filename)->data, XSTRING (newname)->data))
     {
@@ -1657,9 +1657,9 @@ This happens for interactive use with M-x.")
   filename = Fexpand_file_name (filename, Qnil);
   newname = Fexpand_file_name (newname, Qnil);
   if (NILP (ok_if_already_exists)
-      || XTYPE (ok_if_already_exists) == Lisp_Int)
+      || FIXNUMP (ok_if_already_exists))
     barf_or_query_if_file_exists (newname, (unsigned char *) "make it a link",
-				  XTYPE (ok_if_already_exists) == Lisp_Int);
+				  FIXNUMP (ok_if_already_exists));
   if (0 > symlink (XSTRING (filename)->data, XSTRING (newname)->data))
     {
       /* If we didn't complain already, silently delete existing file.  */
@@ -1897,7 +1897,7 @@ Only the 12 low bits of MODE are used.")
   Lisp_Object abspath;
 
   abspath = Fexpand_file_name (filename, current_buffer->directory);
-  CHECK_NUMBER (mode, 1);
+  CHECK_FIXNUM (mode, 1);
 
 #ifndef APOLLO
   if (chmod ((char *)XSTRING (abspath)->data, XINT (mode)) < 0)
@@ -2161,7 +2161,7 @@ to the file, instead of any buffer contents, and END is ignored.")
       XFASTINT (start) = BEG;
       XFASTINT (end) = Z;
     }
-  else if (XTYPE (start) != Lisp_String)
+  else if (!STRINGP (start))
     validate_region (&start, &end);
 
   filename = Fexpand_file_name (filename, Qnil);
@@ -2183,7 +2183,7 @@ to the file, instead of any buffer contents, and END is ignored.")
 	vms_truncate (fn);	/* if fn exists, truncate to zero length */
 	fd = open (fn, O_RDWR);
 	if (fd < 0)
-	  fd = creat_copy_attrs (XTYPE (current_buffer->filename) == Lisp_String
+	  fd = creat_copy_attrs (STRINGP (current_buffer->filename)
 				 ? XSTRING (current_buffer->filename)->data : 0,
 				 fn);
       }
@@ -2265,7 +2265,7 @@ to the file, instead of any buffer contents, and END is ignored.")
   failure = 0;
   immediate_quit = 1;
 
-  if (XTYPE (start) == Lisp_String)
+  if (STRINGP (start))
     {
       failure = 0 > e_write (fd, XSTRING (start)->data,
 			     XSTRING (start)->size);
@@ -2548,7 +2548,7 @@ This means that the file has not been changed since it was visited or saved.")
   CHECK_BUFFER (buf, 0);
   b = XBUFFER (buf);
 
-  if (XTYPE (b->filename) != Lisp_String) return Qt;
+  if (!STRINGP (b->filename)) return Qt;
   if (b->modtime == 0) return Qt;
 
   if (stat ((char *)XSTRING (b->filename)->data, &st) < 0)
@@ -2616,15 +2616,15 @@ Lisp_Object buf, in_time;
 
   if (!NILP (in_time))
     {
-      if (XTYPE (in_time) == Lisp_Int)
+      if (FIXNUMP (in_time))
         {
-          CHECK_NUMBER (in_time, 1);
+          CHECK_FIXNUM (in_time, 1);
           time_to_use = XINT (in_time);
           set_time_to_use = 1;
         }
-      else if ((XTYPE (in_time) == Lisp_Cons) &&
-               (XTYPE (Fcar (in_time)) == Lisp_Int) && 
-               (XTYPE (Fcdr (in_time)) == Lisp_Int))
+      else if ((CONSP (in_time)) &&
+               (FIXNUMP (Fcar (in_time))) && 
+               (FIXNUMP (Fcdr (in_time))))
         {
           time_to_use = lisp_to_word (in_time);
           set_time_to_use = 1;
@@ -2633,7 +2633,7 @@ Lisp_Object buf, in_time;
 
   if (!set_time_to_use)
     {
-      if (XTYPE (b->filename) == Lisp_String)
+      if (STRINGP (b->filename))
         filename = Fexpand_file_name (b->filename, Qnil);
       else
         filename = Qnil;
@@ -2837,7 +2837,7 @@ DEFUN ("read-file-name-internal", Fread_file_name_internal, Sread_file_name_inte
     {
       specdir = Ffile_name_directory (string);
       val = Ffile_name_completion (name, realdir);
-      if (XTYPE (val) != Lisp_String)
+      if (!STRINGP (val))
 	{
 	  if (NILP (Fstring_equal (string, orig_string)))
 	    return string;
@@ -2915,7 +2915,7 @@ DIR defaults to current buffer's directory default.")
   /* If dir starts with user's homedir, change that to ~. */
   homedir = (char *) egetenv ("HOME");
   if (homedir != 0
-      && XTYPE (dir) == Lisp_String
+      && STRINGP (dir)
       && !strncmp (homedir, XSTRING (dir)->data, strlen (homedir))
       && XSTRING (dir)->data[strlen (homedir)] == '/')
     {
@@ -2996,7 +2996,7 @@ DIR defaults to current buffer's directory default.")
   /* If dir starts with user's homedir, change that to ~. */
   homedir = (char *) egetenv ("HOME");
   if (homedir != 0
-      && XTYPE (dir) == Lisp_String
+      && STRINGP (dir)
       && !strncmp (homedir, XSTRING (dir)->data, strlen (homedir))
       && XSTRING (dir)->data[strlen (homedir)] == '/')
     {

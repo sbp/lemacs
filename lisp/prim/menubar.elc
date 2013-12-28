@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Mon May 18 18:34:11 1992
-;;; from file /u/jwz/emacs19/lisp/menubar.el
-;;; emacs version 19.0.16 Lucid.
-;;; bytecomp version 2.06; 17-may-92.
+;;; compiled by jwz@watergate on Wed Aug 26 01:21:25 1992
+;;; from file /wg1/emacs-base/lisp/prim/menubar.el
+;;; emacs version 19.2.12 Lucid.
+;;; bytecomp version 2.08;  7-aug-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -10,23 +10,28 @@
 	     (string-lessp emacs-version "19")))
     (error "This file was compiled for Emacs19."))
 
-(byte-code "ÀÂ‡" [(("File" ["New Screen" x-new-screen t] ["Open File..." find-file t] ["Save Buffer" save-buffer t] ["Save Buffer As..." write-file t] ["Revert Buffer" revert-buffer t] "-----" ["Print Buffer" lpr-buffer t] "-----" ["Delete Screen" delete-screen t] ["Kill Buffer..." kill-buffer t] ["Exit Emacs" save-buffers-kill-emacs t]) ("Edit" ["Undo" advertised-undo t] ["Cut" x-kill-primary-selection t] ["Copy" x-copy-primary-selection t] ["Paste" x-yank-clipboard-selection t] ["Clear" x-delete-primary-selection t]) ("Buffers" "") ("Help" ["Info" info t] ["Describe Mode" describe-mode t] ["Command Apropos..." command-apropos t] ["List Keybindings" describe-bindings t] ["Describe Key..." describe-key t] ["Describe Function..." describe-function t] ["Describe Variable..." describe-variable t] "-----" ["Unix Manual..." manual-entry t] ["Emacs Tutorial" help-with-tutorial t] ["Emacs News" view-emacs-news t])) default-menubar nil] 1)
+(byte-code "ÀÂ‡" [(("File" ["New Screen" x-new-screen t] ["Open File..." find-file t] ["Save Buffer" save-buffer t] ["Save Buffer As..." write-file t] ["Revert Buffer" revert-buffer t] "-----" ["Print Buffer" lpr-buffer t] "-----" ["Delete Screen" delete-screen t] ["Kill Buffer..." kill-buffer t] ["Exit Emacs" save-buffers-kill-emacs t]) ("Edit" ["Undo" advertised-undo t] ["Cut" x-kill-primary-selection t] ["Copy" x-copy-primary-selection t] ["Paste" x-yank-clipboard-selection t] ["Clear" x-delete-primary-selection t]) ("Buffers" "") nil ("Help" ["Info" info t] ["Describe Mode" describe-mode t] ["Command Apropos..." command-apropos t] ["List Keybindings" describe-bindings t] ["Describe Key..." describe-key t] ["Describe Function..." describe-function t] ["Describe Variable..." describe-variable t] "-----" ["Unix Manual..." manual-entry t] ["Emacs Tutorial" help-with-tutorial t] ["Emacs News" view-emacs-news t])) default-menubar nil] 1)
 (fset 'x-new-screen #[nil "ÀÁÂ!!ˆÃÄÅ!!ˆÆÇ!­†­‚È ‡" [select-screen x-create-screen nil switch-to-buffer get-buffer-create "*scratch*" boundp evi-install-undo-list evi-mode] 3 "\
 Creates a new emacs screen (that is, a new X window.)" nil])
+(fset 'set-menubar #[(menubar) "ÀÁÂ!\"ˆÄ ‡" [set-default current-menubar copy-sequence menubar set-menubar-dirty-flag] 4 "\
+Set the default menubar to be menubar."])
+(fset 'set-buffer-menubar #[(menubar) "ÀÁ!ˆÂ!Ä ‡" [make-local-variable current-menubar copy-sequence menubar set-menubar-dirty-flag] 2 "\
+Set the buffer-local menubar to be menubar."])
 (fset 'find-menu-item #[(menubar path &optional parent) "¬…ÁÂ\":??­óÅ‰«»@«®@È@!«‡@ÉHª@;«…@ª„@@—š«‹@Å‰ªKA‰¬EA«¦:«‹ÊAA#ªš«‰ËÌÍD\"ªËÌÎ@D\"ª„B*‡" [parent mapcar downcase path menubar nil result rest vectorp 0 find-menu-item signal error "not a submenu" "no such submenu"] 5])
-(fset 'disable-menu-item #[(path) "À Â	\"‰@A¬ÇÈ«ƒÉªÊD\"ˆËÌIˆÍ	!ˆ,‡" [screen-menubar menubar find-menu-item path pair item menu signal error "No such menu item" "No such menu" 2 nil set-screen-menubar] 5 "\
+(fset 'disable-menu-item #[(path) "Â	\"‰@A¬ÇÈ«ƒÉªÊD\"ˆËÌIˆÍ ˆ,‡" [current-menubar menubar find-menu-item path pair item menu signal error "No such menu item" "No such menu" 2 nil set-menubar-dirty-flag] 5 "\
 Make the named menu item be unselectable.
 PATH is a list of strings which identify the position of the menu item in 
 the menu hierarchy.  (\"File\" \"Save\") means the menu item called \"Save\"
 under the toplevel \"File\" menu.  (\"Menu\" \"Foo\" \"Item\") means the 
 menu item called \"Item\" under the \"Foo\" submenu of \"Menu\"."])
-(fset 'enable-menu-item #[(path) "À Â	\"‰@A¬ÇÈ«ƒÉªÊD\"ˆËÌIˆÍ	!ˆ,‡" [screen-menubar menubar find-menu-item path pair item menu signal error "No such menu item" "No such menu" 2 t set-screen-menubar] 5 "\
+(fset 'enable-menu-item #[(path) "Â	\"‰@A¬ÇÈ«ƒÉªÊD\"ˆËÌIˆÍ ˆ,‡" [current-menubar menubar find-menu-item path pair item menu signal error "No such menu item" "No such menu" 2 t set-menubar-dirty-flag] 5 "\
 Make the named menu item be selectable.
 PATH is a list of strings which identify the position of the menu item in 
 the menu hierarchy.  (\"File\" \"Save\") means the menu item called \"Save\"
 under the toplevel \"File\" menu.  (\"Menu\" \"Foo\" \"Item\") means the 
 menu item called \"Item\" under the \"Foo\" submenu of \"Menu\"."])
-(fset 'add-menu-item #[(menu-path item-name function enabled-p) "¬„ÁÂ!ˆ¬„ÁÄ!ˆÅ ÇÈÉ‰\n<«ŠË\nAC\"@ª†ÌÁÍD\"\n¬Í‰«ÂËA@C\"@‰\n¬§‰A«A@«ˆA‰ªo@C‰\nCA¤¡ˆ)\nA‰¬>*\n¬„\n¬\nÒ#‰C¤ˆÕIˆÖ??Iˆ×!ˆ+‡" [menu-path error "must specify a menu path" item-name "must specify an item name" screen-menubar menubar nil (byte-code "À	\n\"@‡" [find-menu-item menubar menu-path] 3) ((error)) menu find-menu-item signal "not a submenu" item so-far rest rest2 vector function enabled-p 1 2 set-screen-menubar] 6 "\
+(fset 'add-menu-item-1 #[(item-p menu-path item-name item-data enabled-p before) "«ƒ—	ÃÄÅ‰<«‹ÇAC\"@ª‡ÉÊËD\"¬Í\n‰«ÂÇA@C\"@‰¬§‰A«A@«ˆA‰ªo@C‰CA¤¡ˆ)A‰¬>*¬ƒ\n¬Û«ŒÒ#ª‡B«ˆÇC\"@Ã«¢A@=«’AB¡ˆÃÖªbA‰¬^¬‡C¤ˆ*«’×IˆØ??IˆªŒ ˆ¡ˆÙ ˆ+‡" [before current-menubar menubar nil (byte-code "À	\n\"@‡" [find-menu-item menubar menu-path] 3) ((error)) menu find-menu-item item-name signal error "not a submenu" menu-path item so-far rest rest2 item-p vector item-data enabled-p added-before t 1 2 set-menubar-dirty-flag] 5])
+(fset 'add-menu-item #[(menu-path item-name function enabled-p &optional before) "¬„ÁÂ!ˆ¬„ÁÄ!ˆÅÆ	&‡" [menu-path error "must specify a menu path" item-name "must specify an item name" add-menu-item-1 t function enabled-p before] 7 "\
 Add a menu item to some menu, creating the menu first if necessary.
 If the named item exists already, it is changed.
 MENU-PATH identifies the menu under which the new menu item should be inserted.
@@ -37,21 +42,40 @@ FUNCTION is the command to invoke when this menu item is selected.
  If it is a symbol, then it is invoked with `call-interactively', in the same
  way that functions bound to keys are invoked.  If it is a list, then the 
  list is simply evaluated.
-ENABLED-P controls whether the item is selectable or not."])
-(fset 'delete-menu-item #[(path) "À Â	\"‰@A®	??­‹Ç\"ˆÈ	!ˆ,‡" [screen-menubar menubar find-menu-item path pair item menu delq set-screen-menubar] 4 "\
+ENABLED-P controls whether the item is selectable or not.
+BEFORE, if provided, is the name of a menu item before which this item should
+ be added, if this item is not on the menu already.  If the item is already
+ present, it will not be moved."])
+(fset 'delete-menu-item #[(path) "Â	\"‰@A®	??­ŠÇ\"ˆÈ ˆ,‡" [current-menubar menubar find-menu-item path pair item menu delq set-menubar-dirty-flag] 4 "\
 Remove the named menu item from the menu hierarchy.
 PATH is a list of strings which identify the position of the menu item in 
 the menu hierarchy.  (\"File\" \"Save\") means the menu item called \"Save\"
 under the toplevel \"File\" menu.  (\"Menu\" \"Foo\" \"Item\") means the 
 menu item called \"Item\" under the \"Foo\" submenu of \"Menu\"."])
-(fset 'relabel-menu-item #[(path new-name) "À Â	\"‰@A¬ÇÈ«ƒÉªÊD\"ˆËIˆÍ	!ˆ,‡" [screen-menubar menubar find-menu-item path pair item menu signal error "No such menu item" "No such menu" 0 new-name set-screen-menubar] 5 "\
+(fset 'relabel-menu-item #[(path new-name) "Â	\"‰@A¬ÇÈ«ƒÉªÊD\"ˆËIˆÍ ˆ,‡" [current-menubar menubar find-menu-item path pair item menu signal error "No such menu item" "No such menu" 0 new-name set-menubar-dirty-flag] 5 "\
 Change the string of the specified menu item.
 PATH is a list of strings which identify the position of the menu item in 
 the menu hierarchy.  (\"File\" \"Save\") means the menu item called \"Save\"
 under the toplevel \"File\" menu.  (\"Menu\" \"Foo\" \"Item\") means the 
 menu item called \"Item\" under the \"Foo\" submenu of \"Menu\".
 NEW-NAME is the string that the menu item will be printed as from now on."])
-(fset 'sensitize-edit-menu-hook #[(menubar) "À	Â\"@AÀÄ\"@ÀÆ\"@ÀÈ\"@	ÀÊ\"@ÀÌ\"@®…ÀÍ\"@Ï ÑÒ!ÔÔØ=?­“Î=­ÚÛ!­‚Ô‰??ÔÔ«‰ßH=?®¨«ŠßH=?®š«ŠßH=?®Œ	­ˆ	ßH=? «†ßIˆ«‡ßIˆ«‡ßIˆ	«‡	ßIˆÎ=«áÚÛ!­‚??ª™âØ=?­®‡ÚÛ!­‚??#«ƒÔ«£äHš«‰ßH=¬‘äIˆßIˆØ  «ƒ	ªØ.‡" [find-menu-item menubar ("Edit") edit-menu ("Cut") cut ("Copy") copy ("Paste") paste ("Clear") clear ("Undo") ("Undo More") undo x-selection-owner-p emacs-owns-selection-p x-selection-exists-p CLIPBOARD clipboard-exists-p nil undo-available undoing-more buffer-undo-list t last-command boundp pending-undo-list undo-info-available undo-name undo-state 2 change-p "Undo More" "Undo" buffer-read-only 0] 3 "\
+(fset 'add-menu #[(menu-path menu-name menu-items &optional before) "¬„ÁÂ!ˆ¬„ÁÄ!ˆÅÆÈ	&‡" [menu-name error "must specify a menu name" menu-items "must specify some menu items" add-menu-item-1 nil menu-path t before] 7 "\
+Add a menu to the menubar or one of its submenus.
+If the named menu exists already, it is changed.
+MENU-PATH identifies the menu under which the new menu should be inserted.
+ It is a list of strings; for example, (\"File\") names the top-level \"File\"
+ menu.  (\"File\" \"Foo\") names a hypothetical submenu of \"File\".
+ If MENU-PATH is nil, then the menu will be added to the menubar itself.
+MENU-NAME is the string naming the menu to be added.
+MENU-ITEMS is a list of menu item descriptions.
+ Each menu item should be a vector of three elements:
+   - a string, the name of the menu item;
+   - a symbol naming a command, or a form to evaluate;
+   - and t or nil, whether this item is selectable.
+BEFORE, if provided, is the name of a menu before which this menu should
+ be added, if this menu is not on its parent already.  If the menu is already
+ present, it will not be moved."])
+(fset 'sensitize-edit-menu-hook #[(nothing) "À	Â\"@AÀÄ\"@ÀÆ\"@ÀÈ\"@	ÀÊ\"@ÀÌ\"@®…ÀÍ\"@Ï ÑÒ!ÔÔØ=?­“Î=­ÚÛ!­‚Ô‰??ÔÔ«‰ßH=?®¨«ŠßH=?®š«ŠßH=?®Œ	­ˆ	ßH=? «†ßIˆ«‡ßIˆ«‡ßIˆ	«‡	ßIˆÎ=«áÚÛ!­‚??ª™âØ=?­®‡ÚÛ!­‚??#«ƒÔ«£äHš«‰ßH=¬‘äIˆßIˆØ  .?‡" [find-menu-item current-menubar ("Edit") edit-menu ("Cut") cut ("Copy") copy ("Paste") paste ("Clear") clear ("Undo") ("Undo More") undo x-selection-owner-p emacs-owns-selection-p x-selection-exists-p CLIPBOARD clipboard-exists-p nil undo-available undoing-more buffer-undo-list t last-command boundp pending-undo-list undo-info-available undo-name undo-state 2 change-p "Undo More" "Undo" buffer-read-only 0] 3 "\
 For use as a value of activate-menubar-hook.
 This function changes the sensitivity of the Edit menu items:
   Cut   sensitive only when emacs owns the primary X Selection.
@@ -62,9 +86,9 @@ This function changes the sensitivity of the Edit menu items:
 Returns a string to represent the given buffer in the Buffer menu.
 nil means the buffer shouldn't be listed.  You can redefine this."])
 (fset 'format-buffers-menu-line #[(buffer) "ÀÁÂ!‰\"?­‡" [string-match "\\` " buffer-name buffer] 4])
-(fset 'build-buffers-menu-hook #[(menubar) "À	Â\"@Ã‰‰??­«Ç ‰GÈV«†È›Ã¡ˆÉÊ\"ËÃ\"Ì¤‰Aš«ƒÍª†¡ˆ	+‡" [find-menu-item menubar ("Buffers") nil buffers name buffer-menu buffer-list 10 mapcar #[(buffer) "À	!‰­‰Ã\nÄÅ	!DÆ#‡" [format-buffers-menu-line buffer name vector switch-to-buffer buffer-name t] 5] delq ("----" ["List All Buffers" list-buffers t]) t] 4 "\
+(fset 'build-buffers-menu-hook #[(nothing) "À	Â\"@Ã‰‰??­«Ç ‰GÈV«†È›Ã¡ˆÉÊ\"ËÃ\"Ì¤‰Aš«ƒÍª†¡ˆÃ+‡" [find-menu-item current-menubar ("Buffers") nil buffers name buffer-menu buffer-list 10 mapcar #[(buffer) "À	!‰­‰Ã\nÄÅ	!DÆ#‡" [format-buffers-menu-line buffer name vector switch-to-buffer buffer-name t] 5] delq ("----" ["List All Buffers" list-buffers t]) t] 4 "\
 For use as a value of activate-menubar-hook.
 This function changes the contents of the \"Buffers\" menu to correspond
 to the current set of buffers.  You can control how the text of the menu
 items are generated by redefining the function `format-buffers-menu-line'."])
-(byte-code "À	>¬„À	BÂ	>¬„Â	BÃÄMˆÃÆÇ!‡" [build-buffers-menu-hook activate-menubar-hook sensitize-edit-menu-hook install-default-menubar #[(screen) "À	\n\"‡" [set-screen-menubar default-menubar screen] 3] create-screen-hook provide menubar] 2)
+(byte-code "À	>¬„À	BÂ	>¬„Â	BÃ!ˆÅÆ!‡" [build-buffers-menu-hook activate-menubar-hook sensitize-edit-menu-hook set-menubar default-menubar provide menubar] 2)

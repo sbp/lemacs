@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Wed Jun 17 20:19:31 1992
-;;; from file /cadillac-th/jwz/emacs19/lisp/ilisp/ilisp.el
-;;; emacs version 19.1.1 Lucid.
-;;; bytecomp version 2.07; 12-jun-92.
+;;; compiled by jwz@thalidomide on Tue Jun 30 22:09:25 1992
+;;; from file /wg1/emacs-base/lisp/ilisp/ilisp.el
+;;; emacs version 19.2.1 Lucid.
+;;; bytecomp version 2.07; 17-jun-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -389,7 +389,7 @@ the process interface."])
 (fset 'ilisp-load-init #[(dialect file) "À	\n\"«’«…¡ª“\n	BC¤‰ª‰­†Å\n\"‰)‡" [assoc dialect ilisp-load-inits old file delq] 3 "\
 Add FILE to the files to be loaded into the inferior LISP when
 dialect is initialized.  If FILE is NIL, the entry will be removed."])
-(fset 'ilisp-binary #[(init var) "À	Â\"?­ÀÂ\"‰­•ÅÆ ÂÇÄÇÈÉÊËÌÍ	ÎEFE&)‡" [ilisp-value var t init binary comint-send ilisp-process nil lambda (error wait message output last) if (or error (not (string-match "\"[^\"]*\"" output))) (progn (lisp-display-output output) (abort-commands-lisp "No binary")) setq (substring output (1+ (match-beginning 0)) (1- (match-end 0)))] 16 "\
+(fset 'ilisp-binary #[(init var) "À	Â\"?­ŸÀÂ\"‰­–ÅÆ ÂÇÄÇÈÉÊËÌÍ	ÎBBFE&)‡" [ilisp-value var t init binary comint-send ilisp-process nil lambda (error wait message output last) if (or error (not (string-match "\"[^\"]*\"" output))) (progn (lisp-display-output output) (abort-commands-lisp "No binary")) setq ((substring output (1+ (match-beginning 0)) (1- (match-end 0))))] 16 "\
 Initialize VAR to the result of INIT if VAR is NIL."])
 (fset 'ilisp-done-init #[nil "«‡ÁÂp!Ã\"‡­’ÅÆ@\"ˆÈÉp!\nB‰\n‡" [ilisp-load-files comint-send-code get-buffer-process ilisp-done-init ilisp-initializing message "Finished initializing %s" ilisp-dialect nil buffer-name ilisp-initialized] 3 "\
 Make sure that initialization is done and if not dispatch another check."])
@@ -699,7 +699,7 @@ Compile a Lisp file in the current inferior LISP and go there." (comint-get-sour
 (fset 'lisp-add-dialect #[(dialect) "À	\nÃ#?­†	C\nB‰‡" [lisp-memk dialect ilisp-dialects car] 4 "\
 Add DIALECT as a supported ILISP dialect."])
 (fset 'ilisp-start-dialect #[(buffer program setup) "Á=«‚Âp«‡ÄÅ\"ª‚!ˆ®Œ«‡ÉÊ\"ª‚Ì!‡" [current-prefix-arg 0 nil ilisp-last-buffer read-from-minibuffer "Buffer: " buffer setup program lisp-read-program "Program: " ilisp-program ilisp] 3])
-(fset 'defdialect '(macro . #[(dialect full-name parent &rest body) "ÀÁÂ\"!ÀÁÄ\"!ÀÁÅ\"!ÁÆ\"	\nËÌ	ÍÁÎ\"FÌÍÁĞ\"FÑÒ\nCÓÁÔ\"ÀÁÕ\"!DØÙÚÙEÛÜİDÛE¯ŞİÀÁÄ\"!DDD&ßàÁá\"âãÚäEÈİ\nDFØÙE¯åD¯,‡" [read format "setup-%s" dialect "%s-hook" "%s-program" "%s" dialects program hook setup progn defvar nil "*Inferior %s hook." full-name "*Inferior %s default program." append (defun) ((buffer)) "Set up for interacting with %s." "(setup-%s buffer)" parent body setq ilisp-program or ilisp-dialect cons quote run-hooks defun (&optional buffer program) "Create an inferior %s.  With prefix, prompt for buffer and program." (interactive (list nil nil)) ilisp-start-dialect buffer lisp-add-dialect] 16 "\
+(fset 'defdialect '(macro . #[(dialect full-name parent &rest body) "ÀÁÂ\"!ÀÁÄ\"!ÀÁÅ\"!ÁÆ\"	\nËÌ	ÍÁÎ\"FÌÍÁĞ\"FÑ\nÒÁÓ\"ÀÁÔ\"!ÖØÙÚÛBBÜİŞDßBB¯àŞÀÁÄ\"!DDD\"BBBBBÑáÁâ\"ãäÚåEÈŞ\nDFØæBB¯çD¯,‡" [read format "setup-%s" dialect "%s-hook" "%s-program" "%s" dialects program hook setup progn defvar nil "*Inferior %s hook." full-name "*Inferior %s default program." defun (buffer) "Set up for interacting with %s." "(setup-%s buffer)" parent append body setq ilisp-program or (ilisp-program) ilisp-dialect cons quote (ilisp-dialect) run-hooks (&optional buffer program) "Create an inferior %s.  With prefix, prompt for buffer and program." (interactive (list nil nil)) ilisp-start-dialect buffer (ilisp-program) lisp-add-dialect] 17 "\
 Define a new ILISP dialect.  DIALECT is the name of the function to
 invoke the inferior LISP. The hook for that LISP will be called
 DIALECT-hook.  The default program will be DIALECT-program.  FULL-NAME

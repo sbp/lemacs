@@ -42,10 +42,10 @@
 
 
 (defvar primary-selection-extent nil
-  "The extent of the primary selection; don't change this.")
+  "The extent of the primary selection; don't use this.")
 
 (defvar secondary-selection-extent nil
-  "The extent of the secondary selection; don't change this.")
+  "The extent of the secondary selection; don't use this.")
 
 
 (defun x-select-make-extent-for-selection (selection previous-extent face)
@@ -83,7 +83,7 @@
 	nil
       ;; normal case
       (if valid
-	  (update-extent previous-extent start end)
+	  (set-extent-endpoints previous-extent start end)
 	(set-extent-face (make-extent start end buffer) face)))))
 
 

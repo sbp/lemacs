@@ -4,7 +4,7 @@
 
 ;; By Jamie Zawinski <jwz@lucid.com> and Hallvard Furuseth <hbf@ulrik.uio.no>.
 
-(defconst byte-compile-version "2.07; 17-jun-92.")
+(defconst byte-compile-version "2.08; 27-aug-92.")
 
 ;; This file is part of GNU Emacs.
 
@@ -102,7 +102,7 @@
 ;;;				to t, reload the compiler's .el files, and
 ;;;				recompile.  Don't do this in an emacs that has
 ;;;				already had the compiler loaded.
-;;; elisp-source-extention-re	Regexp for the extention of elisp source-files;
+;;; emacs-lisp-file-regexp	Regexp for the extension of elisp source-files;
 ;;;				see also the function byte-compile-dest-file.
 ;;; byte-compile-overwrite-file	If nil, delete old .elc files before saving.
 ;;;
@@ -209,21 +209,21 @@ is compiled with optimization, this causes a speedup.")
       ))
 
 
-(defvar elisp-source-extention-re (if (eq system-type 'vax-vms)
+(defvar emacs-lisp-file-regexp (if (eq system-type 'vax-vms)
 				      "\\.EL\\(;[0-9]+\\)?$"
 				    "\\.el$")
-  "*Regexp which matches the extention of elisp source-files.
+  "*Regexp which matches the extension of elisp source-files.
 You may want to redefine defun byte-compile-dest-file to match this.")
 
 (or (fboundp 'byte-compile-dest-file)
-    ;; The user may want to redefine this along with elisp-source-extention-re,
+    ;; The user may want to redefine this along with emacs-lisp-file-regexp,
     ;; so only define it if it is undefined.
     (defun byte-compile-dest-file (filename)
       "Converts an emacs-lisp source-filename to a compiled-filename."
       (setq filename (file-name-sans-versions filename))
       (cond ((eq system-type 'vax-vms)
 	     (concat (substring filename 0 (string-match ";" filename)) "c"))
-	    ((string-match elisp-source-extention-re filename)
+	    ((string-match emacs-lisp-file-regexp filename)
 	     (concat (substring filename 0 (match-beginning 0)) ".elc"))
 	    (t (concat filename "c")))))
 
@@ -277,9 +277,17 @@ If it is 'byte, then only byte-level optimizations will be logged.")
 of `message.'")
 
 (defconst byte-compile-warning-types '(redefine callargs free-vars unresolved))
-(defvar byte-compile-warnings (not noninteractive)
+(defvar byte-compile-warnings t
   "*List of warnings that the byte-compiler should issue (t for all).
-See doc of macro byte-compiler-options.")
+Elements of the list may be be:
+
+  free-vars	references to variables not in the current lexical scope.
+  unresolved	calls to unknown functions.
+  callargs	lambda calls with args that don't match the definition.
+  redefine	function cell redefined from a macro to a lambda or vice
+		versa, or redefined to take a different number of arguments.
+
+See also the macro byte-compiler-options.")
 
 (defvar byte-compile-generate-call-tree nil
   "*If this is true, then the compiler will collect statistics on what
@@ -1087,7 +1095,8 @@ This is if a `.elc' file exists but is older than the `.el' file.
 
 If the `.elc' file does not exist, normally the `.el' file is *not* compiled.
 But a prefix argument (optional second arg) means ask user,
-for each such `.el' file, whether to compile it."
+for each such `.el' file, whether to compile it.  Prefix argument 0 means
+don't ask and compile the file anyway."
   (interactive "DByte recompile directory: \nP")
   (save-some-buffers)
   (set-buffer-modified-p (buffer-modified-p))  ;Update the mode line.
@@ -1103,18 +1112,21 @@ for each such `.el' file, whether to compile it."
 	     source dest)
 	 (while files
 	   (setq source (expand-file-name (car files) directory))
-	   (if (and (not (member (car files) '("." ".." "RCS")))
+	   (if (and (not (member (car files) '("." ".." "RCS" "CVS")))
 		    (file-directory-p source))
 	       (if (or (null arg)
+		       (eq arg 0)
 		       (y-or-n-p (concat "Check " source "? ")))
 		   (setq directories
 			 (nconc directories (list source))))
-	     (if (and (string-match elisp-source-extention-re source)
+	     (if (and (string-match emacs-lisp-file-regexp source)
 		      (not (auto-save-file-name-p source))
 		      (setq dest (byte-compile-dest-file source))
 		      (if (file-exists-p dest)
 			  (file-newer-than-file-p source dest)
-			(and arg (y-or-n-p (concat "Compile " source "? ")))))
+			(and arg
+			     (or (eq 0 arg)
+				 (y-or-n-p (concat "Compile " source "? "))))))
 		 (progn (byte-compile-file source)
 			(setq file-count (1+ file-count))
 			(if (not (eq last-dir directory))
@@ -2947,7 +2959,7 @@ For example, invoke \"emacs -batch -f batch-byte-compile $emacs/ ~/*.el\""
 	  (let ((files (directory-files (car command-line-args-left)))
 		source dest)
 	    (while files
-	      (if (and (string-match elisp-source-extention-re (car files))
+	      (if (and (string-match emacs-lisp-file-regexp (car files))
 		       (not (auto-save-file-name-p (car files)))
 		       (setq source (expand-file-name (car files)
 						      (car command-line-args-left)))
@@ -2996,6 +3008,7 @@ For example, invoke \"emacs -batch -f batch-byte-compile $emacs/ ~/*.el\""
        ))
 (cond ((string-match "Lucid" emacs-version)
        (make-obsolete-variable 'unread-command-char 'unread-command-event)
+       (make-obsolete 'update-extent 'set-extent-endpoints)
        ;; too bad there's not a way to check for aref, assq, and nconc
        ;; being called on the values of functions known to return keymaps,
        ;; or known to return vectors of events instead of strings...

@@ -34,6 +34,8 @@ sst_open(play_level, record_level)
 	return( fd );
 	}
 
+#ifdef AUDIOSETQSIZE /* This no longer exists as of 4.1.2. */
+
     /* Shrink audio device's queue size, to cut down time delay. */
     i = AUDBUF;
     if ( ioctl( fd, AUDIOSETQSIZE, &i ) < 0 )
@@ -41,6 +43,7 @@ sst_open(play_level, record_level)
 	perror( "sst_open: SETQSIZE" );
 	return( fd );
 	}
+#endif /* AUDIOSETQSIZE */
 
     /* Set gains.  -10 <= ger <= 18,  -18 <= gr <= 12,  -18 <= gx <= 12. */
     if (!play_level) 

@@ -1,0 +1,49 @@
+;;; compiled by jwz@watergate on Tue Aug 18 17:17:47 1992
+;;; from file /wg1/emacs-base/lisp/gnus/timezone.el
+;;; emacs version 19.2.2 Lucid.
+;;; bytecomp version 2.08;  7-aug-92.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(provide 'timezone)
+(defvar timezone-world-timezones '(("PST" . -800) ("PDT" . -700) ("MST" . -700) ("MDT" . -600) ("CST" . -600) ("CDT" . -500) ("EST" . -500) ("EDT" . -400) ("GMT" . 0) ("BST" . 100) ("MET" . 100) ("EET" . 200) ("JST" . 900) ("GMT+1" . 100) ("GMT+2" . 200) ("GMT+3" . 300) ("GMT+4" . 400) ("GMT+5" . 500) ("GMT+6" . 600) ("GMT+7" . 700) ("GMT+8" . 800) ("GMT+9" . 900) ("GMT+10" . 1000) ("GMT+11" . 1100) ("GMT+12" . 1200) ("GMT+13" . 1300) ("GMT-1" . -100) ("GMT-2" . -200) ("GMT-3" . -300) ("GMT-4" . -400) ("GMT-5" . -500) ("GMT-6" . -600) ("GMT-7" . -700) ("GMT-8" . -800) ("GMT-9" . -900) ("GMT-10" . -1000) ("GMT-11" . -1100) ("GMT-12" . -1200)) "\
+*Time differentials of timezone from GMT in hour.")
+(defvar timezone-months-assoc '(("JAN" . 1) ("FEB" . 2) ("MAR" . 3) ("APR" . 4) ("MAY" . 5) ("JUN" . 6) ("JUL" . 7) ("AUG" . 8) ("SEP" . 9) ("OCT" . 10) ("NOV" . 11) ("DEC" . 12)) "\
+Alist of first three letters of a month and its numerical representation.")
+(fset 'timezone-make-date-arpa-standard #[(date &optional local timezone) "À	!Â	ÃH!Â	ÅH!Â	ÇH!É	ÊH!ÂÃH!ÂÅH!ÂÇH!	ÏH®‚®‚Ò!Ò!ZÔ\\&ÖÃHÅHÇH×ÊHÏHØH#%.‡" [timezone-parse-date date string-to-int 0 year 1 month 2 day timezone-parse-time 3 time hour minute second 4 local timezone timezone-zone-to-hour diff timezone-fix-time new timezone-make-arpa-date timezone-make-time-string 5] 9 "\
+Convert DATE to an arpanet standard date.
+Optional 1st argumetn LOCAL specifies the default local timezone of the DATE.
+Optional 2nd argument TIMEZONE specifies a timezone to be represented in."])
+(fset 'timezone-make-date-sortable #[(date &optional local timezone) "À	!Â	ÃH!Â	ÅH!Â	ÇH!É	ÊH!ÂÃH!ÂÅH!ÂÇH!	ÏH®‚®‚Ò!Ò!ZÔ\\&ÖÃHÅHÇH×ÊHÏHØH#$.‡" [timezone-parse-date date string-to-int 0 year 1 month 2 day timezone-parse-time 3 time hour minute second 4 local timezone timezone-zone-to-hour diff timezone-fix-time new timezone-make-sortable-date timezone-make-time-string 5] 9 "\
+Convert DATE to a sortable date string.
+Optional 1st argumetn LOCAL specifies the default local timezone of the DATE.
+Optional 2nd argument TIMEZONE specifies a timezone to be represented in."])
+(fset 'timezone-make-arpa-date #[(year month day time &optional timezone) "ÀÁ\nÃÄ\"@!‰È¥È_Z	\n«†Ë\nPªÌ&‡" [format "%2d %s %02d %s%s" day capitalize rassq month timezone-months-assoc year 100 time timezone " " ""] 8 "\
+Make arpanet standard date string from YEAR, MONTH, DAY, and TIME.
+Optional argument TIMEZONE specifies a time zone."])
+(fset 'timezone-make-sortable-date #[(year month day time) "ÀÁ\n‰Ã¥Ã_Z%‡" [format "%02d%02d%02d%s" year 100 month day time] 6 "\
+Make sortable date string from YEAR, MONTH, DAY, and TIME."])
+(fset 'timezone-make-time-string #[(hour minute second) "ÀÁ\n$‡" [format "%02d:%02d:%02d" hour minute second] 5 "\
+Make time string from HOUR, MINUTE, and SECOND."])
+(fset 'timezone-parse-date #[(date) "®ÁÂ‰‰‰‰ÈÉ\"«ÊËÌÍÂªºÈÎ\"«ÊËÌÍÏª¦ÈĞ\"«ÍÌËÊÂª’ÈÑ\"«ŒÏÌËÊÍ«·”•O‰GËV«‡ÒÂOÓÔ”•O–\"A!”•O”•O«‡”•O«‹Ö%ª‡Ö×‰‰‰Â%.‡" [date "" nil zone time day month year string-match "\\([0-9]+\\) \\([^ ,]+\\) \\([0-9]+\\) \\([0-9]+:[0-9:]+\\)[ ]*\\'" 3 2 1 4 "\\([0-9]+\\) \\([^ ,]+\\) \\([0-9]+\\) \\([0-9]+:[0-9:]+\\)[ ]*\\([-+a-zA-Z0-9]+\\)" 5 "\\([^ ,]+\\) +\\([0-9]+\\) \\([0-9]+:[0-9:]+\\) \\([0-9]+\\)" "\\([^ ,]+\\) +\\([0-9]+\\) \\([0-9]+:[0-9:]+\\) \\([-+a-zA-Z0-9]+\\) \\([0-9]+\\)" -2 int-to-string assoc timezone-months-assoc vector "0"] 7 "\
+Parse DATE and return a vector [year month day time timezone].
+19 is prepended to year if necessary. Timezone may be NIL if nothing.
+Understand the following styles:
+ (1) 14 Apr 89 03:20[:12] [GMT]
+ (2) Fri, 17 Mar 89 4:01[:33] [GMT]
+ (3) Mon Jan 16 16:12[:37] [GMT] 1989"])
+(fset 'timezone-parse-time #[(time) "®ÁÂ‰‰ÆÇ\"«ˆÈÉÊªŒÆË\"«†ÈÉÂÌ«ˆ”•OªÍ«ˆ”•OªÍ«ˆ”•OªÍ#,‡" [time "" nil second minute hour string-match "\\`\\([0-9]+\\):\\([0-9]+\\):\\([0-9]+\\)\\'" 1 2 3 "\\`\\([0-9]+\\):\\([0-9]+\\)\\'" vector "0"] 6 "\
+Parse TIME (HH:MM:SS) and return a vector [hour minute second]."])
+(fset 'timezone-zone-to-hour #[(timezone) "«–Á–\n\"A®‰;«„Ã!Ä¥‡Å‡" [timezone assoc timezone-world-timezones string-to-int 100 0] 4 "\
+Translate TIMEZONE (in zone name or integer) to integer hour."])
+(fset 'timezone-fix-time #[(year month day hour minute second) "À	X« 	ÀZ\nTÃ\"\nW«´TÆÇW«ªÆTª£È	V«	À\\\nSÆ\nV«’SÆV«…ÇSÃ\"É\n	\n&‡" [24 hour day timezone-last-day-of-month month year 1 12 0 vector minute second] 7 "\
+Fix date and time."])
+(fset 'timezone-last-day-of-month #[(month year) "ÁU«‡Â!«‚Ä‡ÅSH‡" [month 2 timezone-leap-year-p year 29 [31 28 31 30 31 30 31 31 30 31 30 31]] 2 "\
+The last day in MONTH during YEAR."])
+(fset 'timezone-leap-year-p #[(year) "Á¦ÂU«ˆÃ¦ÂU?®…Ä¦ÂU‡" [year 4 0 100 400] 2 "\
+Returns t if YEAR is a Gregorian leap year."])

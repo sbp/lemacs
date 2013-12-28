@@ -67,13 +67,13 @@ record_insert (beg, length)
 
   /* If this is following another insertion and consecutive with it
      in the buffer, combine the two.  */
-  if (XTYPE (current_buffer->undo_list) == Lisp_Cons)
+  if (CONSP (current_buffer->undo_list))
     {
       Lisp_Object elt;
       elt = XCONS (current_buffer->undo_list)->car;
-      if (XTYPE (elt) == Lisp_Cons
-	  && XTYPE (XCONS (elt)->car) == Lisp_Int
-	  && XTYPE (XCONS (elt)->cdr) == Lisp_Int
+      if (CONSP (elt)
+	  && FIXNUMP (XCONS (elt)->car)
+	  && FIXNUMP (XCONS (elt)->cdr)
 	  && XINT (XCONS (elt)->cdr) == beg)
 	{
 	  XSETINT (XCONS (elt)->cdr, beg + length);
@@ -167,7 +167,7 @@ truncate_undo_list (list, minsize, maxsize)
   next = list;
   save_prev = Qnil;
 
-  while (XTYPE (next) == Lisp_Cons)
+  while (CONSP (next))
     {
       Lisp_Object elt;
       elt = XCONS (next)->car;
@@ -187,10 +187,10 @@ truncate_undo_list (list, minsize, maxsize)
 
       /* Add in the space occupied by this element and its chain link.  */
       size_so_far += 8;
-      if (XTYPE (elt) == Lisp_Cons)
+      if (CONSP (elt))
 	{
 	  size_so_far += 8;
-	  if (XTYPE (XCONS (elt)->car) == Lisp_String)
+	  if (STRINGP (XCONS (elt)->car))
 	    size_so_far += 6 + XSTRING (XCONS (elt)->car)->size;
 	}
 
@@ -251,7 +251,7 @@ Return what remains of the list.")
 #endif /* CLASH_DETECTION */
 	      Fset_buffer_modified_p (Qnil);
 	    }
-	  else if (XTYPE (car) == Lisp_Int && XTYPE (cdr) == Lisp_Int)
+	  else if (FIXNUMP (car) && FIXNUMP (cdr))
 	    {
 	      Lisp_Object end;
 	      if (XINT (car) < BEGV
@@ -260,7 +260,7 @@ Return what remains of the list.")
 	      Fdelete_region (car, cdr);
 	      Fgoto_char (car);
 	    }
-	  else if (XTYPE (car) == Lisp_String && XTYPE (cdr) == Lisp_Int)
+	  else if (STRINGP (car) && FIXNUMP (cdr))
 	    {
 	      Lisp_Object membuf;
 	      int pos = XINT (cdr);

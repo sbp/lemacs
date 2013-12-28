@@ -7,10 +7,6 @@
 ;;									     ;;
 ;;     (from code originally written by John Robinson@bbn for the bitgraph)  ;;
 ;;									     ;;
-;;	$Log:	sup-mouse.el,v $
-Revision 1.1  91/03/20  23:43:40  eb
-Initial revision
-								     ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; GNU Emacs code for lambda/supdup mouse

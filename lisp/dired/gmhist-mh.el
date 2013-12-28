@@ -1,5 +1,5 @@
 ;;;; gmhist-mh.el - emulate proposed Emacs 19 builtin Minibuffer History
-;;;; $Id: gmhist-mh.el,v 1.2 1991/12/28 19:38:42 jwz Exp $
+;;;; Id: gmhist-mh.el,v 4.8 1991/09/20 13:15:40 sk RelBeta 
 
 ;;;; This package redefines the functions
 ;;;;

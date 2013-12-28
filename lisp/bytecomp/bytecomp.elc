@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Wed Jun 17 20:23:42 1992
-;;; from file /cadillac-th/jwz/emacs19/lisp/bytecomp/bytecomp.el
-;;; emacs version 19.1.1 Lucid.
-;;; bytecomp version 2.07; 12-jun-92.
+;;; compiled by jwz@thalidomide on Sat Aug 29 19:38:43 1992
+;;; from file /wg1/emacs-base/lisp/bytecomp/bytecomp.el
+;;; emacs version 19.2.13 Lucid.
+;;; bytecomp version 2.08;  7-aug-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -10,11 +10,11 @@
 	     (string-lessp emacs-version "19")))
     (error "This file was compiled for Emacs19."))
 
-(byte-code "ÀÂÃ!¬„ÄÅ!ˆÆÇ!«„¬†É™«œÆÊ!¬„Ê \nËÌMˆÂÍ!«†ÎÍK!¬„ÍÏMˆÂ‡" ["2.07; 17-jun-92." byte-compile-version fboundp defsubst load-library "bytecomp-runtime" boundp epoch::version emacs-version "19" baud-rate compiled-function-p (lambda (x) "Emacs 18 doesn't have these." nil) member subrp #[(elt list) "«Œ	@š¬†A‰¬t‡" [list elt] 3 "like memq, but uses equal instead of eq.  In v19, this is a subr."]] 2)
-(defvar elisp-source-extention-re (byte-code "Á=«‚Â‡Ã‡" [system-type vax-vms "\\.EL\\(;[0-9]+\\)?$" "\\.el$"] 2) "\
-*Regexp which matches the extention of elisp source-files.
+(byte-code "ÀÂÃ!¬„ÄÅ!ˆÆÇ!«„¬†É™«œÆÊ!¬„Ê \nËÌMˆÂÍ!«†ÎÍK!¬„ÍÏMˆÂ‡" ["2.08; 27-aug-92." byte-compile-version fboundp defsubst load-library "bytecomp-runtime" boundp epoch::version emacs-version "19" baud-rate compiled-function-p (lambda (x) "Emacs 18 doesn't have these." nil) member subrp #[(elt list) "«Œ	@š¬†A‰¬t‡" [list elt] 3 "like memq, but uses equal instead of eq.  In v19, this is a subr."]] 2)
+(defvar emacs-lisp-file-regexp (byte-code "Á=«‚Â‡Ã‡" [system-type vax-vms "\\.EL\\(;[0-9]+\\)?$" "\\.el$"] 2) "\
+*Regexp which matches the extension of elisp source-files.
 You may want to redefine defun byte-compile-dest-file to match this.")
-(byte-code "ÀÁ!¬„ÁÂMˆÃÄÅ\"ˆÃÆÅ\"ˆÃÇÅ\"ˆÃÈÅ\"‡" [fboundp byte-compile-dest-file #[(filename) "À	!\nÃ=«Š	ÄÅÆ	\"OÇP‡Å	\"«ˆ	Ä‰”OÉP‡	ÇP‡" [file-name-sans-versions filename system-type vax-vms 0 string-match ";" "c" elisp-source-extention-re ".elc"] 5 "Converts an emacs-lisp source-filename to a compiled-filename."] autoload byte-compile-inline-expand "byte-optimize" byte-optimize-form byte-optimize-lapcode byte-compile-unfold-lambda] 3)
+(byte-code "ÀÁ!¬„ÁÂMˆÃÄÅ\"ˆÃÆÅ\"ˆÃÇÅ\"ˆÃÈÅ\"‡" [fboundp byte-compile-dest-file #[(filename) "À	!\nÃ=«Š	ÄÅÆ	\"OÇP‡Å	\"«ˆ	Ä‰”OÉP‡	ÇP‡" [file-name-sans-versions filename system-type vax-vms 0 string-match ";" "c" emacs-lisp-file-regexp ".elc"] 5 "Converts an emacs-lisp source-filename to a compiled-filename."] autoload byte-compile-inline-expand "byte-optimize" byte-optimize-form byte-optimize-lapcode byte-compile-unfold-lambda] 3)
 (defvar byte-compile-verbose (byte-code "?­ƒ	\nV‡" [noninteractive baud-rate search-slow-speed] 2) "\
 *Non-nil means print messages describing progress of byte-compiler.")
 (defvar byte-compile-emacs18-compatibility (byte-code "ÀÁ!«ƒ	®ƒ\nÃ™‡" [boundp epoch::version emacs-version "19"] 2) "\
@@ -44,9 +44,17 @@ If it is 'byte, then only byte-level optimizations will be logged.")
 *If true, the byte-compiler will report warnings with `error' instead
 of `message.'")
 (byte-code "ÀÂ‡" [(redefine callargs free-vars unresolved) byte-compile-warning-types nil] 1)
-(defvar byte-compile-warnings (null noninteractive) "\
+(defvar byte-compile-warnings t "\
 *List of warnings that the byte-compiler should issue (t for all).
-See doc of macro byte-compiler-options.")
+Elements of the list may be be:
+
+  free-vars	references to variables not in the current lexical scope.
+  unresolved	calls to unknown functions.
+  callargs	lambda calls with args that don't match the definition.
+  redefine	function cell redefined from a macro to a lambda or vice
+		versa, or redefined to take a different number of arguments.
+
+See also the macro byte-compiler-options.")
 (defvar byte-compile-generate-call-tree nil "\
 *If this is true, then the compiler will collect statistics on what
 functions were called and from where.  This will be displayed after the
@@ -195,13 +203,14 @@ If we have compiled any calls to functions which are not known to be
 defined, issue a warning enumerating them.  You can disable this by including
 'unresolved in variable byte-compile-warnings."])
 (byte-code "ÀÁMˆÂÃMˆÄÅM‡" [byte-compile-constp (macro . #[(form) "ÀÁ\nDÃÄ\nDÅEDÆÇ\nDDCÈ\nÉECF‡" [cond consp form eq car 'quote not symbolp memq '(nil t)] 6]) byte-compile-close-variables (macro . #[(&rest body) "ÀÁ\nBB‡" [let ((byte-compile-macro-environment (copy-alist byte-compile-initial-macro-environment)) (byte-compile-function-environment nil) (byte-compile-bound-variables nil) (byte-compile-free-references nil) (byte-compile-free-assignments nil) (byte-compile-verbose byte-compile-verbose) (byte-optimize byte-optimize) (byte-compile-generate-emacs19-bytecodes byte-compile-generate-emacs19-bytecodes) (byte-compile-warnings (if (eq byte-compile-warnings t) byte-compile-warning-types byte-compile-warnings))) body] 3]) displaying-byte-compile-warnings (macro . #[(&rest body) "ÀÁÂÃBÅEE‡" [let ((byte-compile-warnings-point-max (if (boundp 'byte-compile-warnings-point-max) byte-compile-warnings-point-max (save-excursion (set-buffer (get-buffer-create "*Compile-Log*")) (point-max))))) unwind-protect progn body (save-excursion (set-buffer "*Compile-Log*") (if (= byte-compile-warnings-point-max (point-max)) nil (select-window (prog1 (selected-window) (select-window (display-buffer (current-buffer))) (goto-char byte-compile-warnings-point-max) (recenter 1)))))] 5])] 2)
-(fset 'byte-recompile-directory #[(directory &optional arg) "À ˆÁÂ !ˆÃ!CÅ‰Æ	\nËÌ!«„ªˆŠÍÎ!qˆd)Ï\nƒĞ \n@ĞÑ\"ˆÒ!Æ‰‰«şÃ@\"@Ö¬×!«—«‰ÙÚÛQ!«Ô\nC¤\nªÊÜ\"«ÂŞ!¬¼ß!‰«³à!«ˆá\"ª‹«¡ÙâÛQ!«˜ã!ˆ	T	=¬ˆTA‰¬+\nA‰\n„1 *Ğä	‰åU«ƒæªçåV«‡èé\"ªæ$,‡" [save-some-buffers set-buffer-modified-p buffer-modified-p expand-file-name directory 0 nil last-dir dir-count file-count directories boundp byte-compile-warnings-point-max get-buffer-create "*Compile-Log*" ((byte-code "ŠÀqˆ	dU¬’ÂÃ ÂÄp!!ˆ	bˆÅÆ!ˆ!ˆ)Â‡" ["*Compile-Log*" byte-compile-warnings-point-max select-window selected-window display-buffer recenter 1] 5)) message "Checking %s..." directory-files dest source files ("." ".." "RCS") file-directory-p arg y-or-n-p "Check " "? " string-match elisp-source-extention-re auto-save-file-name-p byte-compile-dest-file file-exists-p file-newer-than-file-p "Compile " byte-compile-file "Done (Total of %d file%s compiled%s)" 1 "" "s" format " in %d directories"] 8 "\
+(fset 'byte-recompile-directory #[(directory &optional arg) "À ˆÁÂ !ˆÃ!CÅ‰Æ	\nËÌ!«„ªˆŠÍÎ!qˆd)Ï\nƒŞ \n@ĞÑ\"ˆÒ!Æ‰‰ƒÔ Ã@\"@Ö¬£×!««Å=¬‰ÙÚÛQ!«Ú\nC¤\nªĞÜ\"«ÈŞ!¬Âß!‰«¹à!«ˆá\"ª‘«§Å=¬‰ÙâÛQ!«˜ã!ˆ	T	=¬ˆTA‰„I +\nA‰\n„1 *Ğä	‰åU«ƒæªçåV«‡èé\"ªæ$,‡" [save-some-buffers set-buffer-modified-p buffer-modified-p expand-file-name directory 0 nil last-dir dir-count file-count directories boundp byte-compile-warnings-point-max get-buffer-create "*Compile-Log*" ((byte-code "ŠÀqˆ	dU¬’ÂÃ ÂÄp!!ˆ	bˆÅÆ!ˆ!ˆ)Â‡" ["*Compile-Log*" byte-compile-warnings-point-max select-window selected-window display-buffer recenter 1] 5)) message "Checking %s..." directory-files dest source files ("." ".." "RCS" "CVS") file-directory-p arg y-or-n-p "Check " "? " string-match emacs-lisp-file-regexp auto-save-file-name-p byte-compile-dest-file file-exists-p file-newer-than-file-p "Compile " byte-compile-file "Done (Total of %d file%s compiled%s)" 1 "" "s" format " in %d directories"] 8 "\
 Recompile every `.el' file in DIRECTORY that needs recompilation.
 This is if a `.elc' file exists but is older than the `.el' file.
 
 If the `.elc' file does not exist, normally the `.el' file is *not* compiled.
 But a prefix argument (optional second arg) means ask user,
-for each such `.el' file, whether to compile it." "DByte recompile directory: \nP"])
+for each such `.el' file, whether to compile it.  Prefix argument 0 means
+don't ask and compile the file anyway." "DByte recompile directory: \nP"])
 (fset 'byte-compile-file #[(filename &optional load) "À	!\n¬¡ÃÀ	!!‰«—Å!«’ÆÇÈÉ!\"!«ˆŠqˆÊ ˆ))«…ÌÍ	\"ˆÎ	!ÏŠÒÓ!qˆÔ ˆÕ	!ˆ	× ˆ)ØpÙp!qˆ!ˆdbˆÚcˆÛİ	!¬…Ïßàˆá!«Ï\"ãäd#ˆ)ª’åæçè!«ƒéªêE\"ˆ¬…Ïëìˆ)Øp!ˆ)-«”-Û=¬ˆÆÇî	\"!«†Šï	!ˆ)0«…ğ!ˆ*Û‡" [expand-file-name filename noninteractive get-file-buffer b buffer-modified-p y-or-n-p format "save buffer %s first? " buffer-name save-buffer byte-compile-verbose message "Compiling %s..." file-name-nondirectory nil target-file byte-compile-current-file get-buffer-create " *Compiler Input*" erase-buffer insert-file-contents buffer-file-name set-auto-mode kill-buffer byte-compile-from-buffer "\n" t vms-stmlf-recfm byte-compile-dest-file byte-compile-overwrite-file (delete-file target-file) ((error)) file-writable-p kanji-flag write-region 1 signal file-error "Opening output file" file-exists-p "cannot overwrite file" "directory not writable or nonexistent" (byte-code "À	Â!\"‡" [set-file-modes target-file file-modes filename] 4) ((error)) byte-compile-generate-call-tree "Report call tree for %s? " byte-compile-report-call-tree load] 6 "\
 Compile a file of Lisp code named FILENAME into a file of byte code.
 The output file's name is made by appending `c' to the end of FILENAME.
@@ -239,9 +248,9 @@ expanded.  Those functions which the byte-code interpreter knows about directly
 The call tree also lists those functions which are not known to be called
 (that is, to which no calls have been compiled.)  Functions which can be
 invoked interactively are excluded from this list." nil])
-(fset 'batch-byte-compile #[nil "¬„ÁÂ!ˆÃ«ëÅÆ@!!«ÕÇ@!Ã‰	‰\n«ÃË\n@\"«²Í\n@!¬«Æ\n@@\"‰	«ŸÎ	!‰«–Ï!«Ğ	\"«ˆÑ	!¬‚Ò\nA‰\n¬=+ªˆÑ@!¬‚ÒA‰¬ÓÔ!ˆÕ	«ƒÖª×!)‡" [noninteractive error "batch-byte-compile is to be used only with -batch" nil command-line-args-left file-directory-p expand-file-name directory-files dest source files string-match elisp-source-extention-re auto-save-file-name-p byte-compile-dest-file file-exists-p file-newer-than-file-p batch-byte-compile-file t message "Done" kill-emacs 1 0] 4 "\
+(fset 'batch-byte-compile #[nil "¬„ÁÂ!ˆÃ«ëÅÆ@!!«ÕÇ@!Ã‰	‰\n«ÃË\n@\"«²Í\n@!¬«Æ\n@@\"‰	«ŸÎ	!‰«–Ï!«Ğ	\"«ˆÑ	!¬‚Ò\nA‰\n¬=+ªˆÑ@!¬‚ÒA‰¬ÓÔ!ˆÕ	«ƒÖª×!)‡" [noninteractive error "batch-byte-compile is to be used only with -batch" nil command-line-args-left file-directory-p expand-file-name directory-files dest source files string-match emacs-lisp-file-regexp auto-save-file-name-p byte-compile-dest-file file-exists-p file-newer-than-file-p batch-byte-compile-file t message "Done" kill-emacs 1 0] 4 "\
 Runs `byte-compile-file' on the files remaining on the command line.
 Must be used only with -batch, and kills emacs on completion.
 Each file will be processed even if an error occurred previously.
 For example, invoke \"emacs -batch -f batch-byte-compile $emacs/ ~/*.el\""])
-(byte-code "ÀÁMˆÂÃÄ\"ˆÂÅÆ\"ˆÂÇÈ\"ˆÂÉÊ\"ˆÂËÌ\"ˆÍÎ!«„¬©Ğ™¬£ÂÑÒ\"ˆÂÓÔ\"ˆÕÖ×\"ˆÕØÙ\"ˆÕÚÛ\"ˆÕÜİ\"ˆÕŞß\"ˆàá\"«…Õâã\"ˆäå!ˆÍæ!«„çèMˆÀ‡" [batch-byte-compile-file #[(file) "ÀÁÂ‡" [err (byte-code "À	!ˆÂ‡" [byte-compile-file file t] 2) ((error (byte-code "À	A«ƒÂªÃ	@ÅNÆ	A!$ˆÇ‡" [message err ">>Error occurred processing %s: %s (%s)" ">>Error occurred processing %s: %s" file error-message prin1-to-string nil] 6)))] 3] make-obsolete mod % dot point dot-max point-max dot-min point-min dot-marker point-marker boundp epoch::version emacs-version "19" buffer-flush-undo buffer-disable-undo baud-rate "use the baud-rate variable instead" make-obsolete-variable auto-fill-hook auto-fill-function blink-paren-hook blink-paren-function lisp-indent-hook lisp-indent-function temp-buffer-show-hook temp-buffer-show-function inhibit-local-variables "use enable-local-variables (with the reversed sense.)" string-match "Lucid" unread-command-char unread-command-event provide byte-compile byte-code-meter byte-compile-report-ops #[nil "ÀÀqˆÁÂ‰‰‰ÇW­İÁHHÂÂ	W«ŒÊË\"ÊÌ\"ªY«ˆZHÏĞ\"cˆÑ!cˆ«ˆÒÓ!Ô±ˆÕjˆÓ!Ö±ˆT‰ª,‘‡" ["*Meter*" 0 nil off op n i 256 byte-code-meter byte-nth logand 7 248 byte-constant byte-code-vector format "%-4d" symbol-name " [" int-to-string "]" 40 "\n"] 6]] 3)
+(byte-code "ÀÁMˆÂÃÄ\"ˆÂÅÆ\"ˆÂÇÈ\"ˆÂÉÊ\"ˆÂËÌ\"ˆÍÎ!«„¬©Ğ™¬£ÂÑÒ\"ˆÂÓÔ\"ˆÕÖ×\"ˆÕØÙ\"ˆÕÚÛ\"ˆÕÜİ\"ˆÕŞß\"ˆàá\"«ŠÕâã\"ˆÂäå\"ˆæç!ˆÍè!«„éêMˆÀ‡" [batch-byte-compile-file #[(file) "ÀÁÂ‡" [err (byte-code "À	!ˆÂ‡" [byte-compile-file file t] 2) ((error (byte-code "À	A«ƒÂªÃ	@ÅNÆ	A!$ˆÇ‡" [message err ">>Error occurred processing %s: %s (%s)" ">>Error occurred processing %s: %s" file error-message prin1-to-string nil] 6)))] 3] make-obsolete mod % dot point dot-max point-max dot-min point-min dot-marker point-marker boundp epoch::version emacs-version "19" buffer-flush-undo buffer-disable-undo baud-rate "use the baud-rate variable instead" make-obsolete-variable auto-fill-hook auto-fill-function blink-paren-hook blink-paren-function lisp-indent-hook lisp-indent-function temp-buffer-show-hook temp-buffer-show-function inhibit-local-variables "use enable-local-variables (with the reversed sense.)" string-match "Lucid" unread-command-char unread-command-event update-extent set-extent-endpoints provide byte-compile byte-code-meter byte-compile-report-ops #[nil "ÀÀqˆÁÂ‰‰‰ÇW­İÁHHÂÂ	W«ŒÊË\"ÊÌ\"ªY«ˆZHÏĞ\"cˆÑ!cˆ«ˆÒÓ!Ô±ˆÕjˆÓ!Ö±ˆT‰ª,‘‡" ["*Meter*" 0 nil off op n i 256 byte-code-meter byte-nth logand 7 248 byte-constant byte-code-vector format "%-4d" symbol-name " [" int-to-string "]" 40 "\n"] 6]] 3)

@@ -28,8 +28,11 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 				   that Xt creates... */
 #include "EmacsShellP.h"
 
-#ifdef ENERGIZE	/* Is this necessary? */
-#include <notelib.h>
+#ifdef ENERGIZE
+/* This is for the postit notes which have been disabled for now */
+#if 0
+ * #include <notelib.h>
+#endif
 #endif
 
 extern XtAppContext Xt_app_con;
@@ -271,7 +274,9 @@ XTupdate_begin (s)
 
 #ifdef ENERGIZE
   BLOCK_INPUT;
-  xc_begin_note_update (s->display.x->edit_widget);
+#if 0
+ *  xc_begin_note_update (s->display.x->edit_widget);
+#endif
   UNBLOCK_INPUT;
 #endif
 }
@@ -298,7 +303,9 @@ XTupdate_end (s)
 
   BLOCK_INPUT;
 #ifdef ENERGIZE
-  xc_flush_note_update (s->display.x->edit_widget);
+#if 0
+ *  xc_flush_note_update (s->display.x->edit_widget);
+#endif
 #endif
   /*  adjust_scrollbars (s);*/
 
@@ -1045,6 +1052,11 @@ x_clear_display_line (vpos, pix_width)
   int pix_y = current_screen->top_left_y[vpos];
   int pix_height = current_screen->pix_height[vpos];
 
+  /* utter kludge to prevent characters with negative left-bearing from
+     leaving turds down the left side of the screen... */
+  if (pix_x == updating_screen->display.x->internal_border_width)
+    pix_x = 0, pix_width += updating_screen->display.x->internal_border_width;
+
   erase_screen_cursor_if_needed_and_in_region (updating_screen, 0,
 					       vpos, UP_TO_EOL);
 
@@ -1396,9 +1408,11 @@ stufflines (n)
 		 XtWindow (s->display.x->edit_widget), s->display.x->normal_gc,
 		 from_x, from_y, width, copy_height, to_x, to_y);
 #ifdef ENERGIZE
-      xc_note_parent_scrolled (s->display.x->edit_widget,
-			       from_x, from_y, width, copy_height, 
-			       to_x - from_x, to_y - from_y);
+#if 0
+ *      xc_note_parent_scrolled (s->display.x->edit_widget,
+ *			       from_x, from_y, width, copy_height, 
+ *			       to_x - from_x, to_y - from_y);
+#endif
 #endif
       XClearArea (x_current_display, XtWindow (s->display.x->edit_widget),
 		  from_x, from_y, width, clear_height, False);
@@ -1458,9 +1472,11 @@ scraplines (n)
 		 XtWindow (s->display.x->edit_widget), s->display.x->normal_gc,
 		 from_x, from_y, width, height, to_x, to_y);
 #ifdef ENERGIZE
-      xc_note_parent_scrolled (s->display.x->edit_widget,
-			       from_x, from_y, width, height, 
-			       to_x - from_x, to_y - from_y);
+#if 0
+ *      xc_note_parent_scrolled (s->display.x->edit_widget,
+ *			       from_x, from_y, width, height, 
+ *			       to_x - from_x, to_y - from_y);
+#endif
 #endif
       to_y = to_y + height;
       height = current_glyphs->top_left_y[update_height] - to_y;
@@ -1609,54 +1625,6 @@ x_event_name (event_type)
   if (event_type >= (sizeof (events) / sizeof (char *))) return 0;
   return events [event_type];
 }
-
-
-/* Symbols returned in the input stream to indicate various X events. */
-Lisp_Object mapped_screen_symbol;
-Lisp_Object unmapped_screen_symbol;
-Lisp_Object exited_window_symbol;
-Lisp_Object redraw_screen_symbol;
-
-extern Lisp_Object Qeval;
-
-/* This function is invoked by each menu item which Emacs should handle
-   directly.  It is passed the widget of the menu item.  It takes the
-   name of that widget ("open", "quit", etc) and effectively does
-   (funcall (intern (concat "Menubar-" item-name)))
-   The appropriate functions should be defined in lisp code.
- */
-void emacs_menu_callback (w, client_data, call_data)
-     Widget w;
-     caddr_t client_data, call_data;
-{
-  char *name = w->core.name;
-  char *prefix = "Menubar-";
-  char *string = malloc (255 * sizeof(char));
-  Lisp_Object symbol, event;
-  
-  strcpy (string, prefix);
-  strcpy ((string+strlen(prefix)), name);
-  symbol = intern (string);
-  free (string);
-  event = Fallocate_event ();
-  XEVENT (event)->event_type = menu_event;
-  XEVENT (event)->event.eval.function = Qcall_interactively;
-  XEVENT (event)->event.eval.object = symbol;
-  enqueue_command_event (event);
-}
-
-/* This function is invoked by the Energize menu items that are handled 
-   by emacs.
-   #### This should be renamed to energize_menu_callback, but right now
-   libxdui.a knows it by the old name.
- */
-void cadillac_menu_callback (w, client_data, call_data)
-     Widget w;
-     caddr_t client_data, call_data;
-{
-  emacs_menu_callback (w, client_data, call_data);
-}
-
 
 
 static void
@@ -1950,18 +1918,6 @@ x_IO_error_handler (disp)
       Fkill_emacs (make_number (70));
     }
   return 0; /* not reached; suppress warnings */
-}
-
-
-static void
-init_input_symbols ()
-{
-  int i;
-  mapped_screen_symbol = intern ("mapped-screen");
-  unmapped_screen_symbol = intern ("unmapped-screen");
-  exited_window_symbol = intern ("exited-window");
-  redraw_screen_symbol = intern ("redraw-screen");
-  mouse_moved_symbol = intern ("mouse-moved");
 }
 
 /* Initialize communication with the X window server.  */
@@ -2267,9 +2223,6 @@ x_term_init (argv_list)
 
   /* In event-Xt.c */
   x_init_modifier_mapping (x_current_display);
-#ifdef ENERGIZE
-  xc_init ();
-#endif
   
   {
     char tem_name[MAXPATHLEN];
@@ -2339,7 +2292,6 @@ x_term_init (argv_list)
   x_bitmaps_length = 0;
 #endif
   init_bitmap_tables ();
-  init_input_symbols ();
 
   XSetErrorHandler (x_error_handler);
   XSetIOErrorHandler (x_IO_error_handler);
@@ -2495,7 +2447,7 @@ x_raise_screen (s, force)
 #ifdef ENERGIZE
       /* first raises all the dialog boxes, then put emacs just below the 
        * bottom most dialog box */
-      bottom_dialog = xc_raise_dialogs ();
+      bottom_dialog = lw_raise_all_pop_up_widgets ();
       if (bottom_dialog)
 	{
 	  xwc.sibling = bottom_dialog;
@@ -2503,11 +2455,11 @@ x_raise_screen (s, force)
 	  flags = CWSibling | CWStackMode;
 	}
       else
+#endif
 	{
 	  xwc.stack_mode = Above;
 	  flags = CWStackMode;
 	}
-#endif
 
       /* get ready to handle the error generated by XConfigureWindow */
       XSync (x_current_display, False);

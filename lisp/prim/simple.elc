@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Tue Jun  9 11:34:58 1992
-;;; from file /u/jwz/emacs19/lisp/simple.el
-;;; emacs version 19.1 Lucid.
-;;; bytecomp version 2.06; 17-may-92.
+;;; compiled by jwz@watergate on Wed Aug 26 01:21:43 1992
+;;; from file /wg1/emacs-base/lisp/prim/simple.el
+;;; emacs version 19.2.12 Lucid.
+;;; bytecomp version 2.08;  7-aug-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -77,11 +77,11 @@ Push a mark at the end of the buffer; leave point where it is.
 With arg N, push mark N/10 of the way from the true end." "P"])
 (fset 'mark-whole-buffer #[nil "À`!ˆÀd!ˆebˆÁ ‡" [push-mark zmacs-activate-region] 2 "\
 Put point at beginning and mark at end of buffer." nil])
-(fset 'eval-current-buffer #[nil "Àp!‡" [eval-buffer] 2 "\
+(fset 'eval-current-buffer #[(&optional printflag) "Àp	\"‡" [eval-buffer printflag] 3 "\
 Evaluate the current buffer as Lisp code.
 Programs can pass argument PRINTFLAG which controls printing of output:
 nil means discard it; anything else is stream for print." nil])
-(byte-code "ÀÁMˆÂÃM‡" [count-words-buffer #[(b) "Š®p‰qˆÂÃÄed\"\"*‡" [b buf message "Buffer has %d words" count-words-region] 6 nil "b"] count-words-region #[(debut fin) "ŠÀ\nbˆ`W«‰Äv«w	TªrÅÆ	\"*‡" [0 cnt debut fin 1 message "Region has %d words"] 3 nil "r"]] 2)
+(byte-code "ÀÁMˆÂÃM‡" [count-words-buffer #[(b) "Š®p‰qˆÂÃÄed\"\"*‡" [b buf message "Buffer has %d words" count-words-region] 6 nil "b"] count-words-region #[(debut fin) "ŠÀ\nbˆ`W«‰Äv«w	TªrÅÆ	\"ˆ	*‡" [0 cnt debut fin 1 message "Region has %d words"] 3 nil "r"]] 2)
 (fset 'count-lines-region #[(start end) "ÀÁÂ\"\"Å‡" [message "Region has %d lines" count-lines start end t zmacs-region-stays] 5 "\
 Print number of lines in the region." "r"])
 (fset 'count-lines-buffer #[(b) "Š®p‰qˆÂÃÄed\"\"*Å‡" [b buf message "Buffer has %d lines" count-lines t zmacs-region-stays] 6 nil "b"])
@@ -202,7 +202,7 @@ this to, for example, make the most recent kill become the X Clipboard
 selection.")
 (fset 'copy-region-as-kill #[(beg end) "Á=«‹Â{W\"ˆª•{B‰GV«ˆS›Ç¡ˆ	‰\n:«‡\n¢Ë=«…\nC\n\n«\n@@!ˆ\nA‰\n¬q)ÁÇ‡" [last-command kill-region kill-append beg end kill-ring kill-ring-max nil kill-ring-yank-pointer kill-hooks rest lambda this-command] 5 "\
 Save the region as if killed, but don't kill it." "r"])
-(fset 'kill-ring-save #[(beg end) "À	\n\"ˆŠ`\nU«ƒ	ª\nbˆÃ`!­ƒÄÅ!)‡" [copy-region-as-kill beg end pos-visible-in-window-p sit-for 1] 3 "\
+(fset 'kill-ring-save #[(beg end) "À	\n\"ˆŠ`\nU«ƒ	ª\nbˆÃ`!­ƒÄÅ!)‡" [copy-region-as-kill beg end pos-visible-in-window-p sit-for 0] 3 "\
 Save the region as if killed, but don't kill it." "r"])
 (fset 'append-next-kill #[nil "t«†ÀÂÃ!‡À‰‡" [kill-region this-command message "If the next command is a kill, it will append" last-command] 2 "\
 Cause following command, if kill, to append to previous kill." nil])
@@ -448,11 +448,11 @@ on a one-for-one basis, rather than pushing it to the right." "P"])
 (defconst blink-matching-paren-distance 4000 "\
 *If non-nil, is maximum distance to search for matching open-paren
 when close-paren is inserted.")
-(fset 'blink-matching-open #[nil "`eTV…œ `ÀZfzÁU?…œ \n…œ `ÄÄŠŒ«‰e`Z]}ˆÄÈÉˆ)«™fzÊU¬’SfËÌÍ fHÎ\"Ï\"U?«‚Ä«³bˆĞ «…ÑÒ!ª¸bˆÓÔŠÕÄxˆn)¬‰Öyˆ`T{ªÒuˆ×ÄwˆÄˆ`{\"ª‘«…ÓØ!ªˆ?­ƒÓÙ!,‡" [2 92 blink-matching-paren oldpos nil blinkpos mismatch blink-matching-paren-distance (byte-code "À	Â\"À‡" [scan-sexps oldpos -1 blinkpos] 3) ((error)) 36 logand lsh syntax-table -8 255 pos-visible-in-window-p sit-for 1 message "Matches %s" " 	" 0 "\n 	" "Mismatched parentheses" "Unmatched parenthesis"] 5 "\
+(fset 'blink-matching-open #[nil "`eTV…¨ `ÀZfzÁU?…¨ \n…¨ `ÄÆÆŠŒ	«‰e`	Z]}ˆÆÊËˆ)«›fzÌU¬“SfÍÎÏ fHĞ\"Ñ\"U?«ƒÆ«·bˆÒ «…ÓÔ!ª»bˆÕÖŠ×Æxˆn)¬ŠØyˆ`T{ªÔuˆÙÆwˆÆˆ`{\"ª‘«…ÕÚ!ªˆ	?­ƒÕÛ!-‡" [2 92 blink-matching-paren oldpos t parse-sexp-ignore-comments nil blinkpos mismatch blink-matching-paren-distance (byte-code "À	Â\"À‡" [scan-sexps oldpos -1 blinkpos] 3) ((error)) 36 logand lsh syntax-table -8 255 pos-visible-in-window-p sit-for 1 message "Matches %s" " 	" 0 "\n 	" "Mismatched parentheses" "Unmatched parenthesis"] 5 "\
 Move cursor momentarily to the beginning of the sexp before point."])
 (byte-code "ÀÀ‡" [blink-matching-open blink-paren-function] 1)
 (fset 'keyboard-quit #[nil "ÀÁÂ\"‡" [signal quit nil] 3 "\
-Signal a  quit  condition." nil])
+Signal a `quit' condition." nil])
 (define-key global-map "" 'keyboard-quit)
 (fset 'set-variable #[(var val) "	L‡" [var val] 2 "\
 Set VARIABLE to VALUE.  VALUE is a Lisp object.

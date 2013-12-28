@@ -44,10 +44,11 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #define FACE_DEFAULT (~0)
 
+extern int extent_cache_invalid;
+
 void ensure_face_ready (struct screen* s, int f);
 static void build_face (struct screen* s, struct face* face);
 static void compute_screen_line_height (struct screen *s);
-
 
 
 /* Caching functions for faces */
@@ -182,6 +183,7 @@ static void
 invalidate_face_cache (struct screen *s)
 {
   face_cache_invalid = 1;
+  extent_cache_invalid = 1;
   SET_SCREEN_GARBAGED (s);
   compute_screen_line_height (s);
   if (face_cache_pending_flush)
@@ -247,7 +249,9 @@ reset_face (struct screen* s, struct face* face)
   face->back_pixmap = normal_face->back_pixmap;
   face->underline = normal_face->underline;
   face->font = normal_face->font;
+#if 0
   face->font_name = 0;
+#endif
 }
 
 static void 
@@ -256,7 +260,9 @@ merge_faces (struct face* from, struct face* to)
   if (from->font != (XFontStruct *)FACE_DEFAULT)
     {
       to->font = from->font;
+#if 0
       to->font_name = 0;
+#endif
     }
   if (from->foreground != FACE_DEFAULT)
     to->foreground = from->foreground;
@@ -561,14 +567,14 @@ load_pixmap (struct screen *s, Lisp_Object name, int *wP, int *hP, int *dP)
   widget = s->display.x->widget;
   dpy = XtDisplay (widget);
 
-  if (XTYPE (name) == Lisp_Cons)
+  if (CONSP (name))
     {
-      if (XTYPE (Fcdr (name)) != Lisp_Cons ||
-	  XTYPE (Fcdr (Fcdr (name))) != Lisp_Cons ||
+      if (!CONSP (Fcdr (name)) ||
+	  !CONSP (Fcdr (Fcdr (name))) ||
 	  !NILP (Fcdr (Fcdr (Fcdr (name)))) ||
-	  XTYPE (Fcar (name)) != Lisp_Int ||
-	  XTYPE (Fcar (Fcdr (name))) != Lisp_Int ||
-	  XTYPE (Fcar (Fcdr (Fcdr (name)))) != Lisp_String)
+	  !FIXNUMP (Fcar (name)) ||
+	  !FIXNUMP (Fcar (Fcdr (name))) ||
+	  !STRINGP (Fcar (Fcdr (Fcdr (name)))))
 	return
 	  Fsignal (Qerror,
 		   Fcons (build_string ("must be of the form (W H \"bits\")"),
@@ -813,7 +819,7 @@ DEFUN ("make-face-internal", Fmake_face_internal, Smake_face_internal,
   int id = XINT (id_number);
   CHECK_SYMBOL (name, 0);
   CHECK_VECTOR (object, 0);
-  CHECK_NUMBER (id_number, 0);
+  CHECK_FIXNUM (id_number, 0);
   if (id < 0)
     return Fsignal (Qerror, Fcons (build_string ("id must be positive"),
 				   Fcons (id_number, Qnil)));
@@ -856,7 +862,7 @@ DEFUN ("set-face-attribute-internal", Fset_face_attribute_internal,
   int magic_p;
   int id;
   CHECK_SCREEN (screen, 0);
-  CHECK_NUMBER (face_id, 0);
+  CHECK_FIXNUM (face_id, 0);
   CHECK_SYMBOL (attr_name, 0);
   s = XSCREEN (screen);
   id = XINT (face_id);
@@ -879,12 +885,17 @@ DEFUN ("set-face-attribute-internal", Fset_face_attribute_internal,
       font = load_font (s, attr_value);
       unload_font (s, face->font);
       face->font = font;
+
+#if 0
+      if (face->font_name)
+	free (face->font_name);
       if (font && font != ((XFontStruct *) FACE_DEFAULT))
 	face->font_name =
 	  (char *) strdup ((char *) XSTRING (attr_value)->data);
       else
 	face->font_name = 0;
-      invalidate_face_cache (s);
+#endif
+
       if (id == 0) /* the "default" face; update the ScreenWidget as well */
 	{
 	  Arg av[10];
@@ -892,6 +903,7 @@ DEFUN ("set-face-attribute-internal", Fset_face_attribute_internal,
 	  XtSetArg (av[ac], XtNfont, font); ac++;
 	  XtSetValues (s->display.x->edit_widget, av, ac);
 	}
+      invalidate_face_cache (s);
 #endif /* HAVE_X_WINDOWS */
     }
   else if (EQ (attr_name, intern ("foreground")))

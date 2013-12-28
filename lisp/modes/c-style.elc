@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Wed May 20 12:33:01 1992
-;;; from file /u/jwz/emacs19/lisp/c-style.el
-;;; emacs version 19.0.17 Lucid.
-;;; bytecomp version 2.06; 17-may-92.
+;;; compiled by jwz@thalidomide on Sat Aug 29 19:40:24 1992
+;;; from file /wg1/emacs-base/lisp/modes/c-style.el
+;;; emacs version 19.2.13 Lucid.
+;;; bytecomp version 2.08;  7-aug-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -12,16 +12,14 @@
 
 (defvar default-c-style 'GNU "\
 *The default value of c-style.  Set this in your .emacs.")
-(byte-code "ÀÁ!¬‚ÂÀ‡" [boundp c-style-alist ((GNU (c-indent-level . 2) (c-continued-statement-offset . 2) (c-brace-offset . 0) (c-argdecl-indent . 5) (c-label-offset . -2)) (BSD (c-indent-level . 8) (c-continued-statement-offset . 8) (c-brace-offset . -8) (c-argdecl-indent . 8) (c-label-offset . -8)) (K&R (c-indent-level . 5) (c-continued-statement-offset . 5) (c-brace-offset . -5) (c-argdecl-indent . 0) (c-label-offset . -5)) (C++ (c-indent-level . 4) (c-continued-statement-offset . 4) (c-brace-offset . -4) (c-argdecl-indent . 4) (c-label-offset . -4)) (LRS (c-indent-level . 4) (c-continued-statement-offset . 4) (c-brace-offset . 0) (c-argdecl-indent . 4) (c-label-offset . -2) (c-auto-newline)))] 2)
+(byte-code "ÀÁ!¬‚ÂÀ‡" [boundp c-style-alist ((GNU (c-indent-level 2) (c-continued-statement-offset 2) (c-brace-offset 0) (c-argdecl-indent 5) (c-label-offset -2)) (BSD (c-indent-level 8) (c-continued-statement-offset 8) (c-brace-offset -8) (c-argdecl-indent 8) (c-label-offset -8)) (K&R (c-indent-level 5) (c-continued-statement-offset 5) (c-brace-offset -5) (c-argdecl-indent 0) (c-label-offset -5)) (BS (c-indent-level 4) (c-continued-statement-offset 4) (c-brace-offset -4) (c-argdecl-indent 4) (c-label-offset -4)) (LRS (c-indent-level 4) (c-continued-statement-offset 4) (c-brace-offset 0) (c-argdecl-indent 4) (c-label-offset -2) (c-auto-newline nil)) (Plauger (c-indent-level 0) (c-continued-statement-offset 8) (c-continued-brace-offset -8) (c-brace-offset 8) (c-brace-imaginary-offset 0) (c-argdecl-indent 0) (c-label-offset -8) (c-auto-newline t) (c-tab-always-indent t)) (Alman (c-argdecl-indent 0) (c-brace-imaginary-offset 2) (c-brace-offset 0) (c-continued-statement-offset 2) (c-indent-level 0) (c-label-offset -2) (c-auto-newline t) (comment-column 40) (tab-width 2) (fill-column '79)) (Gould (c-indent-level 4) (c-continued-statement-offset 4) (c-brace-offset -4) (c-argdecl-indent 8) (c-label-offset -2) (c-brace-imaginary-offset 0)) (WRS (c-indent-level 0) (c-continued-statement-offset 4) (c-brace-offset 0) (c-argdecl-indent 4) (c-label-offset -2) (c-brace-imaginary-offset 4) (c-continued-brace-offset -4)))] 2)
 (defvar c-style nil "\
-The buffer local C mode indentation style.")
-(defvar default-c-style 'GNU "\
-The default C mode indentation style.")
-(fset 'set-c-style #[(&optional style) "®	‰\nž¬‡ÃÄÅ\"!ˆÆÇ!ˆÄÈ\"ˆÉÊ\nžA\"ˆ‡" [style default-c-style c-style-alist error message "Undefined c style: %s" make-local-variable c-style "c-style: %s" mapcar #[(c-style-pair) "À	@!ˆ	@	AL‡" [make-local-variable c-style-pair] 2]] 5 "\
-Specify a style of indentation for C code for the current buffer.
-The argument STYLE should be a standard style name defined in
-`c-style-alist', such as GNU, BSD, K&R, etc.  (These are Lisp symbols.)
-An omitted arg, or nil, means to use the value of `default-c-style'.
-
-Setting the style sets various C-mode customization parameters accordingly,
-all local to the current buffer." (byte-code "ÀÁÂ\"ÄÅ\"ÇÈ$‰	Ê˜«ƒª„Ë	!)C‡" [completing-read format "Set c-mode indentation style to (default %s): " default-c-style mapcar #[(x) "À	@!C‡" [symbol-name x] 2] c-style-alist nil t style-string "" intern] 6)])
+The buffer local c-mode indentation style.")
+(defvar c-style-name nil "\
+The style name for a c-mode indentation style.
+This is to be set by set-c-style, and used by the mode line.")
+(byte-code "À	ž¬„	Â¤ˆÀ‡" [c-style-name minor-mode-alist ((c-style-name c-style-name))] 2)
+(fset 'set-c-style #[(&optional style) "ÀÁ\n\"t«ÄÅÆ\"È!É#‰\nË˜«„ª„Ì\n!)®‚ÎÏ!ˆ>«†ª†ÐÑ\"ˆÒÓ\"ˆÎÔ!ˆÅÕ\"ÀÖ\nžA\"ˆ)‡" [mapcar car c-style-alist c-styles completing-read format "Set c-mode indentation style to (default %s): " default-c-style vconcat #[(arg) "	>‡" [arg c-styles] 2] style-string "" intern style make-local-variable c-style error "Undefined c style: %s" message "c-style: %s" c-style-name " %s" #[(c-style-pair) "À	@!ˆ	@	A@L‡" [make-local-variable c-style-pair] 2]] 5 "\
+Set up the c-mode style variables from STYLE if it is given, or
+default-c-style otherwise.  It makes the c indentation style variables
+buffer local." nil])

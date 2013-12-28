@@ -185,11 +185,15 @@ Prefix N scrolls backward N lines."
 	       (not (vm-new-flag (car vm-message-pointer)))
 	       (not (vm-unread-flag (car vm-message-pointer)))))
       (vm-show-current-message)
-    (vm-update-summary-and-mode-line)))
+    (vm-update-summary-and-mode-line)
+    (run-hooks 'vm-preview-message-hook)	; jwz
+    ))
 
 (defun vm-show-current-message ()
   (setq vm-system-state 'showing)
-  (let ((vmp vm-message-pointer))
+  (let ((vmp vm-message-pointer)
+	(newp nil)
+	(unreadp nil))
     (vm-within-current-message-buffer
      (let ((vm-message-pointer vmp))
        (save-excursion
@@ -200,12 +204,18 @@ Prefix N scrolls backward N lines."
 	   (progn
 	     (if (looking-at page-delimiter)
 		 (forward-page 1))
-	     (vm-narrow-to-page))))))
+	     (vm-narrow-to-page)))))
   (cond ((vm-new-flag (car vm-message-pointer))
+	 (setq newp t)		; jwz: for vm-show-new-message-hook.
 	 (vm-set-new-flag (car vm-message-pointer) nil))
 	((vm-unread-flag (car vm-message-pointer))
+	 (setq unreadp t)	; jwz: for vm-show-unread-message-hook.
 	 (vm-set-unread-flag (car vm-message-pointer) nil)))
-  (vm-update-summary-and-mode-line))
+  (vm-update-summary-and-mode-line)
+  (cond (newp (run-hooks 'vm-show-new-message-hook))
+	(unreadp (run-hooks 'vm-show-unread-message-hook)))
+  (run-hooks 'vm-show-message-hook)
+  ))
 
 (defun vm-expose-hidden-headers ()
   "Toggle exposing and hiding message headers that are normally not visible."

@@ -1,11 +1,11 @@
 ;; "RMAIL" mail reader for Emacs.
-;; Copyright (C) 1985, 1986, 1987, 1988 Free Software Foundation, Inc.
+;; Copyright (C) 1985, 1986, 1987, 1988, 1992 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -113,12 +113,12 @@ but does not copy any new mail into the file."
 	(progn
 	  ;; Don't be confused by apparent local-variables spec
 	  ;; in the last message in the RMAIL file.
-	  (let ((inhibit-local-variables t))
+	  (let ((enable-local-variables nil))
 	    (find-file file-name))
 	  (if (verify-visited-file-modtime existed)
 	      (progn (rmail-forget-messages)
 		     (rmail-set-message-counters))))
-      (let ((inhibit-local-variables t))
+      (let ((enable-local-variables nil))
 	(find-file file-name)))
     (if (and existed (> (buffer-size) 0))
 	;; Buffer not new and not empty; ensure in proper mode, but that's all.

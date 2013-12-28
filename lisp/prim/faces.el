@@ -217,6 +217,18 @@ or makes an already-existing face be exactly like another."
   "Make the given EXTENT have the graphic attributes specified by FACE."
   (set-extent-attribute extent (face-id face)))
 
+(defun extent-face (extent)
+  "Returns the name of the face in which EXTENT is displayed."
+  (let ((id (extent-attributes extent t))
+	(rest global-face-data)
+	face)
+    (if (= id -1) (setq id 0))
+    (while rest
+      (if (= id (face-id (cdr (car rest))))
+	  (setq face (car (car rest)) rest nil))
+      (setq rest (cdr rest)))
+    (or face (error "unknown face??"))))
+
 
 (defun face-equal (face1 face2 &optional screen)
   "True if the given faces will display in the the same way."

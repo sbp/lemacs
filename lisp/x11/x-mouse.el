@@ -34,15 +34,24 @@ to the cut buffer"
       (x-store-cutbuffer s))
     (kill-region old-point (point))))
 
+(defun x-insert-selection (&optional check-cutbuffer-p)
+  "Insert the current selection into buffer at point."
+  (interactive)
+  (let ((text (if check-cutbuffer-p
+		  (or (condition-case () (x-get-selection) (error ()))
+		      (x-get-cutbuffer)
+		      (error "No selection or cut buffer available"))
+		(x-get-selection))))
+    (push-mark (point))
+    (insert text)
+;;    (if zmacs-regions (zmacs-activate-region))
+    ))
+
 (defun x-set-point-and-insert-selection (event)
   "Sets point where clicked and insert the primary selection or the cut buffer"
   (interactive "e")
-  (let ((text (or (condition-case () (x-get-selection) (error ()))
-		  (x-get-cutbuffer))))
-    (if (null text)
-	(error "No selection or cut buffer available")
-      (mouse-set-point event)
-      (insert text))))
+  (mouse-set-point event)
+  (x-insert-selection t))
 
 (defun mouse-track-and-copy-to-cutbuffer (event)
   "Makes a selection like `mouse-track', but also copies it to the cutbuffer."
@@ -54,13 +63,6 @@ to the cut buffer"
 	 (x-store-cutbuffer
 	  (buffer-substring (extent-start-position primary-selection-extent)
 			    (extent-end-position primary-selection-extent))))))
-
-(defun x-insert-selection ()
-  "Insert the current selection into buffer at point."
-  (interactive)
-  (let ((text (x-get-selection)))
-    (if text
-	(insert text))))
 
 
 ;;; Pointer shape.
@@ -116,7 +118,20 @@ will be used.")
        (x-track-pointer-damage-control c var)))
     (if extent
 	(highlight-extent extent t)
-      (highlight-extent nil nil))))
+      (highlight-extent nil nil))
+    (if mouse-grabbed-buffer (setq buffer mouse-grabbed-buffer))
+    (if buffer
+	(save-excursion
+	  (set-buffer buffer)
+	  (let ((rest (and (boundp 'mode-motion-hook)
+			   (symbol-value 'mode-motion-hook))))
+	    (if (or (not (listp rest))
+		    (eq (car-safe rest) 'lambda))
+		(funcall rest event)
+	      (while rest
+		(funcall rest event)
+		(setq rest (cdr rest)))))))
+    ))
 
 (defun x-track-pointer-damage-control (c var)
   ;; When x-set-screen-pointer signals an error, this function tries to figure

@@ -1,4 +1,4 @@
-/* m- file for Iris-4D machines.  Use with s-iris3-6.h
+/* m- file for Iris-4D machines.  Use with s-irix3-3.h.
    Copyright (C) 1987 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
@@ -79,9 +79,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* Convert that into an integer that is 100 for a load average of 1.0  */
 
-#define LOAD_AVE_CVT(x) (int) (((double) (x)) * 100.0 / 256.0)
-
-/* s-iris3-6.h uses /vmunix */
+#define LOAD_AVE_CVT(x) (int)(((double)(x)*100)/1024.0)
 
 #undef KERNEL_FILE
 #define KERNEL_FILE "/unix"
@@ -123,33 +121,20 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #define UNEXEC unexmips.o
 
+#define TEXT_START 0x400000
+
 /*
- * The TEXT_START here is by experiment; the DATA_START is as per the
- * manual (Assembly Language Programmers guide).  These values can be
- * found at run time from &_ftext and &_fdata, though the C file which
- * reads these must be compile with -G 0 (prevent access to those two
- * 'variables' using the $gp register).  However, I am lazy and don't
- * really want to rewrite unexec.c yet again to use this instead of
- * TEXT_START and DATA_START.  The manual indicates that these
- * locations are fixed for ZMAGIC files, so I'll be lazy and do it
- * this way.  It will probably break as of the next release of the
- * IRIS4D, but I've described up above how to find the new values, so
- * I won't feel too guilty.  Note that the value returned through
- * _ftext is the start of text space (in this case it was 0x400140); I
- * presumed that the headers started at 0x400000 and was right.
- *
  * DATA_SEG_BITS forces that bit to be or'd in with any pointers which
  * are trying to access pure strings (as gnu-emacs only allows 24 bits
  * for the value field of a LISP_OBJECT).
  */
 
-
-#define TEXT_START 0x400000
 #define DATA_START 0x10000000
 #define DATA_SEG_BITS	0x10000000
 
 #undef LIBS_MACHINE
-#define LIBS_MACHINE -lbsd -lPW -lmld
+/* -lsun in case using Yellow Pages for passwords.  */
+#define LIBS_MACHINE -lsun -lmld
 #define LIBS_DEBUG
 
 /* Define this if you have a fairly recent system,
@@ -159,20 +144,17 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #ifdef HAVE_CRTN
 /* Must define START-FILES so that the linker can find /usr/lib/crt0.o.  */
 #define START_FILES pre-crt0.o /usr/lib/crt1.o
-#define LIB_STANDARD -lc /usr/lib/crtn.o
+#define LIB_STANDARD -lbsd -lc /usr/lib/crtn.o
 #else
 #define START_FILES pre-crt0.o /usr/lib/crt0.o
 /* The entry-point label (start of text segment) is `start', not `__start'.  */
 #define DEFAULT_ENTRY_ADDRESS start
+#define LIB_STANDARD -lbsd -lc
 #endif
 
 /* Use terminfo instead of termcap.  */
 
 #define TERMINFO
-
-/* sioctl.h should be included where appropriate.  */
-
-#define NEED_SIOCTL
 
 /* Letter to use in finding device name of first pty,
   if system supports pty's.  'a' means it is /dev/ptya0  */

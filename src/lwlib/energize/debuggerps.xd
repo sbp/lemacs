@@ -1,0 +1,84 @@
+module 'XApplication'
+applicationName = 'XApplication';
+generateNameC = 'debuggerps.xdc';
+generateNameUIL = '';
+generateNameResDB = '';
+generateUidFile = '';
+generateMask = 458980;
+object '' : XmDialogShell {
+	arguments {
+	name = 'widget0';
+	XmNallowShellResize = true;
+	};
+object '' : XmFrame {
+	arguments {
+	name = 'debuggerPanel';
+	XmNshadowType=8;
+	};
+object '' : XmRowColumn {
+	arguments {
+	name = 'panel';
+	XmNspacing=0;
+	XmNmarginWidth=0;
+	XmNmarginHeight=0;
+	XmNorientation=2;
+	};
+object '' : XmPushButton {
+	arguments {
+	name = 'start';
+	};
+};
+object '' : XmPushButton {
+	arguments {
+	name = 'run';
+	};
+};
+object '' : XmPushButton {
+	arguments {
+	name = 'stop';
+	};
+};
+object '' : XmPushButton {
+	arguments {
+	name = 'continue';
+	};
+};
+object '' : XmPushButton {
+	arguments {
+	name = 'step';
+	};
+};
+object '' : XmPushButton {
+	arguments {
+	name = 'next';
+	};
+};
+object '' : XmPushButton {
+	arguments {
+	name = 'finish';
+	};
+};
+object '' : XmPushButton {
+	arguments {
+	name = 'backtrace';
+	};
+};
+object '' : XmPushButton {
+	arguments {
+	name = 'up';
+	};
+};
+object '' : XmPushButton {
+	arguments {
+	name = 'down';
+	};
+};
+object '' : XmPushButton {
+	arguments {
+	name = 'print';
+	};
+};
+};
+};
+};
+end module;

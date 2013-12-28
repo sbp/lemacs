@@ -1,11 +1,11 @@
 /* VMS subprocess and command interface.
-   Copyright (C) 1987, 1988 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1988, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -288,7 +288,7 @@ DEFUN ("spawn-subprocess", Fspawn_subprocess, Sspawn_subprocess, 1, 3, 0,
   struct dsc$descriptor_s output_mbx_dsc;
   struct process_list *ptr, *p, *prev;
 
-  CHECK_NUMBER (name, 0);
+  CHECK_FIXNUM (name, 0);
   if (! input_mbx_chan)
     {
       if (! create_mbx (&input_mbx_dsc, input_mbx_name, &input_mbx_chan, 1))
@@ -366,7 +366,7 @@ DEFUN ("send-command-to-subprocess",
 {
   struct process_list * ptr;
 
-  CHECK_NUMBER (name, 0);
+  CHECK_FIXNUM (name, 0);
   CHECK_STRING (command, 1);
   for (ptr = process_list; ptr; ptr = ptr->next)
     if (XFASTINT (name) == ptr->name)
@@ -385,7 +385,7 @@ DEFUN ("stop-subprocess", Fstop_subprocess, Sstop_subprocess, 1, 1,
 {
   struct process_list * ptr;
 
-  CHECK_NUMBER (name, 0);
+  CHECK_FIXNUM (name, 0);
   for (ptr = process_list; ptr; ptr = ptr->next)
     if (XFASTINT (name) == ptr->name)
       {
@@ -680,8 +680,8 @@ translate_id (pid, owner)
   int prcnam[2];
 
   if (NILP (pid)
-      || XTYPE (pid) == Lisp_String && XSTRING (pid)->size == 0
-      || XTYPE (pid) == Lisp_Int && XFASTINT (pid) == 0)
+      || STRINGP (pid) && XSTRING (pid)->size == 0
+      || FIXNUMP (pid) && XFASTINT (pid) == 0)
     {
       code = owner ? JPI$_OWNER : JPI$_PID;
       status = lib$getjpi (&code, 0, 0, &id);
@@ -691,7 +691,7 @@ translate_id (pid, owner)
 	       vmserrstr (status));
       return (id);
     }
-  if (XTYPE (pid) == Lisp_Int)
+  if (FIXNUMP (pid))
     return (XFASTINT (pid));
   CHECK_STRING (pid, 0);
   pid = Fupcase (pid);

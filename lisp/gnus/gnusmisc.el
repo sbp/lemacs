@@ -1,7 +1,6 @@
 ;;; Miscellaneous commands for GNUS newsreader
 ;; Copyright (C) 1989 Fujitsu Laboratories LTD.
 ;; Copyright (C) 1989, 1990 Masanobu UMEDA
-;; $Header: gnusmisc.el,v 1.1 91/06/03 23:35:15 jwz Exp $
 
 ;; This file is part of GNU Emacs.
 
@@ -23,13 +22,6 @@
 (provide 'gnusmisc)
 (require 'gnus)
 
-;;;
-;;; GNUS Browse-Killed Mode
-;;;
-
-;; Some ideas are due to roland@wheaties.ai.mit.edu (Roland McGrath).
-;; I'd like to thank him very much.
-
 (defvar gnus-Browse-killed-mode-hook nil
   "*A hook for GNUS Browse-Killed Mode.")
 
@@ -37,7 +29,16 @@
 (defvar gnus-Browse-killed-mode-map nil)
 (defvar gnus-winconf-browse-killed nil)
 
+(autoload 'timezone-make-date-arpa-standard "timezone")
+
 (put 'gnus-Browse-killed-mode 'mode-class 'special)
+
+;;;
+;;; GNUS Browse-Killed Mode
+;;;
+
+;; Some ideas are due to roland@wheaties.ai.mit.edu (Roland McGrath).
+;; I'd like to thank him very much.
 
 ;; Make the buffer to be managed by GNUS.
 
@@ -88,7 +89,7 @@ if that value is non-nil."
   (setq mode-name "Browse-Killed")
   (setq mode-line-buffer-identification	"GNUS: Killed Newsgroups")
   (use-local-map gnus-Browse-killed-mode-map)
-  (buffer-flush-undo (current-buffer))
+  (buffer-disable-undo (current-buffer))
   (setq buffer-read-only t)		;Disable modification
   (run-hooks 'gnus-Browse-killed-mode-hook))
 
@@ -154,6 +155,28 @@ Newsgroups buffer."
 ;;; kill/yank newsgroup commands of GNUS Group Mode
 ;;;
 
+(defun gnus-Group-kill-region (begin end)
+  "Kill newsgroups in current region (excluding current point).
+The killed newsgroups can be yanked by using \\[gnus-Group-yank-group]."
+  (interactive "r")
+  (let ((lines
+	 ;; Exclude a line where current point is on.
+	 (1-
+	  ;; Count lines.
+	  (save-excursion
+	    (count-lines
+	     (progn
+	       (goto-char begin)
+	       (beginning-of-line)
+	       (point))
+	     (progn
+	       (goto-char end)
+	       (end-of-line)
+	       (point)))))))
+    (goto-char begin)
+    (beginning-of-line)			;Important when LINES < 1
+    (gnus-Group-kill-group lines)))
+
 (defun gnus-Group-kill-group (n)
   "Kill newsgroup on current line, repeated prefix argument N times.
 The killed newsgroups can be yanked by using \\[gnus-Group-yank-group]."
@@ -213,3 +236,26 @@ inserting it before the newsgroup on the line containging point."
     (forward-line -1)
     (search-forward ":" nil t)
     ))
+
+
+;;; Rewrite Date: field in GMT to local
+
+(defun gnus-gmt-to-local ()
+  "Rewrite Date: field described in GMT to local in current buffer.
+The variable gnus-local-timezone is used for local time zone.
+Intended to be used with gnus-Article-prepare-hook."
+  (save-excursion
+    (save-restriction
+      (widen)
+      (goto-char (point-min))
+      (narrow-to-region (point-min)
+			(progn (search-forward "\n\n" nil 'move) (point)))
+      (goto-char (point-min))
+      (if (re-search-forward "^Date:[ \t]\\(.*\\)$" nil t)
+	  (let ((buffer-read-only nil)
+		(date (buffer-substring (match-beginning 1) (match-end 1))))
+	    (delete-region (match-beginning 1) (match-end 1))
+	    (insert
+	     (timezone-make-date-arpa-standard date nil gnus-local-timezone))
+	    ))
+      )))

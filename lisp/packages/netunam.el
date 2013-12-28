@@ -19,8 +19,6 @@
 
 ;;; Author: cph@zurich.ai.mit.edu
 
-;;; $Header: netunam.el,v 1.1 91/03/20 23:43:22 eb Exp $
-
 (defconst rfa-node-directory "/net/"
   "Directory in which RFA network special files are stored.
 By HP convention, this is \"/net/\".")

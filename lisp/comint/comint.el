@@ -54,10 +54,9 @@
 ;;; Comint Mode Commands: (common to all derived modes, like cmushell & cmulisp
 ;;; mode)
 ;;;
-;;; m-p	    comint-previous-input    	    Cycle backwards in input history
-;;; m-n	    comint-next-input  	    	    Cycle forwards
-;;; m-s     comint-previous-similar-input   Previous similar input
-;;; c-c r   comint-previous-input-matching  Search backwards in input history
+;;; m-p	    comint-previous-similar-input   Cycle backward in input history
+;;; m-n	    comint-next-similar-input       Cycle forward
+;;; c-c r   comint-previous-input-matching  Search backward in input history
 ;;; return  comint-send-input
 ;;; c-a     comint-bol                      Beginning of line; skip prompt.
 ;;; c-d	    comint-delchar-or-maybe-eof     Delete char unless at end of buff.

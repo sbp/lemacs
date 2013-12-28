@@ -1,11 +1,11 @@
 /* Merge parameters into a termcap entry string.
-   Copyright (C) 1985, 1987 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1987, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -104,14 +104,14 @@ tparam1 (string, outstring, len, up, left, argp)
 	  register char *new;
 	  if (outlen == 0)
 	    {
-	      new = (char *) malloc (outlen = 40 + len);
+	      new = (char *) xmalloc (outlen = 40 + len);
 	      outend += 40;
 	      bcopy (outstring, new, op - outstring);
 	    }
 	  else
 	    {
 	      outend += outlen;
-	      new = (char *) realloc (outstring, outlen *= 2);
+	      new = (char *) xrealloc (outstring, outlen *= 2);
 	    }
 	  op += new - outstring;
 	  outend += new - outstring;

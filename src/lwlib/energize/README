@@ -1,0 +1,7 @@
+
+This directory contains the predefined dialog boxes and control panels 
+used by Energize.  the ".xd" files are the XDesigner definitions of them.
+The ".xdc" files are source code written by XDesigner.  "fidget-widget"
+is a shell script that repairs some stupidity in the generated code;
+we create ".c" files from the output of fidget-widget.  This stuff is
+linked into lwlib.a, in the parent directory.

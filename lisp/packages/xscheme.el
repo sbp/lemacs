@@ -20,8 +20,6 @@
 ;;; Requires C-Scheme release 5 or later
 ;;; Changes to Control-G handler require runtime version 13.85 or later
 
-;;; $Header: xscheme.el,v 1.1 91/03/20 23:43:51 eb Exp $
-
 (require 'scheme)
 
 (defvar scheme-program-name "scheme"

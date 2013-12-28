@@ -1,12 +1,12 @@
 ;;; -*- Mode:Emacs-Lisp -*-
 ;; Appointment notification functions.
-;; Copyright (C) 1989, 1990 Free Software Foundation, Inc.
+;; Copyright (C) 1989, 1990, 1992 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -691,7 +691,10 @@ selects that one."
 			  'display-time-filter-18-55
 			'display-time-filter-18-57))
 		  ;; othewise, time.el
-		  'display-time-filter)))
+		  (if (and (featurep 'timer)
+			   (fboundp 'display-time-function)) ; Lucid GNU Emacs
+		      'display-time-function
+		    'display-time-filter))))
     ;; we're about to redefine it...
     (fset 'old-display-time-filter (symbol-function old-fn))
     (fset old-fn

@@ -471,6 +471,58 @@ Turning on C++ mode calls the value of the variable c++-mode-hook with
 no args, if that value is non-nil."
   t)
 
+(autoload 'font-lock-mode "font-lock"
+  "\
+Toggle Font Lock Mode.
+With arg, turn font-lock mode on if and only if arg is positive.
+In the font-lock minor mode, text is fontified as you type it:
+
+ - comments are displayed in font-lock-comment-face;
+ - strings are displayed in font-lock-string-face;
+ - documentation strings are displayed in font-lock-doc-string-face;
+ - function and variable names in their defining forms are displayed
+   in font-lock-function-name-face;
+ - and certain other expressions are displayed in other faces
+   according to the value of the variable `font-lock-keywords'.
+
+When font-lock mode is turned on/off, the buffer is fontified/defontified.
+To fontify a buffer without having newly typed text become fontified, you
+can use \\[font-lock-fontify-buffer]."
+  t)
+
+(autoload 'font-lock-fontify-buffer "font-lock"
+  "\
+Fontify the current buffer the way `font-lock-mode' would:
+
+ - comments are displayed in font-lock-comment-face;
+ - strings are displayed in font-lock-string-face;
+ - documentation strings are displayed in font-lock-doc-string-face;
+ - function and variable names in their defining forms are displayed
+   in font-lock-function-name-face;
+ - and certain other expressions are displayed in other faces
+   according to the value of the variable `font-lock-keywords'.
+
+This can take a while for large buffers."
+  t)
+
+(defvar font-lock-keywords nil "\
+*The keywords to highlight.
+If this is a list, then elements may be of the forms:
+
+  \"string\"			; a regexp to highlight in the 
+				;  `font-lock-keyword-face'.
+  (\"string\" . integer)  	; match N of the regexp will be highlighted
+  (\"string\" . face-name)	; use the named face
+  (\"string\" integer face-name)  ; both of the above
+
+These regular expressions should not match text which spans lines.  Multi-line
+patterns will be correctly fontified when \\[font-lock-fontify-buffer] is used,
+but will not be matched by the auto-fontification that font-lock-mode does,
+since it looks at only one line at a time.
+
+The more patterns there are in this list, the slower the initial fontification
+of the buffer will be.")
+
 (autoload 'calendar "calendar"
   "\
 Display a three-month calendar in another window.
@@ -1149,6 +1201,21 @@ beginning of the line.  The longer the match, the deeper the level.
 Turning on outline mode calls the value of text-mode-hook and then of
 outline-mode-hook, if they are non-nil."
   t)
+
+(autoload 'cvs-update "pcl-cvs"
+	  "\
+Run a 'cvs update' in the current working directory. Feed the
+output to a *cvs* buffer and run cvs-mode on it.
+If optional prefix argument LOCAL is non-nil, 'cvs update -l' is run."
+	  t)
+
+(autoload 'cvs-update-other-window "pcl-cvs"
+	  "\
+Run a 'cvs update' in the current working directory. Feed the
+output to a *cvs* buffer, display it in the other window, and run
+cvs-mode on it.
+
+If optional prefix argument LOCAL is non-nil, 'cvs update -l' is run.")
 
 (autoload 'edit-picture "picture"
   "\
@@ -2176,98 +2243,13 @@ Zippy goes to the analyst." t)
 (define-key global-map '(control -) 'negative-argument)
 (define-key global-map '(control meta -) 'negative-argument)
 
+(define-key global-map '(meta left) 'backward-sexp)
+(define-key global-map '(meta right) 'forward-sexp)
+(define-key global-map '(meta up) 'backward-list)
+(define-key global-map '(meta down) 'forward-list)
+
 
-(defun isearch-forward ()
-  "\
-Do incremental search forward.
-As you type characters, they add to the search string and are found.
-Type Delete to cancel characters from end of search string.
-Type ESC to exit, leaving point at location found.
-Type C-s to search again forward, C-r to search again backward.
-Type C-w to yank word from buffer onto end of search string and search for it.
-Type C-y to yank rest of line onto end of search string, etc.
-Type C-q to quote control character to search for it.
-Other control and meta characters terminate the search
- and are then executed normally.
-The above special characters are mostly controlled by parameters;
- do M-x apropos on search-.*-char to find them.
-C-g while searching or when search has failed
- cancels input back to what has been found successfully.
-C-g when search is successful aborts and moves point to starting point."
-  (interactive)
-  (isearch t))
-
-(defun isearch-forward-regexp ()
-  "\
-Do incremental search forward for regular expression.
-Like ordinary incremental search except that your input
-is treated as a regexp.  See \\[isearch-forward] for more info."
-  (interactive)
-  (isearch t t))
-
-(defun isearch-backward ()
-  "\
-Do incremental search backward.
-See \\[isearch-forward] for more information."
-  (interactive)
-  (isearch nil))
-
-(defun isearch-backward-regexp ()
-  "\
-Do incremental search backward for regular expression.
-Like ordinary incremental search except that your input
-is treated as a regexp.  See \\[isearch-forward] for more info."
-  (interactive)
-  (isearch nil t))
-
-(defvar isearch-highlight t "\
-*Whether isearch and query-replace should highlight the text which currently
-matches the search-string.")
-
-(defvar search-last-string "" "\
-Last string search for by a non-regexp search command.
-This does not include direct calls to the primitive search functions,
-and does not include searches that are aborted.")
-
-(defvar search-last-regexp "" "\
-Last string searched for by a regexp search command.
-This does not include direct calls to the primitive search functions,
-and does not include searches that are aborted.")
-
-(defconst search-repeat-char ?\C-s "\
-*Character to repeat incremental search forwards.")
-(defconst search-reverse-char ?\C-r "\
-*Character to repeat incremental search backwards.")
-(defconst search-exit-char ?\e "\
-*Character to exit incremental search.")
-(defconst search-delete-char ?\177 "\
-*Character to delete from incremental search string.")
-(defconst search-quote-char ?\C-q "\
-*Character to quote special characters for incremental search.")
-(defconst search-yank-word-char ?\C-w "\
-*Character to pull next word from buffer into search string.")
-(defconst search-yank-line-char ?\C-y "\
-*Character to pull rest of line from buffer into search string.")
-(defconst search-ring-advance-char ?\M-n "\
-*Character to pull next (more recent) search string from the ring of same.")
-(defconst search-ring-retreat-char ?\M-p "\
-*Character to pull previous (older) search string from the ring of same.")
-
-(defconst search-exit-option t "\
-*Non-nil means random control characters terminate incremental search.")
-
-(defvar search-slow-window-lines 1 "\
-*Number of lines in slow search display windows.
-These are the short windows used during incremental search on slow terminals.
-Negative means put the slow search window at the top (normally it's at bottom)
-and the value is minus the number of lines.")
-
-(defvar search-slow-speed 1200 "\
-*Highest terminal speed at which to use \"slow\" style incremental search.
-This is the style where a one-line window is created to show the line
-that the search has reached.")
-
-(autoload 'isearch "isearch")
+;; isearch is preloaded, so the defvars have been moved back to isearch-mode.
 
 (define-key global-map "\C-s" 'isearch-forward)
 (define-key global-map "\C-r" 'isearch-backward)

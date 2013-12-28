@@ -1,11 +1,11 @@
 /* Things for GLYPHS and glyph tables.
-   Copyright (C) 1990 Free Software Foundation, Inc.
+   Copyright (C) 1990, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -40,25 +40,25 @@ extern Lisp_Object Vglyph_table;
 /* Return the current length of the GLYPH table,
    or 0 if the table isn't currently valid.  */
 #define GLYPH_TABLE_LENGTH  \
-  ((XTYPE (Vglyph_table) == Lisp_Vector) \
+  ((VECTORP (Vglyph_table)) \
    ? XVECTOR (Vglyph_table)->size : 0)
 
 /* Return the current base (for indexing) of the GLYPH table,
    or 0 if the table isn't currently valid.  */
 #define GLYPH_TABLE_BASE  \
-  ((XTYPE (Vglyph_table) == Lisp_Vector) \
+  ((VECTORP (Vglyph_table)) \
    ? XVECTOR (Vglyph_table)->contents : 0)
 
 /* Given BASE and LEN returned by the two previous macros,
    return nonzero if the GLYPH code G should be output as a single
    character with code G.  Return zero if G has a string in the table.  */
 #define GLYPH_SIMPLE_P(base,len,g)  \
-  ((g) >= (len) || XTYPE (base[g]) != Lisp_String)
+  ((g) >= (len) || !STRINGP (base[g]))
 
 /* Given BASE and LEN returned by the two previous macros,
    return nonzero if GLYPH code G is aliased to a different code.  */
 #define GLYPH_ALIAS_P(base,len,g)  \
-  ((g) < (len) && XTYPE (base[g]) == Lisp_Int)
+  ((g) < (len) && FIXNUMP (base[g]))
 
 /* Assuming that GLYPH_SIMPLE_P (BASE, LEN, G) is 1,
    return the alias for G.  */

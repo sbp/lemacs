@@ -1,0 +1,78 @@
+module 'blpsheet'
+applicationName = 'blpsheet';
+generateNameC = 'blpsheet.xdc';
+generateNameUIL = '';
+generateNameResDB = '';
+generateUidFile = '';
+generateMask = 458980;
+object '' : XmDialogShell {
+	arguments {
+	name = 'breaklist_p_sheet';
+	XmNtitle = 'Prompt dialog';
+	XmNallowShellResize = true;
+	};
+object '' : XmFrame {
+	arguments {
+	name = 'breakpointPanel';
+	XmNshadowType=8;
+	};
+object '' : XmForm {
+	arguments {
+	name = 'panel';
+	XmNautoUnmanage = false;
+	};
+object '' : XmRadioBox {
+	arguments {
+	name = 'nameStyle';
+	XmNorientation=2;
+	};
+object '' : XmToggleButton GADGET {
+	arguments {
+	name = 'nameOnly';
+	};
+};
+object '' : XmToggleButton GADGET {
+	arguments {
+	name = 'prototype';
+	};
+};
+object '' : XmToggleButton GADGET {
+	arguments {
+	name = 'mangled';
+	};
+};
+};
+object '' : XmRadioBox {
+	arguments {
+	name = 'listingStyle';
+	XmNorientation=2;
+	};
+object '' : XmToggleButton GADGET {
+	arguments {
+	name = 'terse';
+	};
+};
+object '' : XmToggleButton GADGET {
+	arguments {
+	name = 'verbose';
+	};
+};
+};
+    attachments {
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 1 0 2;
+	XmNbottomAttachment = 1 0 2;
+	XmNtopAttachment = 3 2 2;
+    };
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 1 0 2;
+	XmNbottomAttachment = 0 0 0;
+	XmNtopAttachment = 1 0 2;
+    };
+    };
+};
+};
+};
+end module;

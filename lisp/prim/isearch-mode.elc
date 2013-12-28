@@ -1,0 +1,193 @@
+;;; compiled by jwz@thalidomide on Tue Sep  8 23:33:47 1992
+;;; from file /wg1/emacs-base/lisp/prim/isearch-mode.el
+;;; emacs version 19.2.23 Lucid.
+;;; bytecomp version 2.08; 27-aug-92.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(byte-code "ÀÁMˆÂÃM‡" [isearch-char-to-string #[(c) "¨«…ÁÂ\"‡ÁÂÃ!\"‡" [c make-string 1 event-to-character] 4] isearch-text-char-description #[(c) "À	!‡" [isearch-char-to-string c] 2]] 2)
+(defvar search-last-string "" "\
+Last string search for by a search command.
+This does not include direct calls to the primitive search functions,
+and does not include searches that are aborted.")
+(defvar search-last-regexp "" "\
+Last string searched for by a regexp search command.
+This does not include direct calls to the primitive search functions,
+and does not include searches that are aborted.")
+(defconst search-exit-option t "\
+Non-nil means random control characters terminate incremental search.")
+(defvar search-slow-window-lines 1 "\
+*Number of lines in slow search display windows.
+These are the short windows used during incremental search on slow terminals.
+Negative means put the slow search window at the top (normally it's at bottom)
+and the value is minus the number of lines.")
+(defconst search-slow-speed 1200 "\
+*Highest terminal speed at which to use \"slow\" style incremental search.
+This is the style where a one-line window is created to show the line
+that the search has reached.")
+(defvar search-caps-disable-folding t "\
+*If non-nil, upper case chars disable case fold searching.
+This does not apply to \"yanked\" strings.")
+(defvar search-nonincremental-instead t "\
+*If non-nil, do a nonincremental search instead if exiting immediately.")
+(defconst search-whitespace-regexp "\\(\\s \\|[\n]\\)+" "\
+*If non-nil, regular expression to match a sequence of whitespace chars.")
+(defvar search-ring nil "\
+List of search string sequences.")
+(defvar regexp-search-ring nil "\
+List of regular expression search string sequences.")
+(defconst search-ring-max 16 "\
+*Maximum length of search ring before oldest elements are thrown away.")
+(defconst regexp-search-ring-max 16 "\
+*Maximum length of regexp search ring before oldest elements are thrown away.")
+(defvar search-ring-yank-pointer nil "\
+The tail of the search ring whose car is the last thing searched for.")
+(defvar regexp-search-ring-yank-pointer nil "\
+The tail of the regular expression search ring whose car is the last
+thing searched for.")
+(defvar isearch-mode-map nil "\
+Keymap for isearch-mode.")
+(byte-code "¬÷ÁÂÃÁ\"Æ ÇÈÉ#ˆÇÊË#ˆÇÌÍ#ˆÇÎÏ#ˆÇĞÑ#ˆÇÒÓ#ˆÇÔÕ#ˆÇÖ×#ˆÇØÙ#ˆÇÚÛ#ˆÇÜİ#ˆÇŞİ#ˆÇßà#ˆÇáâ#ˆÇãä#ˆÇåæ#ˆÇçè#ˆÇéê#ˆ*Á‡" [isearch-mode-map 0 make-string 1 str i make-keymap define-key "" isearch-repeat-forward "" isearch-repeat-backward "" isearch-delete-char "" isearch-abort "" isearch-quote-char "\n" isearch-exit "" isearch-return-char "	" isearch-printing-char "" isearch-yank-word "" isearch-yank-line "*" isearch-*-char "?" "|" isearch-|-char "" isearch-mode-help "î" isearch-ring-advance "ğ" isearch-ring-retreat " " isearch-whitespace-chars "‰" isearch-complete] 4)
+(defvar minibuffer-local-isearch-map nil "\
+Keymap for editing isearch strings in the minibuffer.")
+(byte-code "¬¨Á\n!ÃÄÅ#ˆÃÆÇ#ˆÃÈÉ#ˆÃÊË#ˆÃÌÍ#ˆÃÎÏ#ˆĞÑ!¬ƒÒĞÓ!¬ƒÒĞÔ!¬ƒÒĞÕ!¬ƒÒĞÖ!¬ƒ×ĞØ!¬ƒ×ĞÙ!¬ƒÚĞÛ!¬ƒÒĞÜ!¬ƒÒĞİ!¬ƒÒĞŞ!¬ƒßĞà!¬ƒÒ Ğá!¬ƒÒ!Ğâ!¬ƒÒ\"Ğã!¬ƒÒ#Ğä!¬ƒÒ$Ğå!¬ƒß%Ğæ!¬ƒÒ&Ğç!¬ƒÒ'Ğè!¬ƒÒ(Ğé!¬ƒÒ)Ğê!¬ƒÒ*Ğë!¬ƒÒ+Ğì!¬ƒÒ,Ò‡" [minibuffer-local-isearch-map copy-keymap minibuffer-local-map define-key "" isearch-nonincremental-exit-minibuffer "î" isearch-ring-advance-edit "ğ" isearch-ring-retreat-edit "‰" isearch-complete-edit "" isearch-forward-exit-minibuffer "" isearch-reverse-exit-minibuffer boundp isearch-forward nil isearch-regexp isearch-word isearch-cmds isearch-string "" isearch-message isearch-success t isearch-invalid-regexp isearch-other-end isearch-wrapped isearch-barrier 0 isearch-buffer isearch-case-fold-search isearch-adjusted isearch-slow-terminal-mode isearch-small-window isearch-opoint isearch-window-configuration isearch-old-local-map isearch-yank-flag isearch-op-fun isearch-recursive-edit isearch-nonincremental isearch-new-forward] 4)
+(defvar isearch-mode-hook nil "\
+Function(s) to call after starting up an incremental search.")
+(defvar isearch-mode-end-hook nil "\
+Function(s) to call after terminating an incremental search.")
+(byte-code "À	¬…	ÂC¤ˆÃÀ!¬‚ÄÅÀ!‡" [isearch-mode minor-mode-alist (isearch-mode isearch-mode) boundp nil make-variable-buffer-local] 2)
+(fset 'isearch-forward #[(&optional regexp-p) "ÀÁ\n??Ãt?$‡" [isearch-mode t regexp-p nil] 5 "\
+Do incremental search forward.
+With a prefix argument, do an incremental regular expression search instead.
+\\<isearch-mode-map>
+As you type characters, they add to the search string and are found.
+The following non-printing keys are bound in `isearch-mode-map'.  
+
+Type \\[isearch-delete-char] to cancel characters from end of search string.
+Type \\[isearch-exit] to exit, leaving point at location found.
+Type RET (C-m) to match end of line.
+Type \\[isearch-repeat-forward] to search again forward, \\[isearch-repeat-backward] to search again backward.
+Type \\[isearch-yank-word] to yank word from buffer onto end of search string and search for it.
+Type \\[isearch-yank-line] to yank rest of line onto end of search string and search for it.
+Type \\[isearch-quote-char] to quote control character to search for it.
+Type \\[isearch-whitespace-chars] to match all whitespace chars in regexp.
+\\[isearch-abort] while searching or when search has failed cancels input back to what has
+ been found successfully.
+\\[isearch-abort] when search is successful aborts and moves point to starting point.
+
+Also supported is a search ring of the previous 16 search strings.
+Type \\[isearch-ring-advance] to search for the next item in the search ring.
+Type \\[isearch-ring-retreat] to search for the previous item in the search ring.
+Type \\[isearch-complete] to complete the search string using the search ring.
+
+The above keys are bound in the isearch-mode-map.  To change the keys which
+ are special to isearch-mode, simply change the bindings in that map.
+
+Other control and meta characters terminate the search
+ and are then executed normally (depending on `search-exit-option').
+
+If this function is called non-interactively, it does not return to
+the calling function until the search is done.
+
+The bindings, more precisely:
+\\{isearch-mode-map}" "P"])
+(fset 'isearch-forward-regexp #[nil "ÀÁ‰Ât?$‡" [isearch-mode t nil] 5 "\
+Do incremental search forward for regular expression.
+Like ordinary incremental search except that your input
+is treated as a regexp.  See \\[isearch-forward] for more info." nil])
+(fset 'isearch-backward #[(&optional regexp-p) "ÀÁ\n??Át?$‡" [isearch-mode nil regexp-p] 5 "\
+Do incremental search backward.
+With a prefix argument, do an incremental regular expression search instead.
+See \\[isearch-forward] for more information." "P"])
+(fset 'isearch-backward-regexp #[nil "ÀÁÂÁt?$‡" [isearch-mode nil t] 5 "\
+Do incremental search backward for regular expression.
+Like ordinary incremental search except that your input
+is treated as a regexp.  See \\[isearch-forward] for more info." nil])
+(fset 'isearch-mode-help #[nil "ÀÁ!ˆÂ ‡" [describe-function isearch-forward isearch-update] 2 nil nil])
+(fset 'isearch-mode #[(forward &optional regexp op-fun recursive-edit word-p) "Àp	\nÍÍĞÀĞ`ĞĞĞX­‡Ú Ü_VĞĞ` á \"ã $%&ç(éåê\"ˆëì !ˆí ˆî/!ˆ)ğ ˆñò!ˆ3­‚ó ‡" [t inhibit-quit isearch-buffer forward isearch-forward regexp isearch-regexp word-p isearch-word op-fun isearch-op-fun case-fold-search isearch-case-fold-search "" isearch-string isearch-message nil isearch-cmds isearch-success isearch-wrapped isearch-barrier isearch-adjusted isearch-yank-flag isearch-invalid-regexp baud-rate search-slow-speed window-height search-slow-window-lines 4 isearch-slow-terminal-mode isearch-other-end isearch-small-window isearch-opoint current-window-configuration isearch-window-configuration current-local-map isearch-old-local-map pre-command-hook isearch-old-pre-command-hook " Isearch" isearch-mode add-hook isearch-pre-command-hook set-buffer-modified-p buffer-modified-p isearch-push-state use-local-map isearch-mode-map isearch-update run-hooks isearch-mode-hook recursive-edit] 3 "\
+Start isearch minor mode.  Called by isearch-forward, etc."])
+(byte-code "ÀÁMˆÂÃM‡" [isearch-update #[nil "¬÷Á ¬ƒÂ ˆ«Õ¬ÒÅ ¬Î`ÇÈÉ!ˆÊÌÍÉW«†[Tª†Ï TZ\"ˆ)ÉW«œĞÊZ!ˆÑÒ `\"ˆÓÒ Ô \"ˆÓÕ É\"ˆª„ÖÊ!ˆbˆ)«”`W«ˆØ`\"ˆª†Ø`\"ˆÍÍ‰‡" [unread-command-event input-pending-p isearch-message isearch-slow-terminal-mode isearch-small-window pos-visible-in-window-p found-point t move-to-window-line 0 1 window-min-height split-window nil search-slow-window-lines window-height vertical-motion set-window-start next-window set-window-hscroll window-hscroll selected-window other-window isearch-other-end isearch-highlight isearch-adjusted isearch-yank-flag] 4] isearch-done #[nil "À\n«šŠ\nqˆÃ!ˆÇÇÉÊ !ˆËÀ!ˆ)ÌÍ !`Ğ!ˆ`U¬‡Ó!ˆª„ÔÕ!ˆ«†bˆªˆ×Í À#ˆ+GÙV«Ğ«§‰¬ÂB‰GV«°S›Ç¡ˆª¥‰ ¬›B‰ GV«‰S›Ç¡ˆáâ!ˆ#­‚ä ‡" [t inhibit-quit isearch-buffer use-local-map isearch-old-local-map isearch-old-pre-command-hook pre-command-hook nil isearch-mode set-buffer-modified-p buffer-modified-p isearch-dehighlight window-start selected-window found-point found-start set-window-configuration isearch-window-configuration isearch-opoint push-mark message "" isearch-small-window set-window-start isearch-string 0 isearch-regexp regexp-search-ring regexp-search-ring-yank-pointer regexp-search-ring-max search-ring-max search-ring search-ring-yank-pointer run-hooks isearch-mode-end-hook isearch-recursive-edit exit-recursive-edit] 5]] 2)
+(fset 'isearch-exit #[nil "«Œ	GÂU«†ÃÅ ˆ)Æ ‡" [search-nonincremental-instead isearch-string 0 t isearch-nonincremental isearch-edit-string isearch-done] 2 "\
+Exit search normally.
+However, if this is the first command after starting incremental
+search and `search-nonincremental-instead' is non-nil, do a
+nonincremental search instead." nil])
+(fset 'isearch-edit-string #[nil "ÀÁÂ‡" [err (byte-code "Á‰‰\n\n‰	\nÔ \n	ÛÜİˆŞß à!\"ãäÁà\"!ˆå&çèé\"!!®ê!\"ë=«…àª„\",íäÁà\"\"îïğ#+GêU«Œ«„1ª‚2ªŒ1«…1ªƒ2ó ˆô ˆõ ˆ­‚ö .‡" [minibuffer-local-isearch-map nil isearch-forward isearch-string isearch-message isearch-regexp isearch-word isearch-op-fun isearch-cmds isearch-success isearch-wrapped isearch-barrier isearch-adjusted isearch-yank-flag isearch-invalid-regexp isearch-other-end isearch-opoint isearch-slow-terminal-mode isearch-small-window isearch-recursive-edit current-window-configuration isearch-window-configuration isearch-new-forward isearch-new-message isearch-new-string isearch-nonincremental minibuffer-local-map err (isearch-done) ((exit)) ((isearch-mode isearch-forward isearch-regexp isearch-op-fun isearch-recursive-edit isearch-word)) allocate-event t cursor-in-echo-area e message isearch-message-prefix lookup-key isearch-mode-map char-to-string event-to-character next-command-event 0 isearch-yank-word unread-command-event read-string mapconcat isearch-text-char-description "" search-last-regexp search-last-string isearch-push-state isearch-search isearch-update isearch-done] 25) ((quit (isearch-abort)))] 3 "\
+Edit the search string in the minibuffer.
+The following additional command keys are active while editing.
+\\<minibuffer-local-isearch-map>
+\\[exit-minibuffer] to exit editing and resume incremental searching.
+\\[isearch-forward-exit-minibuffer] to resume isearching forward.
+\\[isearch-backward-exit-minibuffer] to resume isearching backward.
+\\[isearch-ring-advance-edit] to replace the search string with the next item in the search ring.
+\\[isearch-ring-retreat-edit] to replace the search string with the next item in the search ring.
+\\[isearch-complete-edit] to complete the search string from the search ring." nil])
+(byte-code "ÀÁMˆÂÃMˆÄÅM‡" [isearch-nonincremental-exit-minibuffer #[nil "ÀÂ ‡" [t isearch-nonincremental exit-minibuffer] 1 nil nil] isearch-forward-exit-minibuffer #[nil "ÀÂ ‡" [t isearch-new-forward exit-minibuffer] 1 nil nil] isearch-reverse-exit-minibuffer #[nil "ÀÂ ‡" [nil isearch-new-forward exit-minibuffer] 1 nil nil]] 2)
+(fset 'isearch-abort #[nil "À ˆ	«‹\nbˆÃ ˆÄÅÆ\"‡	¬…Ç ˆªxÈ ‡" [discard-input isearch-success isearch-opoint isearch-done signal quit (isearch) isearch-pop-state isearch-update] 3 "\
+Quit incremental search mode if searching is successful, signalling quit.
+Otherwise, revert to previous successful search and continue searching.
+Use `isearch-exit' to quit without signalling." nil])
+(fset 'isearch-repeat #[(direction) "	Â==«ÁÄš«ª««…@ª‘@ªŒ«…@ªƒ	@®ÄÊËÄ#ª•¬‘«ƒeªdbˆÎªƒ?`ÎÄš¬“Ñ•Ñ”š«‰«ƒÒªÓuˆÔ ˆÕ ˆÖ ‡" [isearch-forward direction forward isearch-string "" isearch-regexp regexp-search-ring-yank-pointer regexp-search-ring search-ring-yank-pointer search-ring mapconcat isearch-text-char-description isearch-message isearch-success t isearch-wrapped isearch-barrier 0 1 -1 isearch-search isearch-push-state isearch-update] 4])
+(fset 'isearch-repeat-forward #[nil "ÀÁ!‡" [isearch-repeat forward] 2 "\
+Repeat incremental search forwards." nil])
+(fset 'isearch-repeat-backward #[nil "ÀÁ!‡" [isearch-repeat backward] 2 "\
+Repeat incremental search backwards." nil])
+(fset 'isearch-toggle-regexp #[nil "?‰«‚ÁÃ ‡" [isearch-regexp nil isearch-word isearch-update] 2 "\
+Toggle regexp searching on or off." nil])
+(fset 'isearch-delete-char #[nil "A¬…Á ˆªƒÂ ˆÃ ‡" [isearch-cmds ding isearch-pop-state isearch-update] 1 "\
+Discard last input item and move point back.  
+If no previous match was done, just beep." nil])
+(fset 'isearch-yank #[(chunk) "Š¬†	«ƒ	bˆ`Š\nÃ=«…Ävˆªˆ\nÅ=«ƒÆˆ`){)«‡«ƒ—	«„Ê!PÍÎÏ#PĞ)Ò ‡" [isearch-forward isearch-other-end chunk word 1 line nil search-caps-disable-folding isearch-case-fold-search isearch-regexp regexp-quote isearch-string isearch-message mapconcat isearch-text-char-description "" t isearch-yank-flag isearch-search-and-update] 5])
+(fset 'isearch-yank-word #[nil "ÀÁ!‡" [isearch-yank word] 2 "\
+Pull next word from buffer into search string." nil])
+(fset 'isearch-yank-line #[nil "ÀÁ!‡" [isearch-yank line] 2 "\
+Pull rest of line from buffer into search string." nil])
+(fset 'isearch-search-and-update #[nil "¬ƒ	«Á\n¬¢¬ŸÄÅÆ«™¬ŠÈ•	\n^X«‹ËÄÈ•ªœ«•¬’\n«„ª‰	\nT^^bˆÎ ˆÏ ˆ«„ ˆÑ ‡" [isearch-success isearch-regexp isearch-forward isearch-adjusted nil (byte-code "À	«ƒ\nªƒÃ\n!!‡" [looking-at isearch-regexp isearch-string regexp-quote] 3) ((error)) isearch-yank-flag 0 isearch-opoint isearch-barrier t isearch-invalid-regexp isearch-other-end isearch-search isearch-push-state isearch-op-fun isearch-update] 3])
+(fset 'isearch-*-char #[nil "«©Á«ƒÄªÅA@8‰®‚«‡]ª…^bˆ)É\n!‡" [isearch-regexp t isearch-adjusted isearch-forward 5 2 isearch-cmds cs isearch-barrier isearch-process-search-char last-command-event] 3 "\
+Handle * and ? specially in regexps." nil])
+(fset 'isearch-|-char #[nil "«…ÁbˆÄ!‡" [isearch-regexp t isearch-adjusted isearch-barrier isearch-process-search-char last-command-event] 2 "\
+If in regexp search, jump to the barrier." nil])
+(fset 'isearch-quote-char #[nil "ÀÁÂÃ!!!‡" [isearch-process-search-char read-quoted-char isearch-message t] 4 "\
+Quote special characters for incremental search." nil])
+(fset 'isearch-return-char #[nil "ÀÁ!‡" [isearch-process-search-char 10] 2 "\
+Convert return into newline for incremental search.
+Obsolete." nil])
+(fset 'isearch-printing-char #[nil "À	!‡" [isearch-process-search-char last-command-event] 2 "\
+Any other printing character => add it to the search string and search." nil])
+(fset 'isearch-whitespace-chars #[nil "«ˆ	«…Â	Ã\"‡Ä ˆÅÆ!‡" [isearch-regexp search-whitespace-regexp isearch-process-search-string " " beep isearch-process-search-char 32] 3 "\
+Match all whitespace chars, if in regexp mode." nil])
+(byte-code "ÀÁMˆÂÃM‡" [isearch-process-search-char #[(char) "ÀÁ\n!Ã\n!\"‡" [isearch-process-search-string isearch-char-to-string char isearch-text-char-description] 4] isearch-process-search-string #[(string message) "	P\nPÄ ‡" [isearch-string string isearch-message message isearch-search-and-update] 2]] 2)
+(defvar search-ring-update nil "\
+*Non-nil if advancing or retreating in the search ring should cause search.
+Default nil means edit the string from the search ring first.")
+(byte-code "ÀÁMˆÂÃM‡" [isearch-ring-adjust1 #[(advance) "«ƒ	ª\n‰G«ƒÅªÆÈ!	ÊU?­¨	GZ«„SªÌ\\¦›‰	Lˆ	@ÎÏĞ#‰,‡" [isearch-regexp regexp-search-ring search-ring ring length regexp-search-ring-yank-pointer search-ring-yank-pointer yank-pointer-name eval yank-pointer 0 advance 1 isearch-string mapconcat isearch-text-char-description "" isearch-message] 5] isearch-ring-adjust #[(advance) "A«ƒÁ ˆÂ!ˆÄ ˆ«†Æ ˆÇ ‡È ‡" [isearch-cmds isearch-pop-state isearch-ring-adjust1 advance isearch-push-state search-ring-update isearch-search isearch-update isearch-edit-string] 2]] 2)
+(fset 'isearch-ring-advance #[nil "ÀÁ!‡" [isearch-ring-adjust advance] 2 "\
+Advance to the next search string in the ring." nil])
+(fset 'isearch-ring-retreat #[nil "ÀÁ!‡" [isearch-ring-adjust nil] 2 "\
+Retreat to the previous search string in the ring." nil])
+(fset 'isearch-ring-adjust-edit #[(advance) "À	!ˆÂ ˆc‡" [isearch-ring-adjust1 advance erase-buffer isearch-string] 2 "\
+Use the next or previous search string in the ring while in minibuffer."])
+(fset 'isearch-ring-advance-edit #[nil "ÀÁ!‡" [isearch-ring-adjust-edit advance] 2 nil nil])
+(fset 'isearch-ring-retreat-edit #[nil "ÀÁ!‡" [isearch-ring-adjust-edit nil] 2 "\
+Retreat to the previous search string in the ring while in the minibuffer." nil])
+(fset 'isearch-complete1 #[nil "«ƒ	ª\nÄÅ\"É\n\"‰Ì=«ƒÌª°¬‡\nGÍU« \nš«’«’ÏĞÑ\n\"!‘ˆª„\nÌª…ÒÓ!ˆÔ,‡" [isearch-regexp regexp-search-ring search-ring ring mapcar #[(string) "C‡" [string] 1] alist case-fold-search completion-ignore-case try-completion isearch-string completion t 0 completion-auto-help "*Isearch completions*" display-completion-list all-completions message "No completion" nil] 6])
+(fset 'isearch-complete #[nil "À «ƒÁ ‡ÂÃ!ˆÄ ‡" [isearch-complete1 isearch-edit-string sit-for 1 isearch-update] 2 "\
+Complete the search string from the strings on the search ring.
+The completed string is then editable in the minibuffer.
+If there is no completion possible, say so and continue searching." nil])
+(fset 'isearch-complete-edit #[nil "À Â ­…Ã ˆ	c‡" [buffer-string isearch-string isearch-complete1 erase-buffer] 1 "\
+Same as `isearch-complete' except in the minibuffer." nil])
+(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÇMˆÈÉMˆÊËMˆÌÍÎÏ#ˆÌĞÎÏ#ˆÌÑÎÏ#ˆÌÒÎÏ#ˆÌÓÎÏ#ˆÌÔÎÏ#ˆÌÕÎÏ#ˆÌÖÎÏ#ˆÌÍÎÏ#ˆÌÍÎÏ#ˆÌ×ÎÏ#ˆÌØÎÏ#ˆÌÙÎÏ#ˆÌÙÎÏ#ˆÌÚÎÏ#ˆÌÛÎÏ#ˆÌÜÎÏ#ˆÌİÎÏ#ˆÌŞÎÏ#ˆÌßÎÏ#ˆÌàÎÏ#ˆÌáÎÏ#ˆÌâÎÏ#ˆÌãÎÏ#ˆÌäÎÏ#ˆÌÜÎÏ#ˆÌÛÎÏ#ˆÌåÎÏ#ˆÌæÎÏ#ˆÌçÎÏ#ˆèéMˆêëM‡" [isearch-top-state #[nil "@‰@	A@Ä	8Æ	8È	8	Ê	8Ì	8Î	8	AA@b)‡" [isearch-cmds cmd isearch-string isearch-message 3 isearch-success 4 isearch-forward 5 isearch-other-end 6 isearch-invalid-regexp 7 isearch-wrapped 8 isearch-barrier] 3] isearch-pop-state #[nil "AÁ ‡" [isearch-cmds isearch-top-state] 1] isearch-push-state #[nil "	`\n¯	B‰‡" [isearch-string isearch-message isearch-success isearch-forward isearch-other-end isearch-invalid-regexp isearch-wrapped isearch-barrier isearch-cmds] 9] isearch-message #[(&optional c-q-hack ellipsis) "Á\n!Ä\n!Q\n«ƒª„ÇÈ\"*‡" [ellipsis isearch-message-prefix c-q-hack isearch-message isearch-message-suffix m cursor-in-echo-area message "%s"] 5] isearch-message-prefix #[(&optional c-q-hack nonincremental) "«…ÁÂÃˆ«ƒÅªÆ­È	«ƒÊªÅ«ƒÌªÅ«ƒÎªÏ«ƒÑªÒ°‰ÔÔH–Iˆ)‡" [isearch-invalid-regexp nil (byte-code "À	`Â#ˆÃÃ‡" [re-search-forward isearch-string t nil isearch-invalid-regexp] 4) ((error)) isearch-success "" "failing " isearch-wrapped "wrapped " isearch-word "word " isearch-regexp "regexp " nonincremental "search" "I-search" isearch-forward ": " " backward: " m 0] 7] isearch-message-suffix #[(&optional c-q-hack) "«ƒÁªÂ«†ÄÅQªÂP‡" [c-q-hack "^Q" "" isearch-invalid-regexp " [" "]"] 4] put isearch-printing-char isearch-command t isearch-return-char isearch-repeat-forward isearch-repeat-backward isearch-delete-char isearch-abort isearch-quote-char isearch-exit isearch-yank-word isearch-yank-line isearch-*-char isearch-|-char isearch-toggle-regexp isearch-edit-string isearch-mode-help isearch-ring-advance isearch-ring-retreat isearch-ring-advance-edit isearch-ring-retreat-edit isearch-whitespace-chars isearch-complete isearch-complete-edit isearch-forward-exit-minibuffer isearch-reverse-exit-minibuffer isearch-nonincremental-exit-minibuffer isearch-pre-command-hook #[nil "À ˆ	9­ƒ	ÂN?­‚Ã ‡" [isearch-maybe-frob-keyboard-macros this-command isearch-command isearch-done] 2] isearch-maybe-frob-keyboard-macros #[nil "Á=«„Â‰‡;«”Ã!Á=«ÄHÆ!Â‰‡È!­ÅÃ!Á=­¾ÄH‰	¨«„	ª 	9«‡	\nNª”	:«	A?­‰	@\nNªË‰­‹Æ!Â‰*‡" [this-command self-insert-command isearch-printing-char key-binding 0 last-command-char character-to-event last-command-event vectorp desc character-set-property nil code] 3]] 4)
+(defvar isearch-highlight t "\
+*Whether isearch and query-replace should highlight the text which 
+currently matches the search-string.")
+(byte-code "ÀÁ!¬‚ÂÃÄ!¬„ÅÄ!ˆÆÇMˆÈÉMˆÊËM‡" [boundp isearch-extent nil find-face isearch make-face isearch-highlight #[(begin end) "??­·Á\n!«Ã\n!p=«‰Ä\n#ˆªÁ\n!«’ÇÃ\n!!«‹ÈÃ\n!!«„É\n!ˆÊp#Ë\nÌ\"‡" [isearch-highlight extentp isearch-extent extent-buffer set-extent-endpoints begin end bufferp buffer-name delete-extent make-extent set-extent-face isearch] 4] isearch-dehighlight #[(totally) "­¿	­¼\n«ÃÅ	!«’ÆÇ	!!«‹ÈÇ	!!«„É	!ˆÊ‰)‡Å	!«“ÆÇ	!!«ŒÈÇ	!!«…Ë	Ì\"‡ÍÃ!‡" [isearch-highlight isearch-extent totally t inhibit-quit extentp bufferp extent-buffer buffer-name delete-extent nil set-extent-face default isearch-dehighlight] 3] isearch-search #[nil "ÀÁÂ\"ˆ«…Ä!ÇÈÉˆ\n?­Ë@8«ƒÍ ˆÎ@8b‡" [isearch-message nil t search-caps-disable-folding isearch-no-upper-case-p isearch-string isearch-case-fold-search lossage (byte-code "À	«‚À«Š«ƒÈª˜Éª•«Š«ƒÊª‹Ëªˆ«ƒÌªÍÀÏ#‰«Œ«„Ñ”ª‚Ñ•*À‡" [nil isearch-case-fold-search case-fold-search inhibit-quit isearch-regexp isearch-invalid-regexp isearch-word isearch-forward word-search-forward word-search-backward re-search-forward re-search-backward search-forward search-backward isearch-string t isearch-success 0 isearch-other-end] 5) ((quit (byte-code "À	!ÃÃ‡" [character-to-event interrupt-char unread-command-event nil isearch-success] 2)) (invalid-regexp (byte-code "A@ÂÃ	\"«‚ÄÂ‡" [lossage isearch-invalid-regexp string-match "\\`Premature \\|\\`Unmatched \\|\\`Invalid " "incomplete input"] 3))) isearch-success 3 isearch-cmds ding 2] 3]] 2)
+(fset 'isearch-no-upper-case-p #[(string) "ÀÂÃ\")?‡" [nil case-fold-search string-match "\\(^\\|[^\\]\\)[A-Z]" string] 3 "\
+Return t if there are no upper case chars in string.
+But upper case chars preceeded by \\ do not count since they
+have special meaning in a regexp."])

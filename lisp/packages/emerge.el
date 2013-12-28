@@ -140,6 +140,11 @@ after setting.")
 Must be set before Emerge is loaded, or  emerge-new-flags  must be run
 after setting.")
 
+(if (fboundp 'make-face)  ; for Lucid Emacs
+    (or (and (find-face 'emerge-highlight-face)
+	     (face-differs-from-default-p 'emerge-highlight-face))
+	(copy-face 'bold-italic 'emerge-highlight-face)))
+
 ;; Calculate dependent variables
 (emerge-new-flags)
 
@@ -1957,6 +1962,9 @@ might make to the mode line or local keymap.  Leaves merge in fast mode."
      (emerge-place-flags-in-buffer1 buffer before after))))
 
 (defun emerge-place-flags-in-buffer1 (buffer before after)
+  (if (fboundp 'set-extent-face) ; Lucid Emacs
+      (emerge-place-flags-in-buffer1-lucid buffer before after)
+    ;;else
   (let ((buffer-read-only nil))
     ;; insert the flags
     (goto-char before)
@@ -1968,7 +1976,13 @@ might make to the mode line or local keymap.  Leaves merge in fast mode."
     ;; before marker is one char before the end of the before flag
     ;; after marker is one char after the beginning of the after flag
     (set-marker before (1- before))
-    (set-marker after (1+ after))))
+    (set-marker after (1+ after)))))
+
+(defun emerge-place-flags-in-buffer1-lucid (buffer before after)
+  (let ((extent (make-extent (marker-position before)
+			     (marker-position after))))
+    (set-extent-face extent 'emerge-highlight-face)
+    (set-extent-data extent 'emerge)))
 
 ;; Unselect a difference by removing the visual flags in the buffers.
 (defun emerge-unselect-difference (n)
@@ -1981,6 +1995,9 @@ might make to the mode line or local keymap.  Leaves merge in fast mode."
 				   (aref diff-vector 4) (aref diff-vector 5))))
 
 (defun emerge-remove-flags-in-buffer (buffer before after)
+  (if (fboundp 'set-extent-face) ; Lucid Emacs
+      (emerge-remove-flags-in-buffer-lucid buffer before after)
+    ;;else
   (emerge-eval-in-buffer
    buffer
    (let ((buffer-read-only nil))
@@ -1999,7 +2016,15 @@ might make to the mode line or local keymap.  Leaves merge in fast mode."
 	 (delete-char emerge-after-flag-length)
        ;; the flag isn't there
        (ding)
-       (message "Trouble removing flag.")))))
+       (message "Trouble removing flag."))))))
+
+(defun emerge-remove-flags-in-buffer-lucid (buffer before after)
+  (map-extents (function (lambda (x y)
+			   (if (eq (extent-data x) 'emerge)
+			       (delete-extent x))))
+               (current-buffer)
+	       (marker-position before) (marker-position after) nil))
+
 
 ;; Select a difference, removing an flags that exist now.
 (defun emerge-unselect-and-select-difference (n &optional suppress-display)
@@ -2341,7 +2366,7 @@ shared with other keymaps!  (copy-keymap will suffice.)"
   "Displays the name of the file loaded into the current buffer.
 If the name won't fit on one line, the minibuffer is expanded to hold it,
 and the command waits for a keystroke from the user.  If the keystroke is
-SPC, it is ignored; if it is anything else, it is processed as a command."
+SPC, it is ignored\; if it is anything else, it is processed as a command."
   (interactive)
   (let ((name (buffer-file-name)))
     (or name
@@ -2355,9 +2380,9 @@ SPC, it is ignored; if it is anything else, it is processed as a command."
 	    (while (and (not (pos-visible-in-window-p))
 			(> (1- (screen-height)) (window-height)))
 	      (enlarge-window 1))
-	    (let ((c (read-char)))
-	      (if (/= c 32)
-		  (setq unread-command-char c))))))))
+	    (let* ((e (next-command-event (allocate-event))))
+	      (if (not (eq 32 (event-to-character e)))
+		  (setq unread-command-event e))))))))
 
 ;; Improved auto-save file names.
 ;; This function fixes many problems with the standard auto-save file names:
@@ -2435,4 +2460,3 @@ See also auto-save-file-name-p."
 		      (substring s (match-end 0))))
       (setq limit (1+ (match-end 0)))))
   s)
-

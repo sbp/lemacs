@@ -1,7 +1,7 @@
 \input texinfo                  @c -*-texinfo-*-
 @comment %**start of header (This is for running Texinfo on a region.)
 @setfilename ../info/gnus
-@settitle GNUS 3.13 Manual
+@settitle GNUS 3.14 Manual
 @iftex
 @finalout
 @end iftex
@@ -49,7 +49,7 @@ instead of in the original English.
 @sp 6
 @center @titlefont{GNUS Manual}
 @sp 4
-@center Third Edition, GNUS Version 3.13
+@center Fourth Edition, GNUS Version 3.14
 @sp 1
 @center March 1990
 @sp 5
@@ -146,7 +146,7 @@ If you cannot get a copy in any of those ways, you can order one from
 the author using electronic mail.  For further information, write to:
 
 @display
-umerin@@tc.Nagasaki.GO.JP
+umerin@@mse.kyutech.ac.jp
 @end display
 
 If you cannot reach the author using these addresses, try the following
@@ -376,6 +376,7 @@ articles can be done in the same Emacs environment you usually work in.
 
 @pindex rrn
 @cindex NNTP
+@cindex RFC977
   Like rrn, a remote version of rn, GNUS can use computer networks for
 retrieving articles.  This means that there is no need to have a local
 copy of the news spool, to mount a remote file system over the network,
@@ -453,6 +454,11 @@ A package accessing local news spool like NNTP.
 @item mhspool.el
 A package accessing private directory like NNTP.
 
+@pindex timezone.el
+@cindex time zone
+@item timezone.el
+A general time zone handling package useful not only for GNUS.
+
 @pindex tcp.el
 @findex open-network-stream
 @item tcp.el
@@ -509,6 +515,10 @@ computing environment by yourself:@refill
 @pindex gnusmisc.el
 Byte-compile @file{nntp.el}, @file{gnus.el}, @file{gnuspost.el},
 @file{gnusmail.el}, and @file{gnusmisc.el} in this order.@refill
+
+@item
+@pindex timezone.el
+Byte-compile @file{timezone.el} if you didn't have it.@refill
 
 @item
 @pindex nnspool.el
@@ -648,8 +658,8 @@ name, you do not have to define the domain.@refill
 defined unless it is defined in the file
 @file{/usr/lib/news/organization}.@refill
 
-@vindex gnus-your-domain
-@vindex gnus-your-organization
+@vindex gnus-local-domain
+@vindex gnus-local-organization
   To define the domain @samp{stars.flab.Fujitsu.CO.JP} and the
 organization @samp{Fujitsu Laboratories Ltd., Kawasaki, Japan.} using
 lisp variables, put the following code in @file{.emacs},
@@ -659,8 +669,8 @@ administrator and are installing GNUS for other users,
 and organization are common to all users of the system.@refill
 
 @example
-(setq gnus-your-domain "stars.flab.Fujitsu.CO.JP")
-(setq gnus-your-organization
+(setq gnus-local-domain "stars.flab.Fujitsu.CO.JP")
+(setq gnus-local-organization
       "Fujitsu Laboratories Ltd., Kawasaki, Japan.")
 @end example
 
@@ -678,7 +688,7 @@ setenv ORGANIZATION "Fujitsu Laboratories Ltd., Kawasaki, Japan."
 @cindex .organization
 @cindex /usr/lib/news/organization
   If the value of the @code{ORGANIZATION} environment variable or the
-variable @code{gnus-your-organization} begins with a slash, it is taken
+variable @code{gnus-local-organization} begins with a slash, it is taken
 as the name of a file whose contents are read for the value.  If neither
 of these is defined, and a file
 @file{~/.organization-@var{distribution}} or @file{~/.organization}
@@ -692,6 +702,7 @@ contents are used.@refill
 @cindex From field
 
 @vindex gnus-use-generic-from
+@pindex Bnews
   If the variable @code{gnus-use-generic-from} is non-@code{nil}, the
 local host name of your machine will not appear in the @samp{From:}
 field of article headers you post.  This is called the @dfn{GENERICFROM}
@@ -711,12 +722,12 @@ and organization (@pxref{Domain,, Domain and Organization}).@refill
 (setq gnus-use-generic-from t)
 @end example
 
-@vindex gnus-your-domain
+@vindex gnus-local-domain
 @vindex DOMAINNAME
   As a special case of the GENERICFROM feature, if the variable
 @code{gnus-use-generic-from} is a string, it is used as your domain
 instead of the definition of the environment variable @code{DOMAINNAME}
-or the variable @code{gnus-your-domain} (@pxref{Domain,, Domain and
+or the variable @code{gnus-local-domain} (@pxref{Domain,, Domain and
 Organization}).@refill
 
 @node GENERICPATH, Startup File, GENERICFROM, Environment
@@ -725,6 +736,7 @@ Organization}).@refill
 @cindex Path field
 
 @vindex gnus-use-generic-path
+@pindex Bnews
   If the variable @code{gnus-use-generic-path} is @code{nil}, the NNTP
 server name followed by the user login name is used in the @samp{Path:}
 field of article headers you post.  If it is a string, the string
@@ -754,6 +766,7 @@ In this case, the @samp{Path:} field will be generated as
 
 @vindex gnus-startup-file
 @cindex server specific startup file
+@pindex Bnews
   @dfn{Startup file} is a file recording information on articles you
 have already read.  GNUS uses @file{.newsrc} for the startup file as in
 the Bnews system.  If you think you will talk to exactly one NNTP
@@ -785,15 +798,19 @@ information on the variable customization.@refill
 @findex gnus-Group-unsubscribe-group
 @kindex C-k (Group Mode)
 @findex gnus-Group-kill-group
+@kindex C-w (Group Mode)
+@findex gnus-Group-kill-region
+@pindex Bnews
   Option @code{-n} of the options line in the startup file is recognized
 properly the same as for the Bnews system.  For example, if the options
 line is @samp{options -n !talk talk.rumors}, newsgroups under the
 @samp{talk} hierarchy except for @samp{talk.rumors} are ignored while
 checking new newsgroups.  These ignored newsgroups can be added manually
 using the command @kbd{U} (@code{gnus-Group-unsubscribe-group}) in the
-Newsgroup buffer.  Use the command @kbd{C-k}
-(@code{gnus-Group-kill-group}) to kill newsgroups from the startup file
-per a newsgroup basis.  @xref{Maintenance}, for more information.@refill
+Newsgroup buffer.  Use the commands @kbd{C-k} and @kbd{C-w}
+(@code{gnus-Group-kill-group} and @code{gnus-Group-kill-region}) to kill
+newsgroups from the startup file per a newsgroup basis.
+@xref{Maintenance}, for more information.@refill
 
 @kindex R (Group Mode)
 @findex gnus-Group-restart
@@ -1254,7 +1271,16 @@ startup file, it is added to the file.@refill
 @kindex C-k (Group Mode)
 @findex gnus-Group-kill-group
 @cindex kill newsgroups
-Kill the newsgroup from the startup file (@code{gnus-Group-kill-group}).
+Kill newsgroups from the startup file (@code{gnus-Group-kill-group}).
+Numeric argument to the command specifies the number of newsgroups to be
+killed.@refill
+
+@item C-w
+@kindex C-w (Group Mode)
+@findex gnus-Group-kill-region
+@cindex kill newsgroups
+Kill newsgroups in current region (excluding current line) from the
+startup file (@code{gnus-Group-kill-region}).
 
 @item C-y
 @kindex C-y (Group Mode)
@@ -1328,6 +1354,8 @@ information on the startup file and options line.@refill
 
 @kindex C-k (Group Mode)
 @findex gnus-Group-kill-group
+@kindex C-w (Group Mode)
+@findex gnus-Group-kill-region
 @kindex C-y (Group Mode)
 @findex gnus-Group-yank-group
 @kindex C-c C-y (Group Mode)
@@ -1341,18 +1369,19 @@ information on the startup file and options line.@refill
 @cindex change the order of newsgroups
 @cindex startup file
 @cindex .newsrc
-  The command @kbd{C-k} (@code{gnus-Group-kill-group}) kills a newsgroup
-from both the Newsgroup buffer and the raw startup file.  The last
-newsgroup killed with the @kbd{C-k} command can be yanked using the
-command @kbd{C-y} (@code{gnus-Group-yank-group}).  The command @kbd{C-c
-C-y} (@code{gnus-Browse-killed-groups}) pops up the @dfn{Browse-Killed
-buffer} for browsing the killed newsgroups.  In this buffer, the killed
-newsgroups can be yanked in any order using the commands @kbd{y} and
-@kbd{C-y} (@code{gnus-Browse-killed-yank}).  Thus, you can change the
-order of newsgroups in the Newsgroup buffer without editing the raw
-startup file directly.  Since the information on the killed newsgroups
-will be stored in the quick startup file, they can be restored any time
-unless you lose the file.@refill
+  The commands @kbd{C-k} and @kbd{C-w} (@code{gnus-Group-kill-group} and
+@code{gnus-Group-kill-region}) kill newsgroups from both the Newsgroup
+buffer and the raw startup file.  The killed newsgroups are stored in an
+invisible kill ring and they can be yanked back later.  The command
+@kbd{C-y} (@code{gnus-Group-yank-group}) yank the last newsgroup killed.
+The command @kbd{C-c C-y} (@code{gnus-Browse-killed-groups}) pops up the
+@dfn{Browse-Killed buffer} for browsing all the killed newsgroups.  In
+this buffer, the killed newsgroups can be yanked in any order using the
+commands @kbd{y} and @kbd{C-y} (@code{gnus-Browse-killed-yank}).  Thus,
+you can change the order of newsgroups in the Newsgroup buffer without
+editing the raw startup file directly.  Since the information on the
+killed newsgroups will be stored in the quick startup file, they can be
+restored any time unless you lose the file.@refill
 
 @kindex b (Group Mode)
 @findex gnus-Group-check-bogus-groups
@@ -2435,6 +2464,12 @@ Reply to the author of the current article (@code{gnus-Subject-mail-reply}).
 Reply to the author of the current article with the original article
 (@code{gnus-Subject-mail-reply-with-original}).@refill
 
+@item C-c C-f
+@kindex C-c C-f (Subject Mode)
+@findex gnus-Subject-mail-forward
+Forward the current message to another user.
+(@code{gnus-Subject-mail-forward}).@refill
+
 @item m
 @kindex m (Subject Mode)
 @findex gnus-Subject-mail-other-window
@@ -2459,13 +2494,19 @@ article automatically.@refill
 @cindex MH
 @pindex mh-e
 @vindex gnus-mail-reply-method
+@vindex gnus-mail-forward-method
 @vindex gnus-mail-other-window-method
 @findex gnus-mail-reply-using-mhe
 @findex gnus-mail-other-window-using-mhe
-  Mail message composer is defaulted to use Mail Mode.  If you want to
-use mh-e letter Mode instead of it, set the variable
-@code{gnus-mail-reply-method} to @code{gnus-mail-reply-using-mhe} and
-the variable @code{gnus-mail-other-window-method} to
+  When composing a mail message, the message composer (or mailer) is
+selected by the values of the variables @code{gnus-mail-reply-method},
+@code{gnus-mail-forward-method}, and
+@code{gnus-mail-other-window-method}.  These are defaulted to use Mail
+Mode.  If you want to use mh-e letter Mode instead of it, set the
+variable @code{gnus-mail-reply-method} to
+@code{gnus-mail-reply-using-mhe}, variable
+@code{gnus-mail-forward-method} to @code{gnus-mail-forward-using-mhe},
+and the variable @code{gnus-mail-other-window-method} to
 @code{gnus-mail-other-window-using-mhe}.  It is possible to use other
 mailers by customizing these variables.  @inforef{Mail Mode, Mail Mode,
 emacs}, for more information on Mail Mode.@refill
@@ -2906,9 +2947,10 @@ file.@refill
 @findex gnus-newsgroup-kill-file
 @example
 (setq gnus-Apply-kill-hook
-      '(lambda ()
+      (function
+       (lambda ()
          ;; Apply a local KILL file.
-         (load (gnus-newsgroup-kill-file gnus-newsgroup-name) t nil t)))
+         (load (gnus-newsgroup-kill-file gnus-newsgroup-name) t nil t))))
 @end example
 
   On the contrary, the following example enables only a global KILL
@@ -2918,9 +2960,10 @@ file.@refill
 @findex gnus-newsgroup-kill-file
 @example
 (setq gnus-Apply-kill-hook
-      '(lambda ()
+      (function
+       (lambda ()
          ;; Apply a global KILL file.
-         (load (gnus-newsgroup-kill-file nil) t nil t)))
+         (load (gnus-newsgroup-kill-file nil) t nil t))))
 @end example
 
   Here is an advanced example that drastically reduces the time for
@@ -2933,7 +2976,8 @@ without loading the KILL files.@refill
 @findex gnus-expunge
 @example
 (setq gnus-Apply-kill-hook
-      '(lambda ()
+      (function
+       (lambda ()
          ;; Apply to the newsgroup `control'
          ;; if the NNTP server is flab.
          (and (string-equal gnus-nntp-server "flab")
@@ -2941,7 +2985,7 @@ without loading the KILL files.@refill
               (progn
                 (gnus-kill "Subject" "ihave flab\\|sendme")
                 (gnus-kill "Subject" "cancel\\|newgroup\\|rmgroup" "d")
-                (gnus-expunge "X")))))
+                (gnus-expunge "X"))))))
 @end example
 
 @node Customization, Problems, KILL File, Top
@@ -2986,11 +3030,11 @@ spool of your machine rather than NNTP, set the variable to @code{nil}.
 @xref{NNTP Service}, and @pxref{Local News Spool}, for more
 information.@refill
 
-@vindex gnus-your-domain
+@vindex gnus-local-domain
 @vindex DOMAINNAME
 @findex system-name
 @cindex domain
-@item gnus-your-domain
+@item gnus-local-domain
 
 Specifies the domain which is the domain part of your mail address
 excluding the local host name of your machine.  The environment variable
@@ -2999,10 +3043,10 @@ excluding the local host name of your machine.  The environment variable
 define the domain.  @xref{Domain,, Domain and Organization}, for more
 information.@refill
 
-@vindex gnus-your-organization
+@vindex gnus-local-organization
 @vindex ORGANIZATION
 @cindex organization
-@item gnus-your-organization
+@item gnus-local-organization
 
 Specifies the organization you belong to.  The environment variable
 @code{ORGANIZATION} is used instead if defined.  If the value begins
@@ -3010,8 +3054,31 @@ with a slash, it is taken as the name of a file whose contents are read
 for the value.  @xref{Domain,, Domain and Organization}, for more
 information.@refill
 
+@cindex time zone
+@cindex Date field
+@cindex RFC822
+@pindex inews
+@pindex timezone.el
+@pindex Bnews
+@pindex Cnews
+@vindex gnus-local-timezone
+@vindex gnus-news-system
+@item gnus-local-timezone
+
+Specifies the local time zone you belong to.  The value can be either a
+time zone name such as @samp{"JST"} or a difference in hour from GMT
+such as @samp{+0900}.  If the variable is non-@code{nil}, a general time
+zone handling package @file{timezone.el} is used to generate a valid
+date for @samp{Date:} field in terms of RFC822.  Otherwise, if it is
+nil, GNUS generate a date ignoring the local time zone.  If you are
+using Bnews, it is okay since @file{inews} will rewrite the invalid
+date.  However, if you are using Cnews, you must set the variable to the
+correct time zone or set the variable @code{gnus-news-system} to
+@samp{Cnews} since @file{inews} of Cnews does not rewrite the wrong
+@samp{Date:} field.@refill
+
 @vindex gnus-use-generic-from
-@vindex gnus-your-domain
+@vindex gnus-local-domain
 @vindex DOMAINNAME
 @cindex GENERICFROM
 @cindex From field
@@ -3020,7 +3087,7 @@ information.@refill
 Non-@code{nil} means the local host name of your machine will not appear
 in the @samp{From:} field of article headers.  If the variable is a
 string, it is used as your domain instead of the definition by the
-variable @code{gnus-your-domain} or the environment variable
+variable @code{gnus-local-domain} or the environment variable
 @code{DOMAINNAME}.  @xref{GENERICFROM}, for more information.@refill
 
 @vindex gnus-use-generic-path
@@ -3034,9 +3101,20 @@ is used in the @samp{Path:} field as the NNTP server name instead of the
 definition by the variable @code{gnus-nntp-server}.  @xref{GENERICPATH},
 for more information.@refill
 
+@pindex Bnews
+@pindex Cnews
+@vindex gnus-news-system
+@item gnus-news-system
+
+Specifies news software system name of the news server, such as Bnews
+and Cnews.  It is intended to hide implementation dependent differences
+between news systems.  Current version understands @samp{Bnews} and
+@samp{Cnews}.@refill
+
 @vindex gnus-startup-file
 @cindex startup file
 @cindex .newsrc
+@pindex Bnews
 @item gnus-startup-file
 
 Specifies a startup file of the Bnews system, usually @file{.newsrc}.
@@ -3047,6 +3125,7 @@ information.@refill
 @vindex gnus-signature-file
 @cindex .signature
 @cindex signature
+@pindex Bnews
 @item gnus-signature-file
 
 Specifies a signature file of the Bnews system, usually
@@ -3093,6 +3172,7 @@ read articles while you do other work in other windows.@refill
 @vindex gnus-window-configuration
 @cindex window configuration
 @cindex configure windows
+@cindex slow terminal
 @item gnus-window-configuration
 
 Specifies the configuration of the Group Mode window, the Subject Mode
@@ -3522,7 +3602,7 @@ functions accessing contents of the @var{headers} are defined as
 @code{nntp-header-@var{field}} and @code{gnus-header-@var{field}},
 respectively.@refill
 
-GNUS provides two functions as follows:
+GNUS provides two functions:
 
 @table @code
 @findex gnus-optional-lines-and-from
@@ -3568,6 +3648,23 @@ original article automatically if non-@code{nil}.  To use Mail Mode, set
 the variable to @code{gnus-mail-reply-using-mail}.  To use mh-e letter
 Mode, set the variable to @code{gnus-mail-reply-using-mhe}.@refill
 
+@vindex gnus-mail-forward-method
+@findex gnus-mail-forward-using-mail
+@findex gnus-mail-forward-using-mhe
+@cindex forward article
+@cindex mail
+@cindex Mail Mode
+@cindex mh-e letter Mode
+@cindex mh-e
+@cindex MH
+@pindex mh-e
+@item gnus-mail-forward-method
+
+Specifies a function to forward the current message to another user.  To
+use Mail Mode, set the variable to @code{gnus-mail-forward-using-mail}.
+To use mh-e letter Mode, set the variable to
+@code{gnus-mail-forward-using-mhe}.@refill
+
 @vindex gnus-mail-other-window-method
 @findex gnus-mail-other-window-using-mail
 @findex gnus-mail-other-window-using-mhe
@@ -3593,16 +3690,36 @@ the variable to @code{gnus-mail-other-window-using-mhe}.@refill
 @item gnus-subscribe-newsgroup-method
 
 Specifies a function called with a newsgroup name when a new newsgroup
-is found.  The following default definition adds new newsgroup at the
-beginning of newsgroups:
+is found.  GNUS provides the following three functions:
+
+@table @code
+@findex gnus-subscribe-randomly
+@item gnus-subscribe-randomly
+Inserts a new newsgroup at the beginning of newsgroups.  Thus,
+newsgroups are in random order.@refill
+
+@findex gnus-subscribe-alphabetically
+@item gnus-subscribe-alphabetically
+Inserts a new newsgroup in strict alphabetic order.@refill
+
+@findex gnus-subscribe-hierarchically
+@item gnus-subscribe-hierarchically
+Inserts a new newsgroup in hierarchical newsgroup order.@refill
+@end table
+
+The following two definitions illustrate how to write your favorite
+subscribing method.  The following definition (is the definition of the
+function gnus-subscribe-randomly) adds new newsgroup at the beginning of
+newsgroups:
 
 @findex gnus-subscribe-newsgroup
 @vindex gnus-newsrc-assoc (Internal)
 @example
 (setq gnus-subscribe-newsgroup-method
-      '(lambda (newsgroup)
+      (function
+       (lambda (newsgroup)
          (gnus-subscribe-newsgroup newsgroup
-                                   (car (car gnus-newsrc-assoc)))))
+                                   (car (car gnus-newsrc-assoc))))))
 @end example
 
 Instead, if you want to add new newsgroup at the end of newsgroups, use
@@ -3611,8 +3728,9 @@ the following:
 @findex gnus-subscribe-newsgroup
 @example
 (setq gnus-subscribe-newsgroup-method
-      '(lambda (newsgroup)
-         (gnus-subscribe-newsgroup newsgroup nil)))
+      (function
+       (lambda (newsgroup)
+         (gnus-subscribe-newsgroup newsgroup nil))))
 @end example
 
 @kindex U (Group Mode)
@@ -3624,7 +3742,7 @@ following:@refill
 
 @example
 (setq gnus-subscribe-newsgroup-method
-      '(lambda (newsgroup) nil))        ;Do nothing.
+      (function (lambda (newsgroup) nil))) ;Do nothing.
 @end example
 
 The following final example must be the most useful for you who want not
@@ -3637,9 +3755,10 @@ to the subscription list interactively using Browse-Killed Mode
 @findex gnus-kill-newsgroup
 @example
 (setq gnus-subscribe-newsgroup-method
-      '(lambda (newsgroup)
+      (function
+       (lambda (newsgroup)
          (gnus-subscribe-newsgroup newsgroup)
-         (gnus-kill-newsgroup newsgroup)))
+         (gnus-kill-newsgroup newsgroup))))
 @end example
 
 @end table
@@ -3649,6 +3768,14 @@ to the subscription list interactively using Browse-Killed Mode
 @cindex NNTP
 
 @table @code
+@vindex nntp-large-newsgroup
+@cindex large newsgroup
+@item nntp-large-newsgroup
+
+Specifies the number of articles which indicates a large newsgroup.  If
+the number of articles is greater than the value, verbose messages will
+be shown to indicate the current status.@refill
+
 @vindex nntp-buggy-select
 @cindex select error
 @item nntp-buggy-select
@@ -3668,13 +3795,15 @@ newsgroup because sending many requests to the NNTP server without
 reading replies to them causes deadlock.  In this case, set the variable
 to a lower number.  @xref{NNTP Problems}, for more information.@refill
 
-@vindex nntp-large-newsgroup
-@cindex large newsgroup
-@item nntp-large-newsgroup
+@vindex nntp-debug-read
+@cindex NNTP debugging
+@cindex debug NNTP communication
+@cindex slow terminal
+@item nntp-debug-read
 
-Specifies the number of articles which indicates a large newsgroup.  If
-the number of articles is greater than the value, verbose messages will
-be shown to indicate the current status.@refill
+Non-@code{nil} means show the communication status about reading the
+NNTP server output.  Set the variable to @code{nil} if you are annoyed
+about verbose messages while reading news from slow terminal.@refill
 
 @vindex tcp-program-name
 @item tcp-program-name
@@ -3722,6 +3851,7 @@ variable @code{news-path} which is default to @file{/usr/spool/news}.
 
 @cindex active file
 @cindex /usr/lib/news/active
+@pindex Bnews
 Specifies an active file of the Bnews system for a local news spool.
 Its default value is @file{/usr/lib/news/active}.@refill
 
@@ -3730,6 +3860,7 @@ Its default value is @file{/usr/lib/news/active}.@refill
 
 @cindex history file
 @cindex /usr/lib/news/history
+@pindex Bnews
 Specifies a history file of the Bnews system for a local news spool.
 Its default value is @file{/usr/lib/news/history}.  Some machines may
 not have this file.  In this case, commands to refer to articles by
@@ -3788,9 +3919,10 @@ keys in Subject Mode.@refill
 
 @example
 (setq gnus-Subject-mode-hook
-      '(lambda ()
+      (function
+       (lambda ()
          (local-set-key "\C-cn" 'gnus-Subject-next-group)
-         (local-set-key "\C-cp" 'gnus-Subject-prev-group)))
+         (local-set-key "\C-cp" 'gnus-Subject-prev-group))))
 @end example
 
 @vindex gnus-Article-mode-hook
@@ -3812,8 +3944,9 @@ as follows:@refill
 
 @example
 (setq gnus-Article-mode-hook
-      '(lambda ()
-         (kill-local-variable 'global-mode-string)))
+      (function
+       (lambda ()
+         (kill-local-variable 'global-mode-string))))
 @end example
 
 @vindex gnus-Kill-file-mode-hook
@@ -3880,21 +4013,24 @@ ignored while comparing subjects.@refill
 @findex gnus-simplify-subject
 @example
 (setq gnus-Select-group-hook
-      '(lambda ()
+      (function
+       (lambda ()
          ;; First of all, sort by date.
          (gnus-sort-headers
-          '(lambda (a b)
+          (function
+           (lambda (a b)
              (gnus-date-lessp (gnus-header-date a)
-                              (gnus-header-date b))))
+                              (gnus-header-date b)))))
          ;; Then sort by subject ignoring `Re:'.
          (gnus-sort-headers
-          '(lambda (a b)
+          (function
+           (lambda (a b)
              (gnus-string-lessp 
               (gnus-simplify-subject
                (gnus-header-subject a) 're-only)
               (gnus-simplify-subject
                (gnus-header-subject b) 're-only)
-              )))))
+              )))))))
 @end example
 
 @cindex simplify subjects
@@ -3907,14 +4043,15 @@ The following is an example of simplifying subjects like the
 @vindex gnus-newsgroup-headers (Internal)
 @example
 (setq gnus-Select-group-hook
-      '(lambda ()
+      (function
+       (lambda ()
          (mapcar (function
                   (lambda (header)
                     (nntp-set-header-subject
                      header
                      (gnus-simplify-subject
                       (gnus-header-subject header) 're-only))))
-                 gnus-newsgroup-headers)))
+                 gnus-newsgroup-headers))))
 @end example
 
 In some newsgroups, author names are meaningless.  It is possible to
@@ -3926,7 +4063,8 @@ prevent listing author names in the Subject buffer as follows:
 @findex gnus-optional-lines-and-from
 @example
 (setq gnus-Select-group-hook
-      '(lambda ()
+      (function
+       (lambda ()
          (cond ((string-equal "comp.sources.unix"
                               gnus-newsgroup-name)
                 (setq gnus-optional-headers
@@ -3934,7 +4072,7 @@ prevent listing author names in the Subject buffer as follows:
                (t
                 (setq gnus-optional-headers
                       (function
-                         gnus-optional-lines-and-from))))))
+                       gnus-optional-lines-and-from)))))))
 @end example
 
 @vindex gnus-Select-article-hook
@@ -3951,8 +4089,9 @@ selected article automatically as follows:
 
 @example
 (setq gnus-Select-article-hook
-      '(lambda ()
-         (gnus-Subject-show-thread)))
+      (function
+       (lambda ()
+         (gnus-Subject-show-thread))))
 @end example
 
 @cindex Rmail
@@ -3966,7 +4105,8 @@ follows:
 @findex gnus-Subject-rmail-digest
 @example
 (setq gnus-Select-article-hook
-      '(lambda ()
+      (function
+       (lambda ()
          (gnus-Subject-show-thread)
          (cond ((string-equal "comp.sys.sun"
                               gnus-newsgroup-name)
@@ -3975,9 +4115,9 @@ follows:
                                    gnus-newsgroup-name)
                      (string-match "^TeXhax Digest"
                                    (gnus-header-subject
-                                      gnus-current-headers)))
+                                    gnus-current-headers)))
                 (gnus-Subject-rmail-digest)
-                ))))
+                )))))
 @end example
 
 @vindex gnus-Select-digest-hook
@@ -3998,13 +4138,14 @@ incomplete digest articles:
 @findex gnus-fetch-field
 @example
 (setq gnus-Select-digest-hook
-      '(lambda ()
+      (function
+       (lambda ()
          ;; Reply-To: is required by
          ;; `undigestify-rmail-message'.
          (or (mail-position-on-field "Reply-to" t)
              (progn
                (mail-position-on-field "Reply-to")
-               (insert (gnus-fetch-field "From"))))))
+               (insert (gnus-fetch-field "From")))))))
 @end example
 
 @vindex gnus-Rmail-digest-hook
@@ -4035,10 +4176,11 @@ hook:@refill
 @vindex gnus-newsgroup-name (Internal)
 @example
 (setq gnus-Apply-kill-hook
-      '(lambda ()
+      (function
+       (lambda ()
          (cond ((string-match "control" gnus-newsgroup-name)
                 (gnus-kill "Subject" "rmgroup")
-                (gnus-expunge "X")))))
+                (gnus-expunge "X"))))))
 @end example
 
 @xref{KILL File}, for more information on KILL files.@refill
@@ -4061,13 +4203,13 @@ The following example is the default definition of the hook:
 @findex gnus-Subject-set-current-mark
 @example
 (setq gnus-Mark-article-hook
-      '(lambda ()
+      (function
+       (lambda ()
          ;; Mark the selected article as read.
          (or (memq gnus-current-article gnus-newsgroup-marked)
              (gnus-Subject-mark-as-read gnus-current-article))
          ;; Put "+" on the current subject.
-         (gnus-Subject-set-current-mark "+")
-         ))
+         (gnus-Subject-set-current-mark "+"))))
 @end example
 
 It is possible to mark as unread (@samp{-}) instead when an article is
@@ -4078,12 +4220,12 @@ selected as follows:@refill
 @findex gnus-Subject-set-current-mark
 @example
 (setq gnus-Mark-article-hook
-      '(lambda ()
+      (function
+       (lambda ()
          ;; Mark the selected article as unread.
          (gnus-Subject-mark-as-unread gnus-current-article)
          ;; Put "+" on the current subject.
-         (gnus-Subject-set-current-mark "+")
-         ))
+         (gnus-Subject-set-current-mark "+"))))
 @end example
 
 @vindex gnus-Inews-article-hook
@@ -4124,10 +4266,11 @@ posting news.@refill
 
 @example
 (setq gnus-Exit-gnus-hook
-      '(lambda ()
+      (function
+       (lambda ()
          ;; Kill a buffer used for posting news.
          (and (get-buffer "*post-news*")
-              (kill-buffer "*post-news*"))))
+              (kill-buffer "*post-news*")))))
 @end example
 
 @vindex gnus-Suspend-gnus-hook
@@ -4233,10 +4376,11 @@ associated with the NNTP stream must be specified using the hook
 @cindex EUC
 @example
 (setq nntp-server-hook
-      '(lambda ()
+      (function
+       (lambda ()
          ;; Server's Kanji code is EUC (NEmacs hack).
          (make-local-variable 'kanji-fileio-code)
-         (setq kanji-fileio-code 0)))
+         (setq kanji-fileio-code 0))))
 @end example
 
 @cindex local news spool
@@ -4247,12 +4391,13 @@ case:
 
 @example
 (setq gnus-Inews-article-hook
-      '(lambda ()
+      (function
+       (lambda ()
          (save-excursion
            (set-buffer nntp-server-buffer)
            (make-local-variable 'kanji-fileio-code)
            (setq kanji-fileio-code 0)   ;EUC
-           )))
+           ))))
 @end example
 
 @vindex nntp-server-name
@@ -4266,7 +4411,8 @@ to change the kanji code using this variable.@refill
 @cindex SJIS
 @example
 (setq nntp-server-hook
-      '(lambda ()
+      (function
+       (lambda ()
          (make-local-variable 'kanji-fileio-code)
          (cond ((string-equal nntp-server-name "foo")
                 (setq kanji-fileio-code 0)) ;EUC
@@ -4274,7 +4420,7 @@ to change the kanji code using this variable.@refill
                 (setq kanji-fileio-code 1)) ;Shift-JIS
                (t
                 (setq kanji-fileio-code 2)) ;JIS
-               )))
+               ))))
 @end example
 
 @node NEmacs3, SX/A Emacs, NEmacs2, Kanji Handling
@@ -4315,15 +4461,17 @@ using hooks:@refill
 @cindex JIS
 @example
 (setq gnus-Article-prepare-hook
-      '(lambda ()
+      (function
+       (lambda ()
          (call-process-region (point-min) (point-max)
                               "nkf" t t nil "-e" ;-e stands for EUC.
-                              )))
+                              ))))
 (setq gnus-Inews-article-hook
-      '(lambda ()
+      (function
+       (lambda ()
          (call-process-region (point-min) (point-max)
                               "nkf" t t nil "-j" ;-j stands for JIS.
-                              )))
+                              ))))
 @end example
 
 @pindex nkf

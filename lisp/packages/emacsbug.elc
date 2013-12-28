@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Thu Jun  4 16:19:44 1992
-;;; from file /u/jwz/emacs19/lisp/emacsbug.el
-;;; emacs version 19.1 Lucid.
-;;; bytecomp version 2.06; 17-may-92.
+;;; compiled by jwz@thalidomide on Tue Jun 30 22:32:51 1992
+;;; from file /wg1/emacs-base/lisp/packages/emacsbug.el
+;;; emacs version 19.2.1 Lucid.
+;;; bytecomp version 2.07; 17-jun-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 

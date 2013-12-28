@@ -1,7 +1,7 @@
 ;;;; dired-cwd.el - Fix a command's current working directory in Tree Dired.
 
-(defconst dired-cwd-version (substring "$Revision: 1.2 $" 11 -2)
-  "$Id: dired-cwd.el,v 1.2 1992/03/01 14:18:01 jwz Exp $")
+(defconst dired-cwd-version (substring "!Revision: 1.2 !" 11 -2)
+  "!Id: dired-cwd.el,v 1.2 1991/10/08 15:31:28 sk RelBeta !")
 
 ;; Copyright (C) 1991 by Sebastian Kremer <sk@thp.uni-koeln.de>
 
@@ -23,7 +23,7 @@
 ;;    LCD Archive Entry:
 ;;    dired-cwd|Sebastian Kremer|sk@thp.uni-koeln.de
 ;;    |Fix a command's current working directory in Tree Dired. 
-;;    |$Date: 1992/03/01 14:18:01 $|$Revision: 1.2 $|
+;;    |Date: 1991/10/08 15:31:28 |Revision: 1.2 |
 
 ;; INSTALLATION ======================================================
 ;; 

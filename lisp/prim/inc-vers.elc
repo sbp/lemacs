@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Wed Jun 17 18:55:39 1992
-;;; from file /u/jwz/emacs19/lisp/prim/inc-vers.el
-;;; emacs version 19.1.1 Lucid.
-;;; bytecomp version 2.07; 12-jun-92.
+;;; compiled by jwz@thalidomide on Fri Aug 21 00:55:27 1992
+;;; from file /wg1/emacs-base/lisp/prim/inc-vers.el
+;;; emacs version 19.2.9 Lucid.
+;;; bytecomp version 2.08;  7-aug-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -10,4 +10,4 @@
 	     (string-lessp emacs-version "19")))
     (error "This file was compiled for Emacs19."))
 
-(byte-code "ÀÁ!ˆÂ ˆÃÄ!ˆÅÆ!ˆÇ”Ç•U«„Èuª‡É”bˆÊp!~ˆ¬…Ìcˆª–É”É•|ˆÍTp\"ˆÎU«ƒÏcˆ)ĞÑxˆÒÓ`ĞÑwˆ`{\"ˆÔedÄÑÕ%ˆÖ ˆ×Ñ!ˆØ ‡" [load "startup" set-default-load-path insert-file-contents "../lisp/version.el" re-search-forward "emacs-version \"[^\"0-9]*[0-9]+\\.[0-9]+\\(\\.\\([0-9]+\\)\\|\\)\"" 1 -1 2 read version ".1" prin1 75 " (Disco Inferno)" "^\"" nil message "New Emacs version will be %s" write-region nomsg erase-buffer set-buffer-modified-p kill-emacs] 6)
+(byte-code "ÀÁ!ˆÂ ˆÃÄ!ˆÅÆ!ˆÇ”Ç•U«„Èuª‡É”bˆÊp!~ˆ¬…ÌcˆªÉ”É•|ˆÍTp\"ˆ)ÎÏxˆĞÑ`ÎÏwˆ`{\"ˆÒedÄÏÓ%ˆÔ ˆÕÏ!ˆÖ ‡" [load "startup" set-default-load-path insert-file-contents "../lisp/version.el" re-search-forward "emacs-version \"[^\"0-9]*[0-9]+\\.[0-9]+\\(\\.\\([0-9]+\\)\\|\\)\\( (.*)\\)?\"" 1 -1 2 read version ".1" prin1 "^\"" nil message "New Emacs version will be %s" write-region nomsg erase-buffer set-buffer-modified-p kill-emacs] 6)

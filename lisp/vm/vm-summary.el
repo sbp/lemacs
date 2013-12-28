@@ -25,7 +25,8 @@ for a list of available commands."
 	buffer-read-only t
 	vm-summary-pointer nil
 	truncate-lines t)
-  (use-local-map vm-mode-map))
+  (use-local-map vm-mode-map)
+  (run-hooks 'vm-summary-mode-hooks))
 
 (put 'vm-summary-mode 'mode-class 'special)
 

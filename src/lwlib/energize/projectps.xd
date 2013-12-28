@@ -1,0 +1,99 @@
+module 'XApplication'
+applicationName = 'XApplication';
+generateNameC = 'projectps.xdc';
+generateNameUIL = '';
+generateNameResDB = '';
+generateUidFile = '';
+generateMask = 458980;
+object '' : XmDialogShell {
+	arguments {
+	name = 'widget0';
+	XmNtitle = 'Project ps';
+	XmNallowShellResize = true;
+	};
+object '' : XmFrame {
+	arguments {
+	name = 'project_psheet';
+	XmNshadowType=8;
+	};
+object '' : XmForm {
+	arguments {
+	XmNautoUnmanage = false;
+	};
+object '' : XmRadioBox {
+	arguments {
+	name = 'sourceinforadiobox';
+	XmNorientation=2;
+	};
+object '' : XmToggleButton GADGET {
+	arguments {
+	name = 'nameinfo';
+	};
+};
+object '' : XmToggleButton GADGET {
+	arguments {
+	name = 'longinfo';
+	};
+};
+object '' : XmToggleButton GADGET {
+	arguments {
+	name = 'compileinfo';
+	};
+};
+};
+object '' : XmRadioBox {
+	arguments {
+	name = 'membersortingradiobox';
+	XmNorientation=2;
+	};
+object '' : XmToggleButton GADGET {
+	arguments {
+	name = 'alphaorder';
+	};
+};
+object '' : XmToggleButton GADGET {
+	arguments {
+	name = 'linkorder';
+	};
+};
+};
+object '' : XmLabel {
+	arguments {
+	name = 'project';
+	};
+};
+object '' : XmLabel {
+	arguments {
+	name = 'name';
+	};
+};
+    attachments {
+    attachment {
+	XmNrightAttachment = 1 0 2;
+	XmNleftAttachment = 3 3;
+	XmNbottomAttachment = 0 0 0;
+	XmNtopAttachment = 3 4;
+    };
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 4 1 0;
+	XmNbottomAttachment = 1 0 2;
+	XmNtopAttachment = 3 1 2;
+    };
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 1 0 2;
+	XmNbottomAttachment = 0 0 0;
+	XmNtopAttachment = 1 0 2;
+    };
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 3 3 2;
+	XmNbottomAttachment = 0 0 0;
+	XmNtopAttachment = 4 3 0;
+    };
+    };
+};
+};
+};
+end module;

@@ -99,52 +99,42 @@ In addition to the normal cursor-motion commands, the following keys are bound:
 
 ;;; Energize Debugger mode commands; it seems pointless to do this with advice.
 
-(defun energize-debugger-do-item (key)
-  "If the argument string is a Energize menu keyword for the current buffer,
-then execute the corresponding operation and return true\; else return nil."
-  (let* ((buf (current-buffer))
-	 (item (energize-list-menu buf nil key)))
-    (if (not item)
-	nil
-      (energize-execute-menu-item buf nil item)
-      t)))
-
 (defun energize-debugger-step-line (arg)
   "Step one source line in the Energize debugger."
   (interactive "p")
-  (energize-debugger-do-item "steponce"))
+  (energize-execute-command "steponce"))
 
 (defun energize-debugger-step-instruction (arg)
   "Step one machine instruction in the Energize debugger."
   (interactive "p")
-  (energize-debugger-do-item "stepinst"))
+  (energize-execute-command "stepinst"))
 
 (defun energize-debugger-next-line (arg)
   "Step one source line skipping function calls in the Energize debugger."
   (interactive "p")
-  (energize-debugger-do-item "stepnext"))
+  (energize-execute-command "stepnext"))
 
 (defun energize-debugger-continue-program (arg)
   "Continue running program being debugged in the Energize debugger."
   (interactive "p")
-  (energize-debugger-do-item "continueprogram"))
+  (energize-execute-command "continueprogram"))
 
 (defun energize-debugger-up-frame (arg)
   "Go up one stack frame in the Energize debugger."
   (interactive "p")
-  (energize-debugger-do-item "upframe"))
+  (energize-execute-command "upframe"))
 
 (defun energize-debugger-down-frame (arg)
   "Go up one stack frame in the Energize debugger."
   (interactive "p")
-  (energize-debugger-do-item "downframe"))
+  (energize-execute-command "downframe"))
 
 (defun energize-debugger-return (arg)
   "Finish executing current function in the Energize debugger."
   (interactive "p")
-  (energize-debugger-do-item "continueuntilreturn"))
+  (energize-execute-command "continueuntilreturn"))
 
 (defun energize-debugger-interrupt (arg)
   "Interrupt program or debugger command in the Energize debugger."
   (interactive "p")
-  (energize-debugger-do-item "stopprogram"))
+  (energize-execute-command "stopprogram"))

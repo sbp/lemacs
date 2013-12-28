@@ -23,6 +23,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "window.h"
 #include "screen.h"
 #include "events.h"
+#include "indent.h"
 
 extern Lisp_Object Qeventp;
 Lisp_Object QKbackspace, QKtab, QKlinefeed, QKreturn, QKescape,
@@ -84,7 +85,7 @@ event_to_character (event, lenient)	/* This is worthless and weak */
   if (!lenient &&
       event->event.key.modifiers & (MOD_SUPER|MOD_HYPER|MOD_SYMBOL))
     return -1;
-  if (XTYPE (event->event.key.key) == Lisp_Int)	    c = event->event.key.key;
+  if (FIXNUMP (event->event.key.key))	    c = event->event.key.key;
   else if (EQ (event->event.key.key, QKbackspace))	c = '\b';
   else if (EQ (event->event.key.key, QKtab))		c = '\t';
   else if (EQ (event->event.key.key, QKlinefeed))	c = '\n';
@@ -93,14 +94,14 @@ event_to_character (event, lenient)	/* This is worthless and weak */
   else if (EQ (event->event.key.key, QKspace))		c = ' ';
   else if (EQ (event->event.key.key, QKdelete))		c = 127;
 
-  else if (XTYPE (event->event.key.key) != Lisp_Symbol)
+  else if (!SYMBOLP (event->event.key.key))
     abort ();
   else if (!NILP (Vcharacter_set_property))
     {
       /* Allow window-system-specific extensibility of the keysym->code mapping
        */
       Lisp_Object code = Fget (event->event.key.key, Vcharacter_set_property);
-      if (XTYPE (code) != Lisp_Int)
+      if (!FIXNUMP (code))
 	return -1;
       c = XINT (code);
     }
@@ -169,7 +170,7 @@ ASCII character set can encode.")
      (ch, event)
      Lisp_Object ch, event;
 {
-  CHECK_NUMBER (ch, 0);
+  CHECK_FIXNUM (ch, 0);
   if (NILP (event))
     event = Fallocate_event ();
   else
@@ -196,7 +197,7 @@ format_event_object (buf, event, brief)
     mod = event->event.key.modifiers;
     key = event->event.key.key;
     /* Hack. */
-    if (! brief && XTYPE (key) == Lisp_Int &&
+    if (! brief && FIXNUMP (key) &&
 	mod & (MOD_CONTROL|MOD_META|MOD_SUPER|MOD_HYPER)) {
       if (XINT (key) >= 'a' && XINT (key) <= 'z')
 	XFASTINT (key) -= 'a'-'A';
@@ -298,11 +299,11 @@ DEFUN ("eventp", Feventp, Seventp, 1, 1, 0,
      (obj)
      Lisp_Object obj;
 {
-  return ((XTYPE (obj) == Lisp_Event) ? Qt : Qnil);
+  return ((EVENTP (obj)) ? Qt : Qnil);
 }
 
 #define EVENT_PRED(type) \
-  return ((XTYPE (obj) == Lisp_Event && \
+  return ((EVENTP (obj) && \
 	   XEVENT (obj)->event_type == (type)) \
 	  ? Qt : Qnil)
 
@@ -327,7 +328,7 @@ DEFUN ("button-event-p", Fbutton_event_p,
        "True if the argument is a button-press or button-release event object.")
      (obj)
 {
-  return ((XTYPE (obj) == Lisp_Event &&
+  return ((EVENTP (obj) &&
 	   (XEVENT (obj)->event_type == button_press_event ||
 	    XEVENT (obj)->event_type == button_release_event))
 	  ? Qt : Qnil);
@@ -357,7 +358,7 @@ DEFUN ("eval-event-p", Feval_event_p, Seval_event_p, 1, 1, 0,
        "True if the argument is an `eval' or `menu' event object.")
      (obj)
 {
-  return ((XTYPE (obj) == Lisp_Event &&
+  return ((EVENTP (obj) &&
 	   (XEVENT (obj)->event_type == menu_event ||
 	    XEVENT (obj)->event_type == eval_event))
 	  ? Qt : Qnil);
@@ -479,10 +480,11 @@ button-release event in pixels.")
 
 
 void
-event_pixel_translation (event, char_x, char_y, w, bufp, class)
+event_pixel_translation (event, char_x, char_y, w, bufp, class, the_hard_way)
      Lisp_Object event, *class;
      int *char_x, *char_y, *bufp;
      struct window **w;
+     int the_hard_way;
 {
   int pix_x, pix_y, begin_p;
   int glyph, res;
@@ -515,6 +517,27 @@ event_pixel_translation (event, char_x, char_y, w, bufp, class)
     *bufp = 0;
   else if (*w && NILP ((*w)->buffer))
     *w = 0; /* Why does this happen? */
+
+#if 0
+
+  if (the_hard_way && *bufp)
+    /* pixel_to_glyph_translation() doesn't really work when what you're
+       interested in is the buffer position of a pixel position, though
+       it works for the other values.  So if we want the point, we use
+       compute_motion() to get the buffer position, because doing this is
+       loads easier than actually fixing the redisplay data structures to
+       be valid.  What a crock.
+     */
+    {
+      struct position *posval;
+      XSETWINDOW (window, *w);
+      posval = compute_motion (window, marker_position ((*w)->start), 0, 0,
+			       ZV, *char_y, *char_x,
+			       XFASTINT ((*w)->width), XINT ((*w)->hscroll),
+			       0, 0, 0);
+      *bufp = posval->bufpos;
+    }
+#endif
 }
 
 
@@ -527,7 +550,7 @@ the event did not occur in an emacs window (in the border or modeline.)")
   int char_x, char_y, bufp;
   struct window *w;
   Lisp_Object window, class;
-  event_pixel_translation (event, &char_x, &char_y, &w, &bufp, &class);
+  event_pixel_translation (event, &char_x, &char_y, &w, &bufp, &class, 0);
   if (! w) return Qnil;
   XSET (window, Lisp_Window, w);
   return window;
@@ -543,7 +566,7 @@ into the buffer visible in the event's window.")
 {
   int char_x, char_y, bufp, class;
   struct window *w;
-  event_pixel_translation (event, &char_x, &char_y, &w, &bufp, &class);
+  event_pixel_translation (event, &char_x, &char_y, &w, &bufp, &class, 1);
   if (! w) return Qnil;
   if (! bufp) return Qnil;
   return make_number (bufp);
@@ -556,7 +579,7 @@ button-release event in characters.")
 {
   int char_x, char_y, bufp, class;
   struct window *w;
-  event_pixel_translation (event, &char_x, &char_y, &w, &bufp, &class);
+  event_pixel_translation (event, &char_x, &char_y, &w, &bufp, &class, 0);
   if (! w) return Qnil;
   return make_number (char_x);
 }
@@ -568,7 +591,7 @@ button-release event in characters.")
 {
   int char_x, char_y, bufp, class;
   struct window *w;
-  event_pixel_translation (event, &char_x, &char_y, &w, &bufp, &class);
+  event_pixel_translation (event, &char_x, &char_y, &w, &bufp, &class, 0);
   if (! w) return Qnil;
   return make_number (char_y);
 }
@@ -583,7 +606,7 @@ on top of a glyph, this returns it; else nil.")
   Lisp_Object class;
   struct window *w;
 
-  event_pixel_translation (event, &char_x, &char_y, &w, &bufp, &class);
+  event_pixel_translation (event, &char_x, &char_y, &w, &bufp, &class, 0);
   if (! w) return Qnil;
   return class;
 }
@@ -680,7 +703,8 @@ event_equal (o1, o2)			/* only Fequal() uses this */
       return Qnil;
     return Qt;
   case magic_event:
-    return (bcmp (XEVENT (o1)->event.magic, XEVENT (o2)->event.magic,
+    return (bcmp ((char*) &(XEVENT (o1)->event.magic),
+		  (char*) &(XEVENT (o2)->event.magic),
 		  sizeof (struct magic_data))
 	    ? Qnil : Qt);
 

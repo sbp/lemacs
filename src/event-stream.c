@@ -43,7 +43,9 @@ extern int interrupt_char, help_char, meta_prefix_char;
 
 Lisp_Object Qundefined; /* The symbol undefined; good a place as any... */
 
-Lisp_Object Vmouse_motion_handler;
+extern Lisp_Object Vmouse_motion_handler;
+
+extern Lisp_Object Qpre_command_hook, Qpost_command_hook;
 
 static void echo_char_event (), echo_prompt (), maybe_echo_keys ();
 void cancel_echoing ();
@@ -87,7 +89,7 @@ maybe_kbd_translate (event)
      Lisp_Object event;
 {
   int c;
-  if (XTYPE (Vkeyboard_translate_table) != Lisp_String) return;
+  if (!STRINGP (Vkeyboard_translate_table)) return;
   c = event_to_character (XEVENT (event), 0);
   if (c == -1) return;
   if (XSTRING (Vkeyboard_translate_table)->size <= c) return;
@@ -129,7 +131,7 @@ execute_help_form (event)
   record_unwind_protect (Fset_window_configuration,
 			 Fcurrent_window_configuration ());
   tem0 = Feval (Vhelp_form);
-  if (XTYPE (tem0) == Lisp_String)
+  if (STRINGP (tem0))
     internal_with_output_to_temp_buffer ("*Help*", print_help, tem0, Qnil);
   cancel_echoing ();
   Fnext_command_event (event);
@@ -203,6 +205,25 @@ enqueue_command_event (event)
     abort ();
 }
 
+DEFUN ("enqueue-eval-event", Fenqueue_command_event, Senqueue_command_event,
+       2, 2, 0, 
+       "Add an eval event to the back of the queue.\n\
+(enqueue-eval-event <function> <object>)\n\
+It will be the next event read after all pending events.")
+  (function, object)
+Lisp_Object function, object;
+{
+  Lisp_Object event;
+
+  event = Fallocate_event ();
+
+  XEVENT (event)->event_type = eval_event;
+  XEVENT (event)->event.eval.function = function;
+  XEVENT (event)->event.eval.object = object;
+  enqueue_command_event (event);
+
+  return event;
+}
 
 /* the number of keyboard characters read.  callint.c wants this. 
  */
@@ -285,7 +306,7 @@ which is often more appropriate.")
    */
   if (!NILP (Vunread_command_event))
     {
-      if (XTYPE (Vunread_command_event) != Lisp_Event ||
+      if (!EVENTP (Vunread_command_event) ||
 	  XEVENT (Vunread_command_event)->event_type != key_press_event &&
 	  XEVENT (Vunread_command_event)->event_type != button_press_event &&
 	  XEVENT (Vunread_command_event)->event_type != button_release_event &&
@@ -344,7 +365,7 @@ which is often more appropriate.")
 	 come from unread-command-event.  It's always a command-event, (a
 	 key, click, or menu selection) never a motion or process event.
        */
-      if (XTYPE (Vlast_input_event) != Lisp_Event)
+      if (!EVENTP (Vlast_input_event))
 	Vlast_input_event = Fallocate_event ();
       if (XEVENT (Vlast_input_event)->event_type == dead_event)
 	{
@@ -601,7 +622,7 @@ lisp_number_to_milliseconds (secs, allow_0)
   unsigned long msecs;
 #ifdef LISP_FLOAT_TYPE
   double fsecs;
-  CHECK_NUMBER_OR_FLOAT (secs, 0);
+  CHECK_NUMBER (secs, 0);
   fsecs = XFLOATINT (secs);
 #else
   long fsecs;
@@ -856,7 +877,7 @@ will cause that timeout to not be signalled if it hasn't been already.")
      (id)
      Lisp_Object id;
 {
-  CHECK_NUMBER (id, 0);
+  CHECK_FIXNUM (id, 0);
   event_stream->disable_wakeup_cb (XINT (id));
   return Qnil;
 }
@@ -1390,14 +1411,14 @@ compose_command (event, execute_p)
 
     echo_area_glyphs = 0;
 
-    while (XTYPE (leaf2) == Lisp_Symbol && !NILP (Ffboundp (leaf2)))
+    while (SYMBOLP (leaf2) && !NILP (Ffboundp (leaf2)))
       leaf2 = Fsymbol_function (leaf2);
     /* If the leaf is a keymap, we're not done yet.  Return nil.
        We do all this junk with leaf2 instead of leaf so that
        command-execute is called on the actual contents of the
        keymap instead of its function cell.
      */
-    if (XTYPE (leaf2) == Lisp_Keymap) {
+    if (KEYMAPP (leaf2)) {
       maybe_echo_keys ();
       return Qnil;
     }
@@ -1494,6 +1515,11 @@ compose_command (event, execute_p)
   }
 }
 
+
+static void store_last_command_event ();
+static void pre_command_hook ();
+static void post_command_hook ();
+
 static void
 dispatch_command_event_internal (event, leaf)
      struct Lisp_Event *event;
@@ -1534,28 +1560,8 @@ dispatch_command_event_internal (event, leaf)
   else XSET (Vcurrent_mouse_event, Lisp_Event, event);
 
   if (event->event_type != eval_event)
-    {
-      Lisp_Object e;
+    store_last_command_event (event);
 
-      command_builder->event_count = 0;
-      command_builder->leaf = Qnil;
-
-      /* Store the last-command-event.  The semantics of this is that it is
-	 the last event most recently involved in command-lookup.
-       */
-      if (XTYPE (Vlast_command_event) != Lisp_Event)
-	Vlast_command_event = Fallocate_event ();
-      if (XEVENT (Vlast_command_event)->event_type == dead_event)
-	{
-	  Vlast_command_event = Fallocate_event ();
-	  error ("Someone deallocated the last-command-event!");
-	}
-
-      XSET (e, Lisp_Event, event);
-      if (! EQ (e, Vlast_command_event))
-	Fcopy_event (e, Vlast_command_event);
-      Vlast_command_char = Fevent_to_character (Vlast_command_event, Qnil);
-    }
   {
     char *old_eag = echo_area_glyphs; /* before command executed */
     int old_rap = zmacs_region_active_p;
@@ -1574,11 +1580,14 @@ dispatch_command_event_internal (event, leaf)
       int count = specpdl_ptr - specpdl;
       record_unwind_protect (reset_this_command_keys_fn, 0);
       
+      if (event->event_type != eval_event)
+	pre_command_hook ();
+
       if (event->event_type == menu_event ||
 	  event->event_type == eval_event)
 	call1 (event->event.eval.function, event->event.eval.object);
       else
-	Fcommand_execute (leaf, Qnil);
+	Fcommand_execute (Vthis_command, Qnil);
       
       /* the following two lines set it to 1 and then set it back;
 	 but remember that the unbinding will happen from elsewhere
@@ -1601,18 +1610,7 @@ dispatch_command_event_internal (event, leaf)
     if (defining_kbd_macro && !NILP (Vprefix_arg))
       kbd_macro_end = pre_command_kbd_macro_end;
 
-    /* Turn off region hilighting unless this command requested that
-       it be left on, or we're in the minibuffer.  We don't turn it off
-       when we're in the minibuffer so that things like M-x write-region
-       still work!
-     */
-    if (! zmacs_region_stays &&
-	!EQ (minibuf_window, selected_window) &&
-	(! zmacs_region_active_p ||
-	 ! (zmacs_region_active_p > old_rap)))
-      Fzmacs_deactivate_region ();
-    else
-      zmacs_update_region ();
+    post_command_hook (old_rap);
 
     /* Commands that set the prefix arg don't update last-command, don't
        reset the echoing state, and don't go into keyboard macros unless
@@ -1641,6 +1639,65 @@ dispatch_menu_event (e)
 {     
   dispatch_command_event_internal (e, Qnil);
 }
+
+
+static void
+store_last_command_event (event)
+     struct Lisp_event *event;
+{
+  Lisp_Object e;
+
+  command_builder->event_count = 0;
+  command_builder->leaf = Qnil;
+
+  /* Store the last-command-event.  The semantics of this is that it is
+     the last event most recently involved in command-lookup.
+     */
+  if (!EVENTP (Vlast_command_event))
+    Vlast_command_event = Fallocate_event ();
+  if (XEVENT (Vlast_command_event)->event_type == dead_event)
+    {
+      Vlast_command_event = Fallocate_event ();
+      error ("Someone deallocated the last-command-event!");
+    }
+
+  XSET (e, Lisp_Event, event);
+  if (! EQ (e, Vlast_command_event))
+    Fcopy_event (e, Vlast_command_event);
+  Vlast_command_char = Fevent_to_character (Vlast_command_event, Qnil);
+}
+
+static void
+pre_command_hook ()
+{
+  if (!NILP (Vrun_hooks))
+    call1 (Vrun_hooks, Qpre_command_hook);
+}
+
+static void
+post_command_hook (old_rap)
+     int old_rap;
+{
+  /* Turn off region hilighting unless this command requested that
+     it be left on, or we're in the minibuffer.  We don't turn it off
+     when we're in the minibuffer so that things like M-x write-region
+     still work!
+
+     This could be done via a function on the post-command-hook, but
+     we don't want the user to accidentally remove it.
+   */
+  if (! zmacs_region_stays &&
+      !EQ (minibuf_window, selected_window) &&
+      (! zmacs_region_active_p ||
+       ! (zmacs_region_active_p > old_rap)))
+    Fzmacs_deactivate_region ();
+  else
+    zmacs_update_region ();
+
+  if (!NILP (Vrun_hooks))
+    call1 (Vrun_hooks, Qpost_command_hook);
+}
+
 
 
 static Lisp_Object dispatch_event_internal ();
@@ -1678,16 +1735,20 @@ related function.")
 {
   Lisp_Object result = Qnil;
   Lisp_Object event = Fallocate_event ();
+  int count = specpdl_ptr - specpdl;
   struct gcpro gcpro1;
   GCPRO1 (event);
 
   QUIT;
   echo_prompt ((char *) XSTRING (prompt)->data);
+
+  specbind (Qinhibit_quit, Qt);
   reset_this_command_keys = 1; /* this is stupid, but that's how v18 works */
   while (NILP (result))
     result = dispatch_event_internal (Fnext_event (event), 0);
   Vquit_flag = Qnil;  /* In case we read a ^G */
   Fdeallocate_event (event);
+  unbind_to (count);
   UNGCPRO;
   return result;
 }
@@ -1696,10 +1757,10 @@ related function.")
 syms_of_event_stream ()
 {
   command_builder = (struct command_builder *)
-    malloc (sizeof (struct command_builder));
+    xmalloc (sizeof (struct command_builder));
   command_builder->event_count = 0;
   command_builder->leaf = Qnil;
-  command_builder->echobuf = (char *) malloc (300);
+  command_builder->echobuf = (char *) xmalloc (300);
   command_builder->echoptr = command_builder->echobuf;
   command_builder->echoptr[0] = 0;
   command_builder->echo_keys = 0;
@@ -1707,7 +1768,7 @@ syms_of_event_stream ()
   staticpro (&command_builder->events);
 
   command_event_queue = (struct command_event_queue *)
-    malloc (sizeof (struct command_event_queue));
+    xmalloc (sizeof (struct command_event_queue));
   command_event_queue->head = 0;
   command_event_queue->tail = 0;
 
@@ -1725,11 +1786,8 @@ syms_of_event_stream ()
   Qundefined = intern ("undefined");
   staticpro (&Qundefined);
 
-  DEFVAR_LISP ("mouse-motion-handler", &Vmouse_motion_handler,
-    "A function of two arguments, x and y, called when the mouse moves.");
-  Vmouse_motion_handler = Qnil;
-
   defsubr (&Sinput_pending_p);
+  defsubr (&Senqueue_command_event);
   defsubr (&Snext_event);
   defsubr (&Snext_command_event);
   defsubr (&Sread_char);

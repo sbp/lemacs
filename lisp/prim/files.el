@@ -417,6 +417,7 @@ May base decision on visited file name (see variable `auto-mode-alist') or on
 buffer contents (the -*- line), but does not look for the \"mode:\" local
 variable spec in the last page.  For that, use `hack-local-variables'."
 
+  (save-excursion
   ;; Look for -*-MODENAME-*- or -*- ... mode: MODENAME; ... -*-
   ;; Do this by calling the hack-local-variables helper to avoid redundancy.
   (or (let ((enable-local-variables nil))
@@ -432,7 +433,7 @@ variable spec in the last page.  For that, use `hack-local-variables'."
 	  (if (string-match (car (car alist)) name)
 	      (setq mode (cdr (car alist))))
 	  (setq alist (cdr alist)))
-	(if mode (funcall mode)))))
+	(if mode (funcall mode))))))
 
 
 (defun hack-local-variables (&optional force)
@@ -572,7 +573,9 @@ for current buffer."
 	       (let ((key (intern (downcase (buffer-substring
 					     (match-beginning 1)
 					     (match-end 1)))))
-		     (val (read (current-buffer))))
+		     (val (save-restriction
+			    (narrow-to-region (point) end)
+			    (read (current-buffer)))))
 		 (setq result (cons (cons key val) result))
 		 (skip-chars-forward " \t;")))
 	     (setq result (nreverse result))))
@@ -786,7 +789,7 @@ Value is a list whose car is the name for the backup file
   (if (eq version-control 'never)
       (list (make-backup-file-name fn))
     (let* ((base-versions (concat (file-name-nondirectory fn) ".~"))
-	   (bv-length (length base-versions))
+	   (bv-length (length base-versions)) ; used by backup-extract-version
 	   (possibilities (file-name-all-completions
 			   base-versions
 			   (file-name-directory fn)))
@@ -809,6 +812,7 @@ Value is a list whose car is the name for the backup file
 			    v))))))))
 
 (defun backup-extract-version (fn)
+  ;; bv-length is bound in find-backup-file-name
   (if (and (string-match "[0-9]+~$" fn bv-length)
 	   (= (match-beginning 0) bv-length))
       (string-to-int (substring fn bv-length -1))

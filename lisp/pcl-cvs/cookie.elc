@@ -1,0 +1,207 @@
+;;; compiled by jwz@watergate on Tue Aug 18 17:19:48 1992
+;;; from file /wg1/emacs-base/lisp/pcl-cvs/cookie.el
+;;; emacs version 19.2.2 Lucid.
+;;; bytecomp version 2.08;  7-aug-92.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(byte-code "ÀÁMˆÂÃ!ˆÄÅ!‡" [impl #[nil "ÀÁ!‡" [error "Not yet implemented!"] 2] require elib-dll provide cookie] 2)
+(defvar cookies nil "\
+A doubly linked list that contains the underlying data representation
+for the contents of a cookie buffer. The package elib-dll is used to
+manipulate this list.")
+(defvar cookie-pretty-printer nil "\
+The function that is used to pretty-print a cookie in this buffer.")
+(defvar cookie-header nil "\
+The tin that holds the header cookie.")
+(defvar cookie-footer nil "\
+The tin that holds the footer cookie.")
+(defvar cookie-last-tin nil "\
+The tin the cursor was positioned at, the last time the cookie
+package checked the cursor position. Buffer local in all buffers
+the cookie package works on. You may set this if your package
+thinks it knows where the cursor will be the next time this
+package is called. It can speed things up.
+
+It must never be set to a tin that has been deleted.")
+(byte-code "ÀÁÂÃ#ˆÁÄMˆÅÆMˆÇÈMˆÉÊMˆËÌMˆÍÎMˆÏĞMˆÑÒMˆÓÔM‡" [put cookie-set-buffer lisp-indent-hook 1 (macro . #[(buffer &rest forms) "ÀÁ!Ã\nÄDCÅÆDDÈÉÊ\"Å\nDEF)‡" [make-symbol "old-buffer" old-buffer let (current-buffer) set-buffer get-buffer-create buffer unwind-protect append (progn) forms] 7]) cookie-filter-hf (macro . #[(tin) "ÀÁ!Ã\nDCÅÆÇ\nÈEÇ\nÉEEÊ\nFE)‡" [make-symbol "tin" tempvar let tin if or eq cookie-header cookie-footer nil] 8]) cookie-create-wrapper #[(start-marker cookie) "ÀÁ\n\"B‡" [WRAPPER vector start-marker cookie] 4] cookie-wrapper-start-marker #[(wrapper) "AÁœ‡" [wrapper 0] 2] cookie-wrapper-cookie-safe #[(wrapper) "AÁœ‡" [wrapper 1] 2] cookie-wrapper-cookie #[(wrapper) "AÁœ‡" [wrapper 1] 2] cookie-create-wrapper-and-insert #[(cookie string pos) "ŠbˆÁ!«…Â!ªÃÆ!ˆÆÈ!ˆÉÊ!\"+‡" [pos markerp marker-position nil buffer-read-only start insert-before-markers string 10 cookie-create-wrapper copy-marker cookie] 3] cookie-delete-tin-internal #[(tin) "ÀÂÄH!ÂÅ\"ÄH!|)‡" [nil buffer-read-only cookie-wrapper-start-marker tin 2 dll-next cookies] 5] cookie-refresh-tin #[(tin) "ŠÀÂÄH!ÅÂÆ\"ÄH!!S|ˆÂÄH!bˆÉÄH!!c*‡" [nil buffer-read-only cookie-wrapper-start-marker tin 2 marker-position dll-next cookies cookie-pretty-printer cookie-wrapper-cookie] 6]] 4)
+(fset 'cookie-cookie #[(buffer tin) "pÁ\n!qˆÃÄÆH!*‡" [old-buffer get-buffer-create buffer ((set-buffer old-buffer)) cookie-wrapper-cookie tin 2] 3 "\
+Get the cookie from a TIN. Args: BUFFER TIN."])
+(fset 'cookie-create #[(buffer pretty-printer &optional header footer) "pÁ\n!qˆÃÄ ˆÅÇ ˆÈÉ!ˆÈÊ!ˆÈË!ˆÈÌ!ˆÈÍ!ˆÅ	\nÏ ĞÑ‰Ó#\"ˆÔÓ\"ÕÑ‰d#\"ˆÔ×\"ebˆØyˆÙ‰*‡" [old-buffer get-buffer-create buffer ((set-buffer old-buffer)) kill-all-local-variables nil buffer-read-only erase-buffer make-local-variable cookie-last-tin cookie-pretty-printer cookie-header cookie-footer cookies pretty-printer dll-create dll-enter-first cookie-create-wrapper-and-insert header 0 dll-nth dll-enter-last footer -1 1 t] 6 "\
+Start to use the cookie package in BUFFER.
+BUFFER may be a buffer or a buffer name. It is created if it does not exist.
+Beware that the entire contents of the buffer will be erased, and all local
+varables deleted. (The mode of the BUFFER should therefore be set after the
+call to cookie-create).
+
+PRETTY-PRINTER is a function that takes one cookie and returns a string
+to be displayed in the buffer. The string may be empty. If it is not
+empty a newline will be added automatically. It may span several lines.
+Optional third argument HEADER is a string that will always be present
+at the top of the buffer. HEADER should end with a newline. Optionaly
+fourth argument FOOTER is similar, and will always be inserted at the
+bottom of the buffer."])
+(fset 'cookie-set-header #[(buffer header) "À ‡" [impl] 1 "\
+Change the header. Args: BUFFER HEADER."])
+(fset 'cookie-set-footer #[(buffer header) "À ‡" [impl] 1 "\
+Change the footer. Args: BUFFER FOOTER."])
+(fset 'cookie-enter-first #[(buffer cookie) "pÁ\n!qˆÃÄÆÇ\"È	\n	!ËÆÌ\"ÍH!##*‡" [old-buffer get-buffer-create buffer ((set-buffer old-buffer)) dll-enter-after cookies dll-nth 0 cookie-create-wrapper-and-insert cookie cookie-pretty-printer cookie-wrapper-start-marker 1 2] 10 "\
+Enter a COOKIE first in BUFFER.
+Args: BUFFER COOKIE."])
+(fset 'cookie-enter-last #[(buffer cookie) "pÁ\n!qˆÃÄÆÇ\"È	\n	!ËÌ!!##*‡" [old-buffer get-buffer-create buffer ((set-buffer old-buffer)) dll-enter-before cookies dll-nth -1 cookie-create-wrapper-and-insert cookie cookie-pretty-printer cookie-wrapper-start-marker dll-last] 9 "\
+Enter a COOKIE last in BUFFER.
+Args: BUFFER COOKIE."])
+(byte-code "ÀÁMˆÂÃM‡" [cookie-enter-after #[(buffer node cookie) "À ‡" [impl] 1] cookie-enter-before #[(buffer node cookie) "À ‡" [impl] 1]] 2)
+(fset 'tin-next #[(buffer tin) "­¡pÂ!qˆÄÅ\"‰=®…	=?­‚+‡" [tin old-buffer get-buffer-create buffer ((set-buffer old-buffer)) dll-next cookies tin cookie-header cookie-footer] 4 "\
+Get the next tin. Args: BUFFER TIN.
+Returns nil if TIN is nil or the last cookie."])
+(fset 'tin-previous #[(buffer tin) "­¡pÂ!qˆÄÅ\"‰=®…	=?­‚+‡" [tin old-buffer get-buffer-create buffer ((set-buffer old-buffer)) dll-previous cookies tin cookie-header cookie-footer] 4 "\
+Get the previous tin. Args: BUFFER TIN.
+Returns nil if TIN is nil or the first cookie."])
+(fset 'tin-nth #[(buffer n) "pÁ\n!qˆÃÅW«…SªƒTÆ\"‰	=®…\n=?­‚+‡" [old-buffer get-buffer-create buffer ((set-buffer old-buffer)) n 0 dll-nth cookies tin cookie-header cookie-footer] 4 "\
+Return the Nth tin. Args: BUFFER N.
+N counts from zero. Nil is returned if there is less than N cookies.
+If N is negative, return the -(N+1)th last element.
+Thus, (tin-nth dll 0) returns the first node,
+and (tin-nth dll -1) returns the last node.
+
+Use cookie-cookie to extract the cookie from the tin."])
+(fset 'tin-delete #[(buffer tin) "pÁ\n!qˆÃ=«‚ÆÇ!ˆÈ	\"*‡" [old-buffer get-buffer-create buffer ((set-buffer old-buffer)) cookie-last-tin tin nil cookie-delete-tin-internal dll-delete cookies] 3 "\
+Delete a cookie. Args: BUFFER TIN."])
+(fset 'cookie-delete-first #[(buffer) "pÁ\n!qˆÃÄÆ\"‰=?­ŒÉ!ˆÊË\"!+‡" [old-buffer get-buffer-create buffer ((set-buffer old-buffer)) dll-nth cookies 1 tin cookie-footer cookie-delete-tin-internal cookie-wrapper-cookie dll-delete] 5 "\
+Delete first cookie and return it. Args: BUFFER.
+Returns nil if there is no cookie left."])
+(fset 'cookie-delete-last #[(buffer) "pÁ\n!qˆÃÄÆ\"‰=?­ŒÉ!ˆÊË\"!+‡" [old-buffer get-buffer-create buffer ((set-buffer old-buffer)) dll-nth cookies -2 tin cookie-header cookie-delete-tin-internal cookie-wrapper-cookie dll-delete] 5 "\
+Delete last cookie and return it. Args: BUFFER.
+Returns nil if there is no cookie left."])
+(fset 'cookie-first #[(buffer) "pÁ\n!qˆÃÄÆ\"‰=®…	=?­‚)‰\n­†Ë\nÌH!+‡" [old-buffer get-buffer-create buffer ((set-buffer old-buffer)) dll-nth cookies -1 tin cookie-header cookie-footer tin cookie-wrapper-cookie-safe 2] 4 "\
+Return the first cookie in BUFFER. The cookie is not removed."])
+(fset 'cookie-last #[(buffer) "pÁ\n!qˆÃÄÆ\"‰=®…	=?­‚)‰\n­†Ë\nÌH!+‡" [old-buffer get-buffer-create buffer ((set-buffer old-buffer)) dll-nth cookies -2 tin cookie-header cookie-footer tin cookie-wrapper-cookie-safe 2] 4 "\
+Return the last cookie in BUFFER. The cookie is not removed."])
+(fset 'cookie-empty #[(buffer) "pÁ\n!qˆÃÄÆ\"*=‡" [old-buffer get-buffer-create buffer ((set-buffer old-buffer)) dll-nth cookies 1 cookie-footer] 3 "\
+Return true if there are no cookies in BUFFER."])
+(fset 'cookie-length #[(buffer) "pÁ\n!qˆÃÄ!ÆZ*‡" [old-buffer get-buffer-create buffer ((set-buffer old-buffer)) dll-length cookies 2] 2 "\
+Return number of cookies in BUFFER."])
+(fset 'cookie-all #[(buffer) "pÁ\n!qˆÃÄÅÇ\"	\n=¬–ËÌH!	B	Í\"‰ªe	,‡" [old-buffer get-buffer-create buffer ((set-buffer old-buffer)) nil dll-nth cookies -2 tin result cookie-header cookie-wrapper-cookie 2 dll-previous] 5 "\
+Return a list of all cookies in BUFFER."])
+(fset 'cookie-clear #[(buffer) "pÁ\n!qˆÃÄ\nÆÈH!Æ	ÈH!$*‡" [old-buffer get-buffer-create buffer ((set-buffer old-buffer)) cookie-create cookie-pretty-printer cookie-wrapper-cookie cookie-header 2 cookie-footer] 7 "\
+Remove all cookies in buffer."])
+(fset 'cookie-map #[(map-function buffer &rest map-args) "pÁ\n!qˆÃÄÆ\"Ç‰	\n=?­ËÍ	ÎH!#«…Ğ	!ˆÑ	\"‰	ª],‡" [old-buffer get-buffer-create buffer ((set-buffer old-buffer)) dll-nth cookies 1 nil result tin cookie-footer apply map-function cookie-wrapper-cookie 2 map-args cookie-refresh-tin dll-next] 6 "\
+Apply MAP-FUNCTION to all cookies in BUFFER.
+MAP-FUNCTION is applied to the first element first.
+If MAP-FUNCTION returns non-nil the cookie will be refreshed.
+
+Note that BUFFER will be current buffer when MAP-FUNCTION is called.
+
+If more than two arguments are given to cookie-map, remaining
+arguments will be passed to MAP-FUNCTION."])
+(fset 'cookie-map-reverse #[(map-function buffer &rest map-args) "pÁ\n!qˆÃÄÆ\"Ç‰	\n=?­ËÍ	ÎH!#«…Ğ	!ˆÑ	\"‰	ª],‡" [old-buffer get-buffer-create buffer ((set-buffer old-buffer)) dll-nth cookies -2 nil result tin cookie-header apply map-function cookie-wrapper-cookie 2 map-args cookie-refresh-tin dll-previous] 6 "\
+Apply MAP-FUNCTION to all cookies in BUFFER.
+MAP-FUNCTION is applied to the last cookie first.
+If MAP-FUNCTION returns non-nil the cookie will be refreshed.
+
+Note that BUFFER will be current buffer when MAP-FUNCTION is called.
+
+If more than two arguments are given to cookie-map, remaining
+arguments will be passed to MAP-FUNCTION."])
+(fset 'cookie-enter-cookies #[(buffer cookie-list) "­Á\n@\"ˆA‰¬tÃ‡" [cookie-list cookie-enter-last buffer nil] 4 "\
+Insert all cookies in the list COOKIE-LIST last in BUFFER.
+Args: BUFFER COOKIE-LIST."])
+(fset 'cookie-filter #[(buffer predicate) "pÁ\n!qˆÃÄÆ\"Ç‰	\n=?­¤Ë	\"Í	ÎH!!¬‹Ï	!ˆĞ	\"ˆ‰	ªV,‡" [old-buffer get-buffer-create buffer ((set-buffer old-buffer)) dll-nth cookies 1 nil next tin cookie-footer dll-next predicate cookie-wrapper-cookie 2 cookie-delete-tin-internal dll-delete] 5 "\
+Remove all cookies in BUFFER for which PREDICATE returns nil.
+Note that BUFFER will be current-buffer when PREDICATE is called.
+
+The PREDICATE is called with one argument, the cookie."])
+(fset 'tin-filter #[(buffer predicate) "pÁ\n!qˆÃÄÆ\"Ç‰	\n=?­ Ë	\"	!¬‹Í	!ˆÎ	\"ˆ‰	ªZ,‡" [old-buffer get-buffer-create buffer ((set-buffer old-buffer)) dll-nth cookies 1 nil next tin cookie-footer dll-next predicate cookie-delete-tin-internal dll-delete] 4 "\
+Remove all cookies in BUFFER for which PREDICATE returns nil.
+Note that BUFFER will be current-buffer when PREDICATE is called.
+
+The PREDICATE is called with one argument, the tin."])
+(fset 'cookie-pos-before-middle-p #[(pos tin1 tin2) "Á\nÃH!ÁÃH!\\Ã¥W‡" [pos cookie-wrapper-start-marker tin1 2 tin2] 5 "\
+Return true if POS is in the first half of the region defined by TIN1 and
+TIN2."])
+(fset 'tin-get-selection #[(buffer pos &optional guess force-guess) "pÁ\n!qˆÃÄÆ\"ÄÇ\"=«„È‚Å 	ÊÄÆ\"ËH!W«‡ÄÆ\"‚Å 	ÊÌ!!Y«‡ÄÍ\"‚Å «„ªÂ«§Ğ	ÄÆ\"#«†ÄÆ\"ª¬Ğ	#«„ªÒ\"ª—Ğ	ÄÆ\"#«†ÄÆ\"ª…Ò\"	ÊËH!Y«›	ÊËH!Y«‰Ó\"ªlÒ\"ª–	ÊËH!W«‰Ò\"ªl*‡" [old-buffer get-buffer-create buffer ((set-buffer old-buffer)) dll-nth cookies 1 -1 nil pos cookie-wrapper-start-marker 2 dll-last -2 force-guess guess cookie-pos-before-middle-p cookie-footer dll-previous dll-next] 6 "\
+Return the tin the POS is within.
+Args: BUFFER POS &optional GUESS FORCE-GUESS.
+GUESS should be a tin that it is likely that POS is near. If FORCE-GUESS
+is non-nil GUESS is always used as a first guess, otherwise the first
+guess is the first tin, last tin, or GUESS, whichever is nearest to
+pos in the BUFFER.
+
+If pos points within the header, the first cookie is returned.
+If pos points within the footer, the last cookie is returned.
+Nil is returned if there is no cookie.
+
+It is often good to specify cookie-last-tin as GUESS, but remember
+that cookie-last-tin is buffer local in all buffers that cookie
+operates on."])
+(fset 'tin-start-marker #[(buffer tin) "pÁ\n!qˆÃÄÆH!*‡" [old-buffer get-buffer-create buffer ((set-buffer old-buffer)) cookie-wrapper-start-marker tin 2] 3 "\
+Return start-position of a cookie in BUFFER.
+Args: BUFFER TIN.
+The marker that is returned should not be modified in any way,
+and is only valid until the contents of the cookie buffer changes."])
+(fset 'tin-end-marker #[(buffer tin) "pÁ\n!qˆÃÄÅ\"ÈH!*‡" [old-buffer get-buffer-create buffer ((set-buffer old-buffer)) cookie-wrapper-start-marker dll-next cookies tin 2] 4 "\
+Return end-position of a cookie in BUFFER.
+Args: BUFFER TIN.
+The marker that is returned should not be modified in any way,
+and is only valid until the contents of the cookie buffer changes."])
+(fset 'cookie-refresh #[(buffer) "pÁ\n!qˆÃÄÆ ˆÇÉH!`\n“ˆÊÉH!cˆËcˆÌÎ\"‰=¬£ÇÉH!`\n“ˆÊÉH!!cˆËcˆÒ\"‰ªX)ÇÉH!`\n“ˆÊÉH!cˆËc+‡" [old-buffer get-buffer-create buffer ((set-buffer old-buffer)) nil buffer-read-only erase-buffer cookie-wrapper-start-marker cookie-header 2 cookie-wrapper-cookie "\n" dll-nth cookies 1 tin cookie-footer cookie-pretty-printer dll-next] 5 "\
+Refresh all cookies in BUFFER.
+Cookie-pretty-printer will be called for all cookies and the new result
+displayed.
+
+See also tin-invalidate-tins."])
+(fset 'tin-invalidate-tins #[(buffer &rest tins) "pÁ\n!qˆÃ­ŒÅ@!ˆA‰¬uÆ*‡" [old-buffer get-buffer-create buffer ((set-buffer old-buffer)) tins cookie-refresh-tin nil] 3 "\
+Refresh some cookies.
+Args: BUFFER &rest TINS."])
+(fset 'cookie-set-goal-column #[(buffer goal) "pÁ\n!qˆÃÄÅ!ˆ‰*‡" [old-buffer get-buffer-create buffer ((set-buffer old-buffer)) make-local-variable goal-column goal] 2 "\
+Set goal-column for BUFFER.
+Args: BUFFER GOAL.
+goal-column is made buffer-local."])
+(fset 'cookie-previous-cookie #[(buffer pos arg) "pÁ\n!qˆÃÄ\n#‰«–ÈV«SÉ\n\"‰¬j‰=®…=?­‚)¬‡Î\nÏ\"ĞÑH!bˆ­„Ó!*‡" [old-buffer get-buffer-create buffer ((set-buffer old-buffer)) tin-get-selection pos cookie-last-tin arg 0 dll-previous cookies tin cookie-header cookie-footer dll-nth 1 cookie-wrapper-start-marker 2 goal-column move-to-column] 5 "\
+Move point to the ARGth previous cookie.
+Don't move if we are at the first cookie.
+ARG is the prefix argument when called interactively.
+Args: BUFFER POS ARG.
+Sets cookie-last-tin to the cookie we move to." (byte-code "p`À	!E‡" [prefix-numeric-value current-prefix-arg] 4)])
+(fset 'cookie-next-cookie #[(buffer pos arg) "pÁ\n!qˆÃÄ\n#‰«–ÈV«SÉ\n\"‰¬j‰=®…=?­‚)¬‡Î\nÏ\"ĞÑH!bˆ­„Ó!*‡" [old-buffer get-buffer-create buffer ((set-buffer old-buffer)) tin-get-selection pos cookie-last-tin arg 0 dll-next cookies tin cookie-header cookie-footer dll-nth -2 cookie-wrapper-start-marker 2 goal-column move-to-column] 5 "\
+Move point to the ARGth next cookie.
+Don't move if we are at the last cookie.
+ARG is the prefix argument when called interactively.
+Args: BUFFER POS ARG.
+Sets cookie-last-tin to the cookie we move to." (byte-code "p`À	!E‡" [prefix-numeric-value current-prefix-arg] 4)])
+(fset 'tin-collect #[(buffer predicate &rest predicate-args) "pÁ\n!qˆÃÄÆ\"Ç‰	\n=¬ŸËÍ	ÎH!#«‡	BĞ	\"‰	ª\\,‡" [old-buffer get-buffer-create buffer ((set-buffer old-buffer)) dll-nth cookies -2 nil result tin cookie-header apply predicate cookie-wrapper-cookie 2 predicate-args dll-previous] 6 "\
+Return a list of all tins in BUFFER whose cookie PREDICATE
+returns true for.
+PREDICATE is a function that takes a cookie as its argument.
+The tins on the returned list will appear in the same order
+as in the buffer. You should not rely on in which order PREDICATE
+is called. Note that BUFFER is current-buffer when PREDICATE
+is called. (If you call cookie-collect with another buffer set
+as current-buffer and need to access buffer-local variables
+from that buffer within PREDICATE you must send them via
+PREDICATE-ARGS).
+
+If more than two arguments are given to cookie-collect the remaining
+arguments will be passed to PREDICATE.
+
+Use cookie-cookie to get the cookie from the tin."])
+(fset 'cookie-collect #[(buffer predicate &rest predicate-args) "pÁ\n!qˆÃÄÆ\"Ç‰	\n=¬£ËÍ	ÎH!#«‹Í	ÎH!BĞ	\"‰	ªX,‡" [old-buffer get-buffer-create buffer ((set-buffer old-buffer)) dll-nth cookies -2 nil result tin cookie-header apply predicate cookie-wrapper-cookie 2 predicate-args dll-previous] 6 "\
+Return a list of all cookies in BUFFER that PREDICATE
+returns true for.
+PREDICATE is a function that takes a cookie as its argument.
+The cookie on the returned list will appear in the same order
+as in the buffer. You should not rely on in which order PREDICATE
+is called. Note that BUFFER is current-buffer when PREDICATE
+is called. (If you call cookie-collect with another buffer set
+as current-buffer and need to access buffer-local variables
+from that buffer within PREDICATE you must send them via
+PREDICATE-ARGS).
+
+If more than two arguments are given to cookie-collect the remaining
+arguments will be passed to PREDICATE."])

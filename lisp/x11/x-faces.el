@@ -142,98 +142,116 @@ of it.  If it fails, it returns nil."
   "Make the font of the given face be bold, if possible.  
 Returns nil on failure."
   (interactive (list (read-face-name "Make which face bold: ")))
-  (if (null screen)
-      (let ((screens (screen-list)))
-	(while screens
-	  (make-face-bold face (car screens))
-	  (setq screens (cdr screens))))
-    (setq face (get-face face screen))
-    (let ((font (or (face-font face screen)
-		    (face-font face t)
-		    (face-font 'default screen)))
-	  f2)
-      (or (and (setq f2 (x-make-font-bold font))
-	       (try-face-font face f2))
-	  (and (setq f2 (x-make-font-demibold font))
-	       (try-face-font face f2))))))
+  (let ((ofont (face-font face screen)))
+    (if (null screen)
+	(let ((screens (screen-list)))
+	  (while screens
+	    (make-face-bold face (car screens))
+	    (setq screens (cdr screens))))
+      (setq face (get-face face screen))
+      (let ((font (or (face-font face screen)
+		      (face-font face t)
+		      (face-font 'default screen)))
+	    f2)
+	(or (and (setq f2 (x-make-font-bold font))
+		 (try-face-font face f2))
+	    (and (setq f2 (x-make-font-demibold font))
+		 (try-face-font face f2)))))
+    (not (equal ofont (face-font face)))))
 
 (defun make-face-italic (face &optional screen)
   "Make the font of the given face be italic, if possible.  
 Returns nil on failure."
   (interactive (list (read-face-name "Make which face italic: ")))
-  (if (null screen)
-      (let ((screens (screen-list)))
-	(while screens
-	  (make-face-italic face (car screens))
-	  (setq screens (cdr screens))))
-    (setq face (get-face face screen))
-    (let ((font (or (face-font face screen)
-		    (face-font face t)
-		    (face-font 'default screen)))
-	  f2)
-      (or (and (setq f2 (x-make-font-italic font))
-	       (try-face-font face f2))
-	  (and (setq f2 (x-make-font-oblique font))
-	       (try-face-font face f2))))))
+  (let ((ofont (face-font face screen)))
+    (if (null screen)
+	(let ((screens (screen-list)))
+	  (while screens
+	    (make-face-italic face (car screens))
+	    (setq screens (cdr screens))))
+      (setq face (get-face face screen))
+      (let ((font (or (face-font face screen)
+		      (face-font face t)
+		      (face-font 'default screen)))
+	    f2)
+	(or (and (setq f2 (x-make-font-italic font))
+		 (try-face-font face f2))
+	    (and (setq f2 (x-make-font-oblique font))
+		 (try-face-font face f2)))))
+    (not (equal ofont (face-font face)))))
 
 (defun make-face-bold-italic (face &optional screen)
   "Make the font of the given face be bold and italic, if possible.  
 Returns nil on failure."
   (interactive (list (read-face-name "Make which face bold-italic: ")))
-  (if (null screen)
-      (let ((screens (screen-list)))
-	(while screens
-	  (make-face-bold-italic face (car screens))
-	  (setq screens (cdr screens))))
-    (setq face (get-face face screen))
-    (let ((font (or (face-font face screen)
-		    (face-font face t)
-		    (face-font 'default screen)))
-	  f2)
-      (or (and (setq f2 (x-make-font-italic font))
-	       (setq f2 (x-make-font-bold f2))
-	       (try-face-font face f2))
-	  (and (setq f2 (x-make-font-oblique font))
-	       (setq f2 (x-make-font-bold f2))
-	       (try-face-font face f2))
-	  (and (setq f2 (x-make-font-italic font))
-	       (setq f2 (x-make-font-demibold f2))
-	       (try-face-font face f2))
-	  (and (setq f2 (x-make-font-oblique font))
-	       (setq f2 (x-make-font-demibold f2))
-	       (try-face-font face f2))))))
+  (let ((ofont (face-font face screen)))
+    (if (null screen)
+	(let ((screens (screen-list)))
+	  (while screens
+	    (make-face-bold-italic face (car screens))
+	    (setq screens (cdr screens))))
+      (setq face (get-face face screen))
+      (let ((font (or (face-font face screen)
+		      (face-font face t)
+		      (face-font 'default screen)))
+	    f2 f3)
+	(or (and (setq f2 (x-make-font-italic font))
+		 (not (equal font f2))
+		 (setq f3 (x-make-font-bold f2))
+		 (not (equal f2 f3))
+		 (try-face-font face f3))
+	    (and (setq f2 (x-make-font-oblique font))
+		 (not (equal font f2))
+		 (setq f3 (x-make-font-bold f2))
+		 (not (equal f2 f3))
+		 (try-face-font face f3))
+	    (and (setq f2 (x-make-font-italic font))
+		 (not (equal font f2))
+		 (setq f3 (x-make-font-demibold f2))
+		 (not (equal f2 f3))
+		 (try-face-font face f3))
+	    (and (setq f2 (x-make-font-oblique font))
+		 (not (equal font f2))
+		 (setq f3 (x-make-font-demibold f2))
+		 (not (equal f2 f3))
+		 (try-face-font face f3)))))
+    (not (equal ofont (face-font face screen)))))
 
 (defun make-face-unbold (face &optional screen)
   "Make the font of the given face be non-bold, if possible.  
 Returns nil on failure."
   (interactive (list (read-face-name "Make which face non-bold: ")))
-  (if (null screen)
-      (let ((screens (screen-list)))
-	(while screens
-	  (make-face-unbold face (car screens))
-	  (setq screens (cdr screens))))
-    (setq face (get-face face screen))
-    (let ((font (x-make-font-unbold
-		 (or (face-font face screen)
-		     (face-font face t)
-		     (face-font 'default screen)))))
-      (if font (try-face-font face font)))))
+  (let ((ofont (face-font face screen)))
+    (if (null screen)
+	(let ((screens (screen-list)))
+	  (while screens
+	    (make-face-unbold face (car screens))
+	    (setq screens (cdr screens))))
+      (setq face (get-face face screen))
+      (let ((font (x-make-font-unbold
+		   (or (face-font face screen)
+		       (face-font face t)
+		       (face-font 'default screen)))))
+	(if font (try-face-font face font))))
+    (not (equal ofont (face-font face screen)))))
 
 (defun make-face-unitalic (face &optional screen)
   "Make the font of the given face be non-italic, if possible.  
 Returns nil on failure."
   (interactive (list (read-face-name "Make which face non-italic: ")))
-  (if (null screen)
-      (let ((screens (screen-list)))
-	(while screens
-	  (make-face-unitalic face (car screens))
-	  (setq screens (cdr screens))))
-    (setq face (get-face face screen))
-    (let ((font (x-make-font-unitalic
-		 (or (face-font face screen)
-		     (face-font face t)
-		     (face-font 'default screen)))))
-      (if font (try-face-font face font)))))
+  (let ((ofont (face-font face screen)))
+    (if (null screen)
+	(let ((screens (screen-list)))
+	  (while screens
+	    (make-face-unitalic face (car screens))
+	    (setq screens (cdr screens))))
+      (setq face (get-face face screen))
+      (let ((font (x-make-font-unitalic
+		   (or (face-font face screen)
+		       (face-font face t)
+		       (face-font 'default screen)))))
+	(if font (try-face-font face font))))
+    (not (equal ofont (face-font face screen)))))
 
 
 ;;; internal routines
@@ -386,13 +404,18 @@ screen is created.  If you want to add code to do stuff like this, use
 the create-screen-hook."
 
   (or (face-differs-from-default-p 'bold screen)
-      (make-face-bold 'bold screen))
+      (make-face-bold 'bold screen)
+      ;; if default font is bold, then make the `bold' face be unbold.
+      (make-face-unbold 'bold screen))
 
   (or (face-differs-from-default-p 'italic screen)
       (make-face-italic 'italic screen))
 
   (or (face-differs-from-default-p 'bold-italic screen)
-      (make-face-bold-italic 'bold-italic screen))
+      (make-face-bold-italic 'bold-italic screen)
+      ;; if default font is bold, then make the `bold-italic' face be unbold.
+      (and (make-face-italic 'bold-italic screen)
+	   (make-face-unbold 'bold-italic screen)))
 
   (or (find-face 'primary-selection)
       (make-face 'primary-selection))
@@ -419,7 +442,7 @@ the create-screen-hook."
   (or (face-differs-from-default-p 'secondary-selection screen)
       (if (x-color-display-p)
 	  (if (x-valid-color-name-p "paleturquoise" screen)
-	      ;; some older X server don't have this one.
+	      ;; some older X servers don't have this one.
 	      (set-face-background 'secondary-selection "paleturquoise"
 				   screen)
 	    (set-face-background 'secondary-selection "green" screen))

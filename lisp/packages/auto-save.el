@@ -1,7 +1,6 @@
 ;;;; auto-save.el - safer auto saving with support for ange-ftp and /tmp
 
-(defconst auto-save-version (substring "$Revision: 1.13 $" 11 -2)
-  "$Id: auto-save.el,v 1.13 1992/06/18 05:33:36 jwz Exp $")
+(defconst auto-save-version "cvs ate me")
 
 ;;;; Copyright (C) 1992 by Sebastian Kremer <sk@thp.uni-koeln.de>
 
@@ -23,7 +22,7 @@
 ;;;;    LCD Archive Entry:
 ;;;;    auto-save|Sebastian Kremer|sk@thp.uni-koeln.de
 ;;;;    |safer auto saving with support for ange-ftp and /tmp
-;;;;    |$Date: 1992/06/18 05:33:36 $|$Revision: 1.13 $|
+;;;;    |$Date: 1992/08/19 00:01:02 $|$Revision: 1.2 $|
 
 ;;;; OVERVIEW ==========================================================
 

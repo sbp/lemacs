@@ -1,0 +1,89 @@
+;;; compiled by jwz@watergate on Tue Aug 18 17:19:53 1992
+;;; from file /wg1/emacs-base/lisp/pcl-cvs/elib-dll.el
+;;; emacs version 19.2.2 Lucid.
+;;; bytecomp version 2.08;  7-aug-92.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(byte-code "ÀÁ!ˆÂÃ!ˆÄÅMˆÆÇMˆÈÉM‡" [require elib-node provide elib-dll dll-get-dummy-node #[(dll) "A‡" [dll] 1] dll-list-nodes #[(dll) "ÀÂ!‰ÅH‰=¬	BÅH‰ªn	+‡" [nil result dll-get-dummy-node dll dummy 0 node] 3] dll-set-from-node-list #[(dll list) "À	!ˆÂ	!‰«•@ÆIˆÇ@Iˆ@A‰¬kÇIˆÆI*‡" [dll-clear dll dll-get-dummy-node dummy left list 0 1] 4]] 2)
+(fset 'dll-element '(macro . #[(dll node) "À	D‡" [elib-node-data node] 2 "\
+Get the element of a NODE in a doubly linked list DLL.
+Args: DLL NODE."]))
+(fset 'dll-create #[nil "ÀÁ‰‰#‰Ã\nIˆ\nÄ\nIˆÅ\n)B‡" [vector nil dummy-node 1 0 DL-LIST] 5 "\
+Create an empty doubly linked list."])
+(fset 'dll-p #[(object) "¢Á=‡" [object DL-LIST] 2 "\
+Return t if OBJECT is a doubly linked list, otherwise return nil."])
+(fset 'dll-enter-first #[(dll element) "À	Â	!#‡" [dll-enter-after dll dll-get-dummy-node element] 4 "\
+Add an element first on a doubly linked list.
+Args: DLL ELEMENT."])
+(fset 'dll-enter-last #[(dll element) "À	Â	!#‡" [dll-enter-before dll dll-get-dummy-node element] 4 "\
+Add an element last on a doubly linked list.
+Args: DLL ELEMENT."])
+(fset 'dll-enter-after #[(dll node element) "À	‰ÂH#	ÂHÅIˆ	ÂI)‡" [vector node 1 element new-node 0] 4 "\
+In the doubly linked list DLL, insert a node containing ELEMENT after NODE.
+Args: DLL NODE ELEMENT."])
+(fset 'dll-enter-before #[(dll node element) "À	ÂH	#	ÂHÅIˆ	ÂI)‡" [vector node 0 element new-node 1] 4 "\
+In the doubly linked list DLL, insert a node containing ELEMENT before NODE.
+Args: DLL NODE ELEMENT."])
+(fset 'dll-next #[(dll node) "ÁHÂ!=?­ƒÁH‡" [node 1 dll-get-dummy-node dll] 3 "\
+Return the node after NODE, or nil if NODE is the last node.
+Args: DLL NODE."])
+(fset 'dll-previous #[(dll node) "ÁHÂ!=?­ƒÁH‡" [node 0 dll-get-dummy-node dll] 3 "\
+Return the node before NODE, or nil if NODE is the first node.
+Args: DLL NODE."])
+(fset 'dll-delete #[(dll node) "ÁHÂÂHIˆÂHÁÁHIˆÃH‡" [node 0 1 2] 4 "\
+Delete NODE from the doubly linked list DLL.
+Args: DLL NODE. Return the element of node."])
+(fset 'dll-delete-first #[(dll) "À	Â	!ÃH\"‡" [dll-delete dll dll-get-dummy-node 1] 4 "\
+Delete the first NODE from the doubly linked list DLL.
+Return the element. Args: DLL. Returns nil if the DLL was empty."])
+(fset 'dll-delete-last #[(dll) "À	Â	!ÃH\"‡" [dll-delete dll dll-get-dummy-node 0] 4 "\
+Delete the last NODE from the doubly linked list DLL.
+Return the element. Args: DLL. Returns nil if the DLL was empty."])
+(fset 'dll-first #[(dll) "À	!ÂHÀ	!=?­‡À	!ÂHÃH‡" [dll-get-dummy-node dll 1 2] 3 "\
+Return the first element on the doubly linked list DLL.
+Return nil if the list is empty. The element is not removed."])
+(fset 'dll-last #[(dll) "À	!ÂHÀ	!=?­‡À	!ÂHÃH‡" [dll-get-dummy-node dll 0 2] 3 "\
+Return the last element on the doubly linked list DLL.
+Return nil if the list is empty. The element is not removed."])
+(fset 'dll-nth #[(dll n) "À	!ÄW«ƒÄªÅ\nHÄW«„ÈZ\n=¬‘ÄV«ŒHSªi\n=?­‚+‡" [dll-get-dummy-node dll dummy n 0 1 branch node -1] 2 "\
+Return the Nth node from the doubly linked list DLL.
+ Args: DLL N
+N counts from zero. If DLL is not that long, nil is returned.
+If N is negative, return the -(N+1)th last element.
+Thus, (dll-nth dll 0) returns the first node,
+and (dll-nth dll -1) returns the last node."])
+(fset 'dll-empty #[(dll) "À	!ÂHÀ	!=‡" [dll-get-dummy-node dll 0] 3 "\
+Return t if the doubly linked list DLL is empty, nil otherwise"])
+(fset 'dll-length #[(dll) "À	!‰ÃHÅ\n=¬‹ÃHTªp+‡" [dll-get-dummy-node dll dummy 1 node 0 n] 3 "\
+Returns the number of elements in the doubly linked list DLL."])
+(fset 'dll-copy #[(dll &optional element-copy-fnc) "À Á\nÃ\"«•«¤ÇÈH!\"ˆÉ\n\"‰ªl«ÇÈH\"ˆÉ\n\"‰¬q*‡" [dll-create dll-nth dll 0 node result element-copy-fnc dll-enter-last 2 dll-next] 6 "\
+Return a copy of the doubly linked list DLL.
+If optional second argument ELEMENT-COPY-FNC is non-nil it should be
+a function that takes one argument, an element, and returns a copy of it.
+If ELEMENT-COPY-FNC is not given the elements are not copied."])
+(fset 'dll-all #[(dll) "ÀÂ!‰ÅH‰=¬ÇH	BÅH‰ªl	+‡" [nil result dll-get-dummy-node dll dummy 0 node 2] 3 "\
+Return all elements on the double linked list DLL as an ordinary list."])
+(fset 'dll-clear #[(dll) "À	!ÂÀ	!IˆÀ	!ÃÀ	!I‡" [dll-get-dummy-node dll 0 1] 4 "\
+Clear the doubly linked list DLL, i.e. make it completely empty."])
+(fset 'dll-map #[(map-function dll) "À	!‰ÃH‰\n=?­ÆH!ˆÃH‰ªn*‡" [dll-get-dummy-node dll dummy 1 node map-function 2] 4 "\
+Apply MAP-FUNCTION to all elements in the doubly linked list DLL.
+The function is applied to the first element first."])
+(fset 'dll-map-reverse #[(map-function dll) "À	!‰ÃH‰\n=?­ÆH!ˆÃH‰ªn*‡" [dll-get-dummy-node dll dummy 0 node map-function 2] 4 "\
+Apply MAP-FUNCTION to all elements in the doubly linked list DLL.
+The function is applied to the last element first."])
+(fset 'dll-create-from-list #[(list) "À \n«ŒÃ	\n@\"ˆ\nA‰¬t	)‡" [dll-create dll list dll-enter-last] 4 "\
+Given an elisp LIST create a doubly linked list with the same elements."])
+(fset 'dll-sort #[(dll predicate) "À	ÂÃ	!Ä\"\"ˆ	‡" [dll-set-from-node-list dll sort dll-list-nodes #[(x1 x2) "	ÂHÂH\"‡" [predicate x1 2 x2] 4]] 5 "\
+Sort the doubly linked list DLL, stably, comparing elements using PREDICATE.
+Returns the sorted list. DLL is modified by side effects.
+PREDICATE is called with two elements of DLL, and should return T
+if the first element is \"less\" than the second."])
+(fset 'dll-filter #[(dll predicate) "À	!‰ÃHÅ\n=?­˜ÃHÈH!¬…É	\"ˆ‰ªc+‡" [dll-get-dummy-node dll dummy 1 node nil next predicate 2 dll-delete] 4 "\
+Remove all elements in the doubly linked list DLL for which PREDICATE
+return nil."])

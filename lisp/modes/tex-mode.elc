@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Tue Apr 21 17:55:23 1992
-;;; from file /u/jwz/emacs19/lisp/tex-mode.el
-;;; emacs version 19.0.2 Lucid.
-;;; bytecomp version 2.05; 9-mar-92.
+;;; compiled by devin@scylla on Tue Jul  7 15:33:40 1992
+;;; from file /wg1/emacs-base/lisp/modes/tex-mode.el
+;;; emacs version 19.2.2 Lucid.
+;;; bytecomp version 2.07; 17-jun-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -10,28 +10,78 @@
 	     (string-lessp emacs-version "19")))
     (error "This file was compiled for Emacs19."))
 
-(byte-code "ÀÁ!ˆÂÃ!‡" [require oshell provide tex-mode] 2)
-(defvar tex-directory "./" "\
-*Directory in which to run TeX subjob.  Temporary files are created here.")
+(require 'comint)
+(defvar tex-shell-file-name nil "\
+*If non-nil, is file name to use for the subshell in which TeX is run.")
+(defvar tex-directory "." "\
+*Directory in which temporary files are left.
+You can make this /tmp if your TEXINPUTS has no relative directories in it
+and you don't try to apply \\[tex-region] or \\[tex-buffer] when there are
+\\input commands with relative directories.")
+(defvar tex-offer-save t "\
+*If non-nil, ask about saving modified buffers before \\[tex-file] is run.")
 (defvar tex-run-command "tex" "\
 *Command used to run TeX subjob.
-The name of the file will be appended to this string, separated by a space.")
+If this string contains an asterisk (*), it will be replaced by the
+filename; if not, the name of the file, preceded by blank, will be added to
+this string.")
 (defvar latex-run-command "latex" "\
 *Command used to run LaTeX subjob.
-The name of the file will be appended to this string, separated by a space.")
+If this string contains an asterisk (*), it will be replaced by the
+filename; if not, the name of the file, preceded by blank, will be added to
+this string.")
+(defvar standard-latex-block-names '("abstract" "array" "center" "description" "displaymath" "document" "enumerate" "eqnarray" "eqnarray*" "equation" "figure" "figure*" "flushleft" "flushright" "itemize" "letter" "list" "minipage" "picture" "quotation" "quote" "slide" "sloppypar" "tabbing" "table" "table*" "tabular" "tabular*" "thebibliography" "theindex*" "titlepage" "trivlist" "verbatim" "verbatim*" "verse") "\
+Standard LaTeX block names.")
+(defvar latex-block-names nil "\
+*User defined LaTeX block names.
+Combined with `standard-latex-block-names' for minibuffer completion.")
 (defvar slitex-run-command "slitex" "\
 *Command used to run SliTeX subjob.
-The name of the file will be appended to this string, separated by a space.")
+If this string contains an asterisk (*), it will be replaced by the
+filename; if not, the name of the file, preceded by blank, will be added to
+this string.")
 (defvar tex-bibtex-command "bibtex" "\
-*Command string used by `tex-bibtex-file' to gather bibliographic data.
-The name of the file will be appended to this string, separated by a space.")
+*Command used by `tex-bibtex-file' to gather bibliographic data.
+If this string contains an asterisk (*), it will be replaced by the
+filename; if not, the name of the file, preceded by blank, will be added to
+this string.")
 (defvar tex-dvi-print-command "lpr -d" "\
-*Command string used by \\[tex-print] to print a .dvi file.")
+*Command used by \\[tex-print] to print a .dvi file.
+If this string contains an asterisk (*), it will be replaced by the
+filename; if not, the name of the file, preceded by blank, will be added to
+this string.")
+(defvar tex-alt-dvi-print-command "lpr -d" "\
+*Command used by \\[tex-print] with a prefix arg to print a .dvi file.
+If this string contains an asterisk (*), it will be replaced by the
+filename; if not, the name of the file, preceded by blank, will be added to
+this string.
+
+If two printers are not enough of a choice, you can define the value
+of tex-alt-dvi-print-command to be an expression that asks what you want;
+for example,
+
+    (setq tex-alt-dvi-print-command
+         '(format \"lpr -P%s\" (read-string \"Use printer: \")))
+
+would tell \\[tex-print] with a prefix argument to ask you which printer to
+use.")
 (defvar tex-dvi-view-command nil "\
-*Command string used by \\[tex-view] to display a .dvi file.")
+*Command used by \\[tex-view] to display a .dvi file.
+If this string contains an asterisk (*), it will be replaced by the
+filename; if not, the name of the file, preceded by blank, will be added to
+this string.
+
+This can be set conditionally so that the previewer used is suitable for the
+window system being used.  For example,
+
+    (setq tex-dvi-view-command
+          (if (eq window-system 'x) \"xdvi\" \"dvi2tty * | cat -s\"))
+
+would tell \\[tex-view] use xdvi under X windows and to use dvi2tty
+otherwise.")
 (defvar tex-show-queue-command "lpq" "\
-*Command string used by \\[tex-show-print-queue] to show the print queue.
-Should show the queue that \\[tex-print] puts jobs on.")
+*Command used by \\[tex-show-print-queue] to show the print queue.
+Should show the queue(s) that \\[tex-print] puts jobs on.")
 (defvar tex-default-mode 'plain-tex-mode "\
 *Mode to enter for a new file that might be either TeX or LaTeX.
 This variable is used when it can't be determined whether the file
@@ -41,9 +91,13 @@ Normally set to either 'plain-tex-mode or 'latex-mode.")
 *String inserted by typing \\[tex-insert-quote] to open a quotation.")
 (defvar tex-close-quote "''" "\
 *String inserted by typing \\[tex-insert-quote] to close a quotation.")
+(defvar tex-last-temp-file nil "\
+Latest temporary file generated by \\[tex-region] and \\[tex-buffer].
+Deleted when the \\[tex-region] or \\[tex-buffer] is next run, or when the
+tex-shell goes away.")
 (defvar tex-command nil "\
 Command to run TeX.
-The name of the file will be appended to this string, separated by a space.")
+The name of the file, preceded by a blank, will be added to this string.")
 (defvar tex-trailer nil "\
 String appended after the end of a region sent to TeX by \\[tex-region].")
 (defvar tex-start-of-header nil "\
@@ -67,9 +121,9 @@ Syntax table used while in TeX mode.")
 Define the keys that we want defined both in TeX mode and in the tex-shell."])
 (defvar tex-mode-map nil "\
 Keymap for TeX mode.")
-(byte-code "¬ÃÁ Â!ˆÃÄÅ#ˆÃÆÇ#ˆÃÈÉ#ˆÃÊË#ˆÃÌÍ#ˆÃÎÏ#ˆÃĞÑ#ˆÃÒÓ#ˆÃÔÕ#ˆÃÖ×#ˆÁ‡" [tex-mode-map make-sparse-keymap tex-define-common-keys define-key "\"" tex-insert-quote "\n" tex-terminate-paragraph "}" up-list "{" tex-insert-braces "" tex-region "" tex-buffer "" tex-file "	" tex-bibtex-file "" tex-latex-block "" tex-close-latex-block] 4)
+(byte-code "¬ÃÁ Â!ˆÃÄÅ#ˆÃÆÇ#ˆÃÈÉ#ˆÃÊË#ˆÃÌÍ#ˆÃÎÏ#ˆÃĞÑ#ˆÃÒÓ#ˆÃÔÕ#ˆÃÖ×#ˆÁ‡" [tex-mode-map make-sparse-keymap tex-define-common-keys define-key "\"" tex-insert-quote "\n" tex-terminate-paragraph "}" up-list "{" tex-insert-braces "" tex-region "" tex-buffer "" tex-file "	" tex-bibtex-file "" tex-latex-block "" tex-close-latex-block] 4)
 (defvar tex-shell-map nil "\
-Keymap for the tex-shell.  A shell-mode-map with a few additions.")
+Keymap for the tex-shell.  A comint-mode-map with a few additions.")
 (fset 'tex-mode #[nil "À‰‰ŠebˆÄÅÀÆ#‰«’`ŠÈyˆÄÉÆ#*‰¬e\n«•	¬’ÊË!«‹ÊÌ!«ƒÍª„ÎªÏ)«„ ªƒ +‡" [nil comment slash mode search-forward "\\" t search-end 0 "%" looking-at "documentstyle" "documentstyle{slides}" slitex-mode latex-mode plain-tex-mode tex-default-mode] 4 "\
 Major mode for editing files of input for TeX, LaTeX, or SliTeX.
 Tries to determine (by looking at the beginning of the file) whether
@@ -77,7 +131,7 @@ this file is for plain TeX, LaTeX, or SliTeX and calls plain-tex-mode,
 latex-mode, or slitex-mode, respectively.  If it cannot be determined,
 such as if there are no commands in the file, the value of tex-default-mode
 is used." nil])
-(byte-code "ÀÁMˆÂÃM‡" [plain-TeX-mode plain-tex-mode LaTeX-mode latex-mode] 2)
+(byte-code "ÀÁMˆÂÃM‡" [TeX-mode tex-mode LaTeX-mode latex-mode] 2)
 (fset 'plain-tex-mode #[nil "À ˆÁÃÇÉ\nËÍÎÏĞ#‡" [tex-common-initialization "TeX" mode-name plain-tex-mode major-mode tex-run-command tex-command "%**start of header" tex-start-of-header "%**end of header" tex-end-of-header "\\bye\n" tex-trailer run-hooks text-mode-hook tex-mode-hook plain-tex-mode-hook] 4 "\
 Major mode for editing files of input for plain TeX.
 Makes $ and } display the characters they match.
@@ -106,6 +160,9 @@ tex-directory
 	run by \\[tex-region] or \\[tex-buffer].
 tex-dvi-print-command
 	Command string used by \\[tex-print] to print a .dvi file.
+tex-alt-dvi-print-command
+	Alternative command string used by \\[tex-print] (when given a prefix
+	argument) to print a .dvi file.
 tex-dvi-view-command
 	Command string used by \\[tex-view] to preview a .dvi file.
 tex-show-queue-command
@@ -115,6 +172,7 @@ tex-show-queue-command
 Entering Plain-tex mode calls the value of text-mode-hook, then the value of
 tex-mode-hook, and then the value of plain-tex-mode-hook.  When the special
 subshell is initiated, the value of tex-shell-hook is called." nil])
+(fset 'plain-TeX-mode 'plain-tex-mode)
 (fset 'latex-mode #[nil "À ˆÁÃÇÉ\nËÍÎÏĞ#‡" [tex-common-initialization "LaTeX" mode-name latex-mode major-mode latex-run-command tex-command "\\documentstyle" tex-start-of-header "\\begin{document}" tex-end-of-header "\\end{document}\n" tex-trailer run-hooks text-mode-hook tex-mode-hook latex-mode-hook] 4 "\
 Major mode for editing files of input for LaTeX.
 Makes $ and } display the characters they match.
@@ -143,6 +201,9 @@ tex-directory
 	run by \\[tex-region] or \\[tex-buffer].
 tex-dvi-print-command
 	Command string used by \\[tex-print] to print a .dvi file.
+tex-alt-dvi-print-command
+	Alternative command string used by \\[tex-print] (when given a prefix
+	argument) to print a .dvi file.
 tex-dvi-view-command
 	Command string used by \\[tex-view] to preview a .dvi file.
 tex-show-queue-command
@@ -180,13 +241,16 @@ tex-directory
 	run by \\[tex-region] or \\[tex-buffer].
 tex-dvi-print-command
 	Command string used by \\[tex-print] to print a .dvi file.
+tex-alt-dvi-print-command
+	Alternative command string used by \\[tex-print] (when given a prefix
+	argument) to print a .dvi file.
 tex-dvi-view-command
 	Command string used by \\[tex-view] to preview a .dvi file.
 tex-show-queue-command
 	Command string used by \\[tex-show-print-queue] to show the print
 	queue that \\[tex-print] put your job on.
 
-Entering SliTex mode calls the value of text-mode-hook, then the value of
+Entering SliTeX mode calls the value of text-mode-hook, then the value of
 tex-mode-hook, then the value of latex-mode-hook, and then the value of
 slitex-mode-hook.  When the special subshell is initiated, the value of
 tex-shell-hook is called." nil])
@@ -195,7 +259,7 @@ tex-shell-hook is called." nil])
 Insert the appropriate quote marks for TeX.
 Inserts the value of tex-open-quote (normally ``) or tex-close-quote
 (normally '') depending on the context.  With prefix argument, always
-inserts \" characters." "P"])
+inserts \" characters." "*P"])
 (fset 'validate-tex-buffer #[nil "`dbˆÁÂ ?­¡o?­`ÄÅÆÇ#ˆÈ`\"¬ŒÉ`!ˆÊË!ˆÌÍ!ˆ)ªZ*‡" [opoint ((goto-char opoint)) input-pending-p end search-backward "\n\n" nil move tex-validate-region push-mark message "Mismatch found in pararaph starting here" sit-for 4] 4 "\
 Check current buffer for paragraphs containing mismatched $'s.
 As each such paragraph is found, a mark is pushed at its beginning,
@@ -207,20 +271,28 @@ area if a mismatch is found." "r"])
 (fset 'tex-terminate-paragraph #[(inhibit-validation) "¬”ŠÁŠÂÃÄÅ#ˆ`)`\")¬„ÆÇ!ˆÃc‡" [inhibit-validation tex-validate-region search-backward "\n\n" nil move message "Paragraph being closed appears to contain a mismatch"] 5 "\
 Insert two newlines, breaking a paragraph for TeX.
 Check for mismatched braces/$'s in paragraph being terminated.
-A prefix arg inhibits the checking." "P"])
+A prefix arg inhibits the checking." "*P"])
 (fset 'tex-insert-braces #[nil "ÀcˆŠÁc)‡" [123 125] 1 "\
-Make a pair of braces and be poised to type inside of them." nil])
+Make a pair of braces and be poised to type inside of them." "*"])
 (fset 'tex-latex-block #[(name) "iÁÂ\"cˆjˆŠÄcˆjˆÅÁÆ\"!ˆm­‚Äc*‡" [col format "\\begin{%s}\n" name 10 insert-string "\\end{%s}"] 4 "\
 Creates a matching pair of lines \\begin{NAME} and \\end{NAME} at point.
-Puts point on a blank line between them." "*sLaTeX block name: "])
+Puts point on a blank line between them." (byte-code "À ˆÁÂÃÄÅ\"\"\"C‡" [barf-if-buffer-read-only completing-read "LaTeX block name: " mapcar list append standard-latex-block-names latex-block-names] 7)])
 (fset 'tex-last-unended-begin #[nil "ÀÁ!­ŠÂÃ!­…Ä ˆªq‡" [re-search-backward "\\(\\\\begin\\s *{\\)\\|\\(\\\\end\\s *{\\)" looking-at "\\\\end{" tex-last-unended-begin] 2 "\
 Leave point at the beginning of the last \\begin{...} that is unended."])
-(fset 'tex-close-latex-block #[nil "nÀ‰ŠÄÅÆˆiÇÈ!ˆÉ”É•{)	jˆÊ\n±ˆ­‚Ëc+‡" [nil indentation text new-line-needed ERR (tex-last-unended-begin) ((error (error "Couldn't find unended \\begin"))) re-search-forward "\\\\begin\\(\\s *{[^}\n]*}\\)" 1 "\\end" 10] 3 "\
+(fset 'tex-close-latex-block #[nil "nÀ‰ŠÀÄÅˆiÆÇ!ˆÈ”È•{)	jˆÉ\n±ˆ­‚Êc+‡" [nil indentation text new-line-needed (tex-last-unended-begin) ((error (error "Couldn't find unended \\begin"))) re-search-forward "\\\\begin\\(\\s *{[^}\n]*}\\)" 1 "\\end" 10] 3 "\
 Creates an \\end{...} to match the last unclosed \\begin{...}." "*"])
-(fset 'tex-start-shell #[nil "ŠÀÁÂ‰Ã$qˆÄ!Ç!ˆÈ!ˆÉÊ!ˆË ÌU­ƒÍÎ!)‡" [make-shell "tex-shell" nil "-v" copy-keymap shell-mode-map tex-shell-map tex-define-common-keys use-local-map run-hooks tex-shell-hook buffer-size 0 sleep-for 1] 5])
-(fset 'set-buffer-directory #[(buffer directory) "ÀÁ\n!!Ã\n!¬…ÄÅ\n\"‡Šqˆ\n‰)‡" [file-name-as-directory expand-file-name directory file-directory-p error "%s is not a directory" buffer default-directory] 3 "\
+(byte-code "ÀÁMˆÂÃM‡" [tex-start-shell #[nil "ŠÀÁ\n®‹ÃÄ!®†ÃÅ!®ÆÇÈ$qˆÉÁ!\nË\nÌ\"ˆÍ\n!ˆÎ!Ñ!ˆÒ!ˆÓÔ!ˆÕ ÖU­†×Ø!ˆªt*‡" [make-comint "tex-shell" tex-shell-file-name getenv "ESHELL" "SHELL" "/bin/sh" nil "-v" get-process proc set-process-sentinel tex-shell-sentinel process-kill-without-query copy-keymap comint-mode-map tex-shell-map tex-define-common-keys use-local-map run-hooks tex-shell-hook buffer-size 0 sleep-for 1] 5] tex-shell-sentinel #[(proc msg) "ÀÁ\n!!¬ˆÃ\nÄ\"ˆÅ ‡Æ\n!Ç>­‚Å ‡" [buffer-name process-buffer proc set-process-buffer nil tex-delete-last-temp-files process-status (signal exit)] 3]] 2)
+(fset 'tex-set-buffer-directory #[(buffer directory) "ÀÁ\n!!Ã\n!¬…ÄÅ\n\"‡Šqˆ\n‰)‡" [file-name-as-directory expand-file-name directory file-directory-p error "%s is not a directory" buffer default-directory] 3 "\
 Set BUFFER's default directory to be DIRECTORY."])
-(fset 'tex-region #[(beg end) "À «…Á ˆªƒÂ ˆ¬ƒÄ ÅPÆÇ!È «†ÉÈ !ª‚\nËÌ!!ÒÓÔ\"\"‰«’ÖÌ@\"!ˆA‰¬n)ŠŒ~ˆebˆ×yˆ`ee\nebˆÛİ#«™Şyˆ`Ûàİ#«ˆáyˆ`ªƒeâ#^à‰%ˆâ#]$İà%ˆ,%&qˆç ˆèé!ˆ&«…è&!ˆê\"ˆâedİà%ˆ+Šëì!qˆíî!ˆ.)ïğñ\"ˆêì\"ˆòğ3ôéR\"ˆòğ5ö÷°\"ˆ,p8ËÌ!!P9úŞ!‡" [tex-shell-running tex-kill-job tex-start-shell tex-zap-file tex-generate-zap-file-name ".tex" get-buffer-create " TeX-Output-Buffer" buffer-file-name file-name-directory default-directory file-name-as-directory expand-file-name tex-directory zap-directory file-dir temp-buffer tex-out-file file-name-all-completions tex-append "." list delete-file 100 hend hbeg search-end search-forward tex-start-of-header t 0 tex-end-of-header nil 1 write-region beg end tex-trailer local-tex-trailer erase-buffer insert-string "\n" set-buffer-directory get-buffer "*tex-shell*" make-local-variable tex-last-temp-file set-process-filter "tex-shell" tex-filter send-string tex-shell-cd-command " " tex-command " \"" "\"\n" tex-last-buffer-texed tex-print-file tex-recenter-output-buffer] 8 "\
+(fset 'tex-send-command #[(command &optional file background) "ŠÀ	!ÃÄ\n\"ÆÇÈ!\nÉO\n«†Ë\nPªÌ«‡\nTÍOªÌ«ƒÏªĞR\"+‡" [eval command cmd string-match "\\*" star comint-proc-query get-process "tex-shell" 0 file " " "" nil background "&\n" "\n"] 7 "\
+Send COMMAND to tex-shell, substituting optional FILE for *; in background
+if optional BACKGROUND is t.   If COMMAND has no *, FILE will be appended,
+preceded by a blank, to COMMAND.  If FILE is nil, no substitution will be made
+in COMMAND.  COMMAND can be any expression that evaluates to a command string."])
+(fset 'tex-delete-last-temp-files #[nil "­Á!ÃÄ!\n\"‰­Æ\n@P!ˆA‰¬sÇ*‡" [tex-last-temp-file file-name-directory dir file-name-all-completions file-name-nondirectory list delete-file nil] 4 "\
+Delete any junk files from last temp file."])
+(byte-code "ÀÀ‡" [tex-delete-last-temp-files kill-emacs-hook] 1)
+(fset 'tex-region #[(beg end) "À «…Á ˆªƒÂ ˆ¬ƒÄ ÅÆ!ÈÉ\n!!‰PÍ ˆŠŒ~ˆebˆÎyˆ`eeebˆÓÕ#«™Öyˆ`ÓØÕ#«ˆÙyˆ`ªƒeÚ^ÜPØ‰%ˆÚ]ÜPÕØ%ˆ,qˆà ˆáâ!ˆ«…á!ˆã\"ˆÚedÜPÕØ%ˆ+$å&\"ˆå'\"ˆ(p‰)+‡" [tex-shell-running tex-kill-job tex-start-shell tex-zap-file tex-generate-zap-file-name get-buffer-create " TeX-Output-Buffer" temp-buffer file-name-as-directory expand-file-name tex-directory zap-directory tex-out-file tex-delete-last-temp-files 100 default-directory hend hbeg search-end search-forward tex-start-of-header t 0 tex-end-of-header nil 1 write-region beg ".tex" end tex-trailer local-tex-trailer erase-buffer insert-string "\n" tex-set-buffer-directory tex-last-temp-file tex-send-command tex-shell-cd-command tex-command tex-print-file tex-last-buffer-texed] 7 "\
 Run TeX on the current region, via a temporary file.
 The file's name comes from the variable `tex-zap-file' and the
 variable `tex-directory' says where to put it.
@@ -233,27 +305,27 @@ The header must start in the first 100 lines of the buffer.
 The value of `tex-trailer' is given to TeX as input after the region.
 
 The value of `tex-command' specifies the command to use to run TeX." "r"])
-(fset 'tex-filter #[(process string) "pÁ\n!qˆÃÄ\n!dU«…cˆªŠŠÄ\n!bˆcˆ)Ä\n!`Æ“ˆŠÇyˆÈÉ!­¨ÊÆ\"ˆÌÍÏ\"\"‰­“ÒÓ@\"!ˆA‰¬nÆ)+‡" [old process-buffer proc ((byte-code "p=¬ƒqˆÁ‡" [old nil] 2)) process-mark string nil -1 looking-at "^Output written on " set-process-filter process file-name-all-completions tex-append tex-last-temp-file "." zap-directory list delete-file expand-file-name] 5])
 (fset 'tex-buffer #[nil "Àed\"‡" [tex-region] 3 "\
 Run TeX on current buffer.  See \\[tex-region] for more information.
-Does not save the buffer, so it's useful for trying
-experimental versions.  See \\[tex-file] for an alternative." nil])
-(fset 'tex-file #[nil "À «†ÁÀ !ªƒÂÃ!ÄÀ !Ç ˆÈ «…É ˆªƒÊ ˆËÌ\"ˆÍÎĞÑR\"ˆÍÎÓÔR\"ˆ*pÀ ×Ø!‡" [buffer-file-name file-name-nondirectory error "Buffer does not seem to be associated with any file" file-name-directory file-dir tex-out-file save-some-buffers tex-shell-running tex-kill-job tex-start-shell set-buffer-directory "*tex-shell*" send-string "tex-shell" tex-shell-cd-command " " "\n" tex-command " \"" "\"\n" tex-last-buffer-texed tex-print-file tex-recenter-output-buffer 0] 6 "\
+Does not save the buffer, so it's useful for trying experimental versions.
+See \\[tex-file] for an alternative." nil])
+(fset 'tex-file #[nil "À «†ÁÀ !ªƒÂÃ!ÄÀ !Ç ˆÈ «…É ˆªƒÊ ˆË\"ˆË\"ˆ*pÀ ‰‡" [buffer-file-name file-name-nondirectory error "Buffer does not seem to be associated with any file" file-name-directory file-dir tex-out-file save-some-buffers tex-shell-running tex-kill-job tex-start-shell tex-send-command tex-shell-cd-command tex-command tex-last-buffer-texed tex-print-file] 3 "\
 Prompt to save all buffers and run TeX (or LaTeX) on current buffer's file.
 This function is more useful than \\[tex-buffer] when you need the
 `.aux' file of LaTeX to have the correct name." nil])
 (fset 'tex-generate-zap-file-name #[nil "ÀÁÂÃÄ!!ÅÆ !#‡" [format "#tz%d%s" process-id get-buffer-process "*tex-shell*" tex-strip-dots system-name] 5 "\
 Generate a unique name suitable for use as a file name."])
 (byte-code "ÀÁMˆÂÃMˆÄÅM‡" [tex-strip-dots #[(s) "À	!ÂÃ	\"«ˆ	Ä”ÅIˆªr	‡" [copy-sequence s string-match "\\." 0 45] 3] tex-expand-files #[(s) "ÀÁÄÅ\n#«\nÁ”OBÁ•ªj\nÁU¬ˆ\nÀOBÇÈŸÅ#*‡" [nil 0 start elts string-match ":" s mapconcat expand-file-name] 4] tex-shell-running #[nil "ÀÁ!­‡ÂÀÁ!!Ã=‡" [get-process "tex-shell" process-status run] 3]] 2)
-(fset 'tex-kill-job #[nil "ÀÁ!­„ÂÁÃ\"‡" [get-process "tex-shell" quit-process t] 3 "\
+(fset 'tex-kill-job #[nil "ÀÁÂ!Ã\"‡" [quit-process get-process "tex-shell" t] 3 "\
 Kill the currently running TeX job." nil])
 (fset 'tex-recenter-output-buffer #[(linenum) "ÀÁ!p‰¬…ÄÅ!ªŸÆ!ˆÇ!ˆdbˆÈ	«†Ê	!ª„Ë Ì¥!ˆÆ\n!*‡" [get-buffer "*tex-shell*" old-buffer tex-shell message "No TeX output buffer" pop-to-buffer bury-buffer recenter linenum prefix-numeric-value window-height 2] 4 "\
 Redisplay buffer of TeX job output so that most recent output can be seen.
 The last line of the buffer is displayed on
 line LINE of the window, or centered if LINE is nil." "P"])
-(fset 'tex-print #[nil "À	Â\"Ãpš¬‘ÇÀÈ Â\"‰À	Â\"\"«‚É!«ŠÊÌÍR!ªƒÎÏ!*‡" [tex-append tex-print-file ".dvi" nil test-name print-file-name-dvi tex-last-buffer-texed file-newer-than-file-p buffer-file-name file-exists-p shell-command tex-dvi-print-command " \"" "&\"\n" error "No appropriate `.dvi' file could be found"] 5 "\
+(fset 'tex-print #[(&optional alt) "À	Â\"Ãpš¬ÇÀÈ Â\"‰\"«‚É!¬…ÊË!ªÌ«„ª‚Ğ#*‡" [tex-append tex-print-file ".dvi" nil test-name print-file-name-dvi tex-last-buffer-texed file-newer-than-file-p buffer-file-name file-exists-p error "No appropriate `.dvi' file could be found" tex-send-command alt tex-alt-dvi-print-command tex-dvi-print-command t] 4 "\
 Print the .dvi file made by \\[tex-region], \\[tex-buffer] or \\[tex-file].
-Runs the shell command defined by tex-dvi-print-command." nil])
+Runs the shell command defined by tex-dvi-print-command.  If prefix argument
+is provided, use the alternative command, tex-alt-dvi-print-command." "P"])
 (fset 'tex-view #[nil "Â )‡" [tex-dvi-view-command tex-dvi-print-command tex-print] 1 "\
 Preview the last `.dvi' file made by running TeX under Emacs.
 This means, made using \\[tex-region], \\[tex-buffer] or \\[tex-file].
@@ -263,8 +335,9 @@ Append to FILENAME the suffix SUFFIX, using same algorithm TeX uses.
 Scans for the first (not last) period.
 No period is retained immediately before SUFFIX,
 so normally SUFFIX starts with one."])
-(fset 'tex-show-print-queue #[nil "À «…Á ˆªƒÂ ˆÃÄÆP\"ˆÇÈ!‡" [tex-shell-running tex-kill-job tex-start-shell send-string "tex-shell" tex-show-queue-command "\n" tex-recenter-output-buffer nil] 4 "\
+(fset 'tex-show-print-queue #[nil "À «…Á ˆªƒÂ ˆÃ!‡" [tex-shell-running tex-kill-job tex-start-shell tex-send-command tex-show-queue-command] 2 "\
 Show the print queue that \\[tex-print] put your job on.
 Runs the shell command defined by tex-show-queue-command." nil])
-(fset 'tex-bibtex-file #[nil "À «…Á ˆªƒÂ ˆÃÄÅ !Æ\"ÇÅ !	ÊË\"ˆÌÍÏĞR\"ˆÌÍÒ	ÓR\"ˆ*ÔÕ!‡" [tex-shell-running tex-kill-job tex-start-shell tex-append file-name-nondirectory buffer-file-name "" file-name-directory file-dir tex-out-file set-buffer-directory "*tex-shell*" send-string "tex-shell" tex-shell-cd-command " " "\n" tex-bibtex-command " \"" "\"\n" tex-recenter-output-buffer 0] 6 "\
+(fset 'tex-bibtex-file #[nil "À «…Á ˆªƒÂ ˆÃÄÅ !Æ\"ÇÅ !	Ê\"ˆÊ	\"*‡" [tex-shell-running tex-kill-job tex-start-shell tex-append file-name-nondirectory buffer-file-name "" file-name-directory file-dir tex-out-file tex-send-command tex-shell-cd-command bibtex-command] 3 "\
 Run BibTeX on the current buffer's file." nil])
+(byte-code "ÀÁ!ˆÂÃ!‡" [run-hooks tex-mode-load-hook provide tex-mode] 2)

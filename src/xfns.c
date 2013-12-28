@@ -43,11 +43,13 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "EmacsShell.h"
 #include "EmacsShellP.h"
 
-#ifdef ENERGIZE
-#include "dbox.h"
-#endif
+/*
+ *  #ifdef ENERGIZE
+ *  #include "dbox.h"
+ *  #endif
+*/
 
-#ifdef USE_SPARC_SOUND
+#ifdef USE_SOUND
 # include <netdb.h>
 #endif
 
@@ -155,7 +157,7 @@ x_window_to_screen (wdesc)
   for (tail = Vscreen_list; CONSP (tail); tail = XCONS (tail)->cdr)
     {
       screen = XCONS (tail)->car;
-      if (XTYPE (screen) != Lisp_Screen)
+      if (!SCREENP (screen))
         continue;
       s = XSCREEN (screen);
       if (SCREEN_IS_X (s) && XtWindow (s->display.x->edit_widget) == wdesc)
@@ -177,7 +179,7 @@ x_any_window_to_screen (wdesc)
   for (tail = Vscreen_list; CONSP (tail); tail = XCONS (tail)->cdr)
     {
       screen = XCONS (tail)->car;
-      if (XTYPE (screen) != Lisp_Screen)
+      if (!SCREENP (screen))
         continue;
       s = XSCREEN (screen);
       if (!SCREEN_IS_X (s))
@@ -304,7 +306,7 @@ x_set_internal_border_width (s, arg)
      struct screen *s;
      Lisp_Object arg;
 {
-  CHECK_NUMBER (arg, 0);
+  CHECK_FIXNUM (arg, 0);
 
   BLOCK_INPUT;
   XtVaSetValues (s->display.x->edit_widget, 
@@ -363,13 +365,13 @@ x_set_screen_values (s, alist)
       Lisp_Object prop = Fcar (elt);
       Lisp_Object val = Fcdr (elt);
       
-      if (XTYPE (prop) == Lisp_String)
+      if (STRINGP (prop))
 	{
 	  if (XSTRING (prop)->size == 0)
 	    continue;
 
 	  BLOCK_INPUT;
-	  if (XTYPE (val) == Lisp_String)
+	  if (STRINGP (val))
 	    XtVaSetValues (w, XtVaTypedArg, XSTRING (prop)->data, XtRString,
 			   XSTRING (val)->data, XSTRING (val)->size + 1,
 			   0);
@@ -396,7 +398,7 @@ x_set_screen_values (s, alist)
 	  BLOCK_INPUT;
 	  if (int_p)
 	    {
-	      CHECK_NUMBER (val, 0);
+	      CHECK_FIXNUM (val, 0);
 	      XtVaSetValues (w, (char *) XSTRING (str)->data, XINT (val),
 			     0);
 	    }
@@ -730,7 +732,7 @@ x_create_widgets (s, parms, lisp_window_id)
 
   BLOCK_INPUT;
 
-  if (XTYPE (s->name) == Lisp_String)
+  if (STRINGP (s->name))
      name = (char*)XSTRING (s->name)->data;
   else
     name = "emacs";
@@ -777,6 +779,15 @@ x_create_widgets (s, parms, lisp_window_id)
   XChangeProperty (XtDisplay (shell_widget), XtWindow (shell_widget),
 		   Xatom_WM_PROTOCOLS, XA_ATOM, 32, PropModeAppend,
 		   (unsigned char*)properties, 1);
+
+  /* Do a stupid property change to force the server to generate a
+     propertyNotify event so that the event_stream server timestamp will
+     be initialized to something relevant to the time we created the window.
+     */
+  properties [0] = Xatom_WM_TAKE_FOCUS;
+  XChangeProperty (XtDisplay (screen_widget), XtWindow (screen_widget),
+		   Xatom_WM_PROTOCOLS, XA_ATOM, 32, PropModeAppend,
+		   (unsigned char*)NULL, 0);
 
   XtMapWidget (screen_widget);
 
@@ -841,7 +852,6 @@ use, it then has to begin with \"w\"."
   struct screen *s;
   Lisp_Object screen = Qnil;
   Lisp_Object name = Qnil;
-  Lisp_Object menubar = Qnil;
   struct gcpro gcpro1;
   struct gcpro gcpro2;
   GCPRO2 (screen, name);
@@ -853,7 +863,6 @@ use, it then has to begin with \"w\"."
   
   allocate_x_display_struct (s);
   name = Fassq (intern ("name"), parms);
-  menubar = Fassq (intern ("menubar"), parms);
   if (!NILP (name))
     {
       name = Fcdr (name);
@@ -882,10 +891,7 @@ use, it then has to begin with \"w\"."
 
   init_screen_faces (s);
 
-  if (!NILP (menubar))
-    Fset_screen_menubar (Fcdr (menubar), screen);
-
-  x_format_screen_title (s, XWINDOW (s->selected_window));
+  x_format_screen_title (s);
 
   if (!NILP (Vcreate_screen_hook))
     call1 (Vcreate_screen_hook, screen);
@@ -916,8 +922,6 @@ DEFUN ("x-focus-screen", Fx_focus_screen, Sx_focus_screen, 1, 2, 0,
   return screen_to_select;
 }
 
-
-Lisp_Object Vcurrent_menubar;
 
 void
 map_psheets (screen)
@@ -1124,7 +1128,7 @@ argument MOUSE-ONLY is non-nil, ignore keyboard events during the grab.")
 
   if (! NILP (shape))
     {
-      CHECK_NUMBER (shape, 0);
+      CHECK_FIXNUM (shape, 0);
       grabbed_cursor = XCreateFontCursor (x_current_display, XINT (shape));
     }
 
@@ -1443,7 +1447,7 @@ See the documentation of `x-rebind-key' for more information.")
   int strsize;
   register unsigned i;
 
-  CHECK_NUMBER (keycode, 1);
+  CHECK_FIXNUM (keycode, 1);
   CHECK_CONS (strings, 2);
   rawkey = (KeySym) ((unsigned) (XINT (keycode))) & 255;
   for (i = 0; i <= 15; strings = Fcdr (strings), i++)
@@ -1702,9 +1706,9 @@ x_get_cursor (s, name, fg, bg, noerror)
   Lisp_Object cons, ofg, obg;
   if (noerror)
     {
-      if ((XTYPE (name) != Lisp_String) ||
-	  (!NILP (fg) && XTYPE (fg) != Lisp_String) ||
-	  (!NILP (bg) && XTYPE (bg) != Lisp_String))
+      if ((!STRINGP (name)) ||
+	  (!NILP (fg) && !STRINGP (fg)) ||
+	  (!NILP (bg) && !STRINGP (bg)))
 	return 0;
     }
   else
@@ -1917,7 +1921,7 @@ select_visual (screen, depth)
   return v;
 }
 
-#ifdef USE_SPARC_SOUND
+#ifdef USE_SOUND
 extern int not_on_console;  /* defined in fns.c */
 #endif
 
@@ -1987,10 +1991,10 @@ to open the connect have been removed.")
   Xatoms_of_xfns ();
   Xatoms_of_xselect ();
 
-#ifdef USE_SPARC_SOUND
-  /* When running on a SparcStation, we cannot use digitized sounds as
-     beeps unless emacs is running on the same machine that $DISPLAY
-     points to, and $DISPLAY points to screen 0 of that machine.
+#ifdef USE_SOUND
+  /* When running on a SparcStation or SGI, we cannot use digitized sounds as
+     beeps unless emacs is running on the same machine that $DISPLAY points
+     to, and $DISPLAY points to screen 0 of that machine.
    */
   {
     char *dpy = x_current_display->display_name;
@@ -2016,7 +2020,7 @@ to open the connect have been removed.")
       }
     }
   }
-#endif
+#endif /* USE_SOUND */
 
   return argv_rest;
 }
@@ -2031,6 +2035,8 @@ unsigned long, we return it as a string.")
   char str[20];
 
   CHECK_SCREEN (screen, 0);
+  if (! SCREEN_IS_X (XSCREEN (screen)))
+    return Qnil;
   sprintf (str, "%lu", XtWindow (XSCREEN (screen)->display.x->edit_widget));
   return (make_string (str, strlen (str)));
 }

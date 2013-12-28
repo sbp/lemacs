@@ -1,11 +1,11 @@
 /* Synchronous subprocess invocation for GNU Emacs.
-   Copyright (C) 1985, 1986, 1987, 1988 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1987, 1988, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -22,12 +22,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include <signal.h>
 
 #include "config.h"
-
-/* Define SIGCHLD as an alias for SIGCLD.  */
-
-#if !defined (SIGCHLD) && defined (SIGCLD)
-#define SIGCHLD SIGCLD
-#endif /* SIGCLD */
 
 #include <sys/types.h>
 #define PRIO_PROCESS 0
@@ -63,11 +57,12 @@ Lisp_Object Vshell_file_name;
 Lisp_Object Vprocess_environment;
 #endif
 
-#ifdef VMS
-extern noshare char **environ;
-#else
-extern char **environ;
-#endif
+#ifdef BSD4_1
+/* Set nonzero when a synchronous subprocess is made,
+   and set to zero again when it is observed to die.
+   We wait for this to be zero in order to wait for termination.  */
+int synch_process_pid;
+#endif /* BSD4_1 */
 
 /* True iff we are about to fork off a synchronous process or if we
    are waiting for it.  */
@@ -76,12 +71,13 @@ int synch_process_alive;
 /* Nonzero => this is a string explaining death of synchronous subprocess.  */
 char *synch_process_death;
 
-/* If synch_process_death is zero,
-   this is exit code of synchronous subprocess.  */
+/* Exit code of synchronous subprocess if positive,
+   minus the signal number if negative.  */
 int synch_process_retcode;
-
-#ifndef VMS  /* VMS version is in vmsproc.c.  */
 
+void child_setup ();
+
+
 Lisp_Object
 call_process_cleanup (fdpid)
      Lisp_Object fdpid;
@@ -91,7 +87,6 @@ call_process_cleanup (fdpid)
   pid = Fcdr (fdpid);
   close (XFASTINT (fd));
   kill (XFASTINT (pid), SIGKILL);
-  synch_process_alive = 0;
   return Qnil;
 }
 
@@ -121,6 +116,16 @@ report_fork_error (string, data)
   _exit();
 }
 
+#ifdef VMS
+#ifdef __GNUC__
+#define	environ $$PsectAttributes_NOSHR$$environ
+extern char **environ;
+#else
+extern noshare char **environ;
+#endif
+#else
+extern char **environ;
+#endif
 
 DEFUN ("call-process", Fcall_process, Scall_process, 1, MANY, 0,
   "Call PROGRAM synchronously in separate process.\n\
@@ -146,14 +151,15 @@ If you quit, the process is killed with SIGKILL.")
   register unsigned char **new_argv
     = (unsigned char **) alloca ((max (2, nargs - 2)) * sizeof (char *));
   struct buffer *old = current_buffer;
-#if 0
-  int mask;
-#endif
 
   CHECK_STRING (args[0], 0);
 
   if (nargs <= 1 || NILP (args[1]))
+#ifdef VMS
+    args[1] = build_string ("NLA0:");
+#else
     args[1] = build_string ("/dev/null");
+#endif /* not VMS */
   else
     args[1] = Fexpand_file_name (args[1], current_buffer->directory);
 
@@ -200,8 +206,12 @@ If you quit, the process is killed with SIGKILL.")
     }
   new_argv[0] = XSTRING (path)->data;
 
-  if (XTYPE (buffer) == Lisp_Int)
+  if (FIXNUMP (buffer))
+#ifdef VMS
+    fd[1] = open ("NLA0:", 0), fd[0] = -1;
+#else
     fd[1] = open ("/dev/null", O_WRONLY), fd[0] = -1;
+#endif /* not VMS */
   else
     {
       pipe (fd);
@@ -210,6 +220,9 @@ If you quit, the process is killed with SIGKILL.")
       set_exclusive_use (fd[0]);
 #endif
     }
+
+  synch_process_death = 0;
+  synch_process_retcode = 0;
 
   {
     /* child_setup must clobber environ in systems with true vfork.
@@ -234,41 +247,31 @@ If you quit, the process is killed with SIGKILL.")
     env = environ;
 #endif /* MAINTAIN_ENVIRONMENT */
 
-#if 0  /* Some systems don't have sigblock.  */
-    mask = sigblock (sigmask (SIGCHLD));
-#endif
-
-    /* Record that we're about to create a synchronous process.  */
-    synch_process_alive = 1;
-
 #ifdef EMACS_BTL
     logging_on = cadillac_stop_logging ();
 #endif
 
     fork_error = Qnil;
     pid = vfork ();
+#ifdef BSD4_1
+    /* cause SIGCHLD interrupts to look for this pid. */
+    synch_process_pid = pid;
+#endif /* BSD4_1 */
 
     if (pid == 0)
       {
 	if (fd[0] >= 0)
 	  close (fd[0]);
 #ifdef USG
-        setpgrp ();
-#else
-        setpgrp (pid, pid);
+#ifdef HAVE_PTYS
+	setpgrp ();
+#endif
 #endif /* USG */
-	child_setup (filefd, fd1, fd1, new_argv, env, 0);
+	child_setup (filefd, fd1, fd1, new_argv, env);
       }
 #ifdef EMACS_BTL
     else if (logging_on)
       cadillac_start_logging ();
-#endif
-
-#if 0
-    /* Tell SIGCHLD handler to look for this pid.  */
-    synch_process_pid = pid;
-    /* Now let SIGCHLD come through.  */
-    sigsetmask (mask);
 #endif
 
     environ = save_environ;
@@ -286,7 +289,7 @@ If you quit, the process is killed with SIGKILL.")
       report_file_error ("Doing vfork", Qnil);
     }
 
-  if (XTYPE (buffer) == Lisp_Int)
+  if (FIXNUMP (buffer))
     {
 #ifndef subprocesses
       wait_without_blocking ();
@@ -298,7 +301,7 @@ If you quit, the process is killed with SIGKILL.")
 			 Fcons (make_number (fd[0]), make_number (pid)));
 
 
-  if (XTYPE (buffer) == Lisp_Buffer)
+  if (BUFFERP (buffer))
     Fset_buffer (buffer);
 
   immediate_quit = 1;
@@ -332,7 +335,6 @@ If you quit, the process is killed with SIGKILL.")
     return build_string (synch_process_death);
   return make_number (synch_process_retcode);
 }
-#endif
 
 static void
 delete_temp_file (name)
@@ -362,11 +364,7 @@ If you quit, the process is killed with SIGKILL.")
   int count = specpdl_ptr - specpdl;
   Lisp_Object result;
 
-#ifdef VMS
-  strcpy (tempfile, "tmp:emacsXXXXXX.");
-#else
   strcpy (tempfile, "/tmp/emacsXXXXXX");
-#endif
   mktemp (tempfile);
 
   filename_string = build_string (tempfile);
@@ -384,8 +382,6 @@ If you quit, the process is killed with SIGKILL.")
   return result;
 }
 
-#ifndef VMS /* VMS version is in vmsproc.c.  */
-
 /* This is the last thing run in a newly forked inferior
    either synchronous or asynchronous.
    Copy descriptors IN, OUT and ERR as descriptors 0, 1 and 2.
@@ -396,16 +392,13 @@ If you quit, the process is killed with SIGKILL.")
    Therefore, the superior process must save and restore the value
    of environ around the vfork and the call to this function.
 
-   ENV is the environment for the subprocess.
+   ENV is the environment for the subprocess. */
 
-   SET_PGRP is nonzero if we should put the subprocess into a separate
-   process group.  */
-
-child_setup (in, out, err, new_argv, env, set_pgrp)
+void
+child_setup (in, out, err, new_argv, env)
      int in, out, err;
      register char **new_argv;
      char **env;
-     int set_pgrp;
 {
   register int pid = getpid();
 
@@ -422,7 +415,7 @@ child_setup (in, out, err, new_argv, env, set_pgrp)
      the superior's static variables as if the superior had done alloca
      and will be cleaned up in the usual way.  */
 
-  if (XTYPE (current_buffer->directory) == Lisp_String)
+  if (STRINGP (current_buffer->directory))
     {
       register unsigned char *temp;
       register int i;
@@ -454,8 +447,8 @@ child_setup (in, out, err, new_argv, env, set_pgrp)
 
     new_length = 0;
     for (tem = Vprocess_environment;
-	 (XTYPE (tem) == Lisp_Cons
-	  && XTYPE (XCONS (tem)->car) == Lisp_String);
+	 (CONSP (tem)
+	  && STRINGP (XCONS (tem)->car));
 	 tem = XCONS (tem)->cdr)
       new_length++;
 
@@ -464,8 +457,8 @@ child_setup (in, out, err, new_argv, env, set_pgrp)
 
     /* Copy the env strings into new_env.  */
     for (tem = Vprocess_environment;
-	 (XTYPE (tem) == Lisp_Cons
-	  && XTYPE (XCONS (tem)->car) == Lisp_String);
+	 (CONSP (tem)
+	  && STRINGP (XCONS (tem)->car));
 	 tem = XCONS (tem)->cdr)
       *new_env++ = (char *) XSTRING (XCONS (tem)->car)->data;
     *new_env = 0;
@@ -483,6 +476,13 @@ child_setup (in, out, err, new_argv, env, set_pgrp)
   close (out);
   close (err);
 
+#ifdef USG
+#ifndef HAVE_PTYS
+  setpgrp ();			/* No arguments but equivalent in this case */
+#endif
+#else
+  setpgrp (pid, pid);
+#endif /* USG */
   setpgrp_of_tty (pid);
 
 #ifdef vipc
@@ -499,12 +499,11 @@ child_setup (in, out, err, new_argv, env, set_pgrp)
   write (1, new_argv[0], strlen (new_argv[0]));
   _exit (1);
 }
-
-#endif /* not VMS */
 
 init_callproc ()
 {
   register char * sh;
+  extern char **environ;
   register char **envp;
   Lisp_Object execdir;
 
@@ -534,12 +533,8 @@ init_callproc ()
       sleep (2);
     }
 
-#ifdef VMS
-  Vshell_file_name = build_string ("*dcl*");
-#else
   sh = (char *) egetenv ("SHELL");
   Vshell_file_name = build_string (sh ? sh : "/bin/sh");
-#endif
 
 #ifndef MAINTAIN_ENVIRONMENT
   /* The equivalent of this operation was done
@@ -574,8 +569,6 @@ intended for Emacs to invoke.");
 Each string should have the format ENVVARNAME=VALUE.");
 #endif
 
-#ifndef VMS
   defsubr (&Scall_process);
-#endif
   defsubr (&Scall_process_region);
 }

@@ -1,7 +1,6 @@
 ;;; NNTP (RFC977) Interface for GNU Emacs
 ;; Copyright (C) 1987, 1988, 1989 Fujitsu Laboratories LTD.
 ;; Copyright (C) 1987, 1988, 1989, 1990 Masanobu UMEDA
-;; $Header: nntp.el,v 1.2 91/10/22 22:41:00 eb Exp $
 
 ;; This file is part of GNU Emacs.
 
@@ -51,13 +50,19 @@ code, the correct kanji code of the buffer associated with the NNTP
 server must be specified as follows:
 
 (setq nntp-server-hook
-      '(lambda ()
+      (function
+       (lambda ()
 	 ;; Server's Kanji code is EUC (NEmacs hack).
 	 (make-local-variable 'kanji-fileio-code)
-	 (setq kanji-fileio-code 0)))
+	 (setq kanji-fileio-code 0))))
 
 If you'd like to change something depending on the server in this
 hook, use the variable `nntp-server-name'.")
+
+(defvar nntp-large-newsgroup 50
+  "*The number of the articles which indicates a large newsgroup.
+If the number of the articles is greater than the value, verbose
+messages will be shown to indicate the current status.")
 
 (defvar nntp-buggy-select (memq system-type '(usg-unix-v fujitsu-uts))
   "*T if your select routine is buggy.
@@ -71,10 +76,8 @@ doesn't work properly.")
 If Emacs hangs up while retrieving headers, set the variable to a
 lower value.")
 
-(defvar nntp-large-newsgroup 50
-  "*The number of the articles which indicates a large newsgroup.
-If the number of the articles is greater than the value, verbose
-messages will be shown to indicate the current status.")
+(defvar nntp-debug-read t
+  "*If non-nil, show the current status about reading the NNTP server output.")
 
 
 (defconst nntp-version "NNTP 3.10"
@@ -91,7 +94,7 @@ messages will be shown to indicate the current status.")
 You'd better not use this variable in NNTP front-end program but
 instead use `nntp-server-buffer'.")
 
-(defvar nntp-status-message-string nil
+(defvar nntp-status-string nil
   "Save the server response message.
 You'd better not use this variable in NNTP front-end program but
 instead call function `nntp-status-message' to get status message.")
@@ -314,7 +317,7 @@ If HOST is nil, use value of environment variable `NNTPSERVER'.
 If optional argument SERVICE is non-nil, open by the service name."
   (let ((host (or host (getenv "NNTPSERVER")))
 	(status nil))
-    (setq nntp-status-message-string "")
+    (setq nntp-status-string "")
     (cond ((and host (nntp-open-server-internal host service))
 	   (setq status (nntp-wait-for-response "^[23].*\r$"))
 	   ;; Do check unexpected close of connection.
@@ -327,7 +330,7 @@ If optional argument SERVICE is non-nil, open by the service name."
 	     (nntp-close-server-internal)
 	     ))
 	  ((null host)
-	   (setq nntp-status-message-string "NNTP server is not specified."))
+	   (setq nntp-status-string "NNTP server is not specified."))
 	  )
     status
     ))
@@ -358,11 +361,11 @@ If the stream is opened, return T, otherwise return NIL."
 
 (defun nntp-status-message ()
   "Return server status response as string."
-  (if (and nntp-status-message-string
+  (if (and nntp-status-string
 	   ;; NNN MESSAGE
 	   (string-match "[0-9][0-9][0-9][ \t]+\\([^\r]*\\).*$"
-			 nntp-status-message-string))
-      (substring nntp-status-message-string (match-beginning 1) (match-end 1))
+			 nntp-status-string))
+      (substring nntp-status-string (match-beginning 1) (match-end 1))
     ;; Empty message if nothing.
     ""
     ))
@@ -533,7 +536,7 @@ in the current news group."
 	      ))
       ;; Save status message.
       (end-of-line)
-      (setq nntp-status-message-string
+      (setq nntp-status-string
 	    (buffer-substring (point-min) (point)))
       (if status
 	  (progn
@@ -546,9 +549,11 @@ in the current news group."
 	      ;;	 (save-excursion (end-of-line) (point))))
 	      (if (looking-at regexp)
 		  (setq wait nil)
-		(message "NNTP: Reading...")
+		(if nntp-debug-read
+		    (message "NNTP: Reading..."))
 		(nntp-accept-response)
-		(message "")
+		(if nntp-debug-read
+		    (message ""))
 		))
 	    ;; Successfully received server response.
 	    t
@@ -615,7 +620,7 @@ in the current news group."
     ;; Initialize communication buffer.
     (setq nntp-server-buffer (get-buffer-create " *nntpd*"))
     (set-buffer nntp-server-buffer)
-    (buffer-flush-undo (current-buffer))
+    (buffer-disable-undo (current-buffer))
     (erase-buffer)
     (kill-all-local-variables)
     (setq case-fold-search t)		;Should ignore case.

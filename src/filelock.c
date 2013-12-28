@@ -1,10 +1,10 @@
-/* Copyright (C) 1985, 1986, 1987 Free Software Foundation, Inc.
+/* Copyright (C) 1985, 1986, 1987, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -302,7 +302,7 @@ unlock_all_files ()
        tail = XCONS (tail)->cdr)
     {
       b = XBUFFER (XCONS (XCONS (tail)->car)->cdr);
-      if (XTYPE (b->filename) == Lisp_String &&
+      if (STRINGP (b->filename) &&
 	  b->save_modified < BUF_MODIFF (b))
 	unlock_file (b->filename);
     }
@@ -334,7 +334,7 @@ if it should normally be locked.")
   ()
 {
   if (current_buffer->save_modified < MODIFF &&
-      XTYPE (current_buffer->filename) == Lisp_String)
+      STRINGP (current_buffer->filename))
     unlock_file (current_buffer->filename);
   return Qnil;
 }
@@ -346,7 +346,7 @@ unlock_buffer (buffer)
      struct buffer *buffer;
 {
   if (buffer->save_modified < BUF_MODIFF (buffer) &&
-      XTYPE (buffer->filename) == Lisp_String)
+      STRINGP (buffer->filename))
     unlock_file (buffer->filename);
 }
 

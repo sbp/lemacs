@@ -1,11 +1,11 @@
 /* Generic screen functions.
-   Copyright (C) 1989 Free Software Foundation.
+   Copyright (C) 1989, 1992 Free Software Foundation.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -241,7 +241,7 @@ Value is t for a termcap screen (a character-only terminal),\n\
   (screen)
      Lisp_Object screen;
 {
-  if (XTYPE (screen) != Lisp_Screen)
+  if (!SCREENP (screen))
     return Qnil;
 
   switch (XSCREEN (screen)->output_method)
@@ -354,81 +354,115 @@ DEFUN ("screen-list", Fscreen_list, Sscreen_list,
 #ifdef MULTI_SCREEN
 
 Lisp_Object
-next_screen (screen, mini_screen)
+next_screen (screen, mini_screen, visible_only_p)
      Lisp_Object screen;
-     int mini_screen;
+     int mini_screen, visible_only_p;
 {
-  Lisp_Object tail;
-  if (NILP (Vscreen_list))
-    abort ();
-  for (tail = Vscreen_list;
-       !NILP (tail);
-       tail = XCONS (tail)->cdr)
-    {
-      if (!mini_screen &&
-	  EQ (XCONS (tail)->car, Vglobal_minibuffer_screen))
-	continue;
+  int found_self_p = 0;
+  Lisp_Object target, tail, oldest;
 
-      if (EQ (screen, XCONS (tail)->car))
+  /* Iterate over the list exactly once.
+     The first time we come across a visible screen, remember it.
+     When we find `screen' in the list, set a flag.
+     The next time we find a visible screen, return it.
+     If we reach the end of the list, return the first visible screen
+      that we found (which is the "next" screen if we wrap around.)
+   */
+  if (NILP (Vscreen_list)) abort ();
+  oldest = Qnil;
+  for (tail = Vscreen_list; !NILP (tail); tail = XCONS (tail)->cdr)
+    {
+      target = XCONS (tail)->car;
+
+      if (EQ (target, screen))
+	found_self_p = 1;
+
+      else if ((!visible_only_p || XSCREEN (target)->visible) &&
+	       (mini_screen || !EQ (target, Vglobal_minibuffer_screen)))
 	{
-	  if (NILP (XCONS (tail)->cdr))
-	    return XCONS (Vscreen_list)->car;
-	  else
-	    return XCONS (XCONS (tail)->cdr)->car;
+	  if (found_self_p)
+	    return target;
+	  else if (NILP (oldest))
+	    oldest = target;
 	}
-      if (EQ (XCONS (tail)->cdr, Vscreen_list))
-	abort ();
     }
-  abort ();
+  if (NILP (oldest))
+    return screen;
+  else
+    return oldest;
 }
 
 
 Lisp_Object
-prev_screen (screen, mini_screen)
+prev_screen (screen, mini_screen, visible_only_p)
      Lisp_Object screen;
-     int mini_screen;
+     int mini_screen, visible_only_p;
 {
-  Lisp_Object tail, prev;
-  if (NILP (Vscreen_list))
-    abort ();
-  for (tail = Vscreen_list, prev = Qnil;
-       !NILP (tail);
-       prev = XCONS (tail)->car, tail = XCONS (tail)->cdr)
-    {
-      if (!mini_screen &&
-	  EQ (XCONS (tail)->car, Vglobal_minibuffer_screen))
-	continue;
+  Lisp_Object target, prev, tail;
 
-      if (EQ (screen, XCONS (tail)->car))
+  /* Iterate over the list exactly once.
+     Each time we come across a visible screen, remember it.
+     When we find `screen' in the list, return the last-seen visible screen,
+      or keep going if we haven't seen one yet.
+     Keep going until the end of the list, and return the last visible screen
+      in the list.  In this case, `screen' was the first visible screen in
+      the list, so it's "previous" screen is the last visible screen in the
+      list.
+   */
+  if (NILP (Vscreen_list)) abort ();
+  prev = Qnil;
+  for (tail = Vscreen_list; !NILP (tail); tail = XCONS (tail)->cdr)
+    {
+      target = XCONS (tail)->car;
+
+      if (EQ (target, screen))
 	{
-	  if (NILP (prev))  /* meaning this is the first screen on the list */
-	    {
-	      while (!NILP (XCONS (tail)->cdr))
-		tail = XCONS (tail)->cdr;
-	      prev = XCONS (tail)->car;
-	    }
-	  return prev;
+	  if (!NILP (prev))
+	    return prev;
 	}
-      if (EQ (XCONS (tail)->cdr, Vscreen_list))
-	abort ();
+      else if ((!visible_only_p || XSCREEN (target)->visible) &&
+	       (mini_screen || !EQ (target, Vglobal_minibuffer_screen)))
+	{
+	  prev = target;
+	}
     }
-  abort ();
+  if (NILP (prev))
+    return screen;
+  else
+    return prev;
 }
 
 
 DEFUN ("next-screen", Fnext_screen, Snext_screen,
-       0, 2, 0,
+       0, 3, 0,
        "Return the next screen in the screen list after SCREEN.\n\
 If MINISCREEN is non-nil, include the global-minibuffer-screen if it\n\
-has its own screen.")
-  (screen, miniscreen)
-Lisp_Object screen, miniscreen;
+has its own screen.\n\
+If VISIBLE-ONLY-P is non-nil, then cycle through the visible screens,\n\
+instead of all screens.")
+  (screen, miniscreen, visible_only_p)
+Lisp_Object screen, miniscreen, visible_only_p;
 {
   Lisp_Object tail;
   struct screen* s;
   get_screen (s, screen);
+  return next_screen (screen, !NILP (miniscreen), !NILP (visible_only_p));
+}
 
-  return next_screen (screen, (NILP (miniscreen) ? 0 : 1));
+DEFUN ("previous-screen", Fprevious_screen, Sprevious_screen,
+       0, 3, 0,
+       "Return the previous screen in the screen list after SCREEN.\n\
+If MINISCREEN is non-nil, include the global-minibuffer-screen if it\n\
+has its own screen.\n\
+If VISIBLE-ONLY-P is non-nil, then cycle through the visible screens,\n\
+instead of all screens.")
+  (screen, miniscreen, visible_only_p)
+Lisp_Object screen, miniscreen, visible_only_p;
+{
+  Lisp_Object tail;
+  struct screen* s;
+  get_screen (s, screen);
+  return prev_screen (screen, !NILP (miniscreen), !NILP (visible_only_p));
 }
 #endif /* MULTI_SCREEN */
 
@@ -448,9 +482,14 @@ Default is current screen.")
     {
       Lisp_Object next;
 
-      next = next_screen (screen, 0);
+      next = next_screen (screen, 0, 1);
       if (EQ (next, screen))
-	error ("Attempt to delete the only screen");
+	{
+	  if (EQ (screen, next_screen (screen, 0, 0)))
+	    error ("Attempt to delete the only screen");
+	  else
+	    error ("Attempt to delete the only visible screen");
+	}
       Fselect_screen (next);
     }
 
@@ -529,8 +568,8 @@ DEFUN ("set-mouse-position", Fset_mouse_position, Sset_mouse_position, 3, 3, 0,
      Lisp_Object screen, x, y;
 {
   CHECK_SCREEN (screen, 0);
-  CHECK_NUMBER (x, 2);
-  CHECK_NUMBER (y, 1);
+  CHECK_FIXNUM (x, 2);
+  CHECK_FIXNUM (y, 1);
 
 #ifdef HAVE_X_WINDOWS
   if (XSCREEN (screen)->output_method == output_x_window)
@@ -693,7 +732,7 @@ DEFUN ("visible-screen-list", Fvisible_screen_list, Svisible_screen_list,
   for (tail = Vscreen_list; CONSP (tail); tail = XCONS (tail)->cdr)
     {
       screen = XCONS (tail)->car;
-      if (XTYPE (screen) != Lisp_Screen)
+      if (!SCREENP (screen))
 	continue;
       s = XSCREEN (screen);
       if (s->visible)
@@ -867,7 +906,7 @@ but that the idea of the actual height of the screen should not be changed.")
   else
     CHECK_SCREEN (screen, 0);
   s = XSCREEN (screen);
-  CHECK_NUMBER (rows, 1);
+  CHECK_FIXNUM (rows, 1);
   
   if (s->display.nothing == 0)
     error ("Cannot set the height of a dead screen");
@@ -890,7 +929,7 @@ but that the idea of the actual width of the screen should not be changed.")
   else
     CHECK_SCREEN (screen, 0);
   s = XSCREEN (screen);
-  CHECK_NUMBER (cols, 1);
+  CHECK_FIXNUM (cols, 1);
 
   if (s->display.nothing == 0)
     error ("Cannot set the width of a dead screen");
@@ -915,8 +954,8 @@ but that the idea oft eh acrual size of the screen should not be changed.")
   else
     CHECK_SCREEN (screen, 0);
   s = XSCREEN (screen);
-  CHECK_NUMBER (cols, 1);
-  CHECK_NUMBER (rows, 2);
+  CHECK_FIXNUM (cols, 1);
+  CHECK_FIXNUM (rows, 2);
 
   if (s->display.nothing == 0)
     error ("Cannot set the size of a dead screen");
@@ -935,8 +974,8 @@ DEFUN ("set-screen-position", Fset_screen_position,
   int mask;
 
   CHECK_SCREEN (screen, 0);
-  CHECK_NUMBER (xoffset, 1);
-  CHECK_NUMBER (yoffset, 2);
+  CHECK_FIXNUM (xoffset, 1);
+  CHECK_FIXNUM (yoffset, 2);
   s = XSCREEN (screen);
 
   if (s->display.nothing == 0)
@@ -1155,6 +1194,7 @@ and store it in this variable.");
   defsubr (&Sscreen_selected_window);
   defsubr (&Sscreen_list);
   defsubr (&Snext_screen);
+  defsubr (&Sprevious_screen);
   defsubr (&Sdelete_screen);
   defsubr (&Sread_mouse_position);
   defsubr (&Sset_mouse_position);

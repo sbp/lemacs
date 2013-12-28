@@ -55,6 +55,8 @@ extern int errno;
 #include <sys.ioctl.h>
 #endif
 
+#include "emacssignal.h"
+
 #include "backtrace.h"
 
 /* Allow m- file to inhibit use of FIONREAD.  */
@@ -83,6 +85,11 @@ int interrupt_char;
 /* Form to execute when help char is typed.  */
 Lisp_Object Vhelp_form;
 
+Lisp_Object Vpre_command_hook, Vpost_command_hook;
+Lisp_Object Qpre_command_hook, Qpost_command_hook;
+
+Lisp_Object Vmouse_grabbed_buffer;
+
 extern struct Lisp_Keymap *current_global_map;
 extern Lisp_Object Vglobal_function_map;
 extern int minibuf_level;
@@ -90,9 +97,6 @@ extern char *echo_area_glyphs;
 
 /* Current depth in recursive edits.  */
 int command_loop_level;
-
-/* Total number of times command_loop has read a key sequence.  */
-int num_input_keys;
 
 /* Last keyboard or mouse input event read as a command. */
 Lisp_Object Vlast_command_event;
@@ -167,10 +171,10 @@ int interrupts_deferred;
 int flow_control;
 
 #ifndef BSD4_1
-#define sigfree() sigsetmask (0)
-#define sigholdx(sig) sigsetmask (1 << ((sig) - 1))
-#define sigblockx(sig) sigblock (1 << ((sig) - 1))
-#define sigunblockx(sig) sigblock (0)
+#define sigfree() sigsetmask (SIGEMPTYMASK)
+#define sigholdx(sig) sigsetmask (sigmask (sig))
+#define sigblockx(sig) sigblock (sigmask (sig))
+#define sigunblockx(sig) sigblock (SIGEMPTYMASK)
 #define sigpausex(sig) sigpause (0)
 #endif /* not BSD4_1 */
 
@@ -181,10 +185,6 @@ int flow_control;
 #define sigunblockx(sig) sigrelse (sig)
 #define sigpausex(sig) sigpause (sig)
 #endif /* BSD4_1 */
-
-#ifndef sigmask
-#define sigmask(no) (1L << ((no) - 1))
-#endif
 
 /* We are unable to use interrupts if FIONREAD is not available,
    so flush SIGIO so we won't try. */
@@ -271,6 +271,7 @@ cmd_error (data)
      Lisp_Object data;
 {
   Lisp_Object errmsg, tail, errname, file_error;
+  struct gcpro gcpro1;
   int i;
 
   Vquit_flag = Qnil;
@@ -308,13 +309,14 @@ cmd_error (data)
 
   if (!CONSP (data)) data = Qnil;
   tail = Fcdr (data);
+  GCPRO1 (tail);
 
   /* For file-error, make error message by concatenating
      all the data items.  They are all strings.  */
   if (!NILP (file_error) && !NILP (tail))
     errmsg = XCONS (tail)->car, tail = XCONS (tail)->cdr;
 
-  if (XTYPE (errmsg) == Lisp_String)
+  if (STRINGP (errmsg))
     Fprinc (errmsg, Qt);
   else
     write_string_1 ("peculiar error", -1, Qt);
@@ -327,6 +329,7 @@ cmd_error (data)
       else
 	Fprin1 (Fcar (tail), Qt);
     }
+  UNGCPRO;
 
   /* In -batch mode, force out the error message and newlines after it
      and then die.  */
@@ -452,13 +455,6 @@ Lisp_Object
 command_loop_1 (dummy)
      Lisp_Object dummy;
 {
-  Lisp_Object cmd;
-  int lose;
-  int nonundocount;
-  int i;
-  int no_redisplay;
-  int no_direct;
-
   Lisp_Object event = Fallocate_event ();
   struct gcpro gcpro1;
   GCPRO1 (event);
@@ -466,9 +462,16 @@ command_loop_1 (dummy)
   Vprefix_arg = Qnil;
   waiting_for_input = 0;
   cancel_echoing ();
-  Vlast_command = Qt;
-  nonundocount = 0;
-  no_redisplay = 0;
+  /* This magically makes single character keyboard macros work just
+     like the real thing.  This is slightly bogus, but it's in here for
+     compatibility with Emacs 18.  It's not even clear what the "right
+     thing" is. */
+  if (!(!NILP(Vexecuting_macro) &&
+	((STRINGP (Vexecuting_macro) &&
+	  XSTRING (Vexecuting_macro)->size == 1) ||
+	 (VECTORP (Vexecuting_macro) &&
+	  XVECTOR (Vexecuting_macro)->size == 1))))
+    Vlast_command = Qt;
 
   while (1)
     {
@@ -477,19 +480,19 @@ command_loop_1 (dummy)
       if (XBUFFER (XWINDOW (selected_window)->buffer) != current_buffer)
 	internal_set_buffer (XBUFFER (XWINDOW (selected_window)->buffer));
 
-      no_direct = 0;
+      /* If ^G was typed before we got here (that is, before emacs was
+	 idle and waiting for input) then we treat that as an interrupt. */
+      QUIT;
 
-      /* If minibuffer on and echo area in use,
-	 wait 2 sec and redraw minibufer.  */
-
+      /* If minibuffer on and echo area in use, wait 2 sec and redraw
+	 minibuffer.  Treat a ^G here as a command, not an interrupt.
+       */
       if (minibuf_level && echo_area_glyphs)
 	{
 	  Fsit_for (make_number (2), Qnil);
 	  echo_area_glyphs = 0;
-	  no_direct = 1;
 	}
 
-      i = 0;
       /* Shortcut not applicable or found a prefix key.
 	 Take full precautions and read key sequence the hard way.  */
 #ifdef C_ALLOCA
@@ -497,32 +500,11 @@ command_loop_1 (dummy)
 				/* Since we can free the most stuff here.  */
 #endif /* C_ALLOCA */
 
-      /* If we read a ^G when waiting for a character, blow out of this
-         recursive edit.  If we get a ^G while executing a command (that
-	 is, Vquit_flag is set when Fdispatch_event returns) then just
-	 quit normally, which will return back to the top level of the
-	 innermost recursive edit (minibuffer.)
-
-	 It is not possible to bind a command to a key sequence including
-	 a ^G.  This used to work in some situations, but can't really be
-	 done without crippling ^G's semantics as an interrupt.
-       */
       Fnext_event (event);
-      if (!NILP (Vquit_flag)) {
-#if 0
-	if (composing_command_p ())
-	  Vquit_flag = Qnil;
-	else
-#endif
-	if (NILP (Vinhibit_quit)) {
-	  cancel_echoing ();
-	  Fdeallocate_event (event);
-	  if (command_loop_level > 0 || minibuf_level > 0)
-	    Fthrow (Qexit, Qt);
-	  else
-	    Fsignal (Qquit, Qnil);
-	}
-      }
+      /* If ^G was typed while emacs was reading input from the user, then
+	 it is treated as just another key.  This is strange, but it is
+	 what emacs 18 did. */
+      Vquit_flag = Qnil;
       Fdispatch_event (event);
     }
   UNGCPRO;
@@ -641,7 +623,6 @@ input_available_signal (signo)
 }
 #endif /* SIGIO */
 
-
 /* Return the prompt-string of a sparse keymap.
    This is the first element which is a string.
    Return nil if there is none.  */
@@ -654,7 +635,7 @@ map_prompt (map)
     {
       register Lisp_Object tem;
       tem = Fcar (map);
-      if (XTYPE (tem) == Lisp_String)
+      if (STRINGP (tem))
 	return tem;
       map = Fcdr (map);
     }
@@ -681,7 +662,7 @@ Otherwise, that is done only if an arg is read using the minibuffer.")
   Vcurrent_prefix_arg = prefixarg;
   debug_on_next_call = 0;
 
-  if (XTYPE (cmd) == Lisp_Symbol)
+  if (SYMBOLP (cmd))
     {
       tem = Fget (cmd, Qdisabled);
       if (!NILP (tem))
@@ -691,7 +672,7 @@ Otherwise, that is done only if an arg is read using the minibuffer.")
   while (1)
     {
       final = cmd;
-      while (XTYPE (final) == Lisp_Symbol)
+      while (SYMBOLP (final))
 	{
 	  if (EQ (Qunbound, XSYMBOL (final)->function))
 	    Fsymbol_function (final);    /* Get an error! */
@@ -704,8 +685,8 @@ Otherwise, that is done only if an arg is read using the minibuffer.")
 	break;
     }
 
-  if (CONSP (final) || XTYPE (final) == Lisp_Subr
-      || XTYPE (final) == Lisp_Compiled)
+  if (CONSP (final) || SUBRP (final)
+      || COMPILEDP (final))
     {
 #ifdef EMACS_BTL
       backtrace.id_number = 0;
@@ -722,7 +703,7 @@ Otherwise, that is done only if an arg is read using the minibuffer.")
       backtrace_list = backtrace.next;
       return tem;
     }
-  if (XTYPE (final) == Lisp_String || XTYPE (final) == Lisp_Vector)
+  if (STRINGP (final) || VECTORP (final))
     {
       return Fexecute_kbd_macro (final, prefixarg);
     }
@@ -733,7 +714,6 @@ Otherwise, that is done only if an arg is read using the minibuffer.")
   return Qnil;
 }
 
-
 DEFUN ("execute-extended-command", Fexecute_extended_command, Sexecute_extended_command,
   1, 1, "P",
   "Read function name, then read its arguments and call it.")
@@ -753,9 +733,9 @@ DEFUN ("execute-extended-command", Fexecute_extended_command, Sexecute_extended_
     strcpy (buf, "- ");
   else if (CONSP (prefixarg) && XINT (XCONS (prefixarg)->car) == 4)
     strcpy (buf, "C-u ");
-  else if (CONSP (prefixarg) && XTYPE (XCONS (prefixarg)->car) == Lisp_Int)
+  else if (CONSP (prefixarg) && FIXNUMP (XCONS (prefixarg)->car))
     sprintf (buf, "%d ", XINT (XCONS (prefixarg)->car));
-  else if (XTYPE (prefixarg) == Lisp_Int)
+  else if (FIXNUMP (prefixarg))
     sprintf (buf, "%d ", XINT (prefixarg));
 
   /* This isn't strictly correct if execute-extended-command
@@ -773,7 +753,6 @@ DEFUN ("execute-extended-command", Fexecute_extended_command, Sexecute_extended_
   return Fcommand_execute (function, Qt);
 }
 
-
 extern Lisp_Object recent_keys_ring;
 extern int recent_keys_ring_index;
 
@@ -835,19 +814,16 @@ DEFUN ("open-dribble-file", Fopen_dribble_file, Sopen_dribble_file, 1, 1,
   (file)
      Lisp_Object file;
 {
-  if (NILP (file))
-    {
-      fclose (dribble);
-      dribble = 0;
-    }
-  else
+  if (dribble != 0)
+    fclose (dribble);
+  dribble = 0;
+  if (!NILP (file))
     {
       file = Fexpand_file_name (file, Qnil);
       dribble = fopen ((char *)XSTRING (file)->data, "w");
     }
   return Qnil;
 }
-
 
 DEFUN ("suspend-emacs", Fsuspend_emacs, Ssuspend_emacs, 0, 1, "",
   "Stop Emacs and return to superior process.  You can resume later.\n\
@@ -862,9 +838,11 @@ Otherwise, suspend normally and after resumption call\n\
 {
   register Lisp_Object tem;
   int count = specpdl_ptr - specpdl;
+  struct gcpro gcpro1;
 
   if (!NILP (stuffstring))
     CHECK_STRING (stuffstring, 0);
+  GCPRO1 (stuffstring);
 
   /* Call value of suspend-hook
      if it is bound and value is non-nil.  */
@@ -886,7 +864,7 @@ Otherwise, suspend normally and after resumption call\n\
      if it is bound and value is non-nil.  */
   if (!NILP (Vrun_hooks))
     call1 (Vrun_hooks, intern ("suspend-resume-hook"));
-
+  UNGCPRO;
   return Qnil;
 }
 
@@ -901,7 +879,7 @@ stuff_buffered_input (stuffstring)
 /* stuff_char works only in BSD, versions 4.2 and up.  */
 #ifdef BSD
 #ifndef BSD4_1
-  if (XTYPE (stuffstring) == Lisp_String)
+  if (STRINGP (stuffstring))
     {
       register int count;
 
@@ -1060,15 +1038,36 @@ Third arg non-nil means accept 8-bit input (for a Meta key).\n\
 #else /* not SIGIO */
   interrupt_input = 0;
 #endif /* not SIGIO */
-/* Our VMS input only works by interrupts, as of now.  */
-#ifdef VMS
-  interrupt_input = 1;
-#endif
   flow_control = !NILP (flow);
   meta_key = !NILP (meta);
   init_sys_modes ();
   return Qnil;
 }
+
+/* This may actually need to do something goofy once ttys work again */
+DEFUN ("set-interrupt-character", Fset_interrupt_character,
+       Sset_interrupt_character, 1, 1, 0,
+  "Change the interrupt character.  Arg is an ASCII code or nil.\n\
+Among other system-dependent things, this changes the value of the\n\
+variable `interrupt-char'.")
+  (new_interrupt_char)
+	Lisp_Object new_interrupt_char;
+{
+  int c;
+  if (NILP (new_interrupt_char))
+    c = -1;
+  else
+    {
+      CHECK_FIXNUM (new_interrupt_char, 0);
+      c = XINT (new_interrupt_char);
+      if (c < -1 || c > 127)
+	error ("interrupt character must be an ASCII code, or nil or -1");
+    }
+
+  interrupt_char = c;
+  return make_number (interrupt_char);
+}
+
 
 init_keyboard ()
 {
@@ -1079,11 +1078,11 @@ init_keyboard ()
   if (!noninteractive)
     {
       signal (SIGINT, interrupt_signal);
-#ifdef USG
-      /* On USG systems, C-g is set up for both SIGINT and SIGQUIT
+#ifdef HAVE_TERMIO
+      /* On  systems with TERMIO, C-g is set up for both SIGINT and SIGQUIT
 	 and we can't tell which one it will give us.  */
       signal (SIGQUIT, interrupt_signal);
-#endif /* USG */
+#endif /* HAVE_TERMIO */
 /* Note SIGIO has been undef'd if FIONREAD is missing.  */
 #ifdef SIGIO
       signal (SIGIO, input_available_signal);
@@ -1097,11 +1096,6 @@ init_keyboard ()
   interrupt_input = 1;
 #else
   interrupt_input = 0;
-#endif
-
-/* Our VMS input only works by interrupts, as of now.  */
-#ifdef VMS
-  interrupt_input = 1;
 #endif
 
   sigfree ();
@@ -1139,6 +1133,7 @@ syms_of_keyboard ()
   defsubr (&Stop_level);
   defsubr (&Sopen_dribble_file);
   defsubr (&Sset_input_mode);
+  defsubr (&Sset_interrupt_character);
   defsubr (&Sexecute_extended_command);
 
   DEFVAR_LISP ("disabled-command-hook", &Vdisabled_command_hook,
@@ -1201,10 +1196,6 @@ The command can set this variable; whatever is put here\n\
 will be in `last-command' during the following command.");
   Vthis_command = Qnil;
 
-  DEFVAR_INT ("num-input-keys", &num_input_keys,
-    "Number of complete keys read from the keyboard so far.");
-  num_input_keys = 0;
-
   DEFVAR_INT ("help-char", &help_char,
     "Character to recognize as meaning Help.\n\
 When it is read, do `(eval help-form)', and display result if it's a string.\n\
@@ -1223,6 +1214,23 @@ interrupt handlers.");
 If the form returns a string, that string is displayed.\n\
 If `help-form' is nil, the help char is not recognized.");
   Vhelp_form = Qnil;
+
+  DEFVAR_LISP ("pre-command-hook", &Vpre_command_hook,
+     "Function or functions to run before every command.\n\
+This may examine the `this-command' variable to find out what command\n\
+is about to be run, or may change it to cause a different command to run.\n\
+Function on this hook must be careful to avoid signalling errors!");
+  Vpre_command_hook = Qnil;
+  Qpre_command_hook = intern ("pre-command-hook");
+  staticpro (&Qpre_command_hook);
+
+  DEFVAR_LISP ("post-command-hook", &Vpost_command_hook,
+     "Function or functions to run after every command.\n\
+This may examine the `this-command' variable to find out what command\n\
+was just executed.");
+  Vpost_command_hook = Qnil;
+  Qpost_command_hook = intern ("post-command-hook");
+  staticpro (&Qpost_command_hook);
 
   DEFVAR_LISP ("top-level", &Vtop_level,
     "Form to evaluate when Emacs starts up.\n\
@@ -1256,8 +1264,18 @@ under X, you should do the translations with the `xmodmap' program instead.");
   Vunmap_screen_hook = Qnil;
 
   DEFVAR_LISP ("mouse-motion-handler", &Vmouse_motion_handler,
-	       "Handler for motion events.  One arg, a motion event.");
+    "Handler for motion events.  One arg, the event.\n\
+For most applications, you should use `mode-motion-hook' instead of this.");
   Vmouse_motion_handler = Qnil;
+
+  DEFVAR_LISP ("mouse-grabbed-buffer", &Vmouse_grabbed_buffer,
+    "A buffer which should be consulted first for all mouse activity.\n\
+When a mouse-clicked it processed, it will first be looked up in the\n\
+local-map of this buffer, and then through the normal mechanism if there\n\
+is no binding for that click.  This buffer's value of `mode-motion-hook'\n\
+will be consulted instead of the `mode-motion-hook' of the buffer of the\n\
+window under the mouse.  You should *bind* this, not set it.");
+  Vmouse_grabbed_buffer = Qnil;
 #endif
 }
 

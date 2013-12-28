@@ -1,11 +1,11 @@
 ;; Info package for Emacs  -- could use a "create node" feature.
-;; Copyright (C) 1985, 1986 Free Software Foundation, Inc.
+;; Copyright (C) 1985, 1986, 1992 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -518,7 +518,8 @@ Completion is allowed, and the menu item point is on is the default."
     (goto-char (point-min))
     (or (search-forward "\n* menu:" nil t)
 	(error "No menu in this node"))
-    (or (search-forward (concat "\n* " menu-item) nil t)
+    (or (search-forward (concat "\n* " menu-item ":") nil t)
+	(search-forward (concat "\n* " menu-item) nil t)
 	(error "No such item in menu"))
     (beginning-of-line)
     (forward-char 2)
@@ -804,21 +805,25 @@ Allowed only if variable Info-enable-edit is non-nil."
 
 (defvar Info-fontify t)
 
-(or (find-face 'info-node) (make-face 'info-node))
-(or (find-face 'info-xref) (make-face 'info-xref))
-
-(if purify-flag  ; being preloaded
-    nil
-  (or (face-differs-from-default-p 'info-node (selected-screen))
-      (copy-face 'bold-italic 'info-node (selected-screen)))
-  (or (face-differs-from-default-p 'info-xref (selected-screen))
-      (copy-face 'bold 'info-xref (selected-screen))))
-
+(defvar Info-faces-initted nil)
+(defun Info-init-faces ()
+  (if Info-faces-initted
+      nil
+    (or (find-face 'info-node) (make-face 'info-node))
+    (or (find-face 'info-xref) (make-face 'info-xref))
+    (or (face-differs-from-default-p 'info-node (selected-screen))
+	(copy-face 'bold-italic 'info-node (selected-screen)))
+    (or (face-differs-from-default-p 'info-xref (selected-screen))
+	(copy-face 'bold 'info-xref (selected-screen)))
+    (setq Info-faces-initted t)))
 
 (defun Info-fontify-node ()
+  (Info-init-faces)
   (if Info-fontify
       (save-excursion
-	(map-extents (function (lambda (x y) (delete-extent x)))
+	(map-extents (function (lambda (x y)
+				 (if (eq (extent-data x) 'info)
+				     (delete-extent x))))
 		     (current-buffer) (point-min) (point-max) nil)
 	(let ((case-fold-search t)
 	      extent)
@@ -831,6 +836,7 @@ Allowed only if variable Info-enable-edit is non-nil."
 		  (goto-char (match-end 0))
 		  (setq extent (make-extent (match-beginning 1) (match-end 1)))
 		  (set-extent-face extent 'info-xref)
+		  (set-extent-data extent 'info)
 		  (set-extent-attribute extent 'highlight))))
 	  (goto-char (point-min))
 	  (while (re-search-forward "\\*note[ \n\t]*\\([^:]*\\):" nil t)
@@ -838,12 +844,14 @@ Allowed only if variable Info-enable-edit is non-nil."
 		nil
 	      (setq extent (make-extent (match-beginning 0) (match-end 1)))
 	      (set-extent-face extent 'info-xref)
+	      (set-extent-data extent 'info)
 	      (set-extent-attribute extent 'highlight)))
 	  (goto-char (point-min))
 	  (if (search-forward "\n* menu:" nil t)
 	      (while (re-search-forward "^\\* \\([^:\t\n]*\\):" nil t)
 		(setq extent (make-extent (match-beginning 0) (match-end 1)))
 		(set-extent-face extent 'info-node)
+		(set-extent-data extent 'info)
 		(set-extent-attribute extent 'highlight)))))))
 
 (defun Info-indicated-node (event)
@@ -902,7 +910,7 @@ Allowed only if variable Info-enable-edit is non-nil."
       (if (looking-at ".*\\bNext:") (setq next-p t))
       (if (looking-at ".*\\bPrev:") (setq prev-p t))
       (if (looking-at ".*Up:") (setq up-p t))
-      (setq menu (nconc (list nil "Info Commands:" "----")
+      (setq menu (nconc (list "Info" "Info Commands:" "----")
 			(if (setq in (Info-indicated-node event))
 			    (list (vector (car (cdr in)) in t)))
 			(list
@@ -920,30 +928,28 @@ Allowed only if variable Info-enable-edit is non-nil."
 	  (setq i (1+ i)))
 	(setq xrefs (cons text xrefs)))
       (setq xrefs (nreverse xrefs))
-      (if (> (length xrefs) 21) (setcdr (nthcdr 20 xrefs) '(more)))
       (goto-char (point-min))
       (if (search-forward "\n* menu:" nil t)
 	  (while (re-search-forward "^\\* \\([^:\t\n]*\\):" nil t)
 	    (setq text (buffer-substring (match-beginning 1) (match-end 1)))
 	    (setq subnodes (cons text subnodes))))
-      (setq subnodes (nreverse subnodes))
-      (if (> (length subnodes) 21) (setcdr (nthcdr 20 subnodes) '(more)))
-      )
+      (setq subnodes (nreverse subnodes)))
+    (if (or xrefs subnodes)
+	(nconc menu (list "-----")))
     (if xrefs
-	(nconc menu (list "----" "Cross-References:" "----")
-	       (mapcar (function (lambda (xref)
-				   (if (eq xref 'more)
-				       "...more..."
-				     (vector xref
-					     (list 'Info-follow-reference xref)
-					     t))))
-		       xrefs)))
+	(nconc menu
+	       (list
+		(apply 'list "Cross-References"
+		       (mapcar '(lambda (xref)
+				  (vector xref
+					  (list 'Info-follow-reference xref)
+					  t))
+			       xrefs)))))
     (if subnodes
-	(nconc menu (list "----" "Sub-Nodes:" "----")
-	       (mapcar (function (lambda (node)
-				   (if (eq node 'more)
-				       "...more..."
-				     (vector node (list 'Info-menu node)
-					     t))))
-		       subnodes)))
+	(nconc menu
+	       (list
+		(apply 'list "Sub-Nodes"
+		       (mapcar '(lambda (node)
+				  (vector node (list 'Info-menu node) t))
+			       subnodes)))))
     (popup-menu menu)))

@@ -133,7 +133,7 @@ symbol_to_x_atom (display, sym)
   if (EQ (sym, QCUT_BUFFER6)) return XA_CUT_BUFFER6;
   if (EQ (sym, QCUT_BUFFER7)) return XA_CUT_BUFFER7;
 #endif
-  if (XTYPE (sym) != Lisp_Symbol) abort ();
+  if (!SYMBOLP (sym)) abort ();
 
 #if 0
   fprintf (stderr, " XInternAtom %s\n", (char *) XSYMBOL (sym)->name->data);
@@ -210,10 +210,10 @@ cons_to_long (c)
      Lisp_Object c;
 {
   int top, bot;
-  if (XTYPE (c) == Lisp_Int) return XINT (c);
+  if (FIXNUMP (c)) return XINT (c);
   top = XCONS (c)->car;
   bot = XCONS (c)->cdr;
-  if (XTYPE (bot) == Lisp_Cons) bot = XCONS (bot)->car;
+  if (CONSP (bot)) bot = XCONS (bot)->car;
   return ((XINT (top) << 16) | XINT (bot));
 }
 
@@ -297,7 +297,7 @@ x_get_local_selection (selection_symbol, target_type)
 #endif
 
 #if 0 /* #### MULTIPLE doesn't work yet */
-  else if (XTYPE (target_type) == Lisp_Cons &&
+  else if (CONSP (target_type) &&
 	   XCONS (target_type)->car == QMULTIPLE)
     {
       Lisp_Object pairs = XCONS (target_type)->cdr;
@@ -329,22 +329,22 @@ x_get_local_selection (selection_symbol, target_type)
     }
 
   check = value;
-  if (XTYPE (value) == Lisp_Cons &&
-      XTYPE (XCONS (value)->car) == Lisp_Symbol)
+  if (CONSP (value) &&
+      SYMBOLP (XCONS (value)->car))
     type = XCONS (value)->car,
     check = XCONS (value)->cdr;
   
-  if (XTYPE (check) == Lisp_String ||
-      XTYPE (check) == Lisp_Vector ||
-      XTYPE (check) == Lisp_Symbol ||
-      XTYPE (check) == Lisp_Int ||
+  if (STRINGP (check) ||
+      VECTORP (check) ||
+      SYMBOLP (check) ||
+      FIXNUMP (check) ||
       NILP (value))
     return value;
-  else if (XTYPE (check) == Lisp_Cons &&
-	   XTYPE (XCONS (check)->car) == Lisp_Int &&
-	   (XTYPE (XCONS (check)->cdr) == Lisp_Int ||
-	    (XTYPE (XCONS (check)->cdr) == Lisp_Cons &&
-	     XTYPE (XCONS (XCONS (check)->cdr)->car) == Lisp_Int &&
+  else if (CONSP (check) &&
+	   FIXNUMP (XCONS (check)->car) &&
+	   (FIXNUMP (XCONS (check)->cdr) ||
+	    (CONSP (XCONS (check)->cdr) &&
+	     FIXNUMP (XCONS (XCONS (check)->cdr)->car) &&
 	     NILP (XCONS (XCONS (check)->cdr)->cdr))))
     return value;
   else
@@ -537,13 +537,13 @@ x_handle_selection_request (event)
 # define CDR(x) (XCONS(x)->cdr)
 # define CAR(x) (XCONS(x)->car)
   /* This list isn't user-visible, so it can't "go bad." */
-  if (XTYPE (local_selection_data) != Lisp_Cons) abort ();
-  if (XTYPE (CDR (local_selection_data)) != Lisp_Cons) abort ();
-  if (XTYPE (CDR (CDR (local_selection_data))) != Lisp_Cons) abort ();
+  if (!CONSP (local_selection_data)) abort ();
+  if (!CONSP (CDR (local_selection_data))) abort ();
+  if (!CONSP (CDR (CDR (local_selection_data)))) abort ();
   if (!NILP (CDR (CDR (CDR (local_selection_data))))) abort ();
-  if (XTYPE (CAR (CDR (CDR (local_selection_data)))) != Lisp_Cons) abort ();
-  if (XTYPE (CAR (CAR (CDR (CDR (local_selection_data))))) != Lisp_Int) abort ();
-  if (XTYPE (CDR (CAR (CDR (CDR (local_selection_data))))) != Lisp_Int) abort ();
+  if (!CONSP (CAR (CDR (CDR (local_selection_data))))) abort ();
+  if (!FIXNUMP (CAR (CAR (CDR (CDR (local_selection_data)))))) abort ();
+  if (!FIXNUMP (CDR (CAR (CDR (CDR (local_selection_data)))))) abort ();
 # undef CAR
 # undef CDR
 #endif
@@ -611,7 +611,7 @@ x_handle_selection_request (event)
     Lisp_Object val = Vx_sent_selection_hooks;
     if (!EQ (val, Qunbound) && !NILP (val))
       {
-	if (XTYPE (val) == Lisp_Cons && !EQ (XCONS (val)->car, Qlambda))
+	if (CONSP (val) && !EQ (XCONS (val)->car, Qlambda))
 	  for (rest = val; !NILP (rest); rest = Fcdr (rest))
 	    call3 (Fcar(rest), selection_symbol, target_symbol, successful_p);
 	else
@@ -675,7 +675,7 @@ x_handle_selection_clear (event)
     Lisp_Object val = Vx_lost_selection_hooks;
     if (!EQ (val, Qunbound) && !NILP (val))
       {
-	if (XTYPE (val) == Lisp_Cons && !EQ (XCONS (val)->car, Qlambda))
+	if (CONSP (val) && !EQ (XCONS (val)->car, Qlambda))
 	  for (rest = val; !NILP (rest); rest = Fcdr (rest))
 	    call1 (Fcar (rest), selection_symbol);
 	else
@@ -738,7 +738,7 @@ expect_property_change (display, window, property, state)
      int state;
 {
   struct prop_location *pl = (struct prop_location *)
-    malloc (sizeof (struct prop_location));
+    xmalloc (sizeof (struct prop_location));
   pl->tick = ++prop_location_tick;
   pl->display = display;
   pl->window = window;
@@ -844,7 +844,7 @@ copy_multiple_data (obj)
   Lisp_Object vec;
   int i;
   int size;
-  if (XTYPE (obj) == Lisp_Cons)
+  if (CONSP (obj))
     return Fcons (XCONS (obj)->car, copy_multiple_data (XCONS (obj)->cdr));
     
   CHECK_VECTOR (obj, 0);
@@ -892,7 +892,7 @@ x_get_foreign_selection (selection_symbol, target_type)
   Atom selection_atom = symbol_to_x_atom (display, selection_symbol);
   Atom type_atom;
 
-  if (XTYPE (target_type) == Lisp_Cons)
+  if (CONSP (target_type))
     type_atom = symbol_to_x_atom (display, XCONS (target_type)->car);
   else
     type_atom = symbol_to_x_atom (display, target_type);
@@ -963,7 +963,7 @@ x_get_window_property (display, window, property, data_ret, bytes_ret,
     }
 
   total_size = bytes_remaining + 1;
-  *data_ret = (unsigned char *) malloc (total_size);
+  *data_ret = (unsigned char *) xmalloc (total_size);
   
   /* Now read, until weve gotten it all. */
   BLOCK_INPUT;
@@ -1015,7 +1015,7 @@ receive_incremental_selection (display, window, property, target_type,
   int offset = 0;
   int prop_id;
   *size_bytes_ret = min_size_bytes;
-  *data_ret = (unsigned char *) malloc (*size_bytes_ret);
+  *data_ret = (unsigned char *) xmalloc (*size_bytes_ret);
 #if 0
   fprintf (stderr, "\nread INCR %d\n", min_size_bytes);
 #endif
@@ -1063,7 +1063,7 @@ receive_incremental_selection (display, window, property, target_type,
 		   *size_bytes_ret, offset + tmp_size_bytes);
 #endif
 	  *size_bytes_ret = offset + tmp_size_bytes;
-	  *data_ret = (unsigned char *) realloc (*data_ret, *size_bytes_ret);
+	  *data_ret = (unsigned char *) xrealloc (*data_ret, *size_bytes_ret);
 	}
       bcopy (tmp_data, (*data_ret) + offset, tmp_size_bytes);
       offset += tmp_size_bytes;
@@ -1240,11 +1240,11 @@ lisp_data_to_selection_data (display, obj,
      int *format_ret;
 {
   Lisp_Object type = Qnil;
-  if (XTYPE (obj) == Lisp_Cons && XTYPE (XCONS (obj)->car) == Lisp_Symbol)
+  if (CONSP (obj) && SYMBOLP (XCONS (obj)->car))
     {
       type = XCONS (obj)->car;
       obj = XCONS (obj)->cdr;
-      if (XTYPE (obj) == Lisp_Cons && NILP (XCONS (obj)->cdr))
+      if (CONSP (obj) && NILP (XCONS (obj)->cdr))
 	obj = XCONS (obj)->car;
     }
 
@@ -1255,44 +1255,44 @@ lisp_data_to_selection_data (display, obj,
       *data_ret = 0;
       type = QNULL;
     }
-  else if (XTYPE (obj) == Lisp_String)
+  else if (STRINGP (obj))
     {
       *format_ret = 8;
       *size_ret = XSTRING (obj)->size;
-      *data_ret = (unsigned char *) malloc (*size_ret);
+      *data_ret = (unsigned char *) xmalloc (*size_ret);
       bcopy ((char *) XSTRING (obj)->data, *data_ret, *size_ret);
       if (NILP (type)) type = QSTRING;
     }
-  else if (XTYPE (obj) == Lisp_Symbol)
+  else if (SYMBOLP (obj))
     {
       *format_ret = 32;
       *size_ret = 1;
-      *data_ret = (unsigned char *) malloc (sizeof (Atom) + 1);
+      *data_ret = (unsigned char *) xmalloc (sizeof (Atom) + 1);
       (*data_ret) [sizeof (Atom)] = 0;
       (*(Atom **) data_ret) [0] = symbol_to_x_atom (display, obj);
       if (NILP (type)) type = QATOM;
     }
-  else if (XTYPE (obj) == Lisp_Int &&
+  else if (FIXNUMP (obj) &&
 	   XINT (obj) < 0xFFFF &&
 	   XINT (obj) > -0xFFFF)
     {
       *format_ret = 16;
       *size_ret = 1;
-      *data_ret = (unsigned char *) malloc (sizeof (short) + 1);
+      *data_ret = (unsigned char *) xmalloc (sizeof (short) + 1);
       (*data_ret) [sizeof (short)] = 0;
       (*(short **) data_ret) [0] = (short) XINT (obj);
       if (NILP (type)) type = QINTEGER;
     }
-  else if (XTYPE (obj) == Lisp_Int || XTYPE (obj) == Lisp_Cons)
+  else if (FIXNUMP (obj) || CONSP (obj))
     {
       *format_ret = 32;
       *size_ret = 1;
-      *data_ret = (unsigned char *) malloc (sizeof (long) + 1);
+      *data_ret = (unsigned char *) xmalloc (sizeof (long) + 1);
       (*data_ret) [sizeof (long)] = 0;
       (*(unsigned long **) data_ret) [0] = cons_to_long (obj);
       if (NILP (type)) type = QINTEGER;
     }
-  else if (XTYPE (obj) == Lisp_Vector)
+  else if (VECTORP (obj))
     {
       /* Lisp_Vectors may represent a set of ATOMs;
 	 a set of 16 or 32 bit INTEGERs;
@@ -1300,15 +1300,15 @@ lisp_data_to_selection_data (display, obj,
        */
       int i;
 
-      if (XTYPE (XVECTOR (obj)->contents [0]) == Lisp_Symbol)
+      if (SYMBOLP (XVECTOR (obj)->contents [0]))
 	/* This vector is an ATOM set */
 	{
 	  if (NILP (type)) type = QATOM;
 	  *size_ret = XVECTOR (obj)->size;
 	  *format_ret = 32;
-	  *data_ret = (unsigned char *) malloc ((*size_ret) * sizeof (Atom));
+	  *data_ret = (unsigned char *) xmalloc ((*size_ret) * sizeof (Atom));
 	  for (i = 0; i < *size_ret; i++)
-	    if (XTYPE (XVECTOR (obj)->contents [i]) == Lisp_Symbol)
+	    if (SYMBOLP (XVECTOR (obj)->contents [i]))
 	      (*(Atom **) data_ret) [i] =
 		symbol_to_x_atom (display, XVECTOR (obj)->contents [i]);
 	    else
@@ -1318,16 +1318,16 @@ lisp_data_to_selection_data (display, obj,
 			      Fcons (obj, Qnil)));
 	}
 #if 0 /* #### MULTIPLE doesn't work yet */
-      else if (XTYPE (XVECTOR (obj)->contents [0]) == Lisp_Vector)
+      else if (VECTORP (XVECTOR (obj)->contents [0]))
 	/* This vector is an ATOM_PAIR set */
 	{
 	  if (NILP (type)) type = QATOM_PAIR;
 	  *size_ret = XVECTOR (obj)->size;
 	  *format_ret = 32;
 	  *data_ret = (unsigned char *)
-	    malloc ((*size_ret) * sizeof (Atom) * 2);
+	    xmalloc ((*size_ret) * sizeof (Atom) * 2);
 	  for (i = 0; i < *size_ret; i++)
-	    if (XTYPE (XVECTOR (obj)->contents [i]) == Lisp_Vector)
+	    if (VECTORP (XVECTOR (obj)->contents [i]))
 	      {
 		Lisp_Object pair = XVECTOR (obj)->contents [i];
 		if (XVECTOR (pair)->size != 2)
@@ -1356,15 +1356,15 @@ lisp_data_to_selection_data (display, obj,
 	  if (NILP (type)) type = QINTEGER;
 	  *format_ret = 16;
 	  for (i = 0; i < *size_ret; i++)
-	    if (XTYPE (XVECTOR (obj)->contents [i]) == Lisp_Cons)
+	    if (CONSP (XVECTOR (obj)->contents [i]))
 	      *format_ret = 32;
-	    else if (XTYPE (XVECTOR (obj)->contents [i]) != Lisp_Int)
+	    else if (!FIXNUMP (XVECTOR (obj)->contents [i]))
 	      Fsignal (Qerror, /* Qselection_error */
 		       Fcons (build_string
 	("all elements of the vector must be integers or conses of integers"),
 			      Fcons (obj, Qnil)));
 
-	  *data_ret = (unsigned char *) malloc (*size_ret * (*format_ret/8));
+	  *data_ret = (unsigned char *) xmalloc (*size_ret * (*format_ret/8));
 	  for (i = 0; i < *size_ret; i++)
 	    if (*format_ret == 32)
 	      (*((unsigned long **) data_ret)) [i] =
@@ -1386,23 +1386,23 @@ static Lisp_Object
 clean_local_selection_data (obj)
      Lisp_Object obj;
 {
-  if (XTYPE (obj) == Lisp_Cons &&
-      XTYPE (XCONS (obj)->car) == Lisp_Int &&
-      XTYPE (XCONS (obj)->cdr) == Lisp_Cons &&
-      XTYPE (XCONS (XCONS (obj)->cdr)->car) == Lisp_Int &&
+  if (CONSP (obj) &&
+      FIXNUMP (XCONS (obj)->car) &&
+      CONSP (XCONS (obj)->cdr) &&
+      FIXNUMP (XCONS (XCONS (obj)->cdr)->car) &&
       NILP (XCONS (XCONS (obj)->cdr)->cdr))
     obj = Fcons (XCONS (obj)->car, XCONS (obj)->cdr);
 
-  if (XTYPE (obj) == Lisp_Cons &&
-      XTYPE (XCONS (obj)->car) == Lisp_Int &&
-      XTYPE (XCONS (obj)->cdr) == Lisp_Int)
+  if (CONSP (obj) &&
+      FIXNUMP (XCONS (obj)->car) &&
+      FIXNUMP (XCONS (obj)->cdr))
     {
       if (XINT (XCONS (obj)->car) == 0)
 	return XCONS (obj)->cdr;
       if (XINT (XCONS (obj)->car) == -1)
 	return make_number (- XINT (XCONS (obj)->cdr));
     }
-  if (XTYPE (obj) == Lisp_Vector)
+  if (VECTORP (obj))
     {
       int i;
       int size = XVECTOR (obj)->size;
@@ -1481,7 +1481,7 @@ TYPE is the type of data desired, typically STRING.")
   CHECK_SYMBOL (selection_symbol, 0);
 
 #if 0 /* #### MULTIPLE doesn't work yet */
-  if (XTYPE (target_type) == Lisp_Cons &&
+  if (CONSP (target_type) &&
       XCONS (target_type)->car == QMULTIPLE)
     {
       CHECK_VECTOR (XCONS (target_type)->cdr, 0);
@@ -1500,11 +1500,11 @@ TYPE is the type of data desired, typically STRING.")
       goto DONE;
     }
 
-  if (XTYPE (val) == Lisp_Cons &&
-      XTYPE (XCONS (val)->car) == Lisp_Symbol)
+  if (CONSP (val) &&
+      SYMBOLP (XCONS (val)->car))
     {
       val = XCONS (val)->cdr;
-      if (XTYPE (val) == Lisp_Cons && NILP (XCONS (val)->cdr))
+      if (CONSP (val) && NILP (XCONS (val)->cdr))
 	val = XCONS (val)->car;
     }
   val = clean_local_selection_data (val);
@@ -1720,7 +1720,7 @@ positive means move values forward, negative means backward.")
   Window window = RootWindow (display, 0); /* Cutbuffers are on screen 0 */
   Atom props [8];
 
-  CHECK_NUMBER (n, 0);
+  CHECK_FIXNUM (n, 0);
   if (XINT (n) == 0) return n;
   if (! cut_buffers_initialized) initialize_cut_buffers (display, window);
   props[0] = XA_CUT_BUFFER0;

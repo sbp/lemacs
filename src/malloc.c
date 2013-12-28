@@ -685,7 +685,7 @@ memalign (alignment, size)
   return aligned;
 }
 
-#ifndef hpux
+#ifndef __hpux
 /* This runs into trouble with getpagesize on HPUX.
    Patching out seems cleaner than the ugly fix needed.  */
 char *

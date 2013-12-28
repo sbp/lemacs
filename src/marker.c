@@ -1,11 +1,11 @@
 /* Markers: examining, setting and killing.
-   Copyright (C) 1985 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -92,7 +92,7 @@ set_marker_internal (marker, pos, buffer, restricted_p)
   /* If position is nil or a marker that points nowhere,
      make this marker point nowhere.  */
   if (NILP (pos) ||
-      (XTYPE (pos) == Lisp_Marker && !XMARKER (pos)->buffer))
+      (MARKERP (pos) && !XMARKER (pos)->buffer))
     {
       if (point_p)
 	marker_error (marker, "can't make point-marker point nowhere");
@@ -101,7 +101,7 @@ set_marker_internal (marker, pos, buffer, restricted_p)
       return marker;
     }
 
-  CHECK_NUMBER_COERCE_MARKER (pos, 1);
+  CHECK_FIXNUM_COERCE_MARKER (pos, 1);
   if (NILP (buffer))
     b = current_buffer;
   else
@@ -288,12 +288,12 @@ at that position in the current buffer.")
 
   while (1)
     {
-      if (XTYPE (marker) == Lisp_Int
-	  || XTYPE (marker) == Lisp_Marker)
+      if (FIXNUMP (marker)
+	  || MARKERP (marker))
 	{
 	  new = Fmake_marker ();
 	  Fset_marker (new, marker,
-		       ((XTYPE (marker) == Lisp_Marker)
+		       ((MARKERP (marker))
 			? Fmarker_buffer (marker)
 			: Qnil));
 	  return new;

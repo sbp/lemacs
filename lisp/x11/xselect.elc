@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Mon May 18 18:35:05 1992
-;;; from file /u/jwz/emacs19/lisp/xselect.el
-;;; emacs version 19.0.16 Lucid.
-;;; bytecomp version 2.06; 17-may-92.
+;;; compiled by jwz@thalidomide on Fri Sep  4 02:48:55 1992
+;;; from file /wg1/emacs-base/lisp/x11/xselect.el
+;;; emacs version 19.2.21 Lucid.
+;;; bytecomp version 2.08; 27-aug-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -18,10 +18,10 @@ Return text selected from some X window."])
 (fset 'x-get-clipboard #[nil "ÀÁÂ\"‡" [x-get-selection-internal CLIPBOARD STRING] 3 "\
 Return text pasted to the clipboard."])
 (defvar primary-selection-extent nil "\
-The extent of the primary selection; don't change this.")
+The extent of the primary selection; don't use this.")
 (defvar secondary-selection-extent nil "\
-The extent of the secondary selection; don't change this.")
-(fset 'x-select-make-extent-for-selection #[(selection previous-extent face) "ÀÁ\n!­ŠÃ\n!­…ÄÃ\n!!À‰	;¬Ó	:«©	@	A^	@	A]­‰Ê	@!Ã\n!=Ê	@!ª¥Á	!«ŸË	!Ì	!­ˆÃ	!Ã\n!=Ã	!¬•Á\n!«Ã\n!«‹ÄÃ\n!!«„Í\n!ˆ??­—«ˆÎ\n#ª‹ÏĞ#\",‡" [nil extentp previous-extent extent-buffer buffer-name end start valid buffer selection marker-buffer extent-start-position extent-end-position delete-extent update-extent set-extent-face make-extent face] 5])
+The extent of the secondary selection; don't use this.")
+(fset 'x-select-make-extent-for-selection #[(selection previous-extent face) "ÀÁ\n!­ŠÃ\n!­…ÄÃ\n!!À‰	;¬Ó	:«©	@	A^	@	A]­‰Ê	@!Ã\n!=Ê	@!ª¥Á	!«ŸË	!Ì	!­ˆÃ	!Ã\n!=Ã	!¬•Á\n!«Ã\n!«‹ÄÃ\n!!«„Í\n!ˆ??­—«ˆÎ\n#ª‹ÏĞ#\",‡" [nil extentp previous-extent extent-buffer buffer-name end start valid buffer selection marker-buffer extent-start-position extent-end-position delete-extent set-extent-endpoints set-extent-face make-extent face] 5])
 (fset 'x-own-selection #[(selection &optional type) ";¬ÃÁ!¬¾:«³Â@!«­ÂA!«§Ã@!«¡ÃA!«›Ã@!ÃA!=«ÄÃ@!!«ˆÄÃA!!¬‡ÅÆÇD\"ˆ¬ƒÉÊ\"ˆÉ=«ŠËÍ#ªÎ=«ˆËĞ#‡" [selection extentp markerp marker-buffer buffer-name signal error "invalid selection" type PRIMARY x-own-selection-internal x-select-make-extent-for-selection primary-selection-extent primary-selection SECONDARY secondary-selection-extent secondary-selection] 4 "\
 Make a primary X Selection of the given argument.  
 The argument may be a string, a cons of two markers or an extent.  In the 

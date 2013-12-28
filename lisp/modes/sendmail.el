@@ -352,79 +352,6 @@ back to the user from the mailer."
       (if (bufferp errbuf)
 	  (kill-buffer errbuf)))))
 
-(defun mail-do-fcc (header-end)
-  (let (fcc-list
-	(rmailbuf (current-buffer))
-	(tembuf (generate-new-buffer " rmail output"))
-	(case-fold-search t))
-    (save-excursion
-      (goto-char (point-min))
-      (while (re-search-forward "^FCC:[ \t]*" header-end t)
-	(setq fcc-list (cons (buffer-substring (point)
-					       (progn
-						 (end-of-line)
-						 (skip-chars-backward " \t")
-						 (point)))
-			     fcc-list))
-	(delete-region (match-beginning 0)
-		       (progn (forward-line 1) (point))))
-      (set-buffer tembuf)
-      (erase-buffer)
-      (insert "\nFrom " (user-login-name) " "
-	      (current-time-string) "\n")
-      (insert-buffer-substring rmailbuf)
-      ;; Make sure messages are separated.
-      (goto-char (point-max))
-      (insert ?\n)
-      (goto-char 2)
-      ;; ``Quote'' "^From " as ">From "
-      ;;  (note that this isn't really quoting, as there is no requirement
-      ;;   that "^[>]+From " be quoted in the same transparent way.)
-      (let ((case-fold-search nil))
-	(while (search-forward "\nFrom " nil t)
-	  (forward-char -5)
-	  (insert ?>)))
-      (while fcc-list
-	(let ((buffer (get-file-buffer (car fcc-list))))
-	  (if buffer
-	      ;; File is present in a buffer => append to that buffer.
-	      (let ((curbuf (current-buffer))
-		    (beg (point-min)) (end (point-max)))
-		(save-excursion
-		  (set-buffer buffer)
-		  ;; Keep the end of the accessible portion at the same place
-		  ;; unless it is the end of the buffer.
-		  (let ((max (if (/= (1+ (buffer-size)) (point-max))
-				 (point-max)))) ; jwz: typo
-		    (unwind-protect
-			(progn
-			  (narrow-to-region (point-min) (1+ (buffer-size)))
-			  (goto-char (point-max))
-			  (if (eq major-mode 'rmail-mode)
-			      ;; Append as a message to an RMAIL file
-			      (let ((buffer-read-only nil))
-				;; This forces RMAIL's message counters to be
-				;; recomputed when the next RMAIL operation is
-				;; done on the buffer.
-				;; See rmail-maybe-set-message-counters.
-				(setq rmail-total-messages nil)
-				(insert "\C-l\n0, unseen,,\n*** EOOH ***\nFrom: "
-					(user-login-name)
-					"\nDate: "
-					(current-time-string)
-					"\n")
-				(insert-buffer-substring curbuf beg end)
-				(insert "\n\C-_"))
-			    (insert-buffer-substring curbuf beg end)))
-		      (if max (narrow-to-region (point-min) max))))))
-	    ;; Else append to the file directly.
-	    (write-region
-	     ;; Include a blank line before if file already exists.
-	     (if (file-exists-p (car fcc-list)) (point-min) (1+ (point-min)))
-	     (point-max) (car fcc-list) t)))
-	(setq fcc-list (cdr fcc-list)))
-    (kill-buffer tembuf))))
-
 (defun mail-sent-via ()
   "Make a Sent-via header line from each To or CC header line."
   (interactive)
@@ -554,7 +481,8 @@ and don't delete any header fields."
 	      (while (< (point) (mark t))
 		(insert mail-yank-prefix)
 		(forward-line 1)))))
-	(exchange-point-and-mark)
+	(let ((zmacs-regions nil))
+	  (exchange-point-and-mark))
 	(if (not (eolp)) (insert ?\n)))))
 
 (defun mail-yank-clear-headers (start end)
@@ -571,6 +499,152 @@ and don't delete any header fields."
 			   (progn (re-search-forward "\n[^ \t]")
 				  (forward-char -1)
 				  (point))))))))
+
+
+;;; FCC hackery, by jwz.  This version works on BABYL and VM buffers.
+;;; To accomplish the latter, VM is loaded when this file is compiled.
+;;; Don't worry, it's only loaded at compile-time.
+
+(defun mail-do-fcc (header-end)
+  (let (fcc-list
+	(send-mail-buffer (current-buffer))
+	(tembuf (generate-new-buffer " rmail output"))
+	(case-fold-search t)
+	beg end)
+    (or (markerp header-end) (error "header-end must be a marker"))
+    (save-excursion
+      (goto-char (point-min))
+      (while (re-search-forward "^FCC:[ \t]*" header-end t)
+	(setq fcc-list (cons (buffer-substring (point)
+					       (progn
+						 (end-of-line)
+						 (skip-chars-backward " \t")
+						 (point)))
+			     fcc-list))
+	(delete-region (match-beginning 0)
+		       (progn (forward-line 1) (point))))
+      (set-buffer tembuf)
+      (erase-buffer)
+      ;; insert just the headers to avoid moving the gap more than
+      ;; necessary (the message body could be arbitrarily huge.)
+      (insert-buffer-substring send-mail-buffer 1 header-end)
+
+      ;; if there's no From: or Date: field, cons some.
+      (goto-char (point-min))
+      (or (re-search-forward "^From[ \t]*:" header-end t)
+	  (insert "From: " (user-login-name) " (" (user-full-name) ")\n"))
+      (goto-char (point-min))
+      (or (re-search-forward "^Date[ \t]*:" header-end t)
+	  (mail-do-fcc-insert-date-header))
+
+      ;; insert a magic From_ line.
+      (goto-char (point-min))
+      (insert "\nFrom " (user-login-name) " " (current-time-string) "\n")
+      (goto-char (point-max))
+      (insert-buffer-substring send-mail-buffer header-end)
+      (goto-char (point-max))
+      (insert ?\n)
+      (goto-char (1- header-end))
+
+      ;; ``Quote'' "^From " as ">From "
+      ;;  (note that this isn't really quoting, as there is no requirement
+      ;;   that "^[>]+From " be quoted in the same transparent way.)
+      (let ((case-fold-search nil))
+	(while (search-forward "\nFrom " nil t)
+	  (forward-char -5)
+	  (insert ?>)))
+
+      (setq beg (point-min)
+	    end (point-max))
+      (while fcc-list
+	(let ((target-buffer (get-file-buffer (car fcc-list))))
+	  (if target-buffer
+	      ;; File is present in a buffer => append to that buffer.
+	      (save-excursion
+		(set-buffer target-buffer)
+		(cond ((eq major-mode 'rmail-mode)
+		       (mail-do-fcc-rmail-internal tembuf))
+		      ((eq major-mode 'vm-mode)
+		       (mail-do-fcc-vm-internal tembuf))
+		      (t
+		       ;; Append to an ordinary buffer as a Unix mail message.
+		       (goto-char (point-max))
+		       (insert-buffer-substring tembuf beg end))))
+	    ;; Else append to the file directly.
+	    ;; (It's OK if it is an RMAIL or VM file -- the message will be
+	    ;; parsed when the file is read in.)
+	    (write-region
+	     ;; Include a blank line before if file already exists.
+	     (if (file-exists-p (car fcc-list)) (point-min) (1+ (point-min)))
+	     (point-max) (car fcc-list) t)))
+	(setq fcc-list (cdr fcc-list))))
+    (kill-buffer tembuf)))
+
+(defvar mail-do-fcc-cached-timezone nil)
+
+(defun mail-do-fcc-insert-date-header ()
+  ;; Convert the ctime() format that `current-time-string' returns into
+  ;; an RFC-822-legal date.  
+  (let ((s (current-time-string))
+	zone)
+    (string-match "\\`\\([A-Z][a-z][a-z]\\) +\\([A-Z][a-z][a-z]\\) +\\([0-9][0-9]?\\) *\\([0-9][0-9]?:[0-9][0-9]:[0-9][0-9]\\) *[0-9]?[0-9]?\\([0-9][0-9]\\)"
+		  s)
+    (insert "Date: "
+	    (substring s (match-beginning 1) (match-end 1)) ", "
+	    (substring s (match-beginning 3) (match-end 3)) " "
+	    (substring s (match-beginning 2) (match-end 2)) " "
+	    (substring s (match-beginning 5) (match-end 5)) " "
+	    (substring s (match-beginning 4) (match-end 4)) " ")
+    (if mail-do-fcc-cached-timezone
+	(insert mail-do-fcc-cached-timezone "\n")
+      (save-restriction
+	(narrow-to-region (point) (point))
+	(call-process "date" nil t nil)
+	(end-of-line)
+	(insert "\n")
+	(forward-word -1) ; skip back over year
+	(delete-region (1- (point)) (1- (point-max))) ; nuke year to end
+	(forward-word -1) ; skip back over zone
+	(delete-region (point-min) (point)) ; nuke beginning to zone
+	(setq mail-do-fcc-cached-timezone
+	      (buffer-substring (point-min) (1- (point-max))))))))
+
+(defun mail-do-fcc-rmail-internal (buffer)
+  (or (eq major-mode 'rmail-mode) (error "this only works in rmail-mode"))
+  (let ((b (point-min))
+	(e (point-max))
+	(buffer-read-only nil))
+    (unwind-protect
+	(progn
+	  (widen)
+	  (goto-char (point-max))
+	  ;; This forces RMAIL's message counters to be recomputed when the
+	  ;; next RMAIL operation is done on the buffer.
+	  ;; See rmail-maybe-set-message-counters.
+	  (setq rmail-total-messages nil)
+	  (insert "\^L\n0, unseen,,\n*** EOOH ***")
+	  (insert-buffer-substring buffer)
+	  (insert "\n\C-_"))
+      (narrow-to-region b e)
+      (rmail-maybe-set-message-counters))))
+
+;;; Load VM into the compilation environment but not the load environment.
+(eval-when-compile (require 'vm))
+
+(defun mail-do-fcc-vm-internal (buffer)
+  (or (eq major-mode 'vm-mode) (error "this only works in vm-mode"))
+  (let ((buffer-read-only nil))
+    (vm-save-restriction
+     (widen)
+     (goto-char (point-max))
+     (insert-buffer-substring buffer)
+     (vm-increment vm-messages-not-on-disk)
+     (vm-set-buffer-modified-p t)
+     (vm-clear-modification-flag-undos)
+     (vm-check-for-killed-summary)
+     (vm-assimilate-new-messages)
+     (vm-update-summary-and-mode-line))))
+
 
 ;; Put these last, to reduce chance of lossage from quitting in middle of loading the file.
 

@@ -191,32 +191,39 @@ SHORT= shortnames
 /* -Demacs is needed to make some files produce the
    correct version for use in Emacs.  */
 
-#ifdef USE_SPARC_SOUND
-# define SOUND_LIBS -L/usr/demo/SOUND -laudio
-# define SOUND_CFLAGS -I/usr/demo/SOUND
-# define SOUND_OBJS play.o libsst.o
-#else
+#ifdef USE_SOUND
+#ifdef sparc
+# define SOUND_LIBS	-L/usr/demo/SOUND -laudio
+# define SOUND_CFLAGS	-I/usr/demo/SOUND
+# define SOUND_OBJS	play.o libsst.o
+#else /* ! sparc */
+#ifdef sgi
+# define SOUND_LIBS	-laudio
+# define SOUND_CFLAGS
+# define SOUND_OBJS	sgiplay.o
+#else /* ! sgi */
+  ERROR!!
+#endif /* ! sgi */
+#endif
+#else /* ! USE_SOUND */
 # define SOUND_LIBS
 # define SOUND_CFLAGS
 # define SOUND_OBJS
-#endif
+#endif /* ! USE_SOUND */
 
 #ifdef ENERGIZE
 
 ENERGIZE_CDIR=/cadillac-code/isam-cadlcc-sun4
 
-#define ENERGIZE_INCLUDES -I. -I${ENERGIZE_CDIR}/uilib \
-        -I${ENERGIZE_CDIR}/connection -I${ENERGIZE_CDIR}/image \
-        -I${ENERGIZE_CDIR}/Xinclude
+#define ENERGIZE_INCLUDES -I. -I${ENERGIZE_CDIR}/image \
+        -I${ENERGIZE_CDIR}/connection
 
 #define ENERGIZE_LDFLAGS -L${ENERGIZE_CDIR}/connection \
-        -L${ENERGIZE_CDIR}/image -L${ENERGIZE_CDIR}/uilib \
-        -L${ENERGIZE_CDIR}/xduilib
+        -L${ENERGIZE_CDIR}/image
 
-/* NOTE: -lw has to come *before* -lui */
 #define ENERGIZE_LIBS ${ENERGIZE_CDIR}/base/hash.o -lconn -limage \
         -L/net/shark2-arch/arch/rel/src-rel/beta2.3/pacclib/lib.sun4 \
-        -lcplus -llw -lui ${ENERGIZE_CDIR}/uilib/em-menu-table.o -lxdui
+        -lcplus
 
 #else /* ! ENERGIZE */
 
@@ -264,7 +271,7 @@ TOOLKIT_LIBS =
 #endif /* ! LWLIB_USES_OLIT */
 #endif /* ! LWLIB_USES_MOTIF */
 
-LIBX11_LIBS = -llw $(TOOLKIT_LIBS) -lXaw -lXext -lXt
+LIBX11_LIBS = $(LWLIBDIR)/liblw.a $(TOOLKIT_LIBS) -lXaw -lXext -lXt
 
 LIBX=  $(LIBX11_LIBS) -lXmu -lX11 LIBX11_MACHINE LIBX11_SYSTEM
 
@@ -314,7 +321,7 @@ obj=    dispnew.o screen.o scroll.o xdisp.o window.o \
 	cmds.o casetab.o casefiddle.o indent.o search.o regex.o undo.o \
 	alloc.o data.o doc.o editfns.o callint.o \
 	eval.o floatfns.o fns.o print.o lread.o \
-	abbrev.o syntax.o UNEXEC mocklisp.o bytecode.o \
+	abbrev.o syntax.o font_lock.o UNEXEC mocklisp.o bytecode.o \
 	process.o callproc.o $(environobj) \
 	doprnt.o extents.o faces.o ENERGIZE_OBJS BTLOBJS FREECHECKOBJS \
 	REALPATH_OBJS
@@ -372,37 +379,58 @@ mallocobj = ALLOCA_OBJ
 otherobj= $(termcapobj) lastfile.o $(mallocobj) LIBX11_OBJ
   
 #ifdef LISP_FLOAT_TYPE
-#define FLOATSUP ${lispdir}prim/float-sup.elc
+#define FLOAT_LISP ${lispdir}prim/float-sup.elc
 #else
-#define FLOATSUP
+#define FLOAT_LISP
 #endif
 
 #ifdef HAVE_X_WINDOWS
-#define X11LISP ${lispdir}x11/x-faces.elc ${lispdir}x11/x-iso8859-1.elc \
-		${lispdir}x11/x-mouse.elc ${lispdir}x11/xselect.elc
+/* lisp files that are preloaded if compiled with support for X Windows */
+#define X11_LISP ${lispdir}prim/screen.elc ${lispdir}prim/menubar.elc \
+		${lispdir}prim/menubar.elc ${lispdir}x11/x-faces.elc \
+		${lispdir}x11/x-iso8859-1.elc ${lispdir}x11/x-mouse.elc \
+		${lispdir}prim/mouse.elc ${lispdir}prim/mode-motion.elc \
+		${lispdir}x11/xselect.elc
 #else
-#define X11LISP
+#define X11_LISP
 #endif
+
+#ifdef ENERGIZE
+/* lisp files that are preloaded if compiled with support for Energize */
+#define ENERGIZE_LISP ${lispdir}energize/energize-init.elc \
+		${lispdir}energize/energize-mode.elc \
+		${lispdir}energize/energize-menus.elc \
+		${lispdir}energize/energize-shell.elc \
+		${lispdir}energize/backtrace-logging.elc \
+		${lispdir}comint/gdb.elc ${lispdir}comint/comint.elc \
+		${lispdir}comint/shell.elc ${lispdir}packages/compile.elc \
+		${lispdir}dired/dired.elc ${lispdir}dired/dired-x.elc \
+		${lispdir}dired/gmhist.elc
+#else
+#define ENERGIZE_LISP
+#endif
+
 
 /* List of Lisp files loaded into the dumped Emacs.
    Every file that is loaded from loadup.el must be enumerated
    here, or the functions won't have have docstrings.
    This is dumb, this list should be generated automatically.
  */
-lisp=	${lispdir}prim/simple.elc ${lispdir}prim/help.elc \
-	${lispdir}prim/files.elc ${lispdir}prim/window.elc \
-	${lispdir}prim/indent.elc ${lispdir}prim/loaddefs.el \
-	${lispdir}paths.el ${lispdir}prim/startup.elc \
+lisp=	${lispdir}version.el ${lispdir}paths.el \
+	${lispdir}prim/loadup.el ${lispdir}prim/subr.elc \
+	${lispdir}prim/faces.elc ${lispdir}prim/loaddefs.el \
+	${lispdir}prim/simple.elc ${lispdir}prim/help.elc \
+	${lispdir}prim/files.elc ${lispdir}prim/indent.elc \
+	${lispdir}prim/window.elc ${lispdir}prim/startup.elc \
 	${lispdir}prim/lisp.elc ${lispdir}prim/page.elc \
-	${lispdir}prim/register.elc ${lispdir}prim/paragraphs.elc \
-	${lispdir}modes/lisp-mode.elc ${lispdir}modes/text-mode.elc \
-	${lispdir}prim/fill.elc ${lispdir}modes/c-mode.elc \
-	${lispdir}prim/isearch.elc ${lispdir}prim/replace.elc \
-	${lispdir}modes/abbrev.elc ${lispdir}prim/faces.elc \
-	${lispdir}packages/buff-menu.elc ${lispdir}prim/subr.elc \
-	${lispdir}bytecomp/bytecomp-runtime.elc ${lispdir}packages/lpr.elc \
-	${lispdir}packages/compare-w.elc ${lispdir}prim/novice.elc \
-	FLOATSUP X11LISP
+	${lispdir}prim/register.elc ${lispdir}prim/iso8859-1.elc \
+	${lispdir}prim/paragraphs.elc ${lispdir}modes/lisp-mode.elc \
+	${lispdir}modes/text-mode.elc ${lispdir}prim/fill.elc \
+	${lispdir}modes/c-mode.elc ${lispdir}prim/isearch-mode.elc \
+	${lispdir}prim/replace.elc ${lispdir}modes/abbrev.elc \
+	${lispdir}packages/buff-menu.elc ${lispdir}prim/userlock.elc \
+	${lispdir}bytecomp/bytecomp-runtime.elc \
+	FLOAT_LISP X11_LISP ENERGIZE_LISP
 
 /* just to be sure the sh is used */
 SHELL=/bin/sh
@@ -474,10 +502,10 @@ temacs_ild: TEMACS_DEPS
 
 #ifdef HAVE_X_WINDOWS
 $(LWLIBDIR)/Makefile: $(LWLIBDIR)/Imakefile
-	cd $(LWLIBDIR); if [ -f Makefile ]; then make Makefile; else xmkmf;fi
+	cd $(LWLIBDIR); if [ -f Makefile ]; then $(MAKE) Makefile;else xmkmf;fi
 
 $(LWLIBDIR)/liblw.a: $(LWLIBDIR)/Makefile
-	cd $(LWLIBDIR) ; make ${MFLAGS} liblw.a
+	cd $(LWLIBDIR) ; $(MAKE) $(MFLAGS) liblw.a
 #endif
 
 /* These are needed for C compilation, on the systems that need them */
@@ -574,11 +602,13 @@ EmacsShell.o : EmacsShell.c EmacsShell.h EmacsShellP.h
 
 #endif /* HAVE_X_WINDOWS */
 
-#ifdef USE_SPARC_SOUND
+#ifdef USE_SOUND
+#ifdef sparc
 play.o : libsst.h
 	$(CC) -c $(CFLAGS) SOUND_CFLAGS play.c
 libsst.o : libsst.h
 	$(CC) -c $(CFLAGS) SOUND_CFLAGS libsst.c
+#endif /* sparc */
 #endif
 
 /* System-specific programs to be made.
@@ -622,7 +652,7 @@ cm.o: config.h cm.h termhooks.h
 cmds.o: config.h commands.h
 cmds.o: buffer.h bufslots.h syntax.h
 crt0.o: config.h
-data.o: config.h buffer.h
+data.o: config.h buffer.h puresize.h
 data.o: bufslots.h
 dired.o: config.h buffer.h
 dired.o: bufslots.h commands.h regex.h
@@ -664,6 +694,7 @@ filelock.o: paths.h buffer.h bufslots.h
 floatfns.o: config.h 
 fns.o: config.h commands.h
 fns.o: buffer.h bufslots.h extents.h dispextern.h screen.h events.h
+font_lock.o: config.h buffer.h syntax.h
 free-hook.o: config.h hash.h blockio.h
 faces.o: config.h xterm.h
 faces.o: blockio.h buffer.h bufslots.h extents.h dispextern.h screen.h
@@ -701,6 +732,7 @@ minibuf.o: buffer.h bufslots.h screen.h dispextern.h window.h syntax.h
 mocklisp.o: config.h buffer.h
 mocklisp.o: bufslots.h
 play.o: libsst.h
+sgiplay.o: config.h lisp.h libst.h
 print.o: config.h buffer.h
 print.o: bufslots.h extents.h dispextern.h screen.h window.h process.h
 print.o: events.h
@@ -731,8 +763,7 @@ undo.o: bufslots.h
 unexconvex.o: config.h getpagesize.h
 unexec.o: config.h getpagesize.h
 unexenix.o: config.h
-unexmips.o: config.h filehdr.h
-unexmips.o: aouthdr.h scnhdr.h sym.h
+unexmips.o: config.h
 unexsunos4.o: config.h
 vm-limit.o: config.h mem_limits.h
 vm-limit.o: 

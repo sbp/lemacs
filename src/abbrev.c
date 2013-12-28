@@ -1,11 +1,11 @@
 /* Primitives for word-abbrev mode.
-   Copyright (C) 1985, 1986 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -117,14 +117,14 @@ it is called after EXPANSION is inserted.")
   if (NILP (count))
     count = make_number (0);
   else
-    CHECK_NUMBER (count, 0);
+    CHECK_FIXNUM (count, 0);
 
   sym = Fintern (name, table);
 
   oexp = XSYMBOL (sym)->value;
   ohook = XSYMBOL (sym)->function;
   if (!((EQ (oexp, expansion)
-	 || (XTYPE (oexp) == Lisp_String && XTYPE (expansion) == Lisp_String
+	 || (STRINGP (oexp) && STRINGP (expansion)
 	     && (tem = Fstring_equal (oexp, expansion), !NILP (tem))))
 	&&
 	(EQ (ohook, hook)
@@ -228,7 +228,7 @@ Returns t if expansion took place.")
   if (!NILP (Vabbrev_start_location))
     {
       tem = Vabbrev_start_location;
-      CHECK_NUMBER_COERCE_MARKER (tem, 0);
+      CHECK_FIXNUM_COERCE_MARKER (tem, 0);
       wordstart = XINT (tem);
       Vabbrev_start_location = Qnil;
       if (CHAR_AT (wordstart) == '-')
@@ -262,13 +262,13 @@ Returns t if expansion took place.")
       *p++ = c;
     }
 
-  if (XTYPE (current_buffer->abbrev_table) == Lisp_Vector)
+  if (VECTORP (current_buffer->abbrev_table))
     sym = oblookup (current_buffer->abbrev_table, buffer, p - buffer);
   else
     XFASTINT (sym) = 0;
-  if (XTYPE (sym) == Lisp_Int || NILP (XSYMBOL (sym)->value))
+  if (FIXNUMP (sym) || NILP (XSYMBOL (sym)->value))
     sym = oblookup (Vglobal_abbrev_table, buffer, p - buffer);
-  if (XTYPE (sym) == Lisp_Int || NILP (XSYMBOL (sym)->value))
+  if (FIXNUMP (sym) || NILP (XSYMBOL (sym)->value))
     return Qnil;
 
   if (INTERACTIVE && !EQ (minibuf_window, selected_window))
@@ -285,7 +285,7 @@ Returns t if expansion took place.")
   Vlast_abbrev = sym;
   last_abbrev_point = wordstart;
 
-  if (XTYPE (XSYMBOL (sym)->plist) == Lisp_Int)
+  if (FIXNUMP (XSYMBOL (sym)->plist))
     XSETINT (XSYMBOL (sym)->plist,
 	     XINT (XSYMBOL (sym)->plist) + 1);	/* Increment use count */
 
@@ -344,7 +344,7 @@ is not undone.")
       || last_abbrev_point > ZV)
     return Qnil;
   SET_PT (last_abbrev_point);
-  if (XTYPE (Vlast_abbrev_text) == Lisp_String)
+  if (STRINGP (Vlast_abbrev_text))
     {
       /* This isn't correct if Vlast_abbrev->function was used
          to do the expansion */

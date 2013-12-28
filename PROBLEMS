@@ -785,3 +785,18 @@ type Lisp_Object, which is currently defined as a union.
 
 This problem will not happen if the m-...h file for your type
 of machine defines NO_UNION_TYPE.  That is the recommended setting now.
+
+* When Emacs tries to ring the bell, you get an error like
+
+	audio: sst_open: SETQSIZE" Invalid argument
+	audio: sst_close: SETREG MMR2, Invalid argument
+
+you have probably compiled using an ANSI C compiler, but with non-ANSI include
+files.  In particular, on Suns, the file /usr/include/sun/audioio.h uses the
+_IOW macro to define the constant AUDIOSETQSIZE.  _IOW in turn uses a K&R
+preprocessor feature that is now explicitly forbidden in ANSI preprocessors,
+namely substitution inside character constants.  All ANSI C compilers must 
+provide a workaround for this problem.  Lucid's C compiler is shipped with a 
+new set of system include files.  If you are using GCC, there is a script
+called fixincludes that creates new versions of some system include files that
+use this obsolete feature.

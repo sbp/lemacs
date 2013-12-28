@@ -34,6 +34,11 @@
 ;;      Made the explicit buffer-local tags file be searched 
 ;;      first instead of last.
 ;;
+;; Sun May 10 15:48:00 1992  Hallvard B Furuseth <h.b.furuseth@usit.uio.no>
+;;
+;;	Inserted visit-tags-table-buffer from tags.el, handle
+;;	tag-file-name=nil, improved some doc strings and variable declarations.
+;;
 ;; Fri Mar 29 01:48:06 1991  Jamie Zawinski <jwz@lucid.com>
 ;;
 ;;	* Made link-chasing and invisible-tags-files optional.
@@ -256,7 +261,7 @@ with meta-x set-buffer-tag-table.  See the documentation for the variable
 (defvar tags-file-name nil
   "*The name of the tags-table used by all buffers.  This is for backwards
 compatibility, and is largely supplanted by the variable tag-table-alist.")
-(setq tags-file-name nil)  ; nuke previous value.  Is this cool?
+;; (setq tags-file-name nil)  ; nuke previous value.  Is this cool?
 
 ;; This will be used if it's loaded; don't force it on those who don't want it.
 ;;(autoload 'symlink-expand-file-name "symlink-fix")
@@ -294,6 +299,10 @@ the current buffer."
 		  (setq result (cons expression result))
 		(error "Expression in tag-table-alist evaluated to non-string"))))
 	(setq alist (cdr alist))))
+    (or result tags-file-name
+	;; **** I don't know if this is the right place to do this,
+	;; **** Maybe it would be better to do this after (delq nil result).
+	(call-interactively 'visit-tags-table))
     (if tags-file-name
 	(setq result (nconc result (list tags-file-name))))
     (setq result
@@ -313,7 +322,9 @@ the current buffer."
     (tags-remove-duplicates (nreverse result))))
 
 (defun visit-tags-table (file)
-  "Tell tags commands to use tags table file FILE first."
+  "Tell tags commands to use tags table file FILE first.
+FILE should be the name of a file created with the `etags' program.
+A directory name is ok too; it means file TAGS in that directory."
   (interactive (list (read-file-name "Visit tags table: (default TAGS) "
 				     default-directory
 				     (expand-file-name "TAGS" default-directory)
@@ -353,6 +364,11 @@ been built.  this is nil, t, or 'disabled.")
 (defvar make-tags-files-invisible nil
   "*If true, TAGS-files will not show up in buffer-lists or be 
 selectable (or deletable.)")
+
+(defconst tag-table-files nil
+  "If the current buffer is a TAGS table, this holds a list of the files 
+referenced by this file, or nil if that hasn't been computed yet.")
+(make-variable-buffer-local 'tag-table-files)
 
 (defun get-tag-table-buffer (tag-table)
   "Returns a buffer visiting the give TAGS table, reverting if appropriate,
@@ -437,11 +453,6 @@ File name returned is relative to tag table file's directory."
      (buffer-substring (point)
 		       (progn (beginning-of-line) (point))))))
 
-(defconst tag-table-files nil
-  "If the current buffer is a TAGS table, this holds a list of the files 
-referenced by this file, or nil if that hasn't been computed yet.")
-(make-variable-buffer-local 'tag-table-files)
-
 (defun tag-table-files (tag-table)
   "Returns a list of the files referenced by the named TAGS table."
   (save-excursion
@@ -517,6 +528,11 @@ this buffer uses."
 ;; void *req_pdbmem(579,15574
 
 (defvar tag-completion-table (make-vector 511 0))
+
+(defvar tag-symbol)
+(defvar tag-table-symbol)
+(defvar tag-symbol-tables)
+(defvar buffer-tag-table-list)
 
 ;; make two versions of this, macro and non-macro,
 ;; and have the correct one used depending whether it's byte compiled
@@ -732,6 +748,10 @@ The function is called with no args.")
 "Information for continuing a tag search.
 Is of the form (TAG POINT TAG-TABLE TAG-TABLE ...).")
 
+(defvar tags-loop-form nil
+  "Form for tags-loop-continue to eval to process one file.
+If it returns nil, it is through with one file; move on to next.")
+
 (autoload 'get-symbol-syntax-table "symbol-syntax")
 
 (defun find-tag-internal (tagname)
@@ -876,7 +896,7 @@ Variables of note:
   t)
 
 ;; This function is unchanged from lisp/tags.el:
-(defun find-tag-other-window (tagname)
+(defun find-tag-other-window (tagname &optional next)
   "*Find tag whose name contains TAGNAME.
  Selects the buffer that the tag is contained in in another window
 and puts point at its definition.
@@ -898,9 +918,11 @@ Variables of note:
   make-tags-files-invisible	whether tags tables should be very hidden
   tag-mark-stack-max		how many tags-based hops to remember"
   (interactive (if current-prefix-arg
-		   '(nil)
+		   '(nil t)
 		 (list (find-tag-tag "Find tag other window: "))))
-  (find-tag tagname t))
+  (if next
+      (find-tag nil t)
+    (find-tag tagname t)))
 
 
 ;; Completion on tags in the buffer
@@ -1011,9 +1033,9 @@ of the list of files in the (first) tag table."
 	   (goto-char (point-min))))
     new))
 
-(defvar tags-loop-form nil
-  "Form for tags-loop-continue to eval to process one file.
-If it returns nil, it is through with one file; move on to next.")
+(defvar tags-search-nuke-uninteresting-buffers t
+  "*If t (the default), tags-search and tags-query-replace will only
+keep newly-visited buffers if they contain the search target.")
 
 (defun tags-loop-continue (&optional first-time)
   "Continue last \\[tags-search] or \\[tags-query-replace] command.
@@ -1027,7 +1049,8 @@ to begin such a command.  See variable tags-loop-form."
 	   (setq message t)))
     ;; **** (let ((cursor-in-echo-area t)))
     (while (not (eval tags-loop-form))
-      (if (and buf-is-new (not (buffer-modified-p)))
+      (if (and buf-is-new (not (buffer-modified-p))
+	       tags-search-nuke-uninteresting-buffers)
 	  (kill-buffer (current-buffer)))
       (setq buf-is-new (next-file))
       (message "Scanning file %s..." buffer-file-name)
@@ -1112,6 +1135,23 @@ unless it has one in the tag table."
 				       (point))))
        (terpri)
        (forward-line 1)))))
+
+;; **** copied from tags.el
+(defun visit-tags-table-buffer ()
+  "Select the buffer containing the current tag table.
+This is a file whose name is in the variable tags-file-name."
+  (or tags-file-name
+      (call-interactively 'visit-tags-table))
+  (set-buffer (or (get-file-buffer tags-file-name)
+		  (progn
+		    (setq tag-table-files nil)
+		    (find-file-noselect tags-file-name))))
+  (or (verify-visited-file-modtime (get-file-buffer tags-file-name))
+      (cond ((yes-or-no-p "Tags file has changed, read new contents? ")
+	     (revert-buffer t t)
+	     (setq tag-table-files nil))))
+  (or (eq (char-after 1) ?\^L)
+      (error "File %s not a valid tag table" tags-file-name)))
 
 
 ;; Sample uses of find-tag-hook and find-tag-default-hook

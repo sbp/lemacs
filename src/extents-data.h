@@ -212,6 +212,9 @@ static struct buffer_type_struct
 #define UNINITIALIZED_BUFFER_TYPE "energize-unspecified-buffer"
 #define UNKNOWN_BUFFER_TYPE "energize-unknown-buffer"
 
+Extent_Data *energize_extent_data (EXTENT);
+void set_energize_extent_data (EXTENT, Extent_Data *);
+
 #endif /* ENERGIZE */
 
 #endif /* EXTENTSDATA */

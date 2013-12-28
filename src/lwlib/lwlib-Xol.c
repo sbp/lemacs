@@ -29,7 +29,8 @@ pre_hook (Widget w, caddr_t client_data, caddr_t call_data)
   if (XtParent (w) == instance->widget)
     {
       if (ve->xevent->type == ButtonPress && instance->info->pre_activate_cb)
-	instance->info->pre_activate_cb (instance->widget, NULL);
+	instance->info->pre_activate_cb (instance->widget, instance->info->id,
+					 NULL);
     }
 }
 
@@ -42,7 +43,7 @@ post_hook (Widget w, caddr_t client_data, caddr_t call_data)
     return;
   
   if (instance->info->post_activate_cb)
-    instance->info->post_activate_cb (w, NULL);
+    instance->info->post_activate_cb (w, instance->info->id, NULL);
 }
 
 static void
@@ -61,7 +62,7 @@ pick_hook (Widget w, caddr_t client_data, caddr_t call_data)
 
   if (instance->info->selection_cb && val && val->enabled
       && !val->contents)
-    instance->info->selection_cb (w, val->call_data);
+    instance->info->selection_cb (w, instance->info->id, val->call_data);
 }
 
 /* creation functions */
@@ -90,6 +91,12 @@ xol_creation_table [] =
   {"popup", xol_create_popup_menu},
   {NULL, NULL}
 };
+
+Widget 
+xol_create_dialog (widget_instance* instance)
+{
+  return NULL;
+}
 
 Boolean
 lw_olit_widget_p (Widget widget)
@@ -272,7 +279,7 @@ update_menu_widget (widget_instance* instance, Widget widget,
 
 void
 xol_update_one_widget (widget_instance* instance, Widget widget,
-		       widget_value* val)
+		       widget_value* val, Boolean deep_p)
 {
   Widget menu = widget;
 
@@ -290,8 +297,20 @@ xol_update_one_value (widget_instance* instance, Widget widget,
 }
 
 void
+xlw_pop_instance (widget_instance* instance, Boolean up)
+{
+}
+
+void
 xol_popup_menu (Widget widget)
 {
   OlMenuPost (widget);
+}
+
+/* Destruction of instances */
+void
+xol_destroy_instance (widget_instance* instance)
+{
+  XtDestroyWidget (instance->widget);
 }
 

@@ -26,11 +26,14 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define USG
 #define USG5
 #define IRIS
+#ifndef IRIX
+#define IRIX
+#endif
 
 /* SYSTEM_TYPE should indicate the kind of system you are using.
  It sets the Lisp variable system-type.  */
 
-#define SYSTEM_TYPE "irix"
+#define SYSTEM_TYPE "silicon-graphics-unix"
 
 /* nomultiplejobs should be defined if your system's shell
  does not have "job control" (the ability to stop a program,
@@ -60,6 +63,14 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
  */
 
 #define HAVE_TIMEVAL
+
+/*
+ *	Define BROKEN_UNAME if your uname() call is broken
+ */
+
+#define BROKEN_UNAME
+
+#define HAVE_DREM
 
 /* `utime' system call doesn't understand timevals.  */
 
@@ -116,7 +127,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    so that Emacs can tell instantly when you try to modify
    a file that someone else has modified in his Emacs.  */
 
-/* #define CLASH_DETECTION */
+#define CLASH_DETECTION
 
 /* We use the Berkeley (and usg5.2.2) interface to nlist.  */
 
@@ -127,12 +138,10 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define KERNEL_FILE "/unix"
 
 /* The symbol in the kernel where the load average is found
-   is named _avenrun.  */
+   is named _avenrun.  (Actually, no such symbol is right;
+   sysmp must be used to find the address.)  */
 
-#define LDAV_SYMBOL "_avenrun"
-
-
-#define LIBS_MACHINE -ldbm -lPW
+#define LDAV_SYMBOL "avenrun"
 
 /* setjmp and longjmp can safely replace _setjmp and _longjmp,
    but they will run slower.  */
@@ -159,21 +168,23 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define index strchr
 #define rindex strrchr
 
-/* USG systems tend to put everything declared static
-   into the initialized data area, which becomes pure after dumping Emacs.
-   Foil this.  Emacs carefully avoids static vars inside functions.  */
-
-/* #define static */
-
-/* Compiler bug bites on many systems when default ADDR_CORRECT is used.  */
-
-#define ADDR_CORRECT(x) (int)((char *)(x) - (char*)0)
-
-/* This is how to get the device name of the tty end of a pty.  */
-#define PTY_TTY_NAME_SPRINTF \
- 	    sprintf (ptyname, "/dev/ttyq%d", minor (stb.st_rdev));
-
+/* Use setsid to handle terminals for subprocesses.  */
+#define HAVE_SETSID
 
 /* getwd is defined.  */
-
 #define HAVE_GETWD
+
+/* no realpath() function */
+#define NEED_REALPATH
+
+#define HAVE_SYSVIPC
+
+/* Define C_ALLOCA if this machine does not support a true alloca
+   and the one written in C should be used instead.
+   Define HAVE_ALLOCA to say that the system provides a properly
+   working alloca function and it should be used.
+   Define neither one if an assembler-language alloca
+   in the file alloca.s should be used.  */
+
+#define C_ALLOCA
+/* #define HAVE_ALLOCA */

@@ -1,6 +1,6 @@
 \input texinfo    @c -*-texinfo-*-
 
-@comment $Date: 1992/05/14 11:41:35 $ $Revision: 2.29 $
+@comment $Date: 1992/06/29 22:33:06 $ $Revision: 1.1.1.1 $
 
 @comment %**start of header (This is for running Texinfo on a region.)
 @setfilename dired.info
@@ -50,9 +50,9 @@ original English.
 @sp 1
 @center @titlefont{Directory Editor}
 @sp 4
-@c @@center $Date: 1992/05/14 11:41:35 $
+@c @@center $Date: 1992/06/29 22:33:06 $
 @sp 1
-@c @@center $Revision: 2.29 $
+@c @@center $Revision: 1.1.1.1 $
 @sp 5
 @center Sebastian Kremer
 @center sk@@thp.uni-koeln.de
@@ -60,10 +60,10 @@ original English.
 @page
 
 @noindent
-$Date: 1992/05/14 11:41:35 $
+$Date: 1992/06/29 22:33:06 $
 
 @noindent
-$Revision: 2.29 $
+$Revision: 1.1.1.1 $
 
 @vskip 0pt plus 1filll
 Copyright @copyright{} 1991, 1992 Free Software Foundation
@@ -110,7 +110,7 @@ will be the Dired of Emacs 19.  It is known to work with Emacs 18.55 and
 Revision of this manual:
 
 @noindent
-$Id: dired.texi,v 2.29 1992/05/14 11:41:35 sk RelBeta $
+$Id: dired.texi,v 1.1.1.1 1992/06/29 22:33:06 devin Exp $
 
 @noindent
 Report bugs to:

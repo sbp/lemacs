@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Tue May 19 23:07:12 1992
-;;; from file /cadillac-th/jwz/emacs19/lisp/dired/find-dired.el
-;;; emacs version 19.0.16 Lucid.
-;;; bytecomp version 2.06; 17-may-92.
+;;; compiled by jwz@watergate on Tue Aug 18 17:15:10 1992
+;;; from file /wg1/emacs-base/lisp/dired/find-dired.el
+;;; emacs version 19.2.2 Lucid.
+;;; bytecomp version 2.08;  7-aug-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -10,8 +10,8 @@
 	     (string-lessp emacs-version "19")))
     (error "This file was compiled for Emacs19."))
 
-(defconst find-dired-version (substring "$Revision: 1.14 $" 11 -2) "\
-$Id: find-dired.el,v 1.14 1992/05/20 05:28:46 jwz Exp $")
+(defconst find-dired-version (substring "!Revision: 1.14 !" 11 -2) "\
+Id: find-dired.el,v 1.14 1992/04/16 14:22:07 sk RelBeta ")
 (byte-code "ÀÁ!ˆÂÃ!‡" [require dired provide find-dired] 2)
 (defvar find-ls-option (byte-code "Á=«‚Â‡Ã‡" [system-type berkeley-unix "-ls" "-exec ls -ldi {} \\;"] 2) "\
 *Option to `find' to produce an `ls -l'-type listing.")

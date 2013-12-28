@@ -71,6 +71,8 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #define HAVE_SELECT
 
+#define HAVE_DREM
+
 /*
  *	Define HAVE_PTYS if the system supports pty devices.
  */

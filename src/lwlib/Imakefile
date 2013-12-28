@@ -1,6 +1,6 @@
 /**/# Imakefile file for lwlib.a, Copyright (c) 1992 Lucid, Inc.
 
-/*
+/* 
  *  If you have Motif and want to provide support for Motif widgets in lwlib,
  *  then define USE_MOTIF.
  *
@@ -11,11 +11,15 @@
  *  which are included in this directory.
  *
  *  You cannot define USE_MOTIF and USE_OLIT at the same time, but USE_LUCID
- *  may be defined along with either of the other two.
+ *  may be defined along with either of the other two.  (There is currently
+ *  no reason to do this unless you are compiling with support for Energize.)
  *
  *  The OLIT menubar is not as good as the Motif and Lucid menubars yet.
  *  It's slow, and possibly buggy.  I'd recommend against using it unless 
  *  you'd like to hack on it.
+ *
+ *  The Lucid menubar is much faster than the Motif menubar, but is missing
+ *  a few features (most notably stay-up menus and keyboard traversal.)
  *
  *  If you have your X11 source tree online, then you should define 
  *  INCLUDE_EXTENSIONS to cause the library to contain some useful functions
@@ -29,6 +33,7 @@
 #define USE_LUCID
 /* #define USE_MOTIF */
 /* #define USE_OLIT */
+/* #define ENERGIZE */
 
 /* #define INCLUDE_EXTENSIONS */
 
@@ -111,14 +116,36 @@ TOOLKIT_DEFINES = "ERROR!  At least one of USE_MOTIF, USE_LUCID or USE_OLIT must
 # endif
 #endif
 
+#ifdef ENERGIZE
+# ifndef USE_MOTIF
+     EZ_OBJS = "ERROR! ENERGIZE requires USE_MOTIF to be defined in Imakefile."
+# else
+        EZ_OBJS = energize/blpsheet.o energize/ctreebr_ps.o \
+                  energize/leb_psheet.o energize/classbr_ps.o \
+                  energize/debuggerps.o energize/projectps.o
+# endif
+#endif
+
            SRCS = lwlib.c $(TOOLKIT_SRCS) lwlib-utils.c $(EXT_SRCS)
-           OBJS = lwlib.o $(TOOLKIT_OBJS) lwlib-utils.o $(EXT_OBJS)
+           OBJS = lwlib.o $(TOOLKIT_OBJS) lwlib-utils.o $(EXT_OBJS) $(EZ_OBJS)
       EXT_FLAGS = -I$(TOOLKITSRC) $(EXT_DEFINES)
         LIBNAME = liblw.a
 
 NormalLibraryObjectRule ()
 NormalLibraryTarget (lw, $(OBJS))
+MakefileSubdirs (energize)
 DependTarget ()
+
+#ifdef ENERGIZE
+
+$(EZ_OBJS): 
+	if [ ! -f energize/Makefile ]; then $(MAKE) $(MFLAGS) Makefiles ; fi
+	cd energize ; $(MAKE) $(MFLAGS) CC="$(CC)" CFLAGS="$(CFLAGS)"
+
+clean::
+	cd energize ; $(MAKE) $(MFLAGS) clean
+
+#endif
 
 SpecialLibObjectRule (lwlib.o, lwlib.c, $(TOOLKIT_DEFINES))
 SpecialLibObjectRule (dispatch.o, dispatch.c, $(EXT_FLAGS))

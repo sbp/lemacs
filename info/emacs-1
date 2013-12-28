@@ -52,11 +52,11 @@ Important General Concepts
 * Screen::      How to interpret what you see on the screen.
 * Keystrokes::  Keyboard gestures Emacs recognizes.
 * Pull-down Menus::
-                The Lucid GNU Emacs Pull-down Menus available under X
+                The Lucid GNU Emacs Pull-down Menus available under X.
 * Mouse Selection::
-                Selecting Text with the Mouse
+                Selecting Text with the Mouse.
 * Keystrokes::
-                Using Keystrokes to represent key sequences
+                Using Keystrokes to represent key sequences.
 * Commands::    Commands: named functions run by key sequences to do editing.
 * Entering Emacs::
                 Starting Emacs from the shell.
@@ -110,6 +110,7 @@ Advanced Features
 * Shell::       Executing shell commands from Emacs.
 * Hardcopy::	Printing buffers or regions.
 * Dissociated Press::  Dissociating text for fun.
+* CONX::	       A different kind of dissociation.
 * Amusements::         Various games and hacks.
 * Emulation::	       Emulating some other editors with Emacs.
 * Customization::      Modifying the behavior of Emacs.
@@ -337,8 +338,11 @@ Subnodes of Customization
                        beginners from surprises.
 * Syntax::            The syntax table controls how words and expressions
                        are parsed.
-* Init File::         How to write common customizations in the `.emacs' file.
+* Init File::         How to write common customizations in the `.emacs'
+                       file.
 * Audible Bell::      Changing how Emacs sound the bell.
+* Faces::
+                      Changing the fonts and colors of a region of text.
 
 Subnodes of Lossage (and recovery)
 * Stuck Recursive::   `[...]' in mode line around the parentheses.
@@ -846,7 +850,27 @@ Pull-down Menus::.).
 function `x-new-screen' or use the New Screen menu item from the File
 menu to create a new Emacs screen in a new X window from the same
 process.  The different screens will share the same buffer list, but
-you can look at different buffers in the different screens.
+you can look at different buffers in the different screens. You can
+control the number of screens associated with the current display, by
+setting the variable `x-screen-count'.
+
+   You can specify a different default screen size other than the one
+provided. Use the variable `screen-default-alist', which is an alist
+of default values for screen creation other than the first one.  These
+may be set in your init file, like this:
+
+       (setq screen-default-alist ((width . 80) (height . 55)))
+
+   For values specific to the first Emacs screen, you must use X
+resources.  The variable `x-screen-defaults' takes an alist of default
+screen creation parameters for X window screens.  These override what
+is specified in `~/.Xdefaults' but are overridden by the arguments to
+the particular call to `x-create-screen'.
+
+   When you create a new screen, the variable `create-screen-hook'
+causes the screen to be displayed with a menubar. The variable takes a
+function with one argument, SCREEN, that is called with each newly
+created screen.
 
    If you want to close one or more of the X windows you created using
 New Screen, use the Close menu item from the File menu.
@@ -854,15 +878,19 @@ New Screen, use the Close menu item from the File menu.
    If you are working with multiple screens, some special information
 applies:
 
-   * Two variables, `screen-title-format' and
-     `screen-icon-title-format' determine the title of the screen and
+   * `screen-icon-title-format' determine the title of the screen and
      the title of the icon that results if you shrink the screen.
 
-   * There is a new screen/modeline format directive, %S, which
-     expands to the name of the current screen (a screen's name is
-     distinct from its title; the name is used for resource lookup,
-     among other things, and the title is simply what appears above
-     the window.)
+   * `auto-raise-screen' position a screen. If true,
+     `auto-lower-screen' lowers a screen to the bottom when it is no
+     longer selected. If true, `auto-raise-screen' raises a screen to
+     the top when it is selected. Under X, most ICCCM-compliant window
+     managers will options to do this for you, but these variables are
+     provided in case you are using a broken window manager.
+
+   * to the name of the current screen (a screen's name is distinct
+     from its title; the name is used for resource lookup, among other
+     things, and the title is simply what appears above the window.)
 
 
 File: emacs,  Node: Echo Area,  Next: Mode Line,  Prev: Point,  Up: Screen
@@ -941,9 +969,9 @@ edited.  Exception: for a read-only buffer, it is `%%'.
 
    BUF is the name of the window's chosen "buffer".  The chosen buffer
 in the selected window (the window that the cursor is in) is also
-Emacs's selected buffer, the buffer in which editing takes place. 
-When we speak of what some command does to "the buffer", we are
-talking about the currently selected buffer.  *Note Buffers::.
+Emacs's selected buffer, the buffer in which editing takes place.  When
+we speak of what some command does to "the buffer", we mean the
+currently selected buffer.  *Note Buffers::.
 
    POS tells you whether there is additional text above the top of the
 screen, or below the bottom.  If your file is small and it is
@@ -998,8 +1026,9 @@ you that you have not read yet.
 
    Customization note: the variable `mode-line-inverse-video' controls
 whether the mode line is displayed in inverse video (assuming the
-terminal supports it); `nil' means no inverse video.  The default is
-`t'.
+terminal supports it); `nil' means no inverse video.  The default
+is`t'.  For X screens, simply set the foreground and background colors
+appropriately.
 
 
 File: emacs,  Node: Point,  Next: Echo Area,  Prev: Screen,  Up: Screen
@@ -1037,25 +1066,5 @@ in each window independently.
    The term `point' comes from the character `.', which was the
 command in TECO (the language in which the original Emacs was written)
 for accessing the value now called `point'.
-
-
-File: emacs,  Node: Character Representation,  Next: Commands,  Prev: Super and Hyper Keys,  Up: Keystrokes
-
-Representation of Characters
-============================
-
-   This section briefly discusses how characters are represented in
-Emacs buffers.  *Note Key Sequences:: for information on representing
-key sequences to create key bindings.
-
-   ASCII graphic characters in Emacs buffers are displayed with their
-graphics.  LFD is the same as a newline character; it is displayed by
-starting a new line.  TAB is displayed by moving to the next tab stop
-column (usually every 8 spaces).  Other control characters are
-displayed as a caret (`^') followed by the non-control version of the
-character; thus, `C-a' is displayed as `^A'.  Non-ASCII characters 128
-and up are displayed with octal escape sequences; thus, character code
-243 (octal), also called `M-#' when used as an input character, is
-displayed as `\243'.
 
 

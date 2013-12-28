@@ -1,7 +1,6 @@
 ;;; Post news commands for GNUS newsreader
 ;; Copyright (C) 1989 Fujitsu Laboratories LTD.
 ;; Copyright (C) 1989, 1990 Masanobu UMEDA
-;; $Header: gnuspost.el,v 1.2 92/01/17 02:23:30 jwz Exp $
 
 ;; This file is part of GNU Emacs.
 
@@ -30,6 +29,7 @@
 (defvar gnus-winconf-post-news nil)
 
 (autoload 'news-reply-mode "rnewspost")
+(autoload 'timezone-make-date-arpa-standard "timezone")
 
 ;;; Post news commands of GNUS Group Mode and Subject Mode
 
@@ -112,6 +112,13 @@ If prefix argument YANK is non-nil, original article is yanked automatically."
 
 ;;; Post a News using NNTP
 
+;;;###autoload
+(fset 'sendnews 'gnus-post-news)
+
+;;;###autoload
+(fset 'postnews 'gnus-post-news)
+
+;;;###autoload
 (defun gnus-post-news ()
   "Begin editing a new USENET news article to be posted.
 Type \\[describe-mode] once editing the article to get a list of commands."
@@ -351,7 +358,7 @@ original message into it."
 	  (save-restriction
 	    (gnus-Article-show-all-headers)
 	    (goto-char (point-min))
-	    (search-forward "\n\n")
+	    (search-forward "\n\n" nil 'move)
 	    (narrow-to-region (point-min) (point))
 	    (setq from (mail-fetch-field "from"))
 	    (setq newsgroups (mail-fetch-field "newsgroups"))
@@ -367,7 +374,7 @@ original message into it."
 		(ding) (message "This article is not yours"))
 	    ;; Make control article.
 	    (set-buffer (get-buffer-create " *GNUS-posting*"))
-	    (buffer-flush-undo (current-buffer))
+	    (buffer-disable-undo (current-buffer))
 	    (erase-buffer)
 	    (insert "Newsgroups: " newsgroups "\n"
 		    "Subject: cancel " message-id "\n"
@@ -405,7 +412,7 @@ original message into it."
 	(tmpbuf (get-buffer-create " *GNUS-posting*")))
     (save-excursion
       (set-buffer tmpbuf)
-      (buffer-flush-undo (current-buffer))
+      (buffer-disable-undo (current-buffer))
       (erase-buffer)
       (insert-buffer-substring artbuf)
       ;; Get distribution.
@@ -519,6 +526,9 @@ Message-ID:, Date:, and Organization: is optional."
 	    (fill-region-as-paragraph begin (point))))
       (or (mail-fetch-field "distribution")
 	  (insert "Distribution: \n"))
+      ;; Insert Lines: if Cnews, since Cnews does not generate it.
+      (if (eq gnus-news-system 'Cnews)
+	  (insert "Lines: " (gnus-inews-lines) "\n"))
       )))
 
 (defun gnus-inews-path ()
@@ -565,9 +575,14 @@ If optional argument GENERICFROM is a string, use it as the domain
 name; if it is non-nil, strip of local host name from the domain name.
 If the function `system-name' returns full internet name and the
 domain is undefined, the domain name is got from it."
+  ;; Note: compatibility hack.  This will be removed in the next version.
+  (and (null gnus-local-domain)
+       (boundp 'gnus-your-domain)
+       (setq gnus-local-domain gnus-your-domain))
+  ;; End of compatibility hack.
   (let ((domain (or (if (stringp genericfrom) genericfrom)
 		    (getenv "DOMAINNAME")
-		    gnus-your-domain
+		    gnus-local-domain
 		    ;; Function `system-name' may return full internet name.
 		    ;; Suggested by Mike DeCorte <mrd@sun.soe.clarkson.edu>.
 		    (if (string-match "\\." (system-name))
@@ -578,8 +593,8 @@ domain is undefined, the domain name is got from it."
 		  (system-name))))
     (if (string-equal "." (substring domain 0 1))
 	(setq domain (substring domain 1)))
-    (if (null gnus-your-domain)
-	(setq gnus-your-domain domain))
+    (if (null gnus-local-domain)
+	(setq gnus-local-domain domain))
     ;; Support GENERICFROM as same as standard Bnews system.
     ;; Suggested by ohm@kaba.junet and vixie@decwrl.dec.com.
     (cond ((null genericfrom)
@@ -612,7 +627,29 @@ domain is undefined, the domain name is got from it."
     ))
 
 (defun gnus-inews-date ()
-  "Bnews date format string of today. Time zone is ignored."
+  "Bnews date format string of today.
+If the variable gnus-local-timezone is non-nil, valid date will be
+generated in terms of RFC822.  Otherwise, buggy date in which time
+zone is ignored will be generated.  If you are using with Cnews, you
+must use valid date."
+  (cond (gnus-local-timezone
+	 ;; Gnus can generate valid date.
+	 (gnus-inews-valid-date))
+	;; No timezone info.
+	((eq gnus-news-system 'Bnews)
+	 ;; Don't care about it.
+	 (gnus-inews-buggy-date))
+	;; Otherwize, drop date.
+	))
+
+(defun gnus-inews-valid-date ()
+  "Bnews date format string of today represented in GMT.
+Local timezone is specified by the variable gnus-local-timezone."
+  (timezone-make-date-arpa-standard
+   (current-time-string) gnus-local-timezone "GMT"))
+
+(defun gnus-inews-buggy-date ()
+  "Buggy Bnews date format string of today. Time zone is ignored, but fast."
   ;; Insert buggy date (time zone is ignored), but I don't worry about
   ;; it since inews will rewrite it.
   (let ((date (current-time-string)))
@@ -631,14 +668,20 @@ domain is undefined, the domain name is got from it."
 (defun gnus-inews-organization ()
   "Return user's organization.
 The ORGANIZATION environment variable is used if defined.
-If not, the variable gnus-your-organization is used instead.
+If not, the variable gnus-local-organization is used instead.
 If the value begins with a slash, it is taken as the name of a file
 containing the organization."
   ;; The organization must be got in this order since the ORGANIZATION
   ;; environment variable is intended for user specific while
-  ;; gnus-your-organization is for machine or organization specific.
+  ;; gnus-local-organization is for machine or organization specific.
+
+  ;; Note: compatibility hack.  This will be removed in the next version.
+  (and (null gnus-local-organization)
+       (boundp 'gnus-your-organization)
+       (setq gnus-local-organization gnus-your-organization))
+  ;; End of compatibility hack.
   (let ((organization (or (getenv "ORGANIZATION")
-			  gnus-your-organization
+			  gnus-local-organization
 			  (expand-file-name "~/.organization" nil))))
     (and (stringp organization)
 	 (string-equal (substring organization 0 1) "/")
@@ -668,3 +711,12 @@ containing the organization."
 	       )))
 	  (t organization))
     ))
+
+(defun gnus-inews-lines ()
+  "Count the number of lines and return numeric string."
+  (save-excursion
+    (save-restriction
+      (widen)
+      (goto-char (point-min))
+      (search-forward "\n\n" nil 'move)
+      (int-to-string (count-lines (point) (point-max))))))

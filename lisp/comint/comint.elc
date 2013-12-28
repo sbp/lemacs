@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Thu Apr 23 16:17:46 1992
-;;; from file /u/jwz/emacs19/lisp/comint.el
-;;; emacs version 19.0.2 Lucid.
-;;; bytecomp version 2.05; 9-mar-92.
+;;; compiled by jwz@watergate on Wed Aug 26 01:20:15 1992
+;;; from file /wg1/emacs-base/lisp/comint/comint.el
+;;; emacs version 19.2.12 Lucid.
+;;; bytecomp version 2.08;  7-aug-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 

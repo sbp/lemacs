@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Mon May 11 03:28:09 1992
-;;; from file /cadillac-th/jwz/emacs19/lisp/subr.el
-;;; emacs version 19.0.12 Lucid.
-;;; bytecomp version 2.06; 23-apr-92.
+;;; compiled by jwz@thalidomide on Sat Aug 29 19:43:22 1992
+;;; from file /wg1/emacs-base/lisp/prim/subr.el
+;;; emacs version 19.2.13 Lucid.
+;;; bytecomp version 2.08;  7-aug-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -30,7 +30,7 @@ Optional argument PROMPT specifies a string to use to prompt the user."])
 (fset 'error #[(&rest args) "ÀÁÂÃ\"C\"ˆªu" [signal error apply format args] 5 "\
 Signal an error, making error message by passing all args to `format'."])
 (byte-code "ÀÁMˆÂÀÃÄ#‡" [undefined #[nil "À ‡" [ding] 1 nil nil] put suppress-keymap t] 4)
-(fset 'suppress-keymap #[(map &optional nodigits) "ÀÀÂX«™ÃÅ	!\"Æ=«‰ÇÅ	!É#ˆ	T‰ªc)\n®¥ËÇÍÎ#ˆÏÏĞX­’ÇÅ!Ñ#ˆT‰ªj)‡" [0 i 127 lookup-key global-map char-to-string self-insert-command define-key map undefined nodigits nil loop "-" negative-argument 48 57 digit-argument] 5 "\
+(fset 'suppress-keymap #[(map &optional nodigits) "ÀÁ\n\"ˆ®ªÄÅÆ\"È	ÊË#ˆÌHÍX­”È	Î#ˆÌÌHTIˆªd)‡" [map-keymap #[(key binding) "Á=­‡ÂÄ!Æ#‡" [binding self-insert-command define-key map vector key undefined] 4] global-map nodigits make-string 1 48 string define-key map "-" negative-argument 0 57 digit-argument] 4 "\
 Make MAP override all normally self-inserting keys to be undefined.
 Normally, as an exception, digits and minus-sign are set to make prefix args,
 but optional second arg NODIGITS non-nil treats them like other chars."])
@@ -39,7 +39,7 @@ Replace OLDDEF with NEWDEF for any keys in KEYMAP now defined as OLDDEF.
 In other words, OLDDEF is replaced with NEWDEF where ever it appears.
 Prefix keymaps reached from KEYMAP are not checked recursively;
 perhaps they ought to be."])
-(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÇMˆÈÉMˆÊËMˆÌÍMˆÎÏMˆĞÑMˆÒÓMˆÔÕMˆÖ×MˆØÙMˆÚÛMˆÜİMˆŞßMˆàáMˆâãMˆäåMˆæçMˆèéMˆêëMˆìíMˆîïMˆğñM‡" [ignore (lambda (&rest ignore)) make-syntax-table copy-syntax-table dot point dot-marker point-marker dot-min point-min dot-max point-max window-dot window-point set-window-dot set-window-point read-input read-string send-string process-send-string send-region process-send-region show-buffer set-window-buffer buffer-flush-undo buffer-disable-undo string= string-equal string< string-lessp mod % move-marker set-marker eql eq not null numberp integerp rplaca setcar rplacd setcdr beep ding indent-to-column indent-to backward-delete-char delete-backward-char] 2)
+(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÇMˆÈÉMˆÊËMˆÌÍMˆÎÏMˆĞÑMˆÒÓMˆÔÕMˆÖ×MˆØÙMˆÚÛMˆÜİMˆŞßMˆàáMˆâãMˆäåMˆæçMˆèéMˆêëMˆìíMˆîïM‡" [ignore (lambda (&rest ignore)) make-syntax-table copy-syntax-table dot point dot-marker point-marker dot-min point-min dot-max point-max window-dot window-point set-window-dot set-window-point read-input read-string send-string process-send-string send-region process-send-region show-buffer set-window-buffer buffer-flush-undo buffer-disable-undo string= string-equal string< string-lessp mod % move-marker set-marker eql eq not null rplaca setcar rplacd setcdr beep ding indent-to-column indent-to backward-delete-char delete-backward-char] 2)
 (defvar global-map nil "\
 Default global keymap mapping Emacs keyboard input into commands.
 The value is a keymap which is usually (but not necessarily) Emacs's
@@ -97,6 +97,7 @@ FILE should be the name of a library, with no directory name."])
 (fset 'user-original-login-name #[nil "ÀÁ!®‡ÀÂ!®‚Ã ‡" [getenv "LOGNAME" "USER" user-login-name] 2 "\
 Return user's login name from original login.
 This tries to remain unaffected by `su', by looking in environment variables."])
-(fset 'force-mode-line-update #[(&optional all) "«†ŠÁ qˆ)ÂÃ !‡" [all other-buffer set-buffer-modified-p buffer-modified-p] 2 "\
+(fset 'redraw-mode-line #[(&optional all) "«†ŠÁ qˆ)ÂÃ !‡" [all other-buffer set-buffer-modified-p buffer-modified-p] 2 "\
 Force the mode-line of the current buffer to be redisplayed.
 With optional non-nil ALL then force then force redisplay of all mode-lines."])
+(fset 'force-mode-line-update 'redraw-mode-line)

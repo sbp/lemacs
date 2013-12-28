@@ -1,11 +1,11 @@
 /* Call a Lisp function interactively.
-   Copyright (C) 1985, 1986 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -55,6 +55,8 @@ The argument of `interactive' is usually a string containing a code letter\n\
  followed by a prompt.  (Some code letters do not use I/O to get\n\
  the argument and do not need prompts.)  To prompt for multiple arguments,\n\
  give a code letter, its prompt, a newline, and another code letter, etc.\n\
+ Prompts are passed to format, and may use % escapes to print the\n\
+ arguments that have already been read.\n\
 If the argument is not a string, it is evaluated to get a list of\n\
  arguments to pass to the function.\n\
 Just `(interactive)' means pass no args when calling interactively.\n\
@@ -69,7 +71,7 @@ D -- Directory name.\n\
 e -- Last mouse event.\n\
 f -- Existing file name.\n\
 F -- Possibly nonexistent file name.\n\
-k -- Key sequence (string).\n\
+k -- Key sequence (a vector of events).\n\
 m -- Value of mark as number.  Does not do I/O.\n\
 n -- Number read using minibuffer.\n\
 N -- Prefix arg converted to number, or if none, do like code `n'.\n\
@@ -104,7 +106,7 @@ Lisp_Object
 quotify_arg (exp)
      register Lisp_Object exp;
 {
-  if (XTYPE (exp) != Lisp_Int && XTYPE (exp) != Lisp_String
+  if (!FIXNUMP (exp) && !STRINGP (exp)
       && !NILP (exp) && !EQ (exp, Qt))
     return Fcons (Qquote, Fcons (exp, Qnil));
 
@@ -168,7 +170,12 @@ Otherwise, this is done only if an arg is read using the minibuffer.")
   Lisp_Object prefix_arg;
   unsigned char *string;
   unsigned char *tem;
+
+  /* If varies[i] > 0, the i'th argument shouldn't just have its value
+     in this call quoted in the command history.  It should be
+     recorded as a call to the function named callint_argfuns[varies[i]].  */
   int *varies;
+
   register int i, j;
   int count, foo;
   char prompt[100];
@@ -178,13 +185,13 @@ Otherwise, this is done only if an arg is read using the minibuffer.")
   struct gcpro gcpro1, gcpro2, gcpro3, gcpro4;
   extern char *index ();
 
-  /* Save this now, since use ofminibuffer will clobber it. */
+  /* Save this now, since use of minibuffer will clobber it. */
   prefix_arg = Vcurrent_prefix_arg;
 
-retry:
+ retry:
 
   for (fun = function;
-       XTYPE (fun) == Lisp_Symbol && !EQ (fun, Qunbound);
+       SYMBOLP (fun) && !EQ (fun, Qunbound);
        fun = XSYMBOL (fun)->function)
     {
       QUIT;
@@ -197,7 +204,7 @@ retry:
      or go to `lose' if not interactive, or go to `retry'
      to specify a different function, or set either STRING or SPECS.  */
 
-  if (XTYPE (fun) == Lisp_Subr)
+  if (SUBRP (fun))
     {
       string = (unsigned char *) XSUBR (fun)->prompt;
       if (!string)
@@ -210,7 +217,7 @@ retry:
 	/* Let SPECS (which is nil) be used as the args.  */
 	string = 0;
     }
-  else if (XTYPE (fun) == Lisp_Compiled)
+  else if (COMPILEDP (fun))
     {
       if (XVECTOR (fun)->size <= COMPILED_INTERACTIVE)
 	goto lose;
@@ -237,16 +244,24 @@ retry:
   else
     goto lose;
 
-  if (XTYPE (specs) == Lisp_String)
-    string = XSTRING (specs)->data;
+  /* If either specs or string is set to a string, use it.  */
+  if (STRINGP (specs))
+    {
+      /* Make a copy of string so that if a GC relocates specs,
+	 `string' will still be valid.  */
+      string = (unsigned char *) alloca (XSTRING (specs)->size + 1);
+      bcopy (XSTRING (specs)->data, string, XSTRING (specs)->size + 1);
+    }
   else if (string == 0)
     {
+      GCPRO1 (function);
       i = num_input_chars;
       specs = Feval (specs);
       if (i != num_input_chars || !NILP (record))
 	Vcommand_history
 	  = Fcons (Fcons (function, quotify_args (Fcopy_sequence (specs))),
 		   Vcommand_history);
+      UNGCPRO;
       return apply1 (function, specs);
     }
 
@@ -264,7 +279,8 @@ retry:
       else if (*string == '@')
 	{
 	  string++;
-	  if (! NILP (Vcurrent_mouse_event)) {
+	  if (! NILP (Vcurrent_mouse_event)) 
+          {
 	    Lisp_Object window = Fevent_window (Vcurrent_mouse_event);
 	    if (!NILP (window))
 	      Fselect_window (window);
@@ -273,13 +289,19 @@ retry:
       else break;
     }
 
+  /* Count the number of arguments the interactive spec would have
+     us give to the function.  */
   tem = string;
   for (j = 0; *tem; j++)
     {
+      /* 'r' specifications ("point and mark as 2 numeric args")
+	 produce *two* arguments.  */
       if (*tem == 'r') j++;
       tem = (unsigned char *) index (tem, '\n');
-      if (tem) tem++;
-      else tem = (unsigned char *) "";
+      if (tem)
+	tem++;
+      else
+	tem = (unsigned char *) "";
     }
   count = j;
 
@@ -300,7 +322,7 @@ retry:
   gcpro4.nvars = (count + 1);
 
   tem = string;
-   for (i = 1; *tem; i++)
+  for (i = 1; *tem; i++)
     {
       strncpy (prompt1, tem + 1, sizeof prompt1 - 1);
       prompt1[sizeof prompt1 - 1] = 0;
@@ -341,11 +363,19 @@ retry:
 
         case 'c':		/* Character */
 	  {
+#if 0
+/* screw this.  redisplay just doesn't notice changes in cursor_in_echo_area */
 	    int speccount = specpdl_ptr - specpdl;
-	    message (prompt);
+	    message ("%s", prompt);
 	    specbind (Qcursor_in_echo_area, Qt);
 	    args[i] = Fread_char ();
 	    unbind_to (speccount);
+#else
+	    message ("%s", prompt);
+	    args[i] = Fread_char ();
+#endif
+	    message ("");
+
 	    /* Passing args[i] directly stimulates compiler bug */
 	    teml = args[i];
 	    visargs[i] = Fchar_to_string (teml);
@@ -405,12 +435,7 @@ retry:
 	case 'n':		/* Read number from minibuffer.  */
 	  do
 	    args[i] = Fread_minibuffer (build_string (prompt), Qnil);
-#ifdef LISP_FLOAT_TYPE
-	  while (XTYPE (args[i]) != Lisp_Int
-		 && XTYPE (args[i]) != Lisp_Float);
-#else
-	  while (XTYPE (args[i]) != Lisp_Int);
-#endif
+	  while (!NUMBERP (args[i]));
 	  visargs[i] = last_minibuf_string;
 	  break;
 
@@ -443,11 +468,10 @@ retry:
 	  break;
 
 	case 'S':		/* Any symbol.  */
-	  visargs[i] = read_minibuf (Vminibuffer_local_ns_map,
-				     Qnil,
-				     build_string (prompt),
-				     Qnil,
-				     0);
+	  visargs[i] = Fread_from_minibuffer (build_string (prompt),
+                                              Qnil,
+                                              Vminibuffer_local_ns_map,
+                                              Qnil);
 	  /* Passing args[i] directly stimulates compiler bug */
 	  teml = visargs[i];
 	  args[i] = Fintern (teml, Qnil);
@@ -477,15 +501,13 @@ retry:
       if (varies[i] == 0)
 	arg_from_tty = 1;
 
-      if (NILP (visargs[i]) && XTYPE (args[i]) == Lisp_String)
+      if (NILP (visargs[i]) && STRINGP (args[i]))
 	visargs[i] = args[i];
 
       tem = (unsigned char *) index (tem, '\n');
       if (tem) tem++;
       else tem = (unsigned char *) "";
     }
-
-  UNGCPRO;
 
   QUIT;
 
@@ -509,6 +531,7 @@ retry:
     specbind (Qcommand_debug_status, Qnil);
 
     val = Ffuncall (count + 1, args);
+    UNGCPRO;
     unbind_to (speccount);
     return val;
   }
@@ -526,14 +549,14 @@ Its numeric meaning is what you would get from `(interactive \"p\")'.")
   
   if (NILP (raw))
     XFASTINT (val) = 1;
-  else if (XTYPE (raw) == Lisp_Symbol)
+  else if (SYMBOLP (raw))
     {
       XFASTINT (val) = 0;
       XSETINT (val, -1);
     }
   else if (CONSP (raw))
     val = XCONS (raw)->car;
-  else if (XTYPE (raw) == Lisp_Int)
+  else if (FIXNUMP (raw))
     val = raw;
   else
     XFASTINT (val) = 1;
@@ -562,6 +585,7 @@ You cannot examine this variable to find the argument for this command\n\
 since it has been set to nil by the time you can look.\n\
 Instead, you should use the variable `current-prefix-arg', although\n\
 normally commands can get this prefix argument with (interactive \"P\").");
+  Vprefix_arg = Qnil;
 
   DEFVAR_LISP ("current-prefix-arg", &Vcurrent_prefix_arg,
     "The value of the prefix argument for this editing command.\n\
@@ -569,10 +593,12 @@ It may be a number, or the symbol `-' for just a minus sign as arg,\n\
 or a list whose car is a number for just one or more C-U's\n\
 or nil if no argument has been specified.\n\
 This is what `(interactive \"P\")' returns.");
+  Vcurrent_prefix_arg = Qnil;
 
   DEFVAR_LISP ("current-mouse-event", &Vcurrent_mouse_event,
     "The mouse-button event which invoked this command, or nil.\n\
 This is what `(interactive \"e\")' returns.");
+  Vcurrent_mouse_event = Qnil;
 
   DEFVAR_LISP ("command-history", &Vcommand_history,
     "List of recent commands that read arguments from terminal.\n\

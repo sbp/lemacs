@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Wed May 20 12:22:49 1992
-;;; from file /u/jwz/emacs19/lisp/dired/dired-x.el
-;;; emacs version 19.0.17 Lucid.
-;;; bytecomp version 2.06; 17-may-92.
+;;; compiled by jwz@watergate on Tue Aug 18 17:14:16 1992
+;;; from file /wg1/emacs-base/lisp/dired/dired-x.el
+;;; emacs version 19.2.2 Lucid.
+;;; bytecomp version 2.08;  7-aug-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -10,8 +10,8 @@
 	     (string-lessp emacs-version "19")))
     (error "This file was compiled for Emacs19."))
 
-(defconst dired-extra-version (substring "$Revision: 1.192 $" 11 -2) "\
-$Id: dired-x.el,v 1.191 1992/05/14 11:41:54 sk RelBeta $")
+(defconst dired-extra-version (substring "!Revision: 1.191 !" 11 -2) "\
+Id: dired-x.el,v 1.191 1992/05/14 11:41:54 sk RelBeta ")
 (byte-code "ÀÁ!ˆÂÃ!‡" [require dired provide dired-extra] 2)
 (defvar dired-mark-keys '("Z") "\
 *List of keys (strings) that insert themselves as file markers.")

@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Tue Apr 21 17:46:50 1992
-;;; from file /u/jwz/emacs19/lisp/indent.el
-;;; emacs version 19.0.2 Lucid.
-;;; bytecomp version 2.05; 9-mar-92.
+;;; compiled by jwz@thalidomide on Sun Aug  2 16:58:14 1992
+;;; from file /wg1/emacs-base/lisp/prim/indent.el
+;;; emacs version 19.2.5 Lucid.
+;;; bytecomp version 2.07; 15-jul-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -15,7 +15,7 @@ Indent line in proper way for current major mode." nil])
 (fset 'indent-for-tab-command #[nil "Á=«ƒÂ ‡ ‡" [indent-line-function indent-to-left-margin insert-tab] 2 "\
 Indent line in proper way for current major mode." nil])
 (fset 'insert-tab #[nil "«ƒÁ ˆ\n«ƒÃc‡i¥T_j‡" [abbrev-mode expand-abbrev indent-tabs-mode 9 tab-width] 3])
-(fset 'indent-rigidly #[(start end arg) "ŠbˆÁ \nbˆn¬ƒÃyˆ`W«žÄ `ÆÇwˆ`|ˆl¬ŠÈÉ\n\\]É\"ˆ)Ãyˆª]Ç‰“)‡" [end point-marker start 1 current-indentation indent " 	" nil indent-to 0 arg] 4 "\
+(fset 'indent-rigidly #[(start end arg) "ŠbˆÁ \nbˆn¬ƒÃyˆ`W«žÄ `ÆÇwˆ`|ˆl¬ŠÈÉ\n\\]É\"ˆ)Ãyˆª]Ç‰“ˆÇ‰)‡" [end point-marker start 1 current-indentation indent " 	" nil indent-to 0 arg zmacs-region-stays] 4 "\
 Indent all lines starting in the region sideways by ARG columns.
 Called from a program, takes three arguments, START, END and ARG." "r\np"])
 (fset 'indent-to-left-margin #[nil "À 	U®œÂŠÄyˆ`ÅÂwˆ`|ˆ	jˆ`)`W­‚b)‡" [current-indentation left-margin nil epos 0 " 	"] 3])

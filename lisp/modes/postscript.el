@@ -52,8 +52,8 @@ arrays and begin/end pairs.
 
 \\{ps-mode-map}
 
-\\[postscript-mode] calls the value of the variable ps-mode-hook with no args,
-if that value is non-nil."
+\\[postscript-mode] calls the value of the variable postscript-mode-hook 
+with no args, if that value is non-nil."
   (interactive)
   (kill-all-local-variables)
   (use-local-map ps-mode-map)
@@ -84,14 +84,9 @@ if that value is non-nil."
 	tab-stop-list ps-tab-stop-list)
   (setq mode-name "PostScript")
   (setq major-mode 'postscript-mode)
-  (run-hooks 'ps-mode-hook))
-
-;(defun ps-tab nil
-;  "Command assigned to the TAB key in PostScript mode."
-;  (interactive)
-;  (if (save-excursion (skip-chars-backward " \t") (bolp))
-;      (ps-indent-line)			; fancy indent if beginning of line
-;    (indent-relative)))			; otherwise indent relative
+  (run-hooks 'ps-mode-hook) ; bad name!  Kept for compatibility.
+  (run-hooks 'postscript-mode-hook)
+  )
 
 (defun ps-tab ()
   "Command assigned to the TAB key in PostScript mode."

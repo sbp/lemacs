@@ -53,8 +53,7 @@ For values specific to the first emacs screen, you must use X Resources.")
 (defvar initial-screen-hooks nil
   "Hook to run after initial screen startup." )
 
-(defvar screen-creation-func
-  (intern (concat (prin1-to-string window-system) "-create-screen"))
+(defvar screen-creation-func '-no-window-system-yet-
   "Window-system dependent function for creating new screens.")
 
 ;; Try to use screen colors and font for the minibuffer, if none were
@@ -282,6 +281,25 @@ Also delete all windows but the selected one on SCREEN."
 (define-key esc-map "o" 'other-window-any-screen)
 (define-key global-map "\^Z" 'iconify-emacs)
 ;;(define-function-key global-function-map 'xk-f2 'buffer-in-other-screen)
+
+
+
+(defun find-file-new-screen (filename)
+  "Just like find-file, but creates a new screen for it first."
+  (interactive "FFind file in new screen: ")
+  (let* ((buf (find-file-noselect filename))
+	 (scr (and screen-creation-func
+		   (funcall screen-creation-func nil))))
+    (if scr (select-screen scr))
+    (switch-to-buffer buf)))
+
+(defun switch-to-buffer-new-screen (buffer)
+  "Just like switch-to-buffer, but creates a new screen for it first."
+  (interactive "BSwitch to buffer in new screen: ")
+  (if screen-creation-func
+      (select-screen (funcall screen-creation-func nil)))
+  (switch-to-buffer buffer))
+
 
 ;;
 ;;

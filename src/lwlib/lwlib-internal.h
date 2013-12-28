@@ -1,4 +1,3 @@
-/* $Header: lwlib-internal.h,v 100.2 92/04/30 11:14:17 devin Exp $ */
 #ifndef LWLIB_INTERNAL_H
 #define LWLIB_INTERNAL_H
 
@@ -36,9 +35,9 @@ typedef struct _widget_creation_entry
   widget_creation_function	function;
 } widget_creation_entry;
 
-#ifdef USE_ATHENA
-Boolean lw_athena_widget_p (Widget widget);
-#endif
+void
+lw_internal_update_other_instances (Widget widget, XtPointer closure,
+				    XtPointer call_data);
 
 #endif /* LWLIB_INTERNAL_H */
 

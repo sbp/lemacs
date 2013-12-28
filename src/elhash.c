@@ -83,7 +83,7 @@ struct hashtable_struct
 #define HASHTABLE_SIZE(obj) (XHASHTABLE(obj)->size)
 #define HASHTABLE_FULLNESS(obj) (XHASHTABLE(obj)->fullness)
 
-#define HASHTABLEP(obj) ((XTYPE (obj) == Lisp_Vector) && \
+#define HASHTABLEP(obj) ((VECTORP (obj)) && \
                          (XFASTINT(XVECTOR (obj)->size) == HT_SIZE) && \
                          (HASHTABLE_HEADER (obj) == Qhashtable))
 
@@ -126,7 +126,7 @@ elisp_hvector_free (ptr, table)
   
   current_vector = HASHTABLE_HARRAY (table);
 
-  if (XTYPE (current_vector) != Lisp_Vector)
+  if (!VECTORP (current_vector))
     error ("Garbled hashtable 0x%x -- can't free hash array.", table);
 
   if (((void *) XVECTOR(current_vector)->contents) != ptr)
@@ -155,7 +155,7 @@ DEFUN ("make-hashtable", Fmake_hashtable, Smake_hashtable, 1, 1, 0,
   struct gcpro gcpro1;
   Lisp_Object hashtable = Qnil;
 
-  CHECK_NUMBER (size, 0);
+  CHECK_FIXNUM (size, 0);
   if (XINT(size) <= 0) 
     error ("Bad SIZE argument, %d, to make-hashtable.", XINT(size));
 
@@ -333,7 +333,7 @@ verify_function (function, description)
     case Lisp_Cons:
       {
         Lisp_Object funcar = Fcar (function);
-        if ((XTYPE (funcar) == Lisp_Symbol) &&
+        if ((SYMBOLP (funcar)) &&
             (EQ (funcar, Qlambda) ||
              EQ (funcar, Qmocklisp) ||
              EQ (funcar, Qautoload)))

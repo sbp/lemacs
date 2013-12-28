@@ -396,6 +396,13 @@ remhash (key, hash)
     {
       e->key = 0;
       e->contents = NULL_ENTRY;
+/* This seems to break the world and I don't understand why. 
+   Keymaps need a correct count of how many items are really in
+   the table, taking remhash into account, but it looks like I
+   have to do it by hand in the keymap code.  -jwz
+
+      hash->fullness--;
+ */
     }
 }
 

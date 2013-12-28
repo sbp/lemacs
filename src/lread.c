@@ -78,7 +78,7 @@ readchar (readcharfun)
   register struct buffer *inbuffer;
   register int c, mpos;
 
-  if (XTYPE (readcharfun) == Lisp_Buffer)
+  if (BUFFERP (readcharfun))
     {
       inbuffer = XBUFFER (readcharfun);
 
@@ -89,7 +89,7 @@ readchar (readcharfun)
 
       return c;
     }
-  if (XTYPE (readcharfun) == Lisp_Marker)
+  if (MARKERP (readcharfun))
     {
       inbuffer = XMARKER (readcharfun)->buffer;
 
@@ -108,7 +108,7 @@ readchar (readcharfun)
   if (EQ (readcharfun, Qget_file_char))
     return getc (instream);
 
-  if (XTYPE (readcharfun) == Lisp_String)
+  if (STRINGP (readcharfun))
     {
       register int c;
       /* This used to be return of a conditional expression,
@@ -135,16 +135,16 @@ unreadchar (readcharfun, c)
      Lisp_Object readcharfun;
      int c;
 {
-  if (XTYPE (readcharfun) == Lisp_Buffer)
+  if (BUFFERP (readcharfun))
     {
       if (XBUFFER (readcharfun) == current_buffer)
 	SET_PT (point - 1);
       else
 	SET_BUF_PT (XBUFFER (readcharfun), BUF_PT (XBUFFER (readcharfun)) - 1);
     }
-  else if (XTYPE (readcharfun) == Lisp_Marker)
+  else if (MARKERP (readcharfun))
     XMARKER (readcharfun)->bufpos--;
-  else if (XTYPE (readcharfun) == Lisp_String)
+  else if (STRINGP (readcharfun))
     read_from_string_index--;
   else if (EQ (readcharfun, Qget_file_char))
     ungetc (c, instream);
@@ -292,7 +292,7 @@ MODE (0|1|2|4 = exists|executable|writeable|readable), default readable.")
       CHECK_STRING (suff, 0);
       sstr = (char *)(XSTRING (suff)->data);
     }
-  if (!(NILP (mode) || (XTYPE (mode) == Lisp_Int && XINT (mode) >= 0)))
+  if (!(NILP (mode) || (FIXNUMP (mode) && XINT (mode) >= 0)))
     mode = wrong_type_argument (Qnatnump, mode);
   locate_file (path, file, sstr, &tp, (NILP (mode) ? R_OK : XFASTINT (mode)));
   return tp;
@@ -547,7 +547,7 @@ STREAM or the value of `standard-input' may be:\n\
     return Fread_minibuffer (build_string ("Lisp expression: "), Qnil);
 #endif
 
-  if (XTYPE (readcharfun) == Lisp_String)
+  if (STRINGP (readcharfun))
     return Fcar (Fread_from_string (readcharfun, Qnil, Qnil));
 
   return read0 (readcharfun);
@@ -569,7 +569,7 @@ START and END optionally delimit a substring of STRING from which to read;\n\
   if (NILP (end))
     endval = XSTRING (string)->size;
   else
-    { CHECK_NUMBER (end,2);
+    { CHECK_FIXNUM (end,2);
       endval = XINT (end);
       if (endval < 0 || endval > XSTRING (string)->size)
 	args_out_of_range (string, end);
@@ -578,7 +578,7 @@ START and END optionally delimit a substring of STRING from which to read;\n\
   if (NILP (start))
     startval = 0;
   else
-    { CHECK_NUMBER (start,1);
+    { CHECK_FIXNUM (start,1);
       startval = XINT (start);
       if (startval < 0 || startval > endval)
 	args_out_of_range (string, start);
@@ -1134,7 +1134,7 @@ Lisp_Object
 check_obarray (obarray)
      Lisp_Object obarray;
 {
-  while (XTYPE (obarray) != Lisp_Vector || XVECTOR (obarray)->size == 0)
+  while (!VECTORP (obarray) || XVECTOR (obarray)->size == 0)
     {
       /* If Vobarray is now invalid, force it to be valid.  */
       if (EQ (Vobarray, obarray)) Vobarray = initial_obarray;
@@ -1154,10 +1154,10 @@ intern (str)
   Lisp_Object tem;
   int len = strlen (str);
   Lisp_Object obarray = Vobarray;
-  if (XTYPE (obarray) != Lisp_Vector || XVECTOR (obarray)->size == 0)
+  if (!VECTORP (obarray) || XVECTOR (obarray)->size == 0)
     obarray = check_obarray (obarray);
   tem = oblookup (obarray, str, len);
-  if (XTYPE (tem) == Lisp_Symbol)
+  if (SYMBOLP (tem))
     return tem;
   return Fintern ((!NILP (Vpurify_flag)
 		   ? make_pure_string (str, len)
@@ -1181,7 +1181,7 @@ it defaults to the value of `obarray'.")
   CHECK_STRING (str, 0);
 
   tem = oblookup (obarray, XSTRING (str)->data, XSTRING (str)->size);
-  if (XTYPE (tem) != Lisp_Int)
+  if (!FIXNUMP (tem))
     return tem;
 
   if (!NILP (Vpurify_flag))
@@ -1189,7 +1189,7 @@ it defaults to the value of `obarray'.")
   sym = Fmake_symbol (str);
 
   ptr = &XVECTOR (obarray)->contents[XINT (tem)];
-  if (XTYPE (*ptr) == Lisp_Symbol)
+  if (SYMBOLP (*ptr))
     XSYMBOL (sym)->next = XSYMBOL (*ptr);
   else
     XSYMBOL (sym)->next = 0;
@@ -1212,7 +1212,7 @@ it defaults to the value of `obarray'.")
   CHECK_STRING (str, 0);
 
   tem = oblookup (obarray, XSTRING (str)->data, XSTRING (str)->size);
-  if (XTYPE (tem) != Lisp_Int)
+  if (!FIXNUMP (tem))
     return tem;
   return Qnil;
 }
@@ -1227,7 +1227,7 @@ oblookup (obarray, ptr, size)
   register Lisp_Object tail;
   Lisp_Object bucket, tem;
 
-  if (XTYPE (obarray) != Lisp_Vector ||
+  if (!VECTORP (obarray) ||
       (obsize = XVECTOR (obarray)->size) == 0)
     {
       obarray = check_obarray (obarray);
@@ -1239,7 +1239,7 @@ oblookup (obarray, ptr, size)
   bucket = XVECTOR (obarray)->contents[hash];
   if (XFASTINT (bucket) == 0)
     ;
-  else if (XTYPE (bucket) != Lisp_Symbol)
+  else if (!SYMBOLP (bucket))
     error ("Bad data in guts of obarray"); /* Like CADR error message */
   else for (tail = bucket; ; XSET (tail, Lisp_Symbol, XSYMBOL (tail)->next))
       {
@@ -1359,7 +1359,7 @@ init_obarray ()
   Qvariable_documentation = intern ("variable-documentation");
 
   read_buffer_size = 100;
-  read_buffer = (char *) malloc (read_buffer_size);
+  read_buffer = (char *) xmalloc (read_buffer_size);
 }
 
 void

@@ -1,0 +1,32 @@
+/**/# Imakefile file for Energize dialog boxes in lwlib.a.
+/**/# Copyright (c) 1992 Lucid, Inc.
+
+GENERATED_SRC = debuggerps.c blpsheet.c classbr_ps.c leb_psheet.c \
+                ctreebr_ps.c projectps.c
+         SRCS = $(GEN_SRC)
+
+         OBJS = debuggerps.o blpsheet.o classbr_ps.o leb_psheet.o \
+                ctreebr_ps.o projectps.o
+
+all:: $(OBJS)
+
+clean:: 
+	$(RM) $(GENERATED_SRC)
+
+.SUFFIXES: .xd .xdc
+
+blpsheet.c:
+	fidget-widget $(@:.c=.xdc) create_breaklist_p_sheet     > $@
+classbr_ps.c:
+	fidget-widget $(@:.c=.xdc) create_class_browser_p_sheet > $@
+ctreebr_ps.c:
+	fidget-widget $(@:.c=.xdc) create_call_browser_p_sheet  > $@
+debuggerps.c:
+	fidget-widget $(@:.c=.xdc) create_debugger_p_sheet      > $@
+leb_psheet.c:
+	fidget-widget $(@:.c=.xdc) create_le_browser_p_sheet    > $@
+projectps.c:
+	fidget-widget $(@:.c=.xdc) create_project_p_sheet       > $@
+
+NormalLibraryObjectRule ()
+DependTarget ()

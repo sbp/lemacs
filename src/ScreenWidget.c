@@ -263,6 +263,11 @@ set_screen_size (EmacsScreenWidget ew)
 	       parse_result & YNegative ? '-' : '+', y < 0 ? -y : y);
       XtVaSetValues (wmshell, XtNgeometry, strdup (shell_position), 0);
     }
+  else if (parse_result & (WidthValue | HeightValue))
+    {
+      sprintf (shell_position, "=%dx%d", pixel_width, pixel_height);
+      XtVaSetValues (wmshell, XtNgeometry, strdup (shell_position), 0);
+    }
 }
 
 static void

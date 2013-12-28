@@ -25,6 +25,16 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define GCTYPEBITS 5
 #endif
 
+/* Define USE_GCC to compile with GCC.
+   Define USE_LCC to compile with Lucid C.
+   Otherwise, "cc" will be used.
+   You -must- use an ANSI C compiler.
+   This has to come before include the m- file.
+ */
+
+#define USE_GCC
+/* #define USE_LCC */
+
 /* Include here a s- file that describes the system type you are using.
    See the file ../etc/MACHINES for a list of systems and the names of
    the s- files to use for them.  See s-template.h for documentation on 
@@ -110,9 +120,18 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #endif
 #define GNU_MALLOC
 
-/* define NEED_STRDUP if your system doesn't have the strdup() function. */
+/* Define NEED_STRDUP if your system doesn't have a strdup() function.
+   Define NEED_REALPATH if your system does not include a realpath() function.
+   If you system doesn't have the fmod() function, then you need to define
+   either HAVE_DREM or HAVE_REMAINDER, as appropriate.
 
+   These flags really should be in the appropriate s- file, so if you need 
+   to do this, let us know and we'll put them there in the next release.
+ */
 /* #define NEED_STRDUP */
+/* #define NEED_REALPATH */
+/* #define HAVE_DREM */
+/* #define HAVE_REMAINDER */
 
 
 /* Define REL_ALLOC if you want to use the relocating allocator for
@@ -134,35 +153,20 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define LWLIB_HAS_EXTENSIONS
 #endif
 
-/* Until we figure out a better way, this is so you can run an X-based Emacs
-   from a menu entry or from a shell buffer. */
-#define INVISIBLE_TERMINAL_KLUDGE
-
-/* Sound support.  If you are on a SparcStation and have the "sound" option
-   installed (usually in /usr/demo/SOUND/) then define this to make it 
-   possible to use arbitrary sound files as beeps.
+/* Sun SparStations and SGI machines have support for playing different sound
+   files as beeps.  If you are on a SparcStation but do not have the sound 
+   option installed for some reason (It's usually in /usr/demo/SOUND/) then
+   undefine USE_SOUND.
  */
-#ifdef sparc
-#define USE_SPARC_SOUND
-#endif
+/* #undef USE_SOUND */
+
 
 /* Compile in support for running emacs directly from temacs (useful for
    debugging emacs) */
 #define RUNNABLE_TEMACS
 
-/* Define this if your system does not include the realpath() system call. */
-
-/* #define NEED_REALPATH */
 
 #ifdef THIS_IS_YMAKEFILE
-
-/* Define USE_GCC to compile with GCC.
-   Define USE_LCC to compile with Lucid C.
-   Otherwise, "cc" will be used.
-   You -must- use an ANSI C compiler.
- */
-#define USE_GCC
-/* #define USE_LCC */
 
 /* If you have defined USE_MOTIF in the lwlib Imakefile, then you must define
    LWLIB_USES_MOTIF here.  Similarly, if you have defined USE_OLIT in the
@@ -207,9 +211,12 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    enough to define stubs for them.
 
    This appears to be fixed in SunOS 4.1.2.
+
+   Also, SunOS 4.1.1 contains buggy versions of strcmp and strcpy that
+   sometimes reference memory past the end of the string, which can segv.
  */
 #ifdef sparc
-#define OBJECTS_SYSTEM sunOS-fix.o
+#define OBJECTS_SYSTEM sunOS-fix.o strcmp.o strcpy.o
 #endif
 
 

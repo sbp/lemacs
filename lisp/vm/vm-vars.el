@@ -503,6 +503,12 @@ These hook functions should generally be used to set key bindings
 and local variables.  Mucking about in the folder buffer is certainly
 possible but it is not encouraged.")
 
+(defvar vm-summary-mode-hooks nil
+  "*List of hook functions to run when a buffer enters vm-summary-mode.
+These hook functions should generally be used to set key bindings
+and local variables.  Mucking about in the folder buffer is certainly
+possible but it is not encouraged.")
+
 (defvar vm-berkeley-mail-compatibility
   (memq system-type '(berkeley-unix))
   "*Non-nil means to read and write BSD Mail(1) style Status: headers.
@@ -534,6 +540,38 @@ etc. when started in the usual way.")
 (defvar mail-yank-hooks nil
   "*List of hook functions called after yanking a message into a *mail*
 buffer.  See the documentation for the function vm-yank-message for details.")
+
+(defvar vm-show-message-hook nil
+  "*List of hook functions called when a VM message is selected.
+See also vm-preview-message-hook.")
+
+(defvar vm-preview-message-hook nil
+  "*List of hook functions called when a VM message is previewed,
+if and only if vm-preview-lines is non-nil.  See also vm-show-message-hook.")
+
+(defvar vm-show-new-message-hook nil
+  "*List of hook functions called when VM selects a new message, 
+that is, just after the ``message new'' flag has been set to false.
+
+This is subtly different from the vm-show-unread-message-hook: a `new' 
+message is one that has been added to this folder in this session, before
+vm-quit has been executed.  An `unread' message is one that has simply
+never been selected before; most likely this is because the message was
+added to the folder by something other than VM.
+
+The vm-show-message-hook will be run immediately after this hook.")
+
+(defvar vm-show-unread-message-hook nil
+  "*List of hook functions called when VM selects a message for the first time,
+that is, just after the ``message new'' flag has been set to false.  The 
+
+This is subtly different from the vm-show-unread-message-hook: a `new' 
+message is one that has been added to this folder in this session, before
+vm-quit has been executed.  An `unread' message is one that has simply
+never been selected before; most likely this is because the message was
+added to the folder by something other than VM.
+
+vm-show-message-hook will be run immediately after this hook.")
 
 (defvar vm-movemail-program "movemail"
   "*Name of program to use to move mail from the system spool

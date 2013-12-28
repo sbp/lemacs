@@ -41,9 +41,9 @@ double
 extract_float (num)
      Lisp_Object num;
 {
-  CHECK_NUMBER_OR_FLOAT (num, 0);
+  CHECK_NUMBER (num, 0);
 
-  if (XTYPE (num) == Lisp_Float)
+  if (FLOATP (num))
     return XFLOAT (num)->data;
   return (double) XINT (num);
 }
@@ -291,10 +291,10 @@ DEFUN ("expt", Fexpt, Sexpt, 2, 2, 0,
 {
   double f1, f2;
 
-  CHECK_NUMBER_OR_FLOAT (num1, 0);
-  CHECK_NUMBER_OR_FLOAT (num2, 0);
-  if ((XTYPE (num1) == Lisp_Int) && /* common lisp spec */
-      (XTYPE (num2) == Lisp_Int)) /* don't promote, if both are ints */
+  CHECK_NUMBER (num1, 0);
+  CHECK_NUMBER (num2, 0);
+  if ((FIXNUMP (num1)) && /* common lisp spec */
+      (FIXNUMP (num2))) /* don't promote, if both are ints */
     {				/* this can be improved by pre-calculating */
       int acc, x, y;		/* some binary powers of x then acumulating */
       /* these, therby saving some time. -wsr */
@@ -314,8 +314,8 @@ DEFUN ("expt", Fexpt, Sexpt, 2, 2, 0,
 	}
       return XSET (x, Lisp_Int, acc);
     }
-  f1 = (XTYPE (num1) == Lisp_Float) ? XFLOAT (num1)->data : XINT (num1);
-  f2 = (XTYPE (num2) == Lisp_Float) ? XFLOAT (num2)->data : XINT (num2);
+  f1 = (FLOATP (num1)) ? XFLOAT (num1)->data : XINT (num1);
+  f2 = (FLOATP (num2)) ? XFLOAT (num2)->data : XINT (num2);
   IN_FLOAT (f1 = pow (f1, f2));
   return make_float (f1);
 }
@@ -375,9 +375,9 @@ DEFUN ("abs", Fabs, Sabs, 1, 1, 0,
   (num)
      register Lisp_Object num;
 {
-  CHECK_NUMBER_OR_FLOAT (num, 0);
+  CHECK_NUMBER (num, 0);
 
-  if (XTYPE (num) == Lisp_Float)
+  if (FLOATP (num))
     IN_FLOAT (num = make_float (fabs (XFLOAT (num)->data)));
   else if (XINT (num) < 0)
     XSETINT (num, - XFASTINT (num));
@@ -390,9 +390,9 @@ DEFUN ("float", Ffloat, Sfloat, 1, 1, 0,
   (num)
      register Lisp_Object num;
 {
-  CHECK_NUMBER_OR_FLOAT (num, 0);
+  CHECK_NUMBER (num, 0);
 
-  if (XTYPE (num) == Lisp_Int)
+  if (FIXNUMP (num))
     return make_float ((double) XINT (num));
   else				/* give 'em the same float back */
     return num;
@@ -407,8 +407,8 @@ Lisp_Object num;
   Lisp_Object val;
   double f;
 
-  CHECK_NUMBER_OR_FLOAT (num, 0);
-  f = (XTYPE (num) == Lisp_Float) ? XFLOAT (num)->data : XINT (num);
+  CHECK_NUMBER (num, 0);
+  f = (FLOATP (num)) ? XFLOAT (num)->data : XINT (num);
   IN_FLOAT (val = logb (f));
   XSET (val, Lisp_Int, val);
   return val;
@@ -421,9 +421,9 @@ DEFUN ("ceiling", Fceiling, Sceiling, 1, 1, 0,
   (num)
      register Lisp_Object num;
 {
-  CHECK_NUMBER_OR_FLOAT (num, 0);
+  CHECK_NUMBER (num, 0);
 
-  if (XTYPE (num) == Lisp_Float)
+  if (FLOATP (num))
     IN_FLOAT (XSET (num, Lisp_Int, ceil (XFLOAT (num)->data)));
 
   return num;
@@ -434,9 +434,9 @@ DEFUN ("floor", Ffloor, Sfloor, 1, 1, 0,
   (num)
      register Lisp_Object num;
 {
-  CHECK_NUMBER_OR_FLOAT (num, 0);
+  CHECK_NUMBER (num, 0);
 
-  if (XTYPE (num) == Lisp_Float)
+  if (FLOATP (num))
     IN_FLOAT (XSET (num, Lisp_Int, floor (XFLOAT (num)->data)));
 
   return num;
@@ -447,9 +447,9 @@ DEFUN ("round", Fround, Sround, 1, 1, 0,
   (num)
      register Lisp_Object num;
 {
-  CHECK_NUMBER_OR_FLOAT (num, 0);
+  CHECK_NUMBER (num, 0);
 
-  if (XTYPE (num) == Lisp_Float)
+  if (FLOATP (num))
     IN_FLOAT (XSET (num, Lisp_Int, rint (XFLOAT (num)->data)));
 
   return num;
@@ -461,15 +461,15 @@ Rounds the value toward zero.")
   (num)
      register Lisp_Object num;
 {
-  CHECK_NUMBER_OR_FLOAT (num, 0);
+  CHECK_NUMBER (num, 0);
 
-  if (XTYPE (num) == Lisp_Float)
+  if (FLOATP (num))
     XSET (num, Lisp_Int, (int) XFLOAT (num)->data);
 
   return num;
 }
 
-#if defined (BSD) || defined (IRIX)
+#if defined (BSD) || defined (IRIX) || defined (IRIS) || defined (__hpux) || defined(AIX)
 static void
 float_error (signo)
      int signo;

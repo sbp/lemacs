@@ -1,11 +1,11 @@
 /* GNU Emacs routines to deal with case tables.
-   Copyright (C) 1987 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -42,7 +42,7 @@ See `set-case-table' for more information on these data structures.")
   eqv = Fcar_safe (Fcdr_safe (Fcdr_safe (Fcdr_safe (table))));
 
 #define STRING256_P(obj) \
-  (XTYPE (obj) == Lisp_String && XSTRING (obj)->size == 256)
+  (STRINGP (obj) && XSTRING (obj)->size == 256)
 
   return (STRING256_P (down)
 	  && (NILP (up) || STRING256_P (up))

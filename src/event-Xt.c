@@ -47,6 +47,11 @@ Time mouse_timestamp;
    dispatched to emacs or widgets. */
 Time global_mouse_timestamp;
 
+/* This is the last known timestamp received from the server.  It is 
+   maintained by x_event_to_emacs_event and used to patch bogus 
+   WM_TAKE_FOCUS messages sent by Mwm. */
+Time last_server_timestamp;
+
 extern struct screen *x_window_to_screen (Window),
 *x_any_window_to_screen (Window);
 
@@ -63,6 +68,7 @@ extern Lisp_Object Qx_non_VisibilityNotify_internal;
 extern Lisp_Object Qx_MapNotify_internal, Qx_UnmapNotify_internal;
 
 extern Display *x_current_display;
+extern Atom Xatom_WM_PROTOCOLS, Xatom_WM_DELETE_WINDOW, Xatom_WM_TAKE_FOCUS;
 
 
 /* X bogusly doesn't define the interpretations of any bits besides
@@ -427,19 +433,6 @@ x_to_emacs_keysym (event, simple_p)
 }
 
 
-/* If non 0 then next_event has to call XQueryPointer to allow
-** for Motion events to be generated again.  This is set when a 
-** Motion event is read.  If non zero last_motion_event contains a copy
-** of the last motion event read.
-** (Emacs uses the PointerMotionHint type of motion events, see 
-** x_allow_motion_events).
-*/
-static Window 
-should_ask_for_move_events;
-
-static XEvent
-last_motion_event;
-
 extern int interrupt_char;
 extern int x_allow_sendevents;
 
@@ -448,11 +441,56 @@ extern Widget XtWidgetToDispatchTo ();
 #endif
 
 static void
+set_last_server_timestamp (XEvent* x_event)
+{
+  switch (x_event->xany.type)
+    {
+    case KeyPress:
+    case KeyRelease:
+      last_server_timestamp = x_event->xkey.time;
+      break;
+
+    case ButtonPress:
+    case ButtonRelease:
+      last_server_timestamp = x_event->xbutton.time;
+      break;
+
+    case MotionNotify:
+      last_server_timestamp = x_event->xmotion.time;
+      break;
+
+    case EnterNotify:
+    case LeaveNotify:
+      last_server_timestamp = x_event->xcrossing.time;
+      break;
+      
+    case PropertyNotify:
+      last_server_timestamp = x_event->xproperty.time;
+      break;
+
+    case SelectionClear:
+      last_server_timestamp = x_event->xselectionclear.time;
+      break;
+
+    case SelectionRequest:
+      last_server_timestamp = x_event->xselectionrequest.time;
+      break;
+
+    case SelectionNotify:
+      last_server_timestamp = x_event->xselection.time;
+      break;
+    }
+}
+
+static void
 x_event_to_emacs_event (x_event, emacs_event)
      struct Lisp_Event *emacs_event;
      XEvent *x_event;
 {
   Display *display = x_event->xany.display;
+
+  set_last_server_timestamp (x_event);
+
   switch (x_event->xany.type) {
   case KeyPress:
   case ButtonPress:
@@ -621,23 +659,51 @@ x_event_to_emacs_event (x_event, emacs_event)
   case MotionNotify:
     {
       Window w = x_event->xmotion.window;
-      struct screen *screen = x_window_to_screen (x_event->xmotion.window);
+      struct screen *screen = x_window_to_screen (w);
+      XEvent event2;
 
       if (! screen)
 	goto MAGIC; /* not for us */
 
-      XSET (emacs_event->channel, Lisp_Screen, screen);
-      emacs_event->event_type	= pointer_motion_event;
-      emacs_event->timestamp	= x_event->xmotion.time;
-      emacs_event->event.motion.x	= x_event->xmotion.x;
-      emacs_event->event.motion.y	= x_event->xmotion.y;
+      /* We use MotionHintMask, so we will get only one motion event
+	 until the next time we call XQueryPointer or the user clicks
+	 the mouse.  So call XQueryPointer now (meaning that the event
+	 will be in sync with the server just before Fnext_event()
+	 returns).  If the mouse is still in motion, then the server
+	 will immediately generate exactly one more motion event, which
+	 will be on the queue waiting for us next time around.
+       */
+      event2 = *x_event;
+      BLOCK_INPUT;
+      if (XQueryPointer (x_event->xmotion.display, event2.xmotion.window,
+			 &event2.xmotion.root, &event2.xmotion.subwindow,
+			 &event2.xmotion.x_root, &event2.xmotion.y_root,
+			 &event2.xmotion.x, &event2.xmotion.y,
+			 &event2.xmotion.state))
+	*x_event = event2;
+      UNBLOCK_INPUT;
+
       mouse_timestamp = x_event->xmotion.time;
 
-      should_ask_for_move_events = 1;
-      last_motion_event = *x_event;
+      XSET (emacs_event->channel, Lisp_Screen, screen);
+      emacs_event->event_type	  = pointer_motion_event;
+      emacs_event->timestamp	  = x_event->xmotion.time;
+      emacs_event->event.motion.x = x_event->xmotion.x;
+      emacs_event->event.motion.y = x_event->xmotion.y;
     }
     break;
     
+  case ClientMessage:
+    /* Patch bogus TAKE_FOCUS messages from MWM */
+    if (x_event->xclient.message_type == Xatom_WM_PROTOCOLS
+	&& x_event->xclient.data.l[0] == Xatom_WM_TAKE_FOCUS
+	&& x_event->xclient.data.l[1] == 0)
+      {
+	x_event->xclient.data.l[1] = last_server_timestamp;
+      }
+    goto MAGIC;
+    break;
+
   default:
   MAGIC:
     emacs_event->event_type = magic_event;
@@ -649,8 +715,6 @@ x_event_to_emacs_event (x_event, emacs_event)
   }
 }
 
-
-extern Atom Xatom_WM_PROTOCOLS, Xatom_WM_DELETE_WINDOW, Xatom_WM_TAKE_FOCUS;
 
 static void
 emacs_Xt_handle_magic_event (emacs_event)
@@ -785,7 +849,7 @@ emacs_Xt_handle_magic_event (emacs_event)
 	Lisp_Object event = Fallocate_event ();
 
 	XSET (scr, Lisp_Screen, s);
-	next = next_screen (scr, 0);
+	next = next_screen (scr, 0, 0);
 	XEVENT (event)->event_type = eval_event;
 	if (EQ (next, scr) || EQ (scr, Vglobal_minibuffer_screen))
 	  {
@@ -1074,7 +1138,8 @@ generate_wakeup_internal (id, milliseconds, vanilliseconds, function, object)
      Lisp_Object function;
      Lisp_Object object;
 {
-  struct timeout *timeout = (struct timeout *) malloc (sizeof (struct timeout));
+  struct timeout *timeout = (struct timeout *)
+    xmalloc (sizeof (struct timeout));
   timeout->id = id;
   timeout->msecs = milliseconds;
   timeout->resignal_msecs = vanilliseconds;
@@ -1282,36 +1347,6 @@ emacs_Xt_unselect_tty (file_descriptor)
 
 
 
-/* When PointerMotionHintMask is in effect, only one MotionNotify event
-** is generated, unless there is a ButtonPress event, a ButtonRelease
-** event, or a call to XQueryPointer().  this call to XQueryPointer not
-** only gets the really current mouse position, but also goads the 
-** server into generating another motion event if one occurs after this.
-** In this way, we only get as many motion events as we can process in
-** a timely fashion.
-**
-** If the mouse has moved the function fills in x_event with a motion event
-** and returns 1.  Otherwise it returns 0.
-*/
-static int
-x_allow_motion_events (XEvent* ev)
-{
-  int last_x = last_motion_event.xmotion.x;
-  int last_y = last_motion_event.xmotion.y;
-  Boolean query;
-
-  BLOCK_INPUT;
-  *ev = last_motion_event;
-  query =  XQueryPointer (x_current_display, ev->xmotion.window,
-			  &ev->xmotion.root, &ev->xmotion.subwindow,
-			  &ev->xmotion.x_root, &ev->xmotion.y_root,
-			  &ev->xmotion.x, &ev->xmotion.y,
-			  &ev->xmotion.state);
-  UNBLOCK_INPUT;
-
-  return query && last_x != ev->xmotion.x && last_y != ev->xmotion.y;
-}
-
 static void XtAppNextEvent_non_synthetic ();
 
 
@@ -1319,22 +1354,7 @@ static void
 emacs_Xt_next_event (emacs_event)
      struct Lisp_Event *emacs_event;
 {
-  int should_read_the_queue = 1;
   XEvent x_event;
-
-  /* if move events are expected and no events are in the queue,
-     poll for the mouse position.  If the mouse has moved, then
-     x_allow_motion_events fills-in a MotionEvent and returns 1,
-     so we should not call XtAppNextEvent in that case.
-   */
-  if (should_ask_for_move_events)
-    {
-      should_ask_for_move_events = 0;
-      BLOCK_INPUT;
-      if (! (XtAppPending (Xt_app_con) & XtIMXEvent))
-	should_read_the_queue = !x_allow_motion_events (&x_event);
-      UNBLOCK_INPUT;
-    }
 
   /* If the event's type is XAnyEvent, then it's a fake, synthetic event
      that we generated inside a timeout callback just to make XtAppNextEvent
@@ -1347,10 +1367,7 @@ emacs_Xt_next_event (emacs_event)
      when there is nothing else left to handle.)
    */
   BLOCK_INPUT;
-  if (should_read_the_queue)
-    XtAppNextEvent_non_synthetic (x_current_display, Xt_app_con, &x_event);
-  else
-    XFlush (x_current_display);
+  XtAppNextEvent_non_synthetic (x_current_display, Xt_app_con, &x_event);
   UNBLOCK_INPUT;
 
   if (x_event.xany.type == 0 &&
@@ -1534,7 +1551,7 @@ interrupt_char_predicate (display, event, data)
    */
   keysym = x_to_emacs_keysym (event, 1);
   if (NILP (keysym)) return 0;
-  if (XTYPE (keysym) == Lisp_Int)
+  if (FIXNUMP (keysym))
     c = XINT (keysym);
   /* Highly doubtful that these are the interrupt character, but... */
   else if (EQ (keysym, QKbackspace))	c = '\b';
@@ -1555,26 +1572,9 @@ interrupt_char_predicate (display, event, data)
 
 extern struct event_stream *event_stream;
 
-#ifdef ENERGIZE
-extern void XtApplyToWidgets ();
-extern void XtHasCallbackProcedure ();
-void (*ld_fodder[2]) ();
-#endif
-
 void
 emacs_Xt_make_event_stream ()
 {
-
-#ifdef ENERGIZE
-  /* This crap is to fake out the bonehead unix linker into taking the
-     definitions from lwlib instead of (the soon-to-be-obsolete) uilib,
-     and not making us lose with multiply-defined symbols.  In other
-     words, don't ask...
-   */
-  ld_fodder[0] = XtApplyToWidgets;
-  ld_fodder[1] = XtHasCallbackProcedure;
-#endif
-
   timeout_id_tick = 1;
   pending_timeouts = 0;
   completed_timeouts = 0;

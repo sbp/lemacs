@@ -1,5 +1,5 @@
-This is a Beta test release of Lucid's version of GNU Emacs.  It is based
-on an early version of Emacs version 19 from the Free Software Foundation.
+This is Lucid GNU Emacs.  It is based on an early version of Emacs version 19
+from the Free Software Foundation.
 
 Why Another Version of Emacs?
 =============================
@@ -30,8 +30,11 @@ better spent improving Emacs19 instead of Epoch.
 Our original hope was that our changes to Emacs would be incorporated into
 the "official" v19.  However, scheduling conflicts arose, and we found that,
 given the amount of work still remaining to be done, we didn't have time to
-merge with the FSF's code.  Consequently, we are releasing our work as a
+merge with the FSF's code.  Consequently, we have released our work as a
 forked branch of Emacs, instead of delaying any longer.
+
+It seems likely that a merger of Epoch and Lucid Emacs will occur in the
+not-too-distant future.
 
 What's Different?
 =================
@@ -51,7 +54,10 @@ events that Emacs knows about are not X events, but are a generalization of
 them, so that Emacs can eventually be ported to different window systems.
 
 We have reimplemented keymaps so that sequences of events can be stored into
-them instead of just ASCII codes.
+them instead of just ASCII codes; it is possible to, for example, bind 
+different commands to each of the chords Control-h, Control-H, Backspace,
+Control-Backspace, and Super-Shift-Backspace.  Key bindings, function key
+bindings, and mouse bindings live in the same keymaps.
 
 Input and display of all ISO-8859-1 characters is supported.
 
@@ -121,6 +127,7 @@ us, but is included because it's free software and we think it's good stuff)
   - there is a new TAGS package
   - there is a new VI-emulation mode (evi)
   - there is a new implementation of Dired
+  - there is a new implementation of Isearch
 
 There are many more specifics in the "Miscellaneous Changes" section, below.
 
@@ -562,6 +569,45 @@ Athena-based library, which will make it possible to use menubars and
 dialog boxes in Emacs without relying on any non-free software.
 
 
+Isearch Changes
+===============
+
+Isearch has been reimplemented in a different way, adding some new features,
+and causing a few incompatible changes.
+
+ -  the old isearch-*-char variables are no longer supported.  In the old
+    system, one could make ^A mean "repeat the search" by doing something
+    like (setq search-repeat-char ?C-a).  In the new system, this is 
+    accomplished with 
+
+       (define-key isearch-mode-map "\C-a" 'isearch-repeat-forward)
+
+ -  The advantage of using the normal keymap mechanism for this is that you
+    can bind more than one key to an isearch command: for example, both C-a
+    and C-s could do the same thing inside isearch mode.  You can also bind
+    multi-key sequences inside of isearch mode, and bind non-ASCII keys.
+    For example, to use the F1 key to terminate a search:
+
+       (define-key isearch-mode-map 'f1 'isearch-exit)
+
+    or to make ``C-c C-c'' terminate a search:
+
+       (define-key isearch-mode-map "\C-c\C-c" 'isearch-exit)
+
+ -  If isearch is behaving case-insensitively (the default) and you type an
+    upper case character, then the search will become case-sensitive.  This
+    can be disabled by setting `search-caps-disable-folding' to nil.
+
+ -  There is a history ring of the strings previously searched for; typing
+    M-p or M-n while searching will cycle through this ring.  Typing M-TAB
+    will do completion across the set of items in the history ring.
+
+ -  The ESC key is no longer used to terminate an incremental search.  The
+    LFD key should be used instead.  This change is necessary for it to be
+    possible to bind "meta" characters to isearch commands.  (This change
+    will be in FSF's v19 as well.)
+
+
 Startup Code Changes
 ====================
 
@@ -576,17 +622,22 @@ computed at startup time.
 
 First, Emacs looks at the directory from which its executable file was run:
 
-  o  If it ends in /src/, and ../lisp/ exists, then we use that for the
-     lisp library (likewise for /etc/ and /lock/).
-  o  Otherwise, if there is a subdirectory of the directory that the Emacs
-     program is in called lisp/ (or etc/ or lock/), then we use that.
-  o  Otherwise, if the Emacs program that was run is itself a symbolic
-     link, then we chase the link and try again on the resultant directory.
+  o  If the emacs image is named D/src/P, and D/lisp/ exists, then use that
+     for the lisp library, use D/etc/ for the exec-directory, and use
+     D/lock/ for the lock directory.
+  o  If it is named D/P, and D/lisp/ (or D/etc/ or D/lock/) exists, then 
+     use that.
+  o  If it is named D/bin/P, and D/P/lisp/ exists, then use that.  That is,
+     the executable "/foo/local/bin/emacs19" would look for the lisp library
+     "/foo/local/emacs19/lisp/".
+  o  If the emacs program that was run is itself a symlink, then chase the
+     link and try again on the resultant directory.
   o  Otherwise, as a last resort, we look in /usr/local/lib/emacs/ and
      /usr/local/emacs/.
   
 Finally, if the lisp directory contains subdirectories, they are added to
-the default load-path as well.
+the default load-path as well.  Subdirectories whose names begin with
+a dot or a hyphen are not added to the load-path.
 
 These heuristics fail if the Emacs binary was copied from the main Emacs
 tree to some other directory, and links for the lisp directory were not
@@ -763,13 +814,17 @@ These are the names of the predefined faces:
 	info-xref		This is the face of info cross-references.
 				If unspecified, it is copied from "bold".
 
+Other packages might define their own faces; to see a list of all faces, use
+any of the interactive face-manipulation commands such as `set-face-font') and
+type `?' when you are prompted for the name of a face.
+
 
 Known Problems / TODO List
 ==========================
 
 Horizontally-split windows don't work.  Selective-display doesn't work.
-Display tables don't work.  We plan to do some extensive work on redisplay
-soon, which will likely fix all of this.
+Display tables don't work.  Horizontal scrolling doesn't work.  We plan to
+do some extensive work on redisplay soon, which will likely fix all of this.
 
 Most of the `screen-parameters' don't work.  I'm not convinced that the
 screen-parameters/modify-screen-parameters functions are the best interface
@@ -778,20 +833,7 @@ anyway.
 The Motif-like menubar that xlwmenu.c defines should use the same resources
 that real Motif menubars use (as much as possible, anyway.)
 
-We should include GNUS 3.14 instead of 3.13.
-
-`add-menu-item' should take a BEFORE arg, the menu before which this menu
-should be inserted.
-
 Faces should be able to have cursors associated with them.
-
-Someone should write an Epoch-compatibility package, so that simple Epoch
-code can run without modification in Lucid GNU Emacs.
-
-The current menubar should be specified by the value of a variable, which
-can be buffer-local, instead of simply being associated with a screen.  This
-means the menubar may need to change as a result of the user switching buffers
-or windows, so care must be taken to do this very efficiently.
 
 The `mouse-motion-hook' should be called whenever a buffer scrolls or the
 sizes of windows change, so that it can correctly frob the mouse-cursor based
@@ -809,6 +851,9 @@ which was used to group the scrollbar and the emacs window together.
 We need to implement a non-Xt event_stream, based on select() and/or timer
 signals, so that emacs can be *compiled* without support for X.  (Note that
 this is different than emacs *running* without X.)
+
+It should be possible to open emacs screens on multiple X displays and 
+multiple dumb-ttys simultaniously.
 
 It should be possible to have a process-filter-function that doesn't get 
 called with a string; rather, the output is simply put in a buffer.  This
@@ -836,7 +881,7 @@ Returns nil if FUNCTION was already present in HOOK-VAR, else new
 value of HOOK-VAR.
 
 ------------------------------
-add-menu-item (menu-path item-name function enabled-p)
+add-menu-item (menu-path item-name function enabled-p &optional before)
 
 Add a menu item to some menu, creating the menu first if necessary.
 If the named item exists already, it is changed.
@@ -845,10 +890,32 @@ MENU-PATH identifies the menu under which the new menu item should be inserted.
  menu.  ("File" "Foo") names a hypothetical submenu of "File".
 ITEM-NAME is the string naming the menu item to be added.
 FUNCTION is the command to invoke when this menu item is selected.
- If it is a symbol, then it is invoked with call-interactively, in the same
+ If it is a symbol, then it is invoked with `call-interactively', in the same
  way that functions bound to keys are invoked.  If it is a list, then the 
  list is simply evaluated.
 ENABLED-P controls whether the item is selectable or not.
+BEFORE, if provided, is the name of a menu item before which this item should
+ be added, if this item is not on the menu already.  If the item is already
+ present, it will not be moved.
+
+------------------------------
+add-menu: (menu-path menu-name menu-items &optional before)
+
+Add a menu to the menubar or one of its submenus.
+If the named menu exists already, it is changed.
+MENU-PATH identifies the menu under which the new menu should be inserted.
+ It is a list of strings; for example, ("File") names the top-level "File"
+ menu.  ("File" "Foo") names a hypothetical submenu of "File".
+ If MENU-PATH is nil, then the menu will be added to the menubar itself.
+MENU-NAME is the string naming the menu to be added.
+MENU-ITEMS is a list of menu item descriptions.
+ Each menu item should be a vector of three elements:
+   - a string, the name of the menu item;
+   - a symbol naming a command, or a form to evaluate;
+   - and t or nil, whether this item is selectable.
+BEFORE, if provided, is the name of a menu before which this menu should
+ be added, if this menu is not on its parent already.  If the menu is already
+ present, it will not be moved.
 
 ------------------------------
 add-timeout (secs function object &optional resignal)
@@ -1231,12 +1298,32 @@ invisible, and write-protected. Returns nil if there is no matching
 extent at POS.
 
 ------------------------------
+extent-attributes (extent_obj &optional raw_p)
+
+Return a list of attributes of EXTENT.
+This list may contain any or none of the following symbols:
+
+    highlight		highlight when the mouse moves over it
+    write-protected	text within this extent will be unmodifiable
+    invisible		don't display the text in this region
+
+------------------------------
 extent-buffer (extent_obj)
 Return buffer of EXTENT.
 
 ------------------------------
+extent-data (extent)
+
+Return the user data associated with the given extent.
+Set this using the `set-extent-data' function.
+
+------------------------------
 extent-end-position (extent)
 Return first position after EXTENT.
+
+------------------------------
+extent-face (extent)
+Returns the name of the face in which EXTENT is displayed.
 
 ------------------------------
 extent-length (extent)
@@ -1300,6 +1387,11 @@ that screen; otherwise, the selected screen is used.
 If there is no such face, returns nil.
 If SCREEN is the symbol t, then the global, non-screen face is returned.
 If NAME is already a face, it is simply returned.
+
+------------------------------
+find-file-new-screen (filename)
+
+Just like find-file, but creates a new screen for it first.
 
 ------------------------------
 find-this-file (fn)
@@ -1423,11 +1515,16 @@ This won't work unless the Emacs executable is setgid kmem
 load-default-sounds ()
 
 Load and install some sound files as beep-types.
-This only works if youre on display 0 of a Sun SparcStation.
+This only works if youre on display 0 of a Sun SparcStation or SGI machine.
 
 ------------------------------
 load-sound-file (filename sound-name &optional volume)
+
 Read in an audio-file and add it to the sound-alist.
+
+You can only play sound files if you are running on display 0 of the console
+of a Sun SparcStation or an SGI machine.  The sound file must be in the
+Sun/NeXT U-LAW format.
 
 ------------------------------
 locate-library (library &optional nosuffix)
@@ -1728,11 +1825,13 @@ Find next extent after EXTENT. If EXTENT is a buffer
 return the first extent in the buffer.
 
 ------------------------------
-next-screen (&optional screen miniscreen)
+next-screen (&optional screen miniscreen visible-only-p)
 
 Return the next screen in the screen list after SCREEN.
 If MINISCREEN is non-nil, include the global-minibuffer-screen if it
 has its own screen.
+If VISIBLE-ONLY-P is non-nil, then cycle through the visible screens,
+instead of all screens.
 
 ------------------------------
 other-window-any-screen (n)
@@ -1760,10 +1859,6 @@ The first element of a menu must be a string, which is the name of the
  menu.  This is the string that will be displayed in the parent menu, if
  any.  For toplevel menus, it is ignored.  This string is not displayed
  in the menu itself.
-If the first element of a menu is a string, then that is the name of
-the menu.  The name of a menu is only used for submenus; for top-level
- menus, it is ignored.  In particular, it is not displayed in the menu
- as strings later in the menu-list are.
 A menu item is a vector of three elements:
  the name of the menu item (a string);
  the `callback' of that item;
@@ -1788,7 +1883,7 @@ More precisely:
    text		:=  <a string, non selectable>
    menu-item	:=  '['  string callback active-p  ']'
    name		:=  <string>
-   menu		:=  '(' [name] [ menu-item | menu | text ]+ ')'
+   menu		:=  '(' name [ menu-item | menu | text ]+ ')'
 
 ------------------------------
 process-event-p (obj)
@@ -1970,6 +2065,12 @@ ATTRIBUTE must be one of the following symbols:
     visible		turn off `invisible'
 
 ------------------------------
+set-extent-data (extent data)
+
+Set the user data slot of the given extent.
+Access this using the `extent-data' function.
+
+------------------------------
 set-extent-endpoints (extent_obj start end)
 Set the endpoints of EXTENT to START, END.
 
@@ -2145,6 +2246,11 @@ Optional fourth arg RESTART non-nil means that this timer should be
   If non-nil RESTART should be a number indicating the value at which the
   timer should be set at restart time.
 Returns the newly created timer.
+
+------------------------------
+switch-to-buffer-new-screen (buffer)
+
+Just like switch-to-buffer, but creates a new screen for it first.
 
 ------------------------------
 switch-to-other-buffer (arg)
@@ -2797,6 +2903,16 @@ are not valid completions, an extra RET must be typed to confirm the
 response.  This is helpful for catching typos, etc.
 
 ------------------------------
+mode-motion-hook
+
+Function or functions which are called whenever the mouse moves.
+You should normally use this rather than `mouse-motion-handler', which 
+does some additional window-system-dependent things.  This hook is local
+to every buffer, and should normally be set up by major-modes which want
+to use special highlighting.  Every time the mouse moves over a window,
+the mode-motion-hook of the buffer of that window is run.
+
+------------------------------
 mouse-enter-hook
 Function to call when mouse enters a screen.  One arg, the screen.
 
@@ -2807,6 +2923,7 @@ Function to call when mouse leaves screen.  One arg, the screen.
 ------------------------------
 mouse-motion-handler
 Handler for motion events.  One arg, a motion event.
+For most applications, you should use `mode-motion-hook' instead of this.
 
 ------------------------------
 pre-abbrev-expand-hook
@@ -2824,6 +2941,15 @@ if non-nil means  that the currently selected window is not acceptable.
 This function may be used to select an appropriate screen for the buffer,
 for example.  See also the variable display-buffer-function, which may
 be used to completely replace the display-buffer function.
+
+------------------------------
+previous-screen (screen miniscreen visible-only-p)
+
+Return the previous screen in the screen list before SCREEN.
+If MINISCREEN is non-nil, include the global-minibuffer-screen if it
+has its own screen.
+If VISIBLE-ONLY-P is non-nil, then cycle through the visible screens,
+instead of all screens.
 
 ------------------------------
 print-level
@@ -2876,6 +3002,12 @@ screen-title-format
 
 Controls the title of the X window corresponding to the selected screen.
 This is the same format as mode-line-format.
+
+------------------------------
+search-caps-disable-folding
+
+*If non-nil, upper case chars disable case fold searching.
+This does not apply to "yanked" strings.  Default t.
 
 ------------------------------
 selection-converter-alist
@@ -3430,6 +3562,41 @@ In addition, if the string begins with *
 If the string begins with @, then the window the mouse is over is selected
  before anything else is done.  You may use both @ and *;
 they are processed in the order that they appear.
+
+------------------------------
+isearch-forward (&optional regexp-p)
+
+Do incremental search forward.
+With a prefix argument, do an incremental regular expression search instead.
+
+As you type characters, they add to the search string and are found.
+The following non-printing keys are bound in `isearch-mode-map'.  
+
+Type DEL to cancel characters from end of search string.
+Type LFD to exit, leaving point at location found.
+Type RET (C-m) to match end of line.
+Type C-s to search again forward, C-r to search again backward.
+Type C-w to yank word from buffer onto end of search string and search for it.
+Type C-y to yank rest of line onto end of search string and search for it.
+Type C-q to quote control character to search for it.
+Type M-SPC to match all whitespace chars in regexp.
+C-g while searching or when search has failed cancels input back to what has
+ been found successfully.
+C-g when search is successful aborts and moves point to starting point.
+
+Also supported is a search ring of the previous 16 search strings.
+Type M-n to search for the next item in the search ring.
+Type M-p to search for the previous item in the search ring.
+Type M-TAB to complete the search string using the search ring.
+
+The above keys are bound in the isearch-mode-map.  To change the keys which
+ are special to isearch-mode, simply change the bindings in that map.
+
+Other control and meta characters terminate the search
+ and are then executed normally (depending on `search-exit-option').
+
+If this function is called non-interactively, it does not return to
+the calling function until the search is done.
 
 ------------------------------
 kill-emacs (&optional arg)

@@ -1,8 +1,8 @@
 ;;;; dired-rcs.el - RCS support for Tree Dired
 
-(defconst dired-rcs-version (substring "$Revision: 1.5 $" 11 -2)
-  "$Id: dired-rcs.el,v 1.5 1992/05/20 05:27:55 jwz Exp $")
-
+(defconst dired-rcs-version (substring "!Revision: 1.5 !" 11 -2)
+  "Id: dired-rcs.el,v 1.5 1991/11/06 13:06:22 sk RelBeta ")
+  
 ;; Copyright (C) 1991 by Sebastian Kremer <sk@thp.uni-koeln.de>
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -23,7 +23,7 @@
 ;;    LCD Archive Entry:
 ;;    dired-rcs|Sebastian Kremer|sk@thp.uni-koeln.de
 ;;    |RCS support for Tree Dired 
-;;    |$Date: 1992/05/20 05:27:55 $|$Revision: 1.5 $|
+;;    |Date: 1991/11/06 13:06:22 |Revision: 1.5 |
 
 ;; INSTALLATION ======================================================
 ;; 

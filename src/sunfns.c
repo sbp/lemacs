@@ -1,11 +1,11 @@
 /* Functions for Sun Windows menus and selection buffer.
-   Copyright (C) 1987 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -148,7 +148,7 @@ Redisplay does not happen if input is available before it starts.")
   struct timeval Timeout;
   int waitmask = 1;
   
-  CHECK_NUMBER (n, 0);
+  CHECK_FIXNUM (n, 0);
   Timeout.tv_sec = XINT(n) / 1000;
   Timeout.tv_usec = (XINT(n) - (Timeout.tv_sec * 1000)) * 1000;
 
@@ -176,7 +176,7 @@ DEFUN ("sleep-for-millisecs",
 {
   unsigned useconds;
 
-  CHECK_NUMBER (n, 0);
+  CHECK_FIXNUM (n, 0);
   useconds = XINT(n) * 1000;
   usleep(useconds);
   return(Qt);
@@ -225,8 +225,8 @@ expressed as a string.  If ICON is nil then the original arrow cursor is used")
     Y_Hot = XVECTOR(Icon)->contents[1];
     Data = XVECTOR(Icon)->contents[2];
     
-    CHECK_NUMBER (X_Hot, 0);
-    CHECK_NUMBER (Y_Hot, 0);
+    CHECK_FIXNUM (X_Hot, 0);
+    CHECK_FIXNUM (Y_Hot, 0);
     CHECK_STRING (Data, 0);
     if (XSTRING(Data)->size != 32) return(Qnil);
     /*
@@ -354,9 +354,9 @@ sun_item_create (Pair)
   String = Fcar(Pair);
   CHECK_STRING(String, 0);
   Value = Fcdr(Pair);
-  if(XTYPE(Value) == Lisp_Symbol)
+  if(SYMBOLP (Value))
     Value = XSYMBOL(Value)->value;
-  if(XTYPE(Value) == Lisp_Vector) {
+  if(VECTORP (Value)) {
     submenu = sun_menu_create (Value);
     menu_item = menu_create_item
       (MENU_RELEASE, MENU_PULLRIGHT_ITEM, XSTRING(String)->data, submenu, 0);
@@ -434,10 +434,10 @@ as a menu label.")
   Event *event = &event0;
   Lisp_Object Value, Pair;
   
-  CHECK_NUMBER(X_Position, 0);
-  CHECK_NUMBER(Y_Position, 1);
+  CHECK_FIXNUM(X_Position, 0);
+  CHECK_FIXNUM(Y_Position, 1);
   CHECK_WINDOW(window, 2);
-  CHECK_NUMBER(Button, 3);
+  CHECK_FIXNUM(Button, 3);
   CHECK_VECTOR(MEnu, 4);
 
   CHECK_GFX (Qnil);

@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Mon May 18 20:21:30 1992
-;;; from file /cadillac-th/jwz/emacs19/lisp/etags.el
-;;; emacs version 19.0.16 Lucid.
-;;; bytecomp version 2.06; 17-may-92.
+;;; compiled by jwz@thalidomide on Tue Sep  8 23:32:55 1992
+;;; from file /wg1/emacs-base/lisp/packages/etags.el
+;;; emacs version 19.2.23 Lucid.
+;;; bytecomp version 2.08; 27-aug-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -81,12 +81,13 @@ with meta-x set-buffer-tag-table.  See the documentation for the variable
 (defvar tags-file-name nil "\
 *The name of the tags-table used by all buffers.  This is for backwards
 compatibility, and is largely supplanted by the variable tag-table-alist.")
-(byte-code "ÀÀ‡" [nil tags-file-name] 1)
-(fset 'buffer-tag-table-list #[nil "À‰«„\nBÄÆP!«†ÆP\nB®„È P	\n\n«´\n@@‰;«ŠÌ\n@@\"ª„ÀÍÎ«“ÀÏĞ‰;«†	\nBª„ÑÒ!ˆ\nA‰\n¬L*«†\nC¤ÔÕ\n\"ÖÀ\n\"‰¬„Ñ×!ˆØ\nŸ!*‡" [nil expression result buffer-tag-table file-readable-p default-directory "TAGS" buffer-file-name buffer-name tag-table-alist alist key string-match (eval expression) ((error)) (byte-code "À	@A!‡" [eval alist] 2) ((error)) error "Expression in tag-table-alist evaluated to non-string" tags-file-name mapcar #[(name) "À	!«„	ÂPÃ	!­ˆŠÄ	!qˆ)‡" [file-directory-p name "TAGS" file-readable-p get-tag-table-buffer buffer-file-name] 2] delq "Buffer has no associated tag tables" tags-remove-duplicates] 4 "\
+(fset 'buffer-tag-table-list #[nil "À‰«„\nBÄÆP!«†ÆP\nB®„È P	\n\n«´\n@@‰;«ŠÌ\n@@\"ª„ÀÍÎ«“ÀÏĞ‰;«†	\nBª„ÑÒ!ˆ\nA‰\n¬L*\n¬ˆ¬„ÔÕ!ˆ«†\nC¤Ö×\n\"ØÀ\n\"‰¬„ÑÙ!ˆÚ\nŸ!*‡" [nil expression result buffer-tag-table file-readable-p default-directory "TAGS" buffer-file-name buffer-name tag-table-alist alist key string-match (eval expression) ((error)) (byte-code "À	@A!‡" [eval alist] 2) ((error)) error "Expression in tag-table-alist evaluated to non-string" tags-file-name call-interactively visit-tags-table mapcar #[(name) "À	!«„	ÂPÃ	!­ˆŠÄ	!qˆ)‡" [file-directory-p name "TAGS" file-readable-p get-tag-table-buffer buffer-file-name] 2] delq "Buffer has no associated tag tables" tags-remove-duplicates] 4 "\
 Returns a list (ordered) of the tags tables which should be used for 
 the current buffer."])
 (fset 'visit-tags-table #[(file) "Á˜«„Â‰‡Ä!Å!«…ÄÆ\"‰‡" [file "" nil tags-file-name expand-file-name file-directory-p "TAGS"] 3 "\
-Tell tags commands to use tags table file FILE first." (byte-code "ÀÁ\nÃÄ\n\"Å$C‡" [read-file-name "Visit tags table: (default TAGS) " default-directory expand-file-name "TAGS" t] 6)])
+Tell tags commands to use tags table file FILE first.
+FILE should be the name of a file created with the `etags' program.
+A directory name is ok too; it means file TAGS in that directory." (byte-code "ÀÁ\nÃÄ\n\"Å$C‡" [read-file-name "Visit tags table: (default TAGS) " default-directory expand-file-name "TAGS" t] 6)])
 (fset 'set-buffer-tag-table #[(file) "¬„ÁÂ!ˆÃ!Ä!«„ÅPÆ!¬…ÁÇ\"ˆ‰‡" [file error "No TAGS file name supplied" expand-file-name file-directory-p "TAGS" file-exists-p "TAGS file missing: %s" buffer-tag-table] 3 "\
 In addition to the tags tables specified by the variable `tag-table-alist',
 each buffer can have one additional table.  This command sets that.
@@ -98,6 +99,10 @@ been built.  this is nil, t, or 'disabled.")
 (defvar make-tags-files-invisible nil "\
 *If true, TAGS-files will not show up in buffer-lists or be 
 selectable (or deletable.)")
+(defconst tag-table-files nil "\
+If the current buffer is a TAGS table, this holds a list of the files 
+referenced by this file, or nil if that hasn't been computed yet.")
+(make-variable-buffer-local 'tag-table-files)
 (fset 'get-tag-table-buffer #[(tag-table) ";¬…ÁÂ\"ˆÃÄ!«„Ä!Å‰‰É!‰¬”Ê!«ŠË!Ìª…ÁÍ\"ˆŠqˆ«”«ÏĞÑ \"«‰ÒÓÔÑ P!!ˆÕ!¬™Ö×Ø\"!«‘ÙÌ‰\"ˆÌ=«ƒÅÅÜfİ=¬…ÁŞ\"ˆß>¬ƒÌ«¯ Å=¬¦ Ì=¬™ á=«â ãW¬ä×å\"!ªƒÁæ!«‡çèéˆªƒê)+‡" [tag-table error "Bad tags file name supplied: %s" fboundp symlink-expand-file-name nil check-name build-completion buf get-file-buffer file-readable-p find-file-noselect t "No such tags file: %s" make-tags-files-invisible string-match "\\`[^ ]" buffer-name rename-buffer generate-new-buffer-name " " verify-visited-file-modtime yes-or-no-p format "Tags file %s has changed, read new contents? " revert-buffer tag-table-completion-status tag-table-files 1 12 "File %s not a valid tags file" (t disabled) tags-build-completion-table ask buffer-size 20000 y-or-n-p "Build tag completion table for %s? " "tags-build-completion-table is not t, nil, or ask." foo (byte-code "À ˆÁÀ‡" [add-to-tag-completion-table t tag-table-completion-status] 1) ((quit (byte-code "ÀÂÄÂ!‡" [nil tag-table-completion-status t quit-flag eval] 2))) disabled] 5 "\
 Returns a buffer visiting the give TAGS table, reverting if appropriate,
 and possibly building a completion-table."])
@@ -105,10 +110,6 @@ and possibly building a completion-table."])
 Return the file name of the file whose tags point is within.
 Assumes the tag table is the current buffer.
 File name returned is relative to tag table file's directory."])
-(defconst tag-table-files nil "\
-If the current buffer is a TAGS table, this holds a list of the files 
-referenced by this file, or nil if that hasn't been computed yet.")
-(make-variable-buffer-local 'tag-table-files)
 (fset 'tag-table-files #[(tag-table) "ŠÀ	!qˆ\n¬¿Ã‰‰ebˆm¬­ÇyˆÃˆÈÃxˆ`Ép!bˆÊ`SŠËyˆ`){\"BÇyˆuˆªPŸ+\n)‡" [get-tag-table-buffer tag-table tag-table-files nil size prev files 1 "^,\n" read expand-file-name 0 default-directory] 3 "\
 Returns a list of the files referenced by the named TAGS table."])
 (fset 'buffer-tag-table-files #[nil "ÀÁÂÃÄ \"\"‡" [apply append mapcar tag-table-files buffer-tag-table-list] 5 "\
@@ -129,6 +130,9 @@ The function is called with no args.")
 (defvar last-tag-data nil "\
 Information for continuing a tag search.
 Is of the form (TAG POINT TAG-TABLE TAG-TABLE ...).")
+(defvar tags-loop-form nil "\
+Form for tags-loop-continue to eval to process one file.
+If it returns nil, it is through with one file; move on to next.")
 (autoload 'get-symbol-syntax-table "symbol-syntax")
 (fset 'find-tag-internal #[(tagname) "	?	:Â‰‰‰‰‰‰‰‰‰‰‰‰	\n«ƒ	@«’AA@A@ª‡Ô Õ¬†Ö×	\"«¬Ø«ˆÙ	ÙQª…Ú	!Ö×\"«ŠÛ•SÜIˆªoİŞ !ª†	Ş ŠÅßˆàá!ˆâã !`SŠÛyˆ`){\nàä!ˆåp!		`D¤)æ!ŠqˆŠŒ~ˆçèé\n!P	¬ƒe	¬œ	Zbˆo¬’ê	\\Ø#ë_ªa¬êÂØ#¬‡ìí#ˆÛyˆ`	+	.B‡" [find-tag-hook tagname nil syn-tab pat found offset buf target startpos linebeg file tag-table-point tag-tables tag-target symbol-border exact next local-find-tag-hook last-tag-data buffer-tag-table-list 1 string-match "\\\\_" t "\\_" copy-sequence 0 98 get-symbol-syntax-table syntax-table (byte-code "«»Á@!qˆÂp!ˆ®ebˆÄÅ ÄÈ	!ˆÊËÄÍ#«ŒÎÏ!«sĞÑÍ\"ˆªl+A‰¬EÒÓ«ƒÕªÖ«ƒØªÙ$‡" [tag-tables get-tag-table-buffer bury-buffer tag-table-point nil syntax-table case-fold-search osyn set-syntax-table syn-tab ((set-syntax-table osyn)) re-search-forward tag-target t looking-at "[^\n]*" throw found error "No %sentries %s %s" next "more " "" exact "matching" "containing" tagname] 6) search-forward "" expand-file-name file-of-tag "," read find-file-noselect 1000 "^" regexp-quote re-search-forward 3 error "%s not found in %s"] 16 "\
 Foo"])
@@ -154,7 +158,7 @@ Variables of note:
   buffer-tag-table		another way of specifying a buffer-local table
   make-tags-files-invisible	whether tags tables should be very hidden
   tag-mark-stack-max		how many tags-based hops to remember" (byte-code "«‚Á‡ÂÃ!ÄD‡" [current-prefix-arg (nil nil) find-tag-tag "Find tag: " nil] 2)])
-(fset 'find-tag-other-window #[(tagname) "À	Â\"‡" [find-tag tagname t] 3 "\
+(fset 'find-tag-other-window #[(tagname &optional next) "«…ÁÂÃ\"‡ÁÃ\"‡" [next find-tag nil t tagname] 3 "\
 *Find tag whose name contains TAGNAME.
  Selects the buffer that the tag is contained in in another window
 and puts point at its definition.
@@ -174,7 +178,7 @@ Variables of note:
   tags-build-completion-table   controls completion behavior
   buffer-tag-table		another way of specifying a buffer-local table
   make-tags-files-invisible	whether tags tables should be very hidden
-  tag-mark-stack-max		how many tags-based hops to remember" (byte-code "«‚Á‡ÂÃ!C‡" [current-prefix-arg (nil) find-tag-tag "Find tag other window: "] 2)])
+  tag-mark-stack-max		how many tags-based hops to remember" (byte-code "«‚Á‡ÂÃ!C‡" [current-prefix-arg (nil t) find-tag-tag "Find tag other window: "] 2)])
 (fset 'lisp-complete-symbol #[nil "À Â«„Ä!ˆŠÅÆ!ˆgzÇU«…Æuˆªuh)È=	Ê	«ƒÌªÍ	?­Î#+‡" [syntax-table buffer-syntax ((set-syntax-table buffer-syntax)) lisp-mode-syntax-table set-syntax-table backward-sexp 1 39 40 fn complete-symbol obarray fboundp #[(sym) "À	!®ˆÂ	!®ƒÃ	!‡" [boundp sym fboundp symbol-plist] 2] #[(list) "À\n«™ÃÄ\n@!!«†\n@ÅDª‚\n@	B\nA‰¬g	Ÿ)‡" [nil new list fboundp intern " <f>"] 4]] 4 "\
 *Perform completion on Lisp symbol preceding point.
 That symbol is compared against the symbols that exist
@@ -193,10 +197,10 @@ List of files for next-file to process.")
 Select next file among files in current tag table(s).
 Non-nil argument (prefix arg, if interactive) initializes to the beginning 
 of the list of files in the (first) tag table." "P"])
-(defvar tags-loop-form nil "\
-Form for tags-loop-continue to eval to process one file.
-If it returns nil, it is through with one file; move on to next.")
-(fset 'tags-loop-continue #[(&optional first-time) "À‰«ŒÄÅ!ÁÆ\"ˆÅÈ	!¬˜\n«ˆÊ ¬„Ëp!ˆÄ ÁÆ\"ˆÅªbÌp!ˆ	­…ÁÍ\"*‡" [nil message buf-is-new first-time next-file t "Scanning file %s..." buffer-file-name eval tags-loop-form buffer-modified-p kill-buffer switch-to-buffer "Scanning file %s...done"] 3 "\
+(defvar tags-search-nuke-uninteresting-buffers t "\
+*If t (the default), tags-search and tags-query-replace will only
+keep newly-visited buffers if they contain the search target.")
+(fset 'tags-loop-continue #[(&optional first-time) "À‰«ŒÄÅ!ÁÆ\"ˆÅÈ	!¬œ\n«ŒÊ ¬ˆ«„Ìp!ˆÄ ÁÆ\"ˆÅª^Íp!ˆ	­…ÁÎ\"*‡" [nil message buf-is-new first-time next-file t "Scanning file %s..." buffer-file-name eval tags-loop-form buffer-modified-p tags-search-nuke-uninteresting-buffers kill-buffer switch-to-buffer "Scanning file %s...done"] 3 "\
 Continue last \\[tags-search] or \\[tags-query-replace] command.
 Used noninteractively with non-nil argument
 to begin such a command.  See variable tags-loop-form." nil])
@@ -219,6 +223,9 @@ FILE should not contain a directory spec
 unless it has one in the tag table." "sList tags (in file): "])
 (fset 'tags-apropos #[(string) "ÀÁÂ!ˆÃ!ˆÅ ˆŠÆ ˆÇbˆÈÉÊ#­•ËyˆÁ`ÌÉwˆ`{!ˆÅ ˆÇyˆªd)‘‡" ["*Tags List*" princ "Tags matching regexp " prin1 string terpri visit-tags-table-buffer 1 re-search-forward nil t 0 "^"] 5 "\
 Display list of all tags in tag table REGEXP matches." "sTag apropos (regexp): "])
+(fset 'visit-tags-table-buffer #[nil "¬„ÁÂ!ˆÃ!®…ÄÆ!qˆÇÃ!!¬ŒÈÉ!«‡ÊË‰\"ˆÄÌfÍ=®„ÎÏ\"‡" [tags-file-name call-interactively visit-tags-table get-file-buffer nil tag-table-files find-file-noselect verify-visited-file-modtime yes-or-no-p "Tags file has changed, read new contents? " revert-buffer t 1 12 error "File %s not a valid tag table"] 3 "\
+Select the buffer containing the current tag table.
+This is a file whose name is in the variable tags-file-name."])
 (byte-code "ÀÁ!¬‚Â	¢Ã=«ƒ	CÄ	>¬„Ä	BÄÅMˆÄ ˆÆÇ!«ˆŠÇqˆÄ ˆ)Â‡" [boundp emacs-lisp-mode-hook nil lambda setup-emacs-lisp-default-tag-hook #[nil "Á=­‡ÂÃ!ˆÄ‰‡" [major-mode emacs-lisp-mode make-variable-buffer-local find-tag-default-hook emacs-lisp-default-tag] 2] get-buffer "*scratch*"] 2)
 (fset 'emacs-lisp-default-tag #[nil "À ®‚Á ‰­ƒÃ\n!)‡" [variable-at-point function-called-at-point tag symbol-name] 3 "\
 Function to return a default tag for Emacs-Lisp mode."])

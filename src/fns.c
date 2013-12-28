@@ -80,13 +80,13 @@ lisp_to_word (Lisp_Object obj)
 {
   Lisp_Object high;
   Lisp_Object low;
-  if ((obj == Qnil) || (XTYPE (obj) != Lisp_Cons)) return 0;
+  if ((obj == Qnil) || (!CONSP (obj))) return 0;
   
   high = XCONS (obj)->car;
-  if (XTYPE (high) != Lisp_Int) return 0;
+  if (!FIXNUMP (high)) return 0;
   
   low = XCONS (obj)->cdr; 
-  if (XTYPE (low) != Lisp_Int) return 0;
+  if (!FIXNUMP (low)) return 0;
   
   return (XUINT (high) << 16) | (XUINT (low));
 }
@@ -135,7 +135,7 @@ With argument t, set the random number seed from the current time and pid.")
   if (EQ (arg, Qt))
     srandom (getpid () + time (0));
   val = random ();
-  if (XTYPE (arg) == Lisp_Int && XINT (arg) != 0)
+  if (FIXNUMP (arg) && XINT (arg) != 0)
     {
       /* Try to take our random number from the higher bits of VAL,
 	 not the lower, since (says Gentzel) the low bits of `random'
@@ -161,8 +161,8 @@ A byte-code function object is also allowed.")
   register int i;
 
  retry:
-  if (XTYPE (obj) == Lisp_Vector || XTYPE (obj) == Lisp_String
-      || XTYPE (obj) == Lisp_Compiled)
+  if (VECTORP (obj) || STRINGP (obj)
+      || COMPILEDP (obj))
     return Farray_length (obj);
   else if (CONSP (obj))
     {
@@ -194,9 +194,9 @@ Symbols are also allowed; their print names are used instead.")
   (s1, s2)
      register Lisp_Object s1, s2;
 {
-  if (XTYPE (s1) == Lisp_Symbol)
+  if (SYMBOLP (s1))
     XSETSTRING (s1, XSYMBOL (s1)->name), XSETTYPE (s1, Lisp_String);
-  if (XTYPE (s2) == Lisp_Symbol)
+  if (SYMBOLP (s2))
     XSETSTRING (s2, XSYMBOL (s2)->name), XSETTYPE (s2, Lisp_String);
   CHECK_STRING (s1, 0);
   CHECK_STRING (s2, 1);
@@ -218,9 +218,9 @@ Symbols are also allowed; their print names are used instead.")
   register unsigned char *p1, *p2;
   register int end;
 
-  if (XTYPE (s1) == Lisp_Symbol)
+  if (SYMBOLP (s1))
     XSETSTRING (s1, XSYMBOL (s1)->name), XSETTYPE (s1, Lisp_String);
-  if (XTYPE (s2) == Lisp_Symbol)
+  if (SYMBOLP (s2))
     XSETSTRING (s2, XSYMBOL (s2)->name), XSETTYPE (s2, Lisp_String);
   CHECK_STRING (s1, 0);
   CHECK_STRING (s2, 1);
@@ -298,7 +298,7 @@ with the original.")
      Lisp_Object arg;
 {
   if (NILP (arg)) return arg;
-  if (!CONSP (arg) && XTYPE (arg) != Lisp_Vector && XTYPE (arg) != Lisp_String)
+  if (!CONSP (arg) && !VECTORP (arg) && !STRINGP (arg))
     arg = wrong_type_argument (Qsequencep, arg);
   return concat (1, &arg, CONSP (arg) ? Lisp_Cons : XTYPE (arg), 0);
 }
@@ -339,16 +339,16 @@ concat (nargs, args, target_type, last_special)
     {
       this = args[argnum];
       if (!(CONSP (this) || NILP (this)
-	    || XTYPE (this) == Lisp_Vector || XTYPE (this) == Lisp_String
-	    || XTYPE (this) == Lisp_Compiled))
+	    || VECTORP (this) || STRINGP (this)
+	    || COMPILEDP (this)))
 	{
-	  if (XTYPE (this) == Lisp_Int)
+	  if (FIXNUMP (this))
             args[argnum] = Fint_to_string (this);
 	  else
 	    args[argnum] = wrong_type_argument (Qsequencep, this);
 	}
       
-      if (XTYPE (this) == Lisp_String)
+      if (STRINGP (this))
         args_mr_structs[argnum].dup_list = XSTRING (this)->dup_list;
       else
         args_mr_structs[argnum].dup_list = Qnil;
@@ -415,7 +415,7 @@ concat (nargs, args, target_type, last_special)
 	      if (thisindex >= thisleni)
 		break;
 
-	      if (XTYPE (this) == Lisp_String)
+	      if (STRINGP (this))
 		XFASTINT (elt) = XSTRING (this)->data[thisindex++];
 	      else
 		elt = XVECTOR (this)->contents[thisindex++];
@@ -429,11 +429,11 @@ concat (nargs, args, target_type, last_special)
 	      prev = tail;
 	      tail = XCONS (tail)->cdr;
 	    }
-	  else if (XTYPE (val) == Lisp_Vector)
+	  else if (VECTORP (val))
 	    XVECTOR (val)->contents[toindex++] = elt;
 	  else
 	    {
-	      while (XTYPE (elt) != Lisp_Int)
+	      while (!FIXNUMP (elt))
 		elt = wrong_type_argument (Qintegerp, elt);
 
 	      {
@@ -491,11 +491,11 @@ If FROM or TO is negative, it counts from the end.")
      register Lisp_Object from, to;
 {
   CHECK_STRING (string, 0);
-  CHECK_NUMBER (from, 1);
+  CHECK_FIXNUM (from, 1);
   if (NILP (to))
     to = Flength (string);
   else
-    CHECK_NUMBER (to, 2);
+    CHECK_FIXNUM (to, 2);
 
   if (XINT (from) < 0)
     XSETINT (from, XINT (from) + XSTRING (string)->size);
@@ -516,7 +516,7 @@ DEFUN ("nthcdr", Fnthcdr, Snthcdr, 2, 2, 0,
      register Lisp_Object list;
 {
   register int i, num;
-  CHECK_NUMBER (n, 0);
+  CHECK_FIXNUM (n, 0);
   num = XINT (n);
   for (i = 0; i < num && ! NILP (list); i++)
     {
@@ -540,13 +540,13 @@ DEFUN ("elt", Felt, Selt, 2, 2, 0,
   (seq, n)
      register Lisp_Object seq, n;
 {
-  CHECK_NUMBER (n, 0);
+  CHECK_FIXNUM (n, 0);
   while (1)
     {
-      if (XTYPE (seq) == Lisp_Cons || NILP (seq))
+      if (CONSP (seq) || NILP (seq))
 	return Fcar (Fnthcdr (n, seq));
-      else if (XTYPE (seq) == Lisp_String ||
-	       XTYPE (seq) == Lisp_Vector)
+      else if (STRINGP (seq) ||
+	       VECTORP (seq))
 	return Faref (seq, n);
       else
 	seq = wrong_type_argument (Qsequencep, seq);
@@ -1053,19 +1053,19 @@ getf (plist, indicator)
 {
   Lisp_Object tail = plist;
 
-  while (XTYPE (tail) == Lisp_Cons)
+  while (CONSP (tail))
     {
       struct Lisp_Cons *untagged_tail = XCONS (tail);
       
       tail = untagged_tail->cdr;
       if (EQ (untagged_tail->car, indicator))
 	{
-	  if (XTYPE (tail) == Lisp_Cons)
+	  if (CONSP (tail))
 	    return XCONS (tail)->car;
 	  else
 	    return Qnil;
 	}
-      if (XTYPE (tail) == Lisp_Cons)
+      if (CONSP (tail))
 	tail = XCONS (tail)->cdr;
       else
 	return Qnil;
@@ -1086,7 +1086,7 @@ do_cdr:
   QUIT;
   if (XTYPE (o1) != XTYPE (o2)) return Qnil;
   if (XINT (o1) == XINT (o2)) return Qt;
-  if (XTYPE (o1) == Lisp_Cons)
+  if (CONSP (o1))
     {
       Lisp_Object v1;
       v1 = Fequal (Fcar (o1), Fcar (o2));
@@ -1095,13 +1095,13 @@ do_cdr:
       o1 = Fcdr (o1), o2 = Fcdr (o2);
       goto do_cdr;
     }
-  if (XTYPE (o1) == Lisp_Marker)
+  if (MARKERP (o1))
     {
       return (XMARKER (o1)->buffer == XMARKER (o2)->buffer
 	      && XMARKER (o1)->bufpos == XMARKER (o2)->bufpos)
 	? Qt : Qnil;
     }
-  if (XTYPE (o1) == Lisp_Vector)
+  if (VECTORP (o1))
     {
       register int index;
       if (XVECTOR (o1)->size != XVECTOR (o2)->size)
@@ -1116,7 +1116,7 @@ do_cdr:
 	}
       return Qt;
     }
-  if (XTYPE (o1) == Lisp_String)
+  if (STRINGP (o1))
     {
       if (XSTRING (o1)->size != XSTRING (o2)->size)
 	return Qnil;
@@ -1124,7 +1124,7 @@ do_cdr:
 	return Qnil;
       return Qt;
     }
-  if (XTYPE (o1) == Lisp_Event)
+  if (EVENTP (o1))
     return event_equal (o1, o2);
 
   return Qnil;
@@ -1137,17 +1137,17 @@ DEFUN ("fillarray", Ffillarray, Sfillarray, 2, 2, 0,
 {
   register int size, index, charval;
  retry:
-  if (XTYPE (array) == Lisp_Vector)
+  if (VECTORP (array))
     {
       register Lisp_Object *p = XVECTOR (array)->contents;
       size = XVECTOR (array)->size;
       for (index = 0; index < size; index++)
 	p[index] = item;
     }
-  else if (XTYPE (array) == Lisp_String)
+  else if (STRINGP (array))
     {
       register unsigned char *p = XSTRING (array)->data;
-      CHECK_NUMBER (item, 1);
+      CHECK_FIXNUM (item, 1);
       charval = XINT (item);
       size = XSTRING (array)->size;
       for (index = 0; index < size; index++)
@@ -1243,7 +1243,7 @@ mapcar1 (leni, vals, fn, seq)
   /* We need not explicitly protect `tail' because it is used only on lists, and
     1) lists are not relocated and 2) the list is marked via `seq' so will not be freed */
 
-  if (XTYPE (seq) == Lisp_Vector)
+  if (VECTORP (seq))
     {
       for (i = 0; i < leni; i++)
 	{
@@ -1251,7 +1251,7 @@ mapcar1 (leni, vals, fn, seq)
 	  vals[i] = call1 (fn, dummy);
 	}
     }
-  else if (XTYPE (seq) == Lisp_String)
+  else if (STRINGP (seq))
     {
       for (i = 0; i < leni; i++)
 	{
@@ -1420,8 +1420,10 @@ and can rub it out if not confirmed.")
   while (1)
     {
       GCPRO1 (prompt);
-      ans = Fdowncase (read_minibuf (Vminibuffer_local_map,
-				     Qnil, prompt, Qnil, 0));
+      ans = Fdowncase (Fread_from_minibuffer (prompt,
+                                              Qnil,
+                                              Vminibuffer_local_map,
+                                              Qnil));
       UNGCPRO;
       if (XSTRING (ans)->size == 3
 	  && !strcmp ((char *) XSTRING (ans)->data, "yes"))
@@ -1652,7 +1654,7 @@ If FILENAME is omitted, the printname of FEATURE is used as the file name.")
 
 /* Sound stuff, by jwz. */
 
-#ifdef USE_SPARC_SOUND
+#ifdef USE_SOUND
 
 extern void play_sound_file (), play_sound_data ();
 
@@ -1660,21 +1662,25 @@ extern void play_sound_file (), play_sound_data ();
 
 DEFUN ("play-sound-file", Fplay_sound_file, Splay_sound_file,
        1, 2, "fSound file name: ",
-# ifdef USE_SPARC_SOUND
-       "Play the named SPARC sound-file on the console speaker at the\n\
-specified volume (0-100, default specified by the bell-volume variable)."
-# else /* ! USE_SPARC_SOUND */
+#ifdef USE_SOUND
+ "Play the named sound file on the console speaker at the specified volume\n(\
+0-100, default specified by the `bell-volume' variable).\n"
+#if defined(sparc) || defined(sgi)
+       "The sound file must be in the Sun/NeXT U-LAW format."
+#else  /* ! sparc||sgi */
+       ERROR!
+#endif /* ! sparc||sgi */
+#else  /* ! USE_SOUND */
        "Emacs has not been compiled with sound support."
-# endif
+#endif /* ! USE_SOUND */
        )
      (file, vol)
 {
-
-#ifdef USE_SPARC_SOUND
+#ifdef USE_SOUND
 
   CHECK_STRING (file, 0);
   if (NILP (vol)) vol = Vbell_volume;
-  CHECK_NUMBER (vol, 0);
+  CHECK_FIXNUM (vol, 0);
 
   file = Fexpand_file_name (file, Qnil);
   if (Qnil == Ffile_readable_p (file))
@@ -1685,14 +1691,14 @@ specified volume (0-100, default specified by the bell-volume variable)."
   
   play_sound_file (XSTRING(file)->data, XINT(vol));
 
-#endif
+#endif /* USE_SOUIND */
 
   return Qnil;
 }
 
 Lisp_Object Vsound_alist;
 
-#ifdef USE_SPARC_SOUND
+#ifdef USE_SOUND
 int not_on_console; /*set at startup to determine whether we can play sounds*/
 #endif
 
@@ -1708,17 +1714,17 @@ See the variable sound-alist.")
   int looking_for_default = 0;
 
  TRY_AGAIN:
-    while (!NILP (sound) && XTYPE (sound) == Lisp_Symbol && !EQ (sound, Qt)) {
+    while (!NILP (sound) && SYMBOLP (sound) && !EQ (sound, Qt)) {
       sound = Fcdr (Fassq (sound, Vsound_alist));
       /* allow (name foo) as well as (name . foo) */
-      if (XTYPE (sound) == Lisp_Cons)
+      if (CONSP (sound))
 	if (NILP (Fcdr (sound))) {
 	  sound = Fcar (sound);
-	} else if (XTYPE (Fcar (Fcdr (sound))) == Lisp_Int
+	} else if (FIXNUMP (Fcar (Fcdr (sound)))
 		   && NILP (Fcdr (Fcdr (sound)))) {
 	  volume = Fcar (Fcdr (sound));
 	  sound = Fcar (sound);
-	} else if (XTYPE (Fcar (sound)) == Lisp_Int
+	} else if (FIXNUMP (Fcar (sound))
 		   && NILP (Fcdr (Fcdr (sound)))) {
 	  volume = Fcar (sound);
 	  sound = Fcar (Fcdr (sound));
@@ -1731,13 +1737,13 @@ See the variable sound-alist.")
     goto TRY_AGAIN;
   }
 
-  if (XTYPE (volume) != Lisp_Int)
+  if (!FIXNUMP (volume))
     volume = Vbell_volume;
   
-#ifdef USE_SPARC_SOUND
+#ifdef USE_SOUND
   if (not_on_console) sound = Qt;
 
-  if (XTYPE (sound) != Lisp_String)
+  if (!STRINGP (sound))
     {
       if (beep_hook) (*beep_hook) (XINT (volume));
     }
@@ -1809,7 +1815,7 @@ Used by `featurep' and `require', and altered by `provide'.");
     "An alist associating symbols with strings of audio-data.\n\
 When `beep' or `ding' is called with one of the symbols, the associated\n\
 sound data will be played instead of the standard beep.  This only works\n\
-if you are logged in on the console of a SparcStation.\n\
+if you are logged in on the console of a Sun SparcStation or SGI machine.\n\
 \n\
 Elements of this list should be of one of the following forms:\n\
 \n\
@@ -1832,7 +1838,7 @@ not running on the console of a Sun4.\n\
 You should probably add things to this list by calling the function\n\
 load-sound-file.\n\
 \n\
-The following beep-types are used by the emacs itself:\n\
+The following beep-types are used by emacs itself:\n\
 \n\
     auto-save-error	when an auto-save does not succeed\n\
     command-error	when the emacs command loop catches an error\n\
@@ -1847,7 +1853,7 @@ the C kernel of emacs uses.");
   Vsound_alist = Qnil;
   defsubr (&Splay_sound_file);
   defsubr (&Splay_sound);
-#ifdef USE_SPARC_SOUND
+#ifdef USE_SOUND
   not_on_console = 0;	/* set by X startup code */
 #endif
   beep_hook = 0	;	/* set by X startup code */

@@ -1,11 +1,11 @@
 /* Header file for the buffer manipulation primitives.
-   Copyright (C) 1985, 1986 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -295,7 +295,7 @@ whatever you like.  */
 #define BUFFER_REALLOC(data,size) ((unsigned char *) r_re_alloc (&data, (size)))
 #define BUFFER_FREE(data) (r_alloc_free (&data))
 #else
-#define BUFFER_ALLOC(data,size) (data = (unsigned char *) malloc ((size)))
-#define BUFFER_REALLOC(data,size) ((unsigned char *) realloc ((data), (size)))
+#define BUFFER_ALLOC(data,size) (data = (unsigned char *) xmalloc ((size)))
+#define BUFFER_REALLOC(data,size) ((unsigned char *) xrealloc ((data), (size)))
 #define BUFFER_FREE(data) (free ((data)))
 #endif

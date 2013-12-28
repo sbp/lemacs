@@ -1,11 +1,11 @@
 ;; Basic lisp subroutines for Emacs
-;; Copyright (C) 1985, 1986 Free Software Foundation, Inc.
+;; Copyright (C) 1985, 1986, 1992 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -18,7 +18,11 @@
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
 (defun load-sound-file (filename sound-name &optional volume)
-  "Read in an audio-file and add it to the sound-alist."
+  "Read in an audio-file and add it to the sound-alist.
+
+You can only play sound files if you are running on display 0 of the console
+of a Sun SparcStation or an SGI machine.  The sound file must be in the
+Sun/NeXT U-LAW format."
   (interactive "fSound file name: \n\
 SSymbol to name this sound: \n\
 nVolume (0 for default): ")
@@ -46,7 +50,7 @@ nVolume (0 for default): ")
 
 (defun load-default-sounds ()
   "Load and install some sound files as beep-types.
-This only works if you're on display 0 of a Sun SparcStation."
+This only works if you're on display 0 of a Sun SparcStation or SGI machine."
   (interactive)
   (message "Loading sounds...")
   (setq sound-alist nil)

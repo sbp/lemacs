@@ -1,11 +1,11 @@
 /* Terminal control module for terminals described by TERMCAP
-   Copyright (C) 1985, 1986, 1987 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1987, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -422,6 +422,8 @@ ring_bell (sound)
 void
 set_terminal_modes ()
 {
+  if (egetenv ("DISPLAY") && !inhibit_window_system)
+    return;
   if (CHECK_HOOK (set_terminal_modes_hook))
     {
       (*set_terminal_modes_hook) ();
@@ -1204,9 +1206,9 @@ term_init (terminal_type)
     fatal ("Terminal type %s is not defined.\n", (int)terminal_type, 0);
 
 #ifdef TERMINFO
-  combuf = (char *) malloc (2044);
+  combuf = (char *) xmalloc (2044);
 #else
-  combuf = (char *) malloc (strlen (tbuf));
+  combuf = (char *) xmalloc (strlen (tbuf));
 #endif /* not TERMINFO */
   if (combuf == 0)
     abort ();
@@ -1403,39 +1405,32 @@ term_init (terminal_type)
   ScreenCols = SCREEN_WIDTH (selected_screen);
   specified_window = SCREEN_HEIGHT (selected_screen);
 
+  if (egetenv ("DISPLAY") && !inhibit_window_system)
+    return;
+
   if (Wcm_init () == -1)	/* can't do cursor motion */
-#ifdef INVISIBLE_TERMINAL_KLUDGE
-    if (egetenv ("DISPLAY") && !inhibit_window_system)
-      {
-#ifdef MAINTAIN_ENVIRONMENT
-	set_environment_alist (build_string ("TERM"),
-			       build_string("invisible"));
-	set_environment_alist (build_string ("TERMCAP"),
-			       build_string("invisible:cm=:co#80:li#24:"));
-#else
-	putenv("TERM=invisible");
-	putenv("TERMCAP=invisible:cm=:co#80:li#24:");
-#endif
-	term_init ("invisible");
-	return;
-      }
-    else
-#endif
+    {
+
+      /* #### */
+      fatal ("Sorry, this Emacs only works under X for now\n\
+Check that your $DISPLAY environment variable is properly set.\n");
+
 #ifdef VMS
-    fatal ("Terminal type \"%s\" is not powerful enough to run Emacs.\n\
+      fatal ("Terminal type \"%s\" is not powerful enough to run Emacs.\n\
 It lacks the ability to position the cursor.\n\
 If that is not the actual type of terminal you have, use either the\n\
 DCL command `SET TERMINAL/DEVICE= ...' for DEC-compatible terminals,\n\
 or `define EMACS_TERM \"terminal type\"' for non-DEC terminals.\n",
-           (int)terminal_type);
+	     (int)terminal_type);
 #else
-    fatal ("Terminal type \"%s\" is not powerful enough to run Emacs.\n\
+      fatal ("Terminal type \"%s\" is not powerful enough to run Emacs.\n\
 It lacks the ability to position the cursor.\n\
 If that is not the actual type of terminal you have,\n\
 use the C-shell command `setenv TERM ...' to specify the correct type.\n\
 It may be necessary to do `unsetenv TERMCAP' as well.\n",
-	   (int)terminal_type, 0);
+	     (int)terminal_type, 0);
 #endif
+    }
   if (SCREEN_HEIGHT (selected_screen) <= 0
       || SCREEN_WIDTH (selected_screen) <= 0)
     fatal ("The screen size has not been specified.", 0, 0);

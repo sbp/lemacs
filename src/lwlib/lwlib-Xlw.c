@@ -35,7 +35,7 @@ pre_hook (Widget w, caddr_t client_data, caddr_t call_data)
     return;
 
   if (instance->info->pre_activate_cb)
-    instance->info->pre_activate_cb (w, NULL);
+    instance->info->pre_activate_cb (w, instance->info->id, NULL);
 }
 
 static void
@@ -50,10 +50,10 @@ pick_hook (Widget w, caddr_t client_data, caddr_t call_data)
 
   if (instance->info->selection_cb && val && val->enabled
       && !val->contents)
-    instance->info->selection_cb (w, val->call_data);
+    instance->info->selection_cb (w, instance->info->id, val->call_data);
 
   if (instance->info->post_activate_cb)
-    instance->info->post_activate_cb (w, NULL);
+    instance->info->post_activate_cb (w, instance->info->id, NULL);
 }
 
 /* creation functions */
@@ -100,12 +100,19 @@ xlw_creation_table [] =
 Boolean
 lw_lucid_widget_p (Widget widget)
 {
-  return True;
+  WidgetClass the_class = XtClass (widget);
+  if (the_class == xlwMenuWidgetClass)
+    return True;
+  if (the_class == overrideShellWidgetClass)
+    return
+      XtClass (((CompositeWidget)widget)->composite.children [0])
+	== xlwMenuWidgetClass;
+  return False;
 }
 
 void
 xlw_update_one_widget (widget_instance* instance, Widget widget,
-		       widget_value* val)
+		       widget_value* val, Boolean deep_p)
 {
   XlwMenuWidget mw;
 
@@ -121,6 +128,11 @@ xlw_update_one_value (widget_instance* instance, Widget widget,
 		      widget_value* val)
 {
   return;
+}
+
+void
+xlw_pop_instance (widget_instance* instance, Boolean up)
+{
 }
 
 void
@@ -146,5 +158,13 @@ xlw_popup_menu (Widget widget)
 		 &dummy.x, &dummy.y, &dummy.state);
 
   pop_up_menu (mw, &dummy);
+}
+
+/* Destruction of instances */
+void
+xlw_destroy_instance (widget_instance* instance)
+{
+  if (instance->widget)
+    XtDestroyWidget (instance->widget);
 }
 

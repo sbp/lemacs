@@ -1,11 +1,11 @@
 /* Lisp functions for making directory listings.
-   Copyright (C) 1985, 1986 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -192,7 +192,7 @@ Returns nil if DIR contains no name starting with FILE.")
      a directory name and has supplied one ending in a /.
      We would not want to add anything in that case
      even if there are some unique characters in that directory.  */
-  if (XTYPE (file) == Lisp_String && XSTRING (file)->size == 0)
+  if (STRINGP (file) && XSTRING (file)->size == 0)
     return file;
   return file_name_completion (file, dirname, 0, 0);
 }
@@ -305,7 +305,7 @@ file_name_completion (file, dirname, all_flag, ver_flag)
 		     CONSP (tem); tem = XCONS (tem)->cdr)
 		  {
 		    elt = XCONS (tem)->car;
-		    if (XTYPE (elt) != Lisp_String) continue;
+		    if (!STRINGP (elt)) continue;
 		    skip = len - XSTRING (elt)->size;
 		    if (skip < 0) continue;
 

@@ -1,5 +1,5 @@
 ;;;; gmhist-app.el - applications of gmhist for some standard commands
-;;;; $Id: gmhist-app.el,v 4.16 1992/05/20 05:30:09 jwz Exp $
+;;;; Id: gmhist-app.el,v 4.16 1992/02/26 14:32:27 sk RelBeta 
 
 ;;;; The following commands are redefined to get history:
 ;;;;     keep-lines

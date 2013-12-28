@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Tue May 19 23:00:50 1992
-;;; from file /cadillac-th/jwz/emacs19/lisp/dired/gmhist.el
-;;; emacs version 19.0.16 Lucid.
-;;; bytecomp version 2.06; 17-may-92.
+;;; compiled by jwz@watergate on Tue Aug 18 17:15:31 1992
+;;; from file /wg1/emacs-base/lisp/dired/gmhist.el
+;;; emacs version 19.2.2 Lucid.
+;;; bytecomp version 2.08;  7-aug-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -10,8 +10,8 @@
 	     (string-lessp emacs-version "19")))
     (error "This file was compiled for Emacs19."))
 
-(defconst gmhist-version (substring "$Revision: 4.27 $" 11 -2) "\
-$Id: gmhist.el,v 4.27 1992/05/20 05:25:08 jwz Exp $
+(defconst gmhist-version (substring "!Revision: 4.27 !" 11 -2) "\
+Id: gmhist.el,v 4.27 1992/04/20 17:17:47 sk RelBeta 
 Report bugs to Sebastian Kremer <sk@thp.uni-koeln.de>.")
 (byte-code "ÀÁ!ˆÂÃ!¬‡ÅÆOÇšÀ‡" [provide gmhist boundp gmhist-emacs-19-p emacs-version 0 2 "19"] 3)
 (defvar gmhist-default-format "[%s] " "\

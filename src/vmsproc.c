@@ -1,11 +1,11 @@
 /* Interfaces to subprocesses on VMS.
-   Copyright (C) 1988 Free Software Foundation, Inc.
+   Copyright (C) 1988, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -393,7 +393,7 @@ child_setup (in, out, err, new_argv, env)
   close_process_descs ();
 #endif
 
-  if (XTYPE (current_buffer->directory) == Lisp_String)
+  if (STRINGP (current_buffer->directory))
     chdir (XSTRING (current_buffer->directory)->data);
 }
 
@@ -497,7 +497,7 @@ if you quit, the process is killed.")
     status = get_pty_channel (inDevName, outDevName, &inchannel, &outchannel);
     if (!(status & 1))
       error ("Error getting PTY channel: %x", status);
-    if (XTYPE (buffer) == Lisp_Int)
+    if (FIXNUMP (buffer))
       {
 	dout.l = strlen ("NLA0:");
 	dout.a = "NLA0:";
@@ -536,7 +536,7 @@ if you quit, the process is killed.")
   /*
       Start a read on the process channel
   */
-  if (XTYPE (buffer) != Lisp_Int)
+  if (!FIXNUMP (buffer))
     {
       start_vms_process_read (vs);
       SpawnFlags = CLI$M_NOWAIT;
@@ -565,7 +565,7 @@ if you quit, the process is killed.")
     }
   pid = vs->pid;
 
-  if (XTYPE (buffer) == Lisp_Int)
+  if (FIXNUMP (buffer))
     {
 #ifndef subprocesses
       wait_without_blocking ();
@@ -577,7 +577,7 @@ if you quit, the process is killed.")
 			 Fcons (make_number (fd[0]), make_number (pid)));
 
 
-  if (XTYPE (buffer) == Lisp_Buffer)
+  if (BUFFERP (buffer))
     Fset_buffer (buffer);
 
   immediate_quit = 1;

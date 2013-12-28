@@ -39,7 +39,7 @@ struct backtrace *backtrace_list;
 struct catchtag *catchlist;
 
 Lisp_Object Qautoload, Qmacro, Qexit, Qinteractive, Qcommandp, Qdefun;
-Lisp_Object Vquit_flag, Vinhibit_quit;
+Lisp_Object Vquit_flag, Vinhibit_quit, Qinhibit_quit;
 Lisp_Object Qmocklisp_arguments, Vmocklisp_arguments, Qmocklisp;
 Lisp_Object Qand_rest, Qand_optional;
 Lisp_Object Qeval;
@@ -102,7 +102,8 @@ extern Lisp_Object ml_apply ();    /* Apply a mocklisp function to
 init_eval_once ()
 {
   specpdl_size = 50;
-  specpdl = (struct specbinding *) malloc (specpdl_size * sizeof (struct specbinding));
+  specpdl = (struct specbinding *)
+    xmalloc (specpdl_size * sizeof (struct specbinding));
   max_specpdl_size = 600;
   max_lisp_eval_depth = 200;
 }
@@ -272,7 +273,7 @@ DEFUN ("progn", Fprogn, Sprogn, 0, UNEVALLED, 0,
   if (!EQ (Vmocklisp_arguments, Qt))
     {
       val = make_number (0);
-      while (!NILP (args) && (tem = Fcar (args), XTYPE (tem) == Lisp_Symbol))
+      while (!NILP (args) && (tem = Fcar (args), SYMBOLP (tem)))
 	{
 	  QUIT;
 	  specbind (tem, val), args = Fcdr (args);
@@ -429,7 +430,7 @@ and input is currently coming from the keyboard (not in keyboard macro).")
       (if interpreted) or the frame of byte-code (if called from
       compiled function).  */
   btp = backtrace_list;
-  if (! (XTYPE (*btp->function) == Lisp_Compiled))
+  if (! (COMPILEDP (*btp->function)))
     btp = btp->next;
   for (;
        btp && (btp->nargs == UNEVALLED
@@ -441,7 +442,7 @@ and input is currently coming from the keyboard (not in keyboard macro).")
      If it is a built-in function (such as load or eval-region)
      return nil.  */
   fun = *btp->function;
-  while (XTYPE (fun) == Lisp_Symbol)
+  while (SYMBOLP (fun))
     {
       QUIT;
       fun = Fsymbol_function (fun);
@@ -449,7 +450,7 @@ and input is currently coming from the keyboard (not in keyboard macro).")
   /* Beats me why this is necessary, but it is */
   if (btp && EQ (*btp->function, Qcall_interactively))
     return Qt;
-  if (XTYPE (fun) == Lisp_Subr)
+  if (SUBRP (fun))
     return Qnil;
   /* btp points to the frame of a Lisp function that called interactive-p.
      Return t if that function was called interactively.  */
@@ -572,9 +573,9 @@ for the variable is \"*\"")
   Lisp_Object documentation;
   
   documentation = Fget (variable, Qvariable_documentation);
-  if (XTYPE (documentation) == Lisp_Int && XINT (documentation) < 0)
+  if (FIXNUMP (documentation) && XINT (documentation) < 0)
     return Qt;
-  if ((XTYPE (documentation) == Lisp_String) &&
+  if ((STRINGP (documentation)) &&
       ((unsigned char) XSTRING (documentation)->data[0] == '*'))
     return Qt;
   return Qnil;
@@ -600,7 +601,7 @@ Each VALUEFORM can refer to the symbols already bound by this VARLIST.")
     {
       QUIT;
       elt = Fcar (varlist);
-      if (XTYPE (elt) == Lisp_Symbol)
+      if (SYMBOLP (elt))
 	specbind (elt, Qnil);
       else
 	{
@@ -645,7 +646,7 @@ All the VALUEFORMs are evalled before any symbols are bound.")
     {
       QUIT;
       elt = Fcar (varlist);
-      if (XTYPE (elt) == Lisp_Symbol)
+      if (SYMBOLP (elt))
 	temps [argnum++] = Qnil;
       else
 	temps [argnum++] = Feval (Fcar (Fcdr (elt)));
@@ -658,7 +659,7 @@ All the VALUEFORMs are evalled before any symbols are bound.")
     {
       elt = Fcar (varlist);
       tem = temps[argnum++];
-      if (XTYPE (elt) == Lisp_Symbol)
+      if (SYMBOLP (elt))
 	specbind (elt, tem);
       else
 	specbind (Fcar (elt), tem);
@@ -712,14 +713,14 @@ definitions to shadow the loaded ones for use in file byte-compilation.")
     {
       /* Come back here each time we expand a macro call,
 	 in case it expands into another macro call.  */
-      if (XTYPE (form) != Lisp_Cons)
+      if (!CONSP (form))
 	break;
       /* Set SYM, give DEF and TEM right values in case SYM is not a symbol. */
       def = sym = XCONS (form)->car;
       tem = Qnil;
       /* Trace symbols aliases to other symbols
 	 until we get a symbol that is not an alias.  */
-      while (XTYPE (def) == Lisp_Symbol)
+      while (SYMBOLP (def))
 	{
 	  QUIT;
 	  sym = def;
@@ -739,7 +740,7 @@ definitions to shadow the loaded ones for use in file byte-compilation.")
 	  /* SYM is not mentioned in ENV.
 	     Look at its function definition.  */
 	  if (EQ (def, Qunbound)
-	      || XTYPE (def) != Lisp_Cons)
+	      || !CONSP (def))
 	    /* Not defined or definition not suitable */
 	    break;
 	  if (EQ (XCONS (def)->car, Qautoload))
@@ -956,7 +957,7 @@ See also the function `signal' for more info.")
     {
       tem = Fcar (val);
       if ((!NILP (tem)) &&
-	  (!CONSP (tem) || (XTYPE (XCONS (tem)->car) != Lisp_Symbol)))
+	  (!CONSP (tem) || (!SYMBOLP (XCONS (tem)->car))))
 	error ("Invalid condition handler", tem);
     }
   
@@ -1140,29 +1141,29 @@ Also, a symbol satisfies `commandp' if its function definition does so.")
   register int i = 0;
 
   fun = function;
-  while (XTYPE (fun) == Lisp_Symbol)
+  while (SYMBOLP (fun))
     {
       if (++i > 10) return Qnil;
       tem = Ffboundp (fun);
       if (NILP (tem)) return Qnil;
       fun = Fsymbol_function (fun);
     }
-  if (XTYPE (fun) == Lisp_Subr)
+  if (SUBRP (fun))
     {
       if (XSUBR (fun)->prompt)
 	return Qt;
       else
 	return Qnil;
     }
-  else if (XTYPE (fun) == Lisp_Compiled)
+  else if (COMPILEDP (fun))
     return (XVECTOR (fun)->size > COMPILED_INTERACTIVE
 	    ? Qt : Qnil);
-  if (XTYPE (fun) == Lisp_Vector || XTYPE (fun) == Lisp_String)
+  if (VECTORP (fun) || STRINGP (fun))
     return Qt;
   if (!CONSP (fun))
     return Qnil;
   funcar = Fcar (fun);
-  if (XTYPE (funcar) != Lisp_Symbol)
+  if (!SYMBOLP (funcar))
     return Fsignal (Qinvalid_function, Fcons (fun, Qnil));
   if (EQ (funcar, Qlambda))
     return Fassq (Qinteractive, Fcdr (Fcdr (fun)));
@@ -1197,7 +1198,7 @@ this does nothing and returns nil.")
 
   /* If function is defined and not as an autoload, don't override */
   if (!EQ (XSYMBOL (function)->function, Qunbound)
-      && !(XTYPE (XSYMBOL (function)->function) == Lisp_Cons
+      && !(CONSP (XSYMBOL (function)->function)
 	   && EQ (XCONS (XSYMBOL (function)->function)->car, Qautoload)))
     return Qnil;
 
@@ -1254,7 +1255,7 @@ do_autoload (fundef, funname)
   Vautoload_queue = Qt;
   unbind_to (count);
 
-  while (XTYPE (fun) == Lisp_Symbol)
+  while (SYMBOLP (fun))
     {
       QUIT;
       val = XSYMBOL (fun)->function;
@@ -1262,7 +1263,7 @@ do_autoload (fundef, funname)
 	Fsymbol_function (fun);	/* Get the right kind of error! */
       fun = val;
     }
-  if (XTYPE (fun) == Lisp_Cons
+  if (CONSP (fun)
       && EQ (XCONS (fun)->car, Qautoload))
     error ("Autoloading failed to define function %s",
 	   (int)XSYMBOL (funname)->name->data, 0, 0);
@@ -1278,7 +1279,7 @@ DEFUN ("eval", Feval, Seval, 1, 1, 0,
   struct backtrace backtrace;
   struct gcpro gcpro1, gcpro2, gcpro3;
 
-  if (XTYPE (form) == Lisp_Symbol)
+  if (SYMBOLP (form))
     {
       if (EQ (Vmocklisp_arguments, Qt))
         return Fsymbol_value (form);
@@ -1329,7 +1330,7 @@ DEFUN ("eval", Feval, Seval, 1, 1, 0,
      have values that will be used below */
  retry:
   fun = original_fun;
-  while (XTYPE (fun) == Lisp_Symbol)
+  while (SYMBOLP (fun))
     {
       QUIT;
       val = XSYMBOL (fun)->function;
@@ -1338,7 +1339,7 @@ DEFUN ("eval", Feval, Seval, 1, 1, 0,
       fun = val;
     }
 
-  if (XTYPE (fun) == Lisp_Subr)
+  if (SUBRP (fun))
     {
       Lisp_Object numargs;
       Lisp_Object argvals[7];
@@ -1436,14 +1437,14 @@ DEFUN ("eval", Feval, Seval, 1, 1, 0,
 	  goto done;
 	}
     }
-  if (XTYPE (fun) == Lisp_Compiled)
+  if (COMPILEDP (fun))
     val = apply_lambda (fun, original_args, 1);
   else
     {
       if (!CONSP (fun))
 	return Fsignal (Qinvalid_function, Fcons (fun, Qnil));
       funcar = Fcar (fun);
-      if (XTYPE (funcar) != Lisp_Symbol)
+      if (!SYMBOLP (funcar))
 	return Fsignal (Qinvalid_function, Fcons (fun, Qnil));
       if (EQ (funcar, Qautoload))
 	{
@@ -1505,7 +1506,7 @@ Thus, (apply '+ 1 2 '(3 4)) returns 10.")
 
   numargs = nargs - 2 + numargs;
 
-  while (XTYPE (fun) == Lisp_Symbol)
+  while (SYMBOLP (fun))
     {
       QUIT;
       fun = XSYMBOL (fun)->function;
@@ -1517,7 +1518,7 @@ Thus, (apply '+ 1 2 '(3 4)) returns 10.")
 	}
     }
 
-  if (XTYPE (fun) == Lisp_Subr)
+  if (SUBRP (fun))
     if (numargs < XSUBR (fun)->min_args ||
 	(XSUBR (fun)->max_args >= 0 && XSUBR (fun)->max_args < numargs))
       goto funcall;		/* Let funcall get the error */
@@ -1678,7 +1679,7 @@ int
 btl_symbol_id_number (sym)
      Lisp_Object sym;
 {
-  if (XTYPE (sym) == Lisp_Symbol)
+  if (SYMBOLP (sym))
     {
       extern Lisp_Object VBTL_id_tag;
       register Lisp_Object tag = VBTL_id_tag;
@@ -1686,7 +1687,7 @@ btl_symbol_id_number (sym)
       int foundp = 0;
     
       BTL_GET (sym, tag, id, foundp);
-      if (foundp && (XTYPE (id) == Lisp_Int))
+      if (foundp && (FIXNUMP (id)))
         {
           int id_number = XINT(id);
           if (id_number > 0)
@@ -1759,7 +1760,7 @@ Thus,  (funcall 'cons 'x 'y)  returns  (x . y).")
   }
 #endif
 
-  while (XTYPE (fun) == Lisp_Symbol)
+  while (SYMBOLP (fun))
     {
       QUIT;
       val = XSYMBOL (fun)->function;
@@ -1768,7 +1769,7 @@ Thus,  (funcall 'cons 'x 'y)  returns  (x . y).")
       fun = val;
     }
 
-  if (XTYPE (fun) == Lisp_Subr)
+  if (SUBRP (fun))
     {
       if (numargs < XSUBR (fun)->min_args
 	  || (XSUBR (fun)->max_args >= 0 && XSUBR (fun)->max_args < numargs))
@@ -1831,14 +1832,14 @@ Thus,  (funcall 'cons 'x 'y)  returns  (x . y).")
 	  error ("funcall: this number of args not handled.", 0, 0, 0);
 	}
     }
-  if (XTYPE (fun) == Lisp_Compiled)
+  if (COMPILEDP (fun))
     val = funcall_lambda (fun, numargs, args + 1);
   else
     {
       if (!CONSP (fun))
 	return Fsignal (Qinvalid_function, Fcons (fun, Qnil));
       funcar = Fcar (fun);
-      if (XTYPE (funcar) != Lisp_Symbol)
+      if (!SYMBOLP (funcar))
 	return Fsignal (Qinvalid_function, Fcons (fun, Qnil));
       if (EQ (funcar, Qlambda))
 	val = funcall_lambda (fun, numargs, args + 1);
@@ -1928,9 +1929,9 @@ funcall_lambda (fun, nargs, arg_vector)
 
   XFASTINT (numargs) = nargs;
 
-  if (XTYPE (fun) == Lisp_Cons)
+  if (CONSP (fun))
     syms_left = Fcar (Fcdr (fun));
-  else if (XTYPE (fun) == Lisp_Compiled)
+  else if (COMPILEDP (fun))
     syms_left = XVECTOR (fun)->contents[COMPILED_ARGLIST];
   else abort ();
 
@@ -1962,7 +1963,7 @@ funcall_lambda (fun, nargs, arg_vector)
   if (i < nargs)
     return Fsignal (Qwrong_number_of_arguments, Fcons (fun, Fcons (numargs, Qnil)));
 
-  if (XTYPE (fun) == Lisp_Cons)
+  if (CONSP (fun))
     val = Fprogn (Fcdr (Fcdr (fun)));
   else
     val = Fbyte_code (XVECTOR (fun)->contents[COMPILED_BYTECODE],
@@ -2100,7 +2101,7 @@ The debugger is entered when that frame exits, if the flag is non-nil.")
   register struct backtrace *backlist = backtrace_list;
   register int i;
 
-  CHECK_NUMBER (level, 0);
+  CHECK_FIXNUM (level, 0);
 
   for (i = 0; backlist && i < XINT (level); i++)
     {
@@ -2227,6 +2228,8 @@ if that proves inconveniently small.");
 Typing C-G sets `quit-flag' non-nil, regardless of `inhibit-quit'.");
   Vquit_flag = Qnil;
 
+  Qinhibit_quit = intern ("inhibit-quit");
+  staticpro (&Qinhibit_quit);
   DEFVAR_LISP ("inhibit-quit", &Vinhibit_quit,
     "Non-nil inhibits C-g quitting from happening immediately.\n\
 Note that `quit-flag' will still be set by typing C-g,\n\

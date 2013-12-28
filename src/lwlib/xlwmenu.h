@@ -10,6 +10,8 @@
 #include "lwlib.h"
 
 /* Resource names used by the XlwMenu widget */
+#define XtNbuttonForeground "buttonForeground"
+#define XtCButtonForeground "ButtonForeground"
 #define XtNmargin "margin"
 #define XtNhorizontalSpacing "horizontalSpacing"
 #define XtNverticalSpacing "verticalSpacing"

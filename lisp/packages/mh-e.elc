@@ -1,7 +1,7 @@
-;;; compiled by devin@watergate on Sat May 16 14:12:32 1992
-;;; from file /wg1/emacs-base/lisp/mh-e.el
-;;; emacs version 19.0.16 Lucid.
-;;; bytecomp version 2.06; 23-apr-92.
+;;; compiled by jwz@thalidomide on Tue Jun 30 22:35:56 1992
+;;; from file /wg1/emacs-base/lisp/packages/mh-e.el
+;;; emacs version 19.2.1 Lucid.
+;;; bytecomp version 2.07; 17-jun-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -10,7 +10,7 @@
 	     (string-lessp emacs-version "19")))
     (error "This file was compiled for Emacs19."))
 
-(byte-code "ÀÂÃ!‡" ["$Header: mh-e.el,v 1.1 91/03/20 23:43:19 eb Exp $" mh-e-RCS-id provide mh-e] 2)
+(byte-code "ÀÂÃ!‡" ["$Header: /cadillac-inferno-5/cvs-master/lemacs/lisp/packages/mh-e.el,v 1.1.1.1 1992/06/29 22:30:47 devin Exp $" mh-e-RCS-id provide mh-e] 2)
 (defvar mh-redist-full-contents t "\
 Non-nil if the `dist' command needs whole letter for redistribution.
 This is the case when `send' is compiled with the BERK option.")
@@ -138,7 +138,7 @@ Name of the unseen sequence.")
 Window configuration before mh-e command.")
 (defvar mh-previous-seq nil "\
 Name of the sequence to which a message was last added.")
-(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÇM‡" [mh-push (macro . #[(v l) "À	Â	EE‡" [setq l cons v] 5]) mh-when (macro . #[(pred &rest body) "À	\nBD‡" [cond pred body] 3]) with-mh-folder-updating (macro . #[(save-modification-flag-p &rest body) "@ÁÂÃÄÅ\"«ƒÇªÈEE‡" [save-modification-flag-p let ((folder-updating-mod-flag (buffer-modified-p))) prog1 append (let ((buffer-read-only nil) (buffer-file-name nil))) body (mh-set-folder-modified-p folder-updating-mod-flag) (mh-set-folder-modified-p nil)] 6]) mh-mapc #[(func list) "­Œ	@!ˆA‰¬uÂ‡" [list func nil] 3]] 2)
+(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÇM‡" [mh-push (macro . #[(v l) "À	Â	EE‡" [setq l cons v] 5]) mh-when (macro . #[(pred &rest body) "À	\nBD‡" [cond pred body] 3]) with-mh-folder-updating (macro . #[(save-modification-flag-p &rest body) "@ÁÂÃÁÄBB«ƒÆªÇEE‡" [save-modification-flag-p let ((folder-updating-mod-flag (buffer-modified-p))) prog1 ((buffer-read-only nil) (buffer-file-name nil)) body (mh-set-folder-modified-p folder-updating-mod-flag) (mh-set-folder-modified-p nil)] 6]) mh-mapc #[(func list) "­Œ	@!ˆA‰¬uÂ‡" [list func nil] 3]] 2)
 (fset 'mh-rmail #[(&optional arg) "À ˆ	«„ÂÃ!‡Ä ‡" [mh-find-path arg call-interactively mh-visit-folder mh-inc-folder] 2 "\
 Inc(orporate) new mail (no arg) or scan a MH mail box (arg given).
 This front end uses the MH mail system, which uses different conventions

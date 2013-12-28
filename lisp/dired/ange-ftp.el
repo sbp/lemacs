@@ -2,11 +2,11 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 ;; File:         ange-ftp.el
-;; RCS:          $Header: /wg1/emacs-base/lisp/dired/RCS/ange-ftp.el,v 4.11 1992/06/09 19:26:54 jwz Exp $
+;; RCS:          Header: ange-ftp.el,v 4.20 92/08/14 17:04:34 ange Exp
 ;; Description:  transparent FTP support for GNU Emacs
 ;; Author:       Andy Norman, ange@hplb.hpl.hp.com
 ;; Created:      Thu Oct 12 14:00:05 1989
-;; Modified:     Mon Jun  8 17:15:46 1992 (Ange) ange@anorman
+;; Modified:     Fri Aug 14 17:03:57 1992 (Ange) ange@anorman
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -143,7 +143,8 @@
 ;;; message on what they are doing.  In addition, ange-ftp can take advantage
 ;;; of the FTP client's HASH command to display the status of transferring
 ;;; files and listing directories.  See the documentation for the variables
-;;; ange-ftp-hash-mark-size and ange-ftp-process-verbose for more details.
+;;; ange-ftp-{ascii,binary}-hash-mark-size, ange-ftp-send-hash and
+;;; ange-ftp-process-verbose for more details.
 
 ;;; Gateways:
 ;;;
@@ -563,7 +564,7 @@
 ;;;    LCD Archive Entry:
 ;;;    ange-ftp|Andy Norman|ange@hplb.hpl.hp.com
 ;;;    |transparent FTP Support for GNU Emacs
-;;;    |$Date: 1992/06/09 19:26:54 $|$Revision: 4.11 $|
+;;;    |Date: 92/08/14 17:04:34 |Revision: 4.20 |
 
 ;;; Checklist for adding non-UNIX support for TYPE
 ;;; 
@@ -729,18 +730,25 @@ initiated and that the FTP process should (or already has) been killed.")
   "*Regular expression matching messages from the rlogin / telnet process that
 indicates that logging in to the gateway machine has gone wrong.")
 
+(defvar ange-ftp-xfer-size-msgs
+  "^150 .* connection for .* (\\([0-9]+\\) bytes)"
+  "*Regular expression used to determine the number of bytes in a FTP transfer.")
+
 (defvar ange-ftp-tmp-name-template "/tmp/ange-ftp"
-  "*Template given to make-temp-name to create temporary files.")
+  "*Template used to create temporary files.")
 
 (defvar ange-ftp-gateway-tmp-name-template "/tmp/ange-ftp"
-  "*Template given to make-temp-name to create temporary files when
-ftp-ing through a gateway.  Files starting with this prefix need to
-be accessible from BOTH the local machine and the gateway machine, 
-and need to have the SAME name on both machines, that is, /tmp is probably
-NOT what you want, since that is rarely cross-mounted.")
+  "*Template used to create temporary files when ftp-ing through a gateway.
+Files starting with this prefix need to be accessible from BOTH the local
+machine and the gateway machine, and need to have the SAME name on both
+machines, that is, /tmp is probably NOT what you want, since that is rarely
+cross-mounted.")
 
 (defvar ange-ftp-netrc-filename "~/.netrc"
   "*File in .netrc format to search for passwords.")
+
+(defvar ange-ftp-disable-netrc-security-check nil
+  "*If non-nil avoid checking permissions on the .netrc file.")
 
 (defvar ange-ftp-default-user nil
   "*User name to use when none is specied in a pathname.
@@ -807,9 +815,19 @@ telnetting etc, just issue a user@host command instead.")
 (defvar ange-ftp-smart-gateway-port "21"
   "*Port on gateway machine to use when smart gateway is in operation.")
 
-(defvar ange-ftp-hash-mark-size 1
-  "*Number of kilobytes represented by the FTP client's #-mark.
-If NIL then don't use #-marks.")
+(defvar ange-ftp-send-hash t
+  "*If non-nil, send the HASH command to the FTP client.")
+
+(defvar ange-ftp-binary-hash-mark-size nil
+  "*Default size, in bytes, between hash-marks when transferring a binary file.
+If NIL, this variable will be locally overridden if the FTP client outputs a
+suitable response to the HASH command.  If non-NIL then this value takes
+precedence over the local value.")
+
+(defvar ange-ftp-ascii-hash-mark-size 1024
+  "*Default size, in bytes, between hash-marks when transferring an ASCII file.
+This variable is buffer-local and will be locally overridden if the FTP client
+outputs a suitable response to the HASH command.")
 
 (defvar ange-ftp-process-verbose t
   "*If non-NIL then be chatty about interaction with the FTP process.")
@@ -906,7 +924,7 @@ SIZE, if supplied, should be a prime number."
 ;;;; Internal variables.
 ;;;; ------------------------------------------------------------
 
-(defconst ange-ftp-version "$Revision: 4.11 $")
+(defconst ange-ftp-version "$Revision: 1.4 $")
 
 (defvar ange-ftp-data-buffer-name " *ftp data*"
   "Buffer name to hold directory listing data received from ftp process.")
@@ -1228,16 +1246,28 @@ found."
     (if (and attr			; file exists.
 	     (not (equal (nth 5 attr) ange-ftp-netrc-modtime)))	; file changed
 	(ange-ftp-save-match-data
-	  (if (and (eq (nth 2 attr) (user-uid)) ; Same uids.
-		   (string-match ".r..------" (nth 8 attr)))
+	  (if (or ange-ftp-disable-netrc-security-check
+		  (and (eq (nth 2 attr) (user-uid)) ; Same uids.
+		       (string-match ".r..------" (nth 8 attr))))
 	      (save-excursion
+		;; we are cheating a bit here.  I'm trying to do the equivalent
+		;; of find-file on the .netrc file, but then nuke it afterwards.
+		;; with the bit of logic below we should be able to have
+		;; encrypted .netrc files.
 		(set-buffer (generate-new-buffer "*ftp-.netrc*"))
 		(ange-ftp-real-insert-file-contents file)
+		(setq buffer-file-name file)
+		(setq default-directory (file-name-directory file))
+		(normal-mode t)
+		(mapcar 'funcall find-file-hooks)
+		(setq buffer-file-name nil)
 		(goto-char (point-min))
 		(while (not (eobp))
 		  (ange-ftp-parse-netrc-group))
 		(kill-buffer (current-buffer)))
-	    (ange-ftp-message "skipping badly configured .netrc file"))
+	    (ange-ftp-message "%s either not owned by you or badly protected."
+			      ange-ftp-netrc-filename)
+	    (sit-for 1))
 	  (setq ange-ftp-netrc-modtime (nth 5 attr))))))
 
 (defun ange-ftp-generate-root-prefixes ()
@@ -1315,10 +1345,12 @@ replace the path component with PATH."
 minibuffer will show."
   (if (eq (selected-window) (minibuffer-window))
       (if (fboundp 'allocate-event)
+	  ;; lemacs
 	  (let ((unread-command-event (character-to-event ?\C-m
 							  (allocate-event)))
 		(enable-recursive-minibuffers t))
 	    (read-from-minibuffer "" nil ange-ftp-tmp-keymap nil))
+	;; v18 GNU Emacs
 	(let ((unread-command-char ?\C-m)
 	      (enable-recursive-minibuffers t))
 	  (read-from-minibuffer "" nil ange-ftp-tmp-keymap nil)))))
@@ -1393,7 +1425,13 @@ then kill the related ftp process."
 (defun ange-ftp-process-handle-line (line proc)
   "Look at the given LINE from the ftp process PROC.  Try to catagorize it
 into one of four categories: good, skip, fatal, or unknown."
-  (cond ((string-match ange-ftp-skip-msgs line)
+  (cond ((string-match ange-ftp-xfer-size-msgs line)
+	 (setq ange-ftp-xfer-size
+	       (ash (string-to-int (substring line
+					      (match-beginning 1)
+					      (match-end 1)))
+		    -10)))
+	((string-match ange-ftp-skip-msgs line)
 	 t)
 	((string-match ange-ftp-good-msgs line)
 	 (setq ange-ftp-process-busy nil
@@ -1427,8 +1465,15 @@ associated buffer."
 	  (if moving (goto-char (process-mark proc))))
       (set-buffer old-buffer))))
 
-(defvar ange-ftp-hash-mark-count 0
-  "Number of #-marks seen so far this transaction.")
+(defun ange-ftp-set-xfer-size (host user bytes)
+  "Set the size of the next FTP transfer in bytes."
+  (let ((proc (ange-ftp-get-process host user)))
+    (if proc
+	(let ((buf (process-buffer proc)))
+	  (if buf
+	      (save-excursion
+		(set-buffer buf)
+		(setq ange-ftp-xfer-size (ash bytes -10))))))))
 
 (defun ange-ftp-process-handle-hash (str)
   "Remove hash marks from STRING and display count so far."
@@ -1439,40 +1484,96 @@ associated buffer."
 				    ange-ftp-hash-mark-count))
   (and ange-ftp-process-msg
        ange-ftp-process-verbose
-       (ange-ftp-message "%s...%dk" ange-ftp-process-msg
-			 (* ange-ftp-hash-mark-size
-			    ange-ftp-hash-mark-count)))
+       (not (eq (selected-window) (minibuffer-window)))
+       (not (boundp 'search-message))	;screws up isearch otherwise
+       (not cursor-in-echo-area)	;screws up y-or-n-p otherwise
+       (let ((kbytes (ash (* ange-ftp-hash-mark-unit
+			     ange-ftp-hash-mark-count)
+			  -6)))
+       (if (zerop ange-ftp-xfer-size)
+	   (ange-ftp-message "%s...%dk" ange-ftp-process-msg kbytes)
+	 (let ((percent (/ (* 100 kbytes) ange-ftp-xfer-size)))
+	   ;; cut out the redisplay of identical %-age messages.
+	   (if (not (eq percent ange-ftp-last-percent))
+	       (progn
+		 (setq ange-ftp-last-percent percent)
+		 (ange-ftp-message "%s...%d%%" ange-ftp-process-msg percent)))))))
   str)
+
+(defun ange-ftp-call-cont (cont result line)
+  "Call the function specified by CONT.  CONT can be either a function or a
+list of a function and some args.  The first two parameters passed to the
+function will be RESULT and LINE.  The remaining args will be taken from CONT
+if a list was passed."
+  (if cont
+      (if (and (listp cont)
+	       (not (eq (car cont) 'lambda)))
+	  (apply (car cont) result line (cdr cont))
+	(funcall cont result line))))
 
 (defun ange-ftp-process-filter (proc str)
   "Build up a complete line of output from the ftp PROCESS and pass it
 on to ange-ftp-process-handle-line to deal with."
-  (let ((old-buffer (current-buffer)))
-    (set-buffer (process-buffer proc))
-    (unwind-protect
-	(ange-ftp-save-match-data
-	  ;; handle hash mark printing
-	  (and ange-ftp-hash-mark-size
-	       ange-ftp-process-busy
-	       (string-match "^#+$" str)
-	       (setq str (ange-ftp-process-handle-hash str)))
-	  (ange-ftp-process-log-string proc str)
-	  (if ange-ftp-process-busy
-	      (progn
-		(setq ange-ftp-process-string (concat ange-ftp-process-string str))
-		;; if we gave an empty password to the USER command earlier
-		;; then we should send a null password now.
-		(if (string-match "Password: *$" ange-ftp-process-string)
-		    (send-string proc "\n"))))
-	  (while (and ange-ftp-process-busy
-		      (string-match "\n" ange-ftp-process-string))
-	    (let ((line (substring ange-ftp-process-string 0 (match-beginning 0))))
-	      (setq ange-ftp-process-string (substring ange-ftp-process-string
-						       (match-end 0)))
-	      (while (string-match "^ftp> *" line)
-		(setq line (substring line (match-end 0))))
-	      (ange-ftp-process-handle-line line proc)))))
-    (set-buffer old-buffer)))
+  (let ((buffer (process-buffer proc))
+	(old-buffer (current-buffer)))
+
+    ;; see if the buffer is still around... it could have been deleted.
+    (if (buffer-name buffer)
+	(unwind-protect
+	    (ange-ftp-save-match-data
+	      (set-buffer (process-buffer proc))
+	      
+	      ;; handle hash mark printing
+	      (and ange-ftp-hash-mark-unit
+		   ange-ftp-process-busy
+		   (string-match "^#+$" str)
+		   (setq str (ange-ftp-process-handle-hash str)))
+	      (ange-ftp-process-log-string proc str)
+	      (if ange-ftp-process-busy
+		  (progn
+		    (setq ange-ftp-process-string (concat ange-ftp-process-string
+							  str))
+		    
+		    ;; if we gave an empty password to the USER command earlier
+		    ;; then we should send a null password now.
+		    (if (string-match "Password: *$" ange-ftp-process-string)
+			(send-string proc "\n"))))
+	      (while (and ange-ftp-process-busy
+			  (string-match "\n" ange-ftp-process-string))
+		(let ((line (substring ange-ftp-process-string
+				       0
+				       (match-beginning 0))))
+		  (setq ange-ftp-process-string (substring ange-ftp-process-string
+							   (match-end 0)))
+		  (while (string-match "^ftp> *" line)
+		    (setq line (substring line (match-end 0))))
+		  (ange-ftp-process-handle-line line proc)))
+
+	      ;; has the ftp client finished?  if so then do some clean-up
+	      ;; actions.
+	      (if (not ange-ftp-process-busy)
+		  (progn
+		    ;; reset the xfer size
+		    (setq ange-ftp-xfer-size 0)
+
+		    ;; issue the "done" message since we've finished.
+		    (if (and ange-ftp-process-msg
+			     ange-ftp-process-verbose
+			     ange-ftp-process-result)
+			(progn
+			  (ange-ftp-message "%s...done" ange-ftp-process-msg)
+			  (ange-ftp-repaint-minibuffer)
+			  (setq ange-ftp-process-msg nil)))
+		    
+		    ;; is there a continuation we should be calling?  if so,
+		    ;; we'd better call it, making sure we only call it once.
+		    (if ange-ftp-process-continue
+			(let ((cont ange-ftp-process-continue))
+			  (setq ange-ftp-process-continue nil)
+			  (ange-ftp-call-cont cont
+					      ange-ftp-process-result
+					      ange-ftp-process-result-line))))))
+	  (set-buffer old-buffer)))))
 
 (defun ange-ftp-process-sentinel (proc str)
   "When ftp process changes state, nuke all file-entries in cache."
@@ -1501,12 +1602,49 @@ on to ange-ftp-process-handle-line to deal with."
   (and ange-ftp-smart-gateway
        (ange-ftp-save-match-data
 	 (not (string-match ange-ftp-local-host-regexp host)))))
-       
-(defun ange-ftp-make-tmp-name (host)
-  (make-temp-name (if (ange-ftp-use-gateway-p host)
-		      ange-ftp-gateway-tmp-name-template
-		    ange-ftp-tmp-name-template)))
 
+
+;;; ------------------------------------------------------------
+;;; Temporary file location and deletion...
+;;; ------------------------------------------------------------
+
+(defvar ange-ftp-tmp-name-files ())
+(defvar ange-ftp-tmp-name-hashtable (ange-ftp-make-hashtable 10))
+(defvar ange-ftp-pid nil)
+
+(defun ange-ftp-get-pid ()
+  "Half-hearted attempt to get the current process's id."
+  (setq ange-ftp-pid (substring (make-temp-name "") 1)))
+
+(defun ange-ftp-make-tmp-name (host)
+  "This routine will return the name of a new file."
+  (let* ((template (if (ange-ftp-use-gateway-p host)
+		       ange-ftp-gateway-tmp-name-template
+		     ange-ftp-tmp-name-template))
+	 (pid (or ange-ftp-pid (ange-ftp-get-pid)))
+	 (start ?a)
+	 file entry)
+    (while 
+	(progn
+	  (setq file (format "%s%c%s" template start pid))
+	  (setq entry (intern file ange-ftp-tmp-name-hashtable))
+	  (or (memq entry ange-ftp-tmp-name-files)
+	      (ange-ftp-real-file-exists-p file)))
+      (if (> (setq start (1+ start)) ?z)
+	  (progn
+	    (setq template (concat template "X"))
+	    (setq start ?a))))
+    (setq ange-ftp-tmp-name-files
+	  (cons entry ange-ftp-tmp-name-files))
+    file))
+
+(defun ange-ftp-del-tmp-name (temp)
+  (setq ange-ftp-tmp-name-files
+	(delq (intern temp ange-ftp-tmp-name-hashtable)
+	      ange-ftp-tmp-name-files))
+  (condition-case ()
+      (ange-ftp-real-delete-file temp)
+    (error nil)))
 
 ;;;; ------------------------------------------------------------
 ;;;; Interactive gateway program support.
@@ -1576,22 +1714,30 @@ on to ange-ftp-process-handle-line to deal with."
 ;;;; Support for sending commands to the ftp process.
 ;;;; ------------------------------------------------------------
 
-(defun ange-ftp-raw-send-cmd (proc cmd &optional msg)
+(defun ange-ftp-raw-send-cmd (proc cmd &optional msg cont nowait)
   "Low-level routine to send the given ftp CMD to the ftp PROCESS.
 MSG is an optional message to output before and after the command.
-Returns \( RESULT . LINE \) upon completion; RESULT is whether the command
-was successful, and LINE is the line from the FTP process that caused the
-success or failure."
+If CONT is non-NIL then it is either a function or a list of function and
+some arguments.  The function will be called when the ftp command has completed.
+If CONT is NIL then this routine will return \( RESULT . LINE \) where RESULT
+is whether the command was successful, and LINE is the line from the FTP
+process that caused the command to complete.
+If NOWAIT is given then the routine will return immediately the command has
+been queued with no result.  CONT will still be called, however."
   (if (memq (process-status proc) '(run open))
       (save-excursion
 	(set-buffer (process-buffer proc))
+	(while ange-ftp-process-busy
+	  (accept-process-output))
 	(setq ange-ftp-process-string ""
 	      ange-ftp-process-result-line ""
 	      ange-ftp-process-busy t
 	      ange-ftp-process-result nil
 	      ange-ftp-process-multi-skip nil
 	      ange-ftp-process-msg msg
+	      ange-ftp-process-continue cont
 	      ange-ftp-hash-mark-count 0
+	      ange-ftp-last-percent -1
 	      cmd (concat cmd "\n"))
 	(and msg ange-ftp-process-verbose (ange-ftp-message "%s..." msg))
 	(goto-char (point-max))
@@ -1604,12 +1750,14 @@ success or failure."
 	(move-marker last-input-end (point))
 	(send-string proc cmd)
 	(set-marker (process-mark proc) (point))
-	(while ange-ftp-process-busy
-	  (accept-process-output proc))
-	(and msg ange-ftp-process-verbose ange-ftp-process-result
-	     (ange-ftp-message "%s...done" msg))
-	(ange-ftp-repaint-minibuffer)	; clean up the mess we just made
-	(cons ange-ftp-process-result ange-ftp-process-result-line))))
+	(if nowait
+	    nil
+	  ;; hang around for command to complete
+	  (while ange-ftp-process-busy
+	    (accept-process-output proc))
+	  (if cont
+	      nil			;cont has already been called
+	    (cons ange-ftp-process-result ange-ftp-process-result-line))))))
 
 (defun ange-ftp-nslookup-host (host)
   "Attempt to resolve the given HOSTNAME using nslookup if possible."
@@ -1658,8 +1806,8 @@ on the gateway machine to do the ftp instead."
     (accept-process-output proc)	;wait for ftp startup message
     proc))
 
-(defun ange-ftp-smart-login (host user pass proc)
-  "Connect to the FTP-server on HOST as USER using PASSWORD.
+(defun ange-ftp-smart-login (host user pass account proc)
+  "Connect to the FTP-server on HOST as USER using PASSWORD and ACCOUNT.
 PROC is the FTP-client's process.  This routine uses the smart-gateway
 host specified in ``ange-ftp-gateway-host''."
   (let ((result (ange-ftp-raw-send-cmd
@@ -1675,21 +1823,23 @@ host specified in ``ange-ftp-gateway-host''."
 			(concat "OPEN request failed: "
 				(cdr result))))
     (setq result (ange-ftp-raw-send-cmd
-		  proc (format "user \"%s\"@%s %s"
+		  proc (format "user \"%s\"@%s %s %s"
 			       user
 			       (ange-ftp-nslookup-host host)
-			       pass)
+			       pass
+			       account)
 		  (format "Logging in as user %s@%s"
 			  user host)))
     (or (car result)
 	(progn
 	  (ange-ftp-set-passwd host user nil) ; reset password
+	  (ange-ftp-set-account host user nil) ; reset account
 	  (ange-ftp-error host user
 			  (concat "USER request failed: "
 				  (cdr result)))))))
 
-(defun ange-ftp-normal-login (host user pass proc)
-  "Connect to the FTP-server on HOST as USER using PASSWORD.
+(defun ange-ftp-normal-login (host user pass account proc)
+  "Connect to the FTP-server on HOST as USER using PASSWORD and ACCOUNT.
 PROC is the process to the FTP-client."
   (let ((result (ange-ftp-raw-send-cmd
 		 proc
@@ -1701,14 +1851,39 @@ PROC is the process to the FTP-client."
 				(cdr result))))
     (setq result (ange-ftp-raw-send-cmd
 		  proc
-		  (format "user \"%s\" %s" user pass)
+		  (format "user \"%s\" %s %s" user pass account)
 		  (format "Logging in as user %s@%s" user host)))
     (or (car result)
 	(progn
 	  (ange-ftp-set-passwd host user nil) ;reset password.
+	  (ange-ftp-set-account host user nil) ;reset account.
 	  (ange-ftp-error host user
 			  (concat "USER request failed: "
 				  (cdr result)))))))
+
+(defvar ange-ftp-hash-mark-msgs
+  "[hH]ash mark [^0-9]*\\([0-9]+\\)"
+  "*Regexp matching the FTP client's output upon doing a HASH command.")
+
+(defun ange-ftp-guess-hash-mark-size (proc)
+  (if ange-ftp-send-hash
+      (save-excursion
+	(set-buffer (process-buffer proc))
+	(let* ((status (ange-ftp-raw-send-cmd proc "hash"))
+	       (result (car status))
+	       (line (cdr status)))
+	  (ange-ftp-save-match-data
+	    (if (string-match ange-ftp-hash-mark-msgs line)
+		(let ((size (string-to-int
+			    (substring line
+				       (match-beginning 1)
+				       (match-end 1)))))
+		  (setq ange-ftp-ascii-hash-mark-size size
+			ange-ftp-hash-mark-unit (ash size -4))
+
+		  ;; if a default value for this is set, use that value.
+		  (or ange-ftp-binary-hash-mark-size
+		      (setq ange-ftp-binary-hash-mark-size size)))))))))
 
 (defun ange-ftp-get-process (host user)
   "Return the process object for a FTP process connected to HOST and
@@ -1719,38 +1894,26 @@ logged in as USER.  Create a new process if needed."
 	proc
       (let ((pass (ange-ftp-quote-string
 		   (ange-ftp-get-passwd host user)))
-	    (account (ange-ftp-get-account host user)))
-	(let (ange-ftp-hash-mark-size)	;don't want #-s fouling up login
-
-	  ;; grab a suitable process.
-	  (setq proc (ange-ftp-start-process host user name))
-
-	  ;; login to FTP server.
-	  (if (ange-ftp-use-smart-gateway-p host)
-	      (ange-ftp-smart-login host user pass proc)
-	    (ange-ftp-normal-login host user pass proc))
-
-	  ;; send account password if specified.
-	  (if account
-	      (let ((result (ange-ftp-raw-send-cmd
-			     proc
-			     (format "account %s"
-				     (ange-ftp-quote-string account))
-			     (format "sending account password"))))
-		(or (car result)
-		    (progn
-		      (ange-ftp-set-account host user nil) ;reset password
-		      (ange-ftp-error host user
-				      (concat "ACCOUNT request failed: "
-					      (cdr result))))))))
-
-	;; tell client to send back hash-marks as progress.  It isn't usually
+	    (account (ange-ftp-quote-string
+		      (ange-ftp-get-account host user))))
+	;; grab a suitable process.
+	(setq proc (ange-ftp-start-process host user name))
+	
+	;; login to FTP server.
+	(if (ange-ftp-use-smart-gateway-p host)
+	    (ange-ftp-smart-login host user pass account proc)
+	  (ange-ftp-normal-login host user pass account proc))
+      
+	;; Tell client to send back hash-marks as progress.  It isn't usually
 	;; fatal if this command fails.
-	(if ange-ftp-hash-mark-size
-	    (ange-ftp-raw-send-cmd proc "hash"))
+	(ange-ftp-guess-hash-mark-size proc)
 
 	;; Guess at the host type.
-	(ange-ftp-guess-host-type host user))
+	(ange-ftp-guess-host-type host user)
+
+	;; Run any user-specified hooks.  Note that proc, host and user are
+	;; dynamically bound at this point.
+	(run-hooks 'ange-ftp-process-startup-hook))
       proc)))
 
 ;; Variables for caching host and host-type
@@ -1814,13 +1977,12 @@ for a host of type TYPE.")
 (defvar ange-ftp-dumb-host-types '(dumb-unix)
   "List of host types that can't take UNIX ls-style listing options.")
 
-(defun ange-ftp-send-cmd (host user cmd &optional msg)
+(defun ange-ftp-send-cmd (host user cmd &optional msg cont nowait)
   "Find an ftp process connected to HOST logged in as USER and send it CMD.
 MSG is an optional status message to be output before and after issuing the
 command.
-Returns \( RESULT . LINE \) upon completion; RESULT is whether the command
-was successful, and LINE is the line from the FTP process that caused the
-success or failure."
+See the documentation for ange-ftp-raw-send-cmd for a description of CONT
+and NOWAIT."
   ;; Handle conversion to remote pathname syntax and remote ls option
   ;; capability.
   (let ((cmd0 (car cmd))
@@ -1879,13 +2041,40 @@ success or failure."
 		      (and cmd2 (concat " " cmd2))))
 
     ;; Actually send the resulting command.
-    (let* ((proc (ange-ftp-get-process host user))
-	   (result (ange-ftp-raw-send-cmd proc cmd msg)))
-      (if (car result)
-	  result
-	;; failed... try once more.
-	(setq proc (ange-ftp-get-process host user))
-	(ange-ftp-raw-send-cmd proc cmd msg)))))
+    (let (afsc-result
+	  afsc-line)
+      (ange-ftp-raw-send-cmd
+       (ange-ftp-get-process host user)
+       cmd
+       msg
+       (list
+	(function (lambda (result line host user
+				  cmd msg cont nowait)
+		    (or cont
+			(setq afsc-result result
+			      afsc-line line))
+		    (if result
+			(ange-ftp-call-cont cont result line)
+		      (ange-ftp-raw-send-cmd
+		       (ange-ftp-get-process host user)
+		       cmd
+		       msg
+		       (list
+			(function (lambda (result line cont)
+				    (or cont
+					(setq afsc-result result
+					      afsc-line line))
+				    (ange-ftp-call-cont cont result line)))
+			cont)
+		       nowait))))
+	host user cmd msg cont nowait)
+       nowait)
+
+      (if nowait
+	  nil
+	(if cont
+	    nil
+	  (cons afsc-result afsc-line))))))
 
 ;; It might be nice to message users about the host type identified,
 ;; but there is so much other messaging going on, it would not be
@@ -2011,14 +2200,19 @@ Runs ange-ftp-shell-mode-hook if not nil."
     (make-local-variable 'ange-ftp-process-string)
     (setq ange-ftp-process-string "")
     (make-local-variable 'ange-ftp-process-busy)
-    ;; (setq ange-ftp-process-busy nil)
     (make-local-variable 'ange-ftp-process-result)
-    ;; (setq ange-ftp-process-result nil)
     (make-local-variable 'ange-ftp-process-msg)
-    ;; (setq ange-ftp-process-msg nil)
     (make-local-variable 'ange-ftp-process-multi-skip)
-    ;; (setq ange-ftp-process-multi-skip nil)
     (make-local-variable 'ange-ftp-process-result-line)
+    (make-local-variable 'ange-ftp-process-continue)
+    (make-local-variable 'ange-ftp-hash-mark-count)
+    (make-local-variable 'ange-ftp-binary-hash-mark-size)
+    (make-local-variable 'ange-ftp-ascii-hash-mark-size)
+    (make-local-variable 'ange-ftp-hash-mark-unit)
+    (make-local-variable 'ange-ftp-xfer-size)
+    (make-local-variable 'ange-ftp-last-percent)
+    (setq ange-ftp-hash-mark-count 0)
+    (setq ange-ftp-xfer-size 0)
     (setq ange-ftp-process-result-line "")
     (run-hooks 'ange-ftp-shell-mode-hook)))
 
@@ -2106,28 +2300,29 @@ FILE is the full name of the remote file, LSARGS is any args to pass to the
 away in the internal cache."
   ;; If parse is t, we assume that file is a directory. i.e. we only parse
   ;; full directory listings.
-  (setq file (expand-file-name file))
+  (setq file (ange-ftp-expand-file-name file))
   (let ((parsed (ange-ftp-ftp-path file)))
     (if parsed
 	(let* ((host (nth 0 parsed))
 	       (user (nth 1 parsed))
 	       (path (ange-ftp-quote-string (nth 2 parsed)))
-	       (temp (ange-ftp-make-tmp-name host))
 	       (key (directory-file-name file))
 	       (host-type (ange-ftp-host-type host user))
 	       (dumb (memq host-type ange-ftp-dumb-host-types))
 	       result
+	       temp
 	       lscmd parse-func)
 	  (if (string-equal path "")
 	      (setq path
 		    (ange-ftp-real-file-name-as-directory
 		          (ange-ftp-expand-dir host user "~"))))
-	  (setq lscmd (list 'dir path temp lsargs))
 	  (if (and ange-ftp-ls-cache-file
 		   (string-equal key ange-ftp-ls-cache-file)
 		   ;; Don't care about lsargs for dumb hosts.
 		   (or dumb (string-equal lsargs ange-ftp-ls-cache-lsargs)))
 	      ange-ftp-ls-cache-res
+	    (setq temp (ange-ftp-make-tmp-name host))
+	    (setq lscmd (list 'dir path temp lsargs))
 	    (unwind-protect
 		(if (car (setq result (ange-ftp-send-cmd
 				       host
@@ -2171,8 +2366,7 @@ away in the internal cache."
 		      nil
 		    (ange-ftp-error host user
 				    (concat "DIR failed: " (cdr result)))))
-	      (condition-case ()
-		  (ange-ftp-real-delete-file temp) (error nil)))))
+	      (ange-ftp-del-tmp-name temp))))
       (error "Should never happen. Please report. Bug ref. no.: 1"))))
 
 ;;;; ------------------------------------------------------------
@@ -2523,14 +2717,20 @@ entries for the given HOST, USER pair."
 (defun ange-ftp-set-binary-mode (host user)
   "Tell the ftp process for the given HOST & USER to switch to binary mode."
   (let ((result (ange-ftp-send-cmd host user '(type "binary"))))
-    (or (car result)
-	(ange-ftp-error host user (concat "BINARY failed: " (cdr result))))))
+    (if (not (car result))
+	(ange-ftp-error host user (concat "BINARY failed: " (cdr result)))
+      (save-excursion
+	(set-buffer (process-buffer (ange-ftp-get-process host user)))
+	(setq ange-ftp-hash-mark-unit (ash ange-ftp-binary-hash-mark-size -4))))))
 
 (defun ange-ftp-set-ascii-mode (host user)
   "Tell the ftp process for the given HOST & USER to switch to ascii mode."
   (let ((result (ange-ftp-send-cmd host user '(type "ascii"))))
-    (or (car result)
-	(ange-ftp-error host user (concat "ASCII failed: " (cdr result))))))
+    (if (not (car result))
+	(ange-ftp-error host user (concat "ASCII failed: " (cdr result)))
+      (save-excursion
+	(set-buffer (process-buffer (ange-ftp-get-process host user)))
+	(setq ange-ftp-hash-mark-unit (ash ange-ftp-ascii-hash-mark-size -4))))))
 
 ;;; ------------------------------------------------------------
 ;;; expand-file-name and friends...
@@ -2754,10 +2954,23 @@ ftp transfers."
 	       (abbr (ange-ftp-abbreviate-filename filename)))
 	  (unwind-protect
 	      (progn
-		(let ((executing-macro t))
-		  (ange-ftp-real-write-region start end temp nil visit))
+		(let ((executing-macro t)
+		      (filename (buffer-file-name))
+		      (mod-p (buffer-modified-p)))
+		  (unwind-protect
+		      (ange-ftp-real-write-region start end temp nil visit)
+		    ;; cleanup forms
+		    (setq buffer-file-name filename)
+		    (set-buffer-modified-p mod-p)))
 		(if binary
 		    (ange-ftp-set-binary-mode host user))
+
+		;; tell the process filter what size the transfer will be.
+		(let ((attr (file-attributes temp)))
+		  (if attr
+		      (ange-ftp-set-xfer-size host user (nth 7 attr))))
+
+		;; put or append the file.
 		(let ((result (ange-ftp-send-cmd host user
 						 (list cmd temp path)
 						 (format "Writing %s" abbr))))
@@ -2767,7 +2980,7 @@ ftp transfers."
 			       "Opening output file"
 			       (format "FTP Error: \"%s\"" (cdr result))
 			       filename)))))
-	    (condition-case () (ange-ftp-real-delete-file temp) (error nil))
+	    (ange-ftp-del-tmp-name temp)
 	    (if binary 
 		(ange-ftp-set-ascii-mode host user)))
 	  (if (eq visit t)
@@ -2830,8 +3043,7 @@ ftp transfers."
 				  filename)))))
 		  (if binary
 		      (ange-ftp-set-ascii-mode host user))
-		  (condition-case () (ange-ftp-real-delete-file temp)
-		    (error nil)))
+		  (ange-ftp-del-tmp-name temp))
 		(if visit
 		    (setq buffer-file-name filename))
 		(list filename size))
@@ -3033,7 +3245,7 @@ ftp transfers."
       (ange-ftp-real-backup-buffer))))
 
 ;;;; ------------------------------------------------------------
-;;;; File copying support.
+;;;; File copying support... totally re-written 6/24/92.
 ;;;; ------------------------------------------------------------
 
 (defun ange-ftp-barf-or-query-if-file-exists (absname querystring interactive)
@@ -3044,123 +3256,233 @@ ftp transfers."
 				      absname querystring)))
 	    (signal 'file-already-exists (list absname))))))
 
-(defun ange-ftp-copy-remote-to-local (remote local parsed binary
-					     &optional msg)
-  "Copy REMOTE file to LOCAL file, where the former is on a remote machine."
-  (let ((host (nth 0 parsed))
-	(user (nth 1 parsed))
-	(path (ange-ftp-quote-string (nth 2 parsed)))
-	(rabbr (ange-ftp-abbreviate-filename remote))
-	(labbr (ange-ftp-abbreviate-filename local remote))
-	temp
-	cmd)
-    (if (not (ange-ftp-use-gateway-p host))
-	(setq cmd (list 'get path local))
-      ;; need temp file for gateway <-> host intermediate xfer
-      (setq temp (ange-ftp-make-tmp-name host))
-      (setq cmd (list 'get path temp)))
-    (unwind-protect
-	(progn
-	  (if binary
-	      (ange-ftp-set-binary-mode host user))
-	  (let ((result (ange-ftp-send-cmd host user cmd
-				  (or msg
-				      (format "Copying %s to %s"
-					      rabbr
-					      labbr)))))
-	    (or (car result)
-		(signal 'ftp-error
-			(list
-			 "Opening output file"
-			 (format "FTP Error: \"%s\"" (cdr result))
-			 remote))))
-	  (if temp (ange-ftp-real-copy-file temp local t)))
-      (if temp (condition-case () (ange-ftp-real-delete-file temp)
-		 (error nil)))
-      (if binary
-	  (ange-ftp-set-ascii-mode host user)))))
+;; async local copy commented out for now since I don't seem to get
+;; the process sentinel called for some processes.
+;;
+;; (defun ange-ftp-copy-file-locally (filename newname ok-if-already-exists
+;; 					    keep-date cont)
+;;   "Kludge to copy a local file and call a continuation when the copy
+;; finishes."
+;;   ;; check to see if we can overwrite
+;;   (if (or (not ok-if-already-exists)
+;; 	  (numberp ok-if-already-exists))
+;;       (ange-ftp-barf-or-query-if-file-exists newname "copy to it" 
+;; 					     (numberp ok-if-already-exists)))
+;;   (let ((proc (start-process " *copy*"
+;; 			     (generate-new-buffer "*copy*")
+;; 			     "cp"
+;; 			     filename
+;; 			     newname))
+;; 	res)
+;;     (set-process-sentinel proc (function ange-ftp-copy-file-locally-sentinel))
+;;     (process-kill-without-query proc)
+;;     (save-excursion
+;;       (set-buffer (process-buffer proc))
+;;       (make-variable-buffer-local 'copy-cont)
+;;       (setq copy-cont cont))))
+;; 
+;; (defun ange-ftp-copy-file-locally-sentinel (proc status)
+;;   (save-excursion
+;;     (set-buffer (process-buffer proc))
+;;     (let ((cont copy-cont)
+;; 	  (result (buffer-string)))
+;;       (unwind-protect
+;; 	  (if (and (string-equal status "finished\n")
+;; 		   (zerop (length result)))
+;; 	      (ange-ftp-call-cont cont t nil)
+;; 	    (ange-ftp-call-cont cont
+;; 				nil
+;; 				(if (zerop (length result))
+;; 				    (substring status 0 -1)
+;; 				  (substring result 0 -1))))
+;; 	(kill-buffer (current-buffer))))))
 
-(defun ange-ftp-copy-local-to-remote (local remote parsed binary
-					    &optional msg)
-  "Copy LOCAL file to REMOTE file where the latter is a file on a
-remote machine."
-  (let ((host (nth 0 parsed))
-	(user (nth 1 parsed))
-	(path (ange-ftp-quote-string (nth 2 parsed)))
-	(labbr (ange-ftp-abbreviate-filename local))
-	(rabbr (ange-ftp-abbreviate-filename remote local))
-	temp
-	cmd)
-    (if (not (ange-ftp-use-gateway-p host))
-	(setq cmd (list 'put local path))
-      ;; need temp file for intermediate gateway <-> local xfer.
-      (setq temp (ange-ftp-make-tmp-name host))
-      (setq cmd (list 'put temp path)))
-    (unwind-protect
-	(progn
-	  (if binary
-	      (ange-ftp-set-binary-mode host user))
-	  (if temp (ange-ftp-real-copy-file local temp t))
-	  (let ((result (ange-ftp-send-cmd host user cmd
-					   (or msg
-					       (format "Copying %s to %s"
-						       labbr 
-						       rabbr)))))
-	    (or (car result)
-		(signal 'ftp-error
-			(list
-			 "Opening output file"
-			 (format "FTP Error: \"%s\"" (cdr result))
-			 remote)))))
-      (if temp (condition-case () (ange-ftp-real-delete-file temp)
-		 (error nil)))
-      (if binary
-	  (ange-ftp-set-ascii-mode host user)))
-    (ange-ftp-add-file-entry remote)))
+;; this is the extended version of ange-ftp-copy-file-internal that works
+;; asyncronously if asked nicely.
+(defun ange-ftp-copy-file-internal (filename newname ok-if-already-exists
+					     keep-date &optional msg cont nowait)
+  (setq filename (expand-file-name filename)
+	newname (expand-file-name newname))
 
-(defun ange-ftp-copy-remote-to-remote (f-file t-file f-parsed t-parsed binary)
-  "Copy F-FILE to T-FILE, where both files are on remote machines.
-The copy uses an intermediate file on the local machine."
-  (let ((tmp (make-temp-name (concat ange-ftp-tmp-name-template "-cpy")))
-	(msg1 (format "Getting %s" f-file))
-	(msg2 (format "Putting %s" t-file)))
-    (unwind-protect
-	(progn
-	  (ange-ftp-copy-remote-to-local f-file tmp f-parsed binary msg1)
-	  (ange-ftp-copy-local-to-remote tmp t-file t-parsed binary msg2))
-      (condition-case () (ange-ftp-real-delete-file tmp) (error nil)))))
+  ;; canonicalize newname if a directory.
+  (if (file-directory-p newname)
+      (setq newname (expand-file-name (file-name-nondirectory filename) newname)))
 
-;; There are problems copying binary files in VMS hosts. I think that
-;; binary mode should never be used when copying from a VMS machine.
-;; This function should be fixed to deal with this problem.
+  (let ((f-parsed (ange-ftp-ftp-path filename))
+	(t-parsed (ange-ftp-ftp-path newname)))
+
+    ;; local file to local file copy?
+    (if (and (not f-parsed) (not t-parsed))
+	(progn
+	  (ange-ftp-real-copy-file filename newname ok-if-already-exists
+				   keep-date)
+	  (if cont
+	      (ange-ftp-call-cont cont t "Copied locally")))
+      ;; one or both files are remote.
+      (let* ((f-host (and f-parsed (nth 0 f-parsed)))
+	     (f-user (and f-parsed (nth 1 f-parsed)))
+	     (f-path (and f-parsed (ange-ftp-quote-string (nth 2 f-parsed))))
+	     (f-abbr (ange-ftp-abbreviate-filename filename))
+	     (t-host (and t-parsed (nth 0 t-parsed)))
+	     (t-user (and t-parsed (nth 1 t-parsed)))
+	     (t-path (and t-parsed (ange-ftp-quote-string (nth 2 t-parsed))))
+	     (t-abbr (ange-ftp-abbreviate-filename newname filename))
+	     (binary (or (ange-ftp-binary-file filename)
+			 (ange-ftp-binary-file newname)))
+	     temp1
+	     temp2)
+
+	;; check to see if we can overwrite
+	(if (or (not ok-if-already-exists)
+		(numberp ok-if-already-exists))
+	    (ange-ftp-barf-or-query-if-file-exists newname "copy to it" 
+						   (numberp ok-if-already-exists)))
+
+	;; do the copying.
+	(if f-parsed
+	    
+	    ;; filename was remote.
+	    (progn
+	      (if (or (ange-ftp-use-gateway-p f-host)
+		      t-parsed)
+		  ;; have to use intermediate file if we are getting via
+		  ;; gateway machine or we are doing a remote to remote copy.
+		  (setq temp1 (ange-ftp-make-tmp-name f-host)))
+	      
+	      (if binary
+		  (ange-ftp-set-binary-mode f-host f-user))
+
+	      (ange-ftp-send-cmd
+	       f-host
+	       f-user
+	       (list 'get f-path (or temp1 newname))
+	       (or msg
+		   (if (and temp1 t-parsed)
+		       (format "Getting %s" f-abbr)
+		     (format "Copying %s to %s" f-abbr t-abbr)))
+	       (list (function ange-ftp-cf1)
+		     filename newname binary msg
+		     f-parsed f-host f-user f-path f-abbr
+		     t-parsed t-host t-user t-path t-abbr
+		     temp1 temp2 cont nowait)
+	       nowait))
+
+	  ;; filename wasn't remote.  newname must be remote.  call the
+	  ;; function which does the remainder of the copying work.
+	  (ange-ftp-cf1 t nil
+			filename newname binary msg
+			f-parsed f-host f-user f-path f-abbr
+			t-parsed t-host t-user t-path t-abbr
+			nil nil cont nowait))))))
+
+;; next part of copying routine.
+(defun ange-ftp-cf1 (result line
+			    filename newname binary msg
+			    f-parsed f-host f-user f-path f-abbr
+			    t-parsed t-host t-user t-path t-abbr
+			    temp1 temp2 cont nowait)
+  (if line
+      ;; filename must have been remote, and we must have just done a GET.
+      (unwind-protect
+	  (or result
+	      ;; GET failed for some reason.  Clean up and get out.
+	      (progn
+		(and temp1 (ange-ftp-del-tmp-name temp1))
+		(or cont
+		    (signal 'ftp-error (list "Opening input file"
+					     (format "FTP Error: \"%s\"" line)
+					     filename)))))
+	;; cleanup
+	(if binary
+	    (ange-ftp-set-ascii-mode f-host f-user))))
+
+  (if result
+      ;; We now have to copy either temp1 or filename to newname.
+      (if t-parsed
+      
+	  ;; newname was remote.
+	  (progn
+	    (if (ange-ftp-use-gateway-p t-host)
+		(setq temp2 (ange-ftp-make-tmp-name t-host)))
+	    
+	    ;; make sure data is moved into the right place for the
+	    ;; outgoing transfer.  gateway temporary files complicate
+	    ;; things nicely.
+	    (if temp1
+		(if temp2
+		    (if (string-equal temp1 temp2)
+			(setq temp1 nil)
+		      (ange-ftp-real-copy-file temp1 temp2 t))
+		  (setq temp2 temp1 temp1 nil))
+	      (if temp2
+		  (ange-ftp-real-copy-file filename temp2 t)))
+	    
+	    (if binary
+		(ange-ftp-set-binary-mode t-host t-user))
+
+	    ;; tell the process filter what size the file is.
+	    (let ((attr (file-attributes (or temp2 filename))))
+	      (if attr
+		  (ange-ftp-set-xfer-size t-host t-user (nth 7 attr))))
+
+	    (ange-ftp-send-cmd
+	     t-host
+	     t-user
+	     (list 'put (or temp2 filename) t-path)
+	     (or msg
+		 (if (and temp2 f-parsed)
+		     (format "Putting %s" newname)
+		   (format "Copying %s to %s" f-abbr t-abbr)))
+	     (list (function ange-ftp-cf2)
+		   newname t-host t-user binary temp1 temp2 cont)
+	     nowait))
+    
+	;; newname wasn't remote.
+	(ange-ftp-cf2 t nil newname t-host t-user binary temp1 temp2 cont))
+
+    ;; first copy failed, tell caller
+    (ange-ftp-call-cont cont result line)))
+
+;; last part of copying routine.
+(defun ange-ftp-cf2 (result line newname t-host t-user binary temp1 temp2 cont)
+  (unwind-protect
+      (if line
+	  ;; result from doing a local to remote copy.
+	  (unwind-protect
+	      (progn
+		(or result
+		    (or cont
+			(signal 'ftp-error
+				(list "Opening output file"
+				      (format "FTP Error: \"%s\"" line)
+				      newname))))
+		
+		(ange-ftp-add-file-entry newname))
+	    
+	    ;; cleanup.
+	    (if binary
+		(ange-ftp-set-ascii-mode t-host t-user)))
+	      
+	;; newname was local.
+	(if temp1
+	    (ange-ftp-real-copy-file temp1 newname t)))
+	  
+    ;; clean up
+    (and temp1 (ange-ftp-del-tmp-name temp1))
+    (and temp2 (ange-ftp-del-tmp-name temp2))
+    (ange-ftp-call-cont cont result line)))
 
 (defun ange-ftp-copy-file (filename newname &optional ok-if-already-exists
 				    keep-date)
   "Documented as original."
   (interactive "fCopy file: \nFCopy %s to file: \np")
-  (setq filename (expand-file-name filename)
-	newname (expand-file-name newname))
-  (if (file-directory-p newname)
-      (setq newname
-	    (expand-file-name (file-name-nondirectory filename) newname)))
-  (let* ((f-parsed (ange-ftp-ftp-path filename))
-	 (t-parsed (ange-ftp-ftp-path newname))
-	 (binary (if (or f-parsed t-parsed) (ange-ftp-binary-file filename))))
-    (if (and (or f-parsed t-parsed)
-	     (or (not ok-if-already-exists)
-		 (numberp ok-if-already-exists)))
-	(ange-ftp-barf-or-query-if-file-exists
-	 newname "copy to it"
-	 (numberp ok-if-already-exists)))
-    (if f-parsed
-	(if t-parsed
-	    (ange-ftp-copy-remote-to-remote filename newname
-					    f-parsed t-parsed binary)
-	  (ange-ftp-copy-remote-to-local filename newname f-parsed binary))
-      (if t-parsed
-	  (ange-ftp-copy-local-to-remote filename newname t-parsed binary)
-	(ange-ftp-real-copy-file filename newname
-				 ok-if-already-exists keep-date)))))
+  (ange-ftp-copy-file-internal filename
+			       newname
+			       ok-if-already-exists
+			       keep-date
+			       nil
+			       nil
+			       (interactive-p)))
 
 ;;;; ------------------------------------------------------------
 ;;;; File renaming support.
@@ -3193,25 +3515,24 @@ The copy uses an intermediate file on the local machine."
 		       newname)))
 	  (ange-ftp-add-file-entry newname)
 	  (ange-ftp-delete-file-entry filename))
-      (ange-ftp-copy-remote-to-remote filename newname
-				      f-parsed t-parsed binary)
+      (ange-ftp-copy-file-internal filename newname t nil)
       (delete-file filename))))
 
-(defun ange-ftp-rename-local-to-remote (filename newname t-parsed binary)
+(defun ange-ftp-rename-local-to-remote (filename newname)
   "Rename local FILE to remote file NEWNAME."
   (let* ((fabbr (ange-ftp-abbreviate-filename filename))
 	 (nabbr (ange-ftp-abbreviate-filename newname filename))
 	 (msg (format "Renaming %s to %s" fabbr nabbr)))
-    (ange-ftp-copy-local-to-remote filename newname t-parsed binary msg)
+    (ange-ftp-copy-file-internal filename newname t nil msg)
     (let (ange-ftp-process-verbose)
       (delete-file filename))))
 
-(defun ange-ftp-rename-remote-to-local (filename newname f-parsed binary)
-  "Rename remote file FILE to local file NEWNAME." 
+(defun ange-ftp-rename-remote-to-local (filename newname)
+  "Rename remote file FILE to local file NEWNAME."
   (let* ((fabbr (ange-ftp-abbreviate-filename filename))
 	 (nabbr (ange-ftp-abbreviate-filename newname filename))
 	 (msg (format "Renaming %s to %s" fabbr nabbr)))
-    (ange-ftp-copy-remote-to-local filename newname f-parsed binary msg)
+    (ange-ftp-copy-file-internal filename newname t nil msg)
     (let (ange-ftp-process-verbose)
       (delete-file filename))))
 
@@ -3234,9 +3555,9 @@ The copy uses an intermediate file on the local machine."
 	(if t-parsed
 	    (ange-ftp-rename-remote-to-remote filename newname f-parsed
 					      t-parsed binary)
-	  (ange-ftp-rename-remote-to-local filename newname f-parsed binary))
+	  (ange-ftp-rename-remote-to-local filename newname))
       (if t-parsed
-	  (ange-ftp-rename-local-to-remote filename newname t-parsed binary)
+	  (ange-ftp-rename-local-to-remote filename newname)
 	(ange-ftp-real-rename-file filename newname ok-if-already-exists)))))
 
 ;;;; ------------------------------------------------------------
@@ -3699,10 +4020,8 @@ file. With an optional reverse argument, the reverse conversion is done."
 	 (pa1 (ange-ftp-ftp-path fn1))
 	 (pa2 (ange-ftp-ftp-path fn2)))
     (if (or pa1 pa2)
-	(let* ((tmp1 (and pa1 (make-temp-name
-			       (concat ange-ftp-tmp-name-template "-d1"))))
-	       (tmp2 (and pa2 (make-temp-name 
-			       (concat ange-ftp-tmp-name-template "-d2"))))
+	(let* ((tmp1 (and pa1 (ange-ftp-make-tmp-name (car pa1))))
+	       (tmp2 (and pa2 (ange-ftp-make-tmp-name (car pa2))))
 	       (bin1 (and pa1 (ange-ftp-binary-file fn1)))
 	       (bin2 (and pa2 (ange-ftp-binary-file fn2)))
 	       (dir1 (file-directory-p fn1))
@@ -3723,9 +4042,9 @@ file. With an optional reverse argument, the reverse conversion is done."
 						fn2)
 			  pa2 (ange-ftp-ftp-path fn2)
 			  bin2 (ange-ftp-binary-file fn2)))
-		(and pa1 (ange-ftp-copy-remote-to-local fn1 tmp1 pa1 bin1
+		(and pa1 (ange-ftp-copy-file-internal fn1 tmp1 t nil
 				   (format "Getting %s" fn1)))
-		(and pa2 (ange-ftp-copy-remote-to-local fn2 tmp2 pa2 bin2
+		(and pa2 (ange-ftp-copy-file-internal fn2 tmp2 t nil
 				   (format "Getting %s" fn2)))
 		(and ange-ftp-process-verbose
 		     (ange-ftp-message "doing diff..."))
@@ -3769,10 +4088,8 @@ file. With an optional reverse argument, the reverse conversion is done."
 			(goto-char (point-min))
 			(while (search-forward q2 nil t)
 			  (replace-match fn2))))))
-	    (and tmp1 (condition-case () (ange-ftp-real-delete-file tmp1)
-			(error nil)))
-	    (and tmp2 (condition-case () (ange-ftp-real-delete-file tmp2)
-			(error nil)))))
+	    (and tmp1 (ange-ftp-del-tmp-name tmp1))
+	    (and tmp2 (ange-ftp-del-tmp-name tmp2))))
       (ange-ftp-real-diff fn1 fn2 switches))))
 	    
 (defun ange-ftp-dired-call-process (program discard &rest arguments)
@@ -3810,16 +4127,17 @@ back."
        "ange-ftp-call-compress: missing -f flag and/or missing filename: %s"
        args))
   (let* ((file (nth 1 args))
-	 (tmp1 (make-temp-name (concat ange-ftp-tmp-name-template "-c1")))
-	 (tmp2 (make-temp-name (concat ange-ftp-tmp-name-template "-c2")))
 	 (parsed (ange-ftp-ftp-path file))
-	 (binary (ange-ftp-binary-file file))
+	 (tmp1 (ange-ftp-make-tmp-name (car parsed)))
+	 (tmp2 (ange-ftp-make-tmp-name (car parsed)))
 	 (abbr (ange-ftp-abbreviate-filename file))
+	 (nfile (ange-ftp-dired-compress-make-compressed-filename file))
+	 (nabbr (ange-ftp-abbreviate-filename nfile))
 	 (msg1 (format "Getting %s" abbr))
-	 (msg2 (format "Putting %s" abbr)))
+	 (msg2 (format "Putting %s" nabbr)))
     (unwind-protect
 	(progn
-	  (ange-ftp-copy-remote-to-local file tmp1 parsed binary msg1)
+	  (ange-ftp-copy-file-internal file tmp1 t nil msg1)
 	  (and ange-ftp-process-verbose
 	       (ange-ftp-message "Compressing %s..." abbr))
 	  (call-process-region (point)
@@ -3833,13 +4151,12 @@ back."
 	  (and ange-ftp-process-verbose
 	       (ange-ftp-message "Compressing %s...done" abbr))
 	  (if (zerop (buffer-size))
-	      (let* ((nfile (ange-ftp-dired-compress-make-compressed-filename file))
-		     (nparsed (ange-ftp-ftp-path nfile)))
+	      (progn
 		(let (ange-ftp-process-verbose)
 		  (delete-file file))
-		(ange-ftp-copy-local-to-remote tmp2 nfile nparsed t msg2))))
-      (condition-case () (ange-ftp-real-delete-file tmp1) (error nil))
-      (condition-case () (ange-ftp-real-delete-file tmp2) (error nil)))))
+		(ange-ftp-copy-file-internal tmp2 nfile t nil msg2))))
+      (ange-ftp-del-tmp-name tmp1)
+      (ange-ftp-del-tmp-name tmp2))))
     
 (defun ange-ftp-call-uncompress (args)
   "Perform an uncompress command on a remote file.
@@ -3848,18 +4165,21 @@ back."
   (if (not (= (length args) 1))
       (error "ange-ftp-call-uncompress: missing filename: %s" args))
   (let* ((file (car args))
-	 (tmp1 (make-temp-name (concat ange-ftp-tmp-name-template "-u1")))
-	 (tmp2 (make-temp-name (concat ange-ftp-tmp-name-template "-u2")))
 	 (parsed (ange-ftp-ftp-path file))
+	 (tmp1 (ange-ftp-make-tmp-name (car parsed)))
+	 (tmp2 (ange-ftp-make-tmp-name (car parsed)))
 	 (abbr (ange-ftp-abbreviate-filename file))
+	 (nfile (ange-ftp-dired-compress-make-compressed-filename file 'reverse))
+	 (nabbr (ange-ftp-abbreviate-filename nfile))
 	 (msg1 (format "Getting %s" abbr))
-	 (msg2 (format "Putting %s" abbr))
-	 ;; Cheap hack because of problems with binary file transfers from
-	 ;; VMS hosts.
-	 (gbinary (not (eq 'vms (ange-ftp-host-type (car parsed))))))
+	 (msg2 (format "Putting %s" nabbr))
+;;	 ;; Cheap hack because of problems with binary file transfers from
+;;	 ;; VMS hosts.
+;;	 (gbinary (not (eq 'vms (ange-ftp-host-type (car parsed)))))
+	 )
     (unwind-protect
 	(progn
-	  (ange-ftp-copy-remote-to-local file tmp1 parsed gbinary msg1)
+	  (ange-ftp-copy-file-internal file tmp1 t nil msg1)
 	  (and ange-ftp-process-verbose
 	       (ange-ftp-message "Uncompressing %s..." abbr))
 	  (call-process-region (point)
@@ -3873,15 +4193,12 @@ back."
 	  (and ange-ftp-process-verbose
 	       (ange-ftp-message "Uncompressing %s...done" abbr))
 	  (if (zerop (buffer-size))
-	      (let* ((nfile (ange-ftp-dired-compress-make-compressed-filename file 'reverse))
-		     (nparsed (ange-ftp-ftp-path nfile))
-		     (binary (ange-ftp-binary-file nfile)))
+	      (progn
 		(let (ange-ftp-process-verbose)
 		  (delete-file file))
-		(ange-ftp-copy-local-to-remote
-		 tmp2 nfile nparsed binary msg2))))
-      (condition-case () (ange-ftp-real-delete-file tmp1) (error nil))
-      (condition-case () (ange-ftp-real-delete-file tmp2) (error nil)))))
+		(ange-ftp-copy-file-internal tmp2 nfile t nil msg2))))
+      (ange-ftp-del-tmp-name tmp1)
+      (ange-ftp-del-tmp-name tmp2))))
 
 (defun ange-ftp-call-chmod (args)
   (if (< (length args) 2)
@@ -3951,7 +4268,209 @@ back."
 			       ange-ftp-dired-flag-backup-files-alist)))
 	       'ange-ftp-real-dired-flag-backup-files)
 	   unflag-p))
+
+;;; ------------------------------------------------------------
+;;; Noddy support for async copy-file within dired.
+;;; ------------------------------------------------------------
 
+(defun ange-ftp-dired-copy-file (from to ok-flag &optional cont nowait)
+  "Documented as original."
+  (dired-handle-overwrite to)
+  (ange-ftp-copy-file-internal from to ok-flag dired-copy-preserve-time nil
+			       cont nowait))
+
+(defun ange-ftp-dired-do-create-files (op-symbol file-creator operation arg
+						 &optional marker-char op1
+						 how-to)
+  "Documented as original."
+  ;; we need to let ange-ftp-dired-create-files know that we indirectly
+  ;; called it rather than somebody else.
+  (let ((ange-ftp-dired-do-create-files t)) ; tell who caller is
+    (ange-ftp-real-dired-do-create-files op-symbol file-creator operation
+					 arg marker-char op1 how-to)))
+
+(defun ange-ftp-dired-create-files (file-creator operation fn-list name-constructor
+						 &optional marker-char)
+  "Documented as original."
+  (if (and (boundp 'ange-ftp-dired-do-create-files)
+	   ;; called from ange-ftp-dired-do-create-files?
+	   ange-ftp-dired-do-create-files
+	   ;; any files worth copying?
+	   fn-list
+	   ;; we only support async copy-file at the mo.
+	   (eq file-creator 'dired-copy-file)
+	   ;; it is only worth calling the alternative function for remote files
+	   ;; as we tie ourself in recursive knots otherwise.
+	   (or (ange-ftp-ftp-path (car fn-list))
+	       ;; we can only call the name constructor for dired-do-create-files
+	       ;; since the one for regexps starts prompting here, there and
+	       ;; everywhere.
+	       (ange-ftp-ftp-path (funcall name-constructor (car fn-list)))))
+      ;; use the process-filter driven routine rather than the iterative one.
+      (ange-ftp-dcf-1 file-creator
+   		      operation
+ 		      fn-list
+ 		      name-constructor
+ 		      (and (boundp 'target) target)	;dynamically bound
+ 		      marker-char
+ 		      (current-buffer)
+ 		      nil	;overwrite-query
+ 		      nil	;overwrite-backup-query
+ 		      nil	;failures
+ 		      nil	;skipped
+ 		      0		;success-count
+ 		      (length fn-list) ;total
+ 		      )
+    ;; normal case... use the interative routine... much cheaper.
+    (ange-ftp-real-dired-create-files file-creator operation fn-list
+				      name-constructor marker-char)))
+
+(defun ange-ftp-dcf-1 (file-creator operation fn-list name-constructor
+		       target marker-char buffer overwrite-query 
+		       overwrite-backup-query failures skipped
+		       success-count total)
+  (let ((old-buf (current-buffer)))
+    (unwind-protect
+	(progn
+	  (set-buffer buffer)
+	  (if (null fn-list)
+	      (ange-ftp-dcf-3 failures operation total skipped
+			      success-count buffer)
+	    
+	    (let* ((from (car fn-list))
+		   (to (funcall name-constructor from)))
+	      (if (equal to from)
+		  (progn
+		    (setq to nil)
+		    (dired-log "Cannot %s to same file: %s\n"
+			       (downcase operation) from)))
+	      (if (not to)
+		  (ange-ftp-dcf-1 file-creator
+				  operation
+				  (cdr fn-list)
+				  name-constructor
+				  target
+				  marker-char
+				  buffer
+				  overwrite-query
+				  overwrite-backup-query
+				  failures
+				  (cons (dired-make-relative from) skipped)
+				  success-count
+				  total)
+		(let* ((overwrite (file-exists-p to))
+		       (overwrite-confirmed	; for dired-handle-overwrite
+			(and overwrite
+			     (let ((help-form '(format "\
+Type SPC or `y' to overwrite file `%s',
+DEL or `n' to skip to next,
+ESC or `q' to not overwrite any of the remaining files,
+`!' to overwrite all remaining files with no more questions." to)))
+			       (dired-query 'overwrite-query
+					    "Overwrite `%s'?" to))))
+		       ;; must determine if FROM is marked before file-creator
+		       ;; gets a chance to delete it (in case of a move).
+		       (actual-marker-char
+			(cond  ((integerp marker-char) marker-char)
+			       (marker-char (dired-file-marker from)) ; slow
+			       (t nil))))
+		  (condition-case err
+		      (funcall file-creator from to overwrite-confirmed
+			       (list (function ange-ftp-dcf-2)
+				     nil	;err
+				     file-creator operation fn-list
+				     name-constructor
+				     target
+				     marker-char actual-marker-char
+				     buffer to from
+				     overwrite
+				     overwrite-confirmed
+				     overwrite-query 
+				     overwrite-backup-query
+				     failures skipped success-count
+				     total)
+			       t)
+		    (file-error		; FILE-CREATOR aborted
+		     (ange-ftp-dcf-2 nil ;result
+				     nil ;line
+				     err
+				     file-creator operation fn-list
+				     name-constructor
+				     target
+				     marker-char actual-marker-char
+				     buffer to from
+				     overwrite
+				     overwrite-confirmed
+				     overwrite-query 
+				     overwrite-backup-query
+				     failures skipped success-count
+				     total))))))))
+      (set-buffer old-buf))))
+
+(defun ange-ftp-dcf-2 (result line err
+			      file-creator operation fn-list
+			      name-constructor
+			      target
+			      marker-char actual-marker-char
+			      buffer to from
+			      overwrite
+			      overwrite-confirmed
+			      overwrite-query 
+			      overwrite-backup-query
+			      failures skipped success-count
+			      total)
+  (let ((old-buf (current-buffer)))
+    (unwind-protect
+	(progn
+	  (set-buffer buffer)
+	  (if (or err (not result))
+	      (progn
+		(setq failures (cons (dired-make-relative from) failures))
+		(dired-log "%s `%s' to `%s' failed:\n%s\n"
+			   operation from to (or err line)))
+	    (if overwrite
+		;; If we get here, file-creator hasn't been aborted
+		;; and the old entry (if any) has to be deleted
+		;; before adding the new entry.
+		(dired-remove-file to))
+	    (setq success-count (1+ success-count))
+	    (message "%s: %d of %d" operation success-count total)
+	    (dired-add-file to actual-marker-char))
+	  
+	  (ange-ftp-dcf-1 file-creator operation (cdr fn-list)
+			  name-constructor
+			  target
+			  marker-char
+			  buffer
+			  overwrite-query 
+			  overwrite-backup-query
+			  failures skipped success-count
+			  total))
+      (set-buffer old-buf))))
+
+(defun ange-ftp-dcf-3 (failures operation total skipped success-count
+				buffer)
+  (let ((old-buf (current-buffer)))
+    (unwind-protect
+	(progn
+	  (set-buffer buffer)
+	  (cond
+	   (failures
+	    (dired-log-summary
+	     (message "%s failed for %d of %d file%s %s"
+		      operation (length failures) total
+		      (dired-plural-s total) failures)))
+	   (skipped
+	    (dired-log-summary
+	     (message "%s: %d of %d file%s skipped %s"
+		      operation (length skipped) total
+		      (dired-plural-s total) skipped)))
+	   (t
+	    (message "%s: %s file%s."
+		     operation success-count (dired-plural-s success-count))))
+	  (dired-move-to-filename))
+      (set-buffer old-buf))))
+
 ;;;; -----------------------------------------------
 ;;;; Unix Descriptive Listing (dl) Support
 ;;;; -----------------------------------------------
@@ -4010,8 +4529,6 @@ back."
     (setq ange-ftp-dired-move-to-end-of-filename-alist
 	  (cons '(unix:dl . ange-ftp-dired-dl-move-to-end-of-filename)
 		ange-ftp-dired-move-to-end-of-filename-alist)))
-
-
 
 ;;;; ------------------------------------------------------------
 ;;;; File name completion support.
@@ -4263,6 +4780,12 @@ placed on the new definition suitably augmented."
     (ange-ftp-overwrite-fn 'dired-clean-directory)
     (ange-ftp-overwrite-fn 'dired-flag-backup-files)
     (ange-ftp-overwrite-fn 'dired-backup-diff)
+    (if (fboundp 'dired-do-create-files)
+	;; dired 6.0 or later.
+	(progn
+	  (ange-ftp-overwrite-fn 'dired-copy-file)
+	  (ange-ftp-overwrite-fn 'dired-create-files)
+	  (ange-ftp-overwrite-fn 'dired-do-create-files)))
     (if (fboundp 'dired-compress-make-compressed-filename)
 	;; it's V5.255 or later
 	(ange-ftp-overwrite-fn 'dired-compress-make-compressed-filename)
@@ -4271,6 +4794,7 @@ placed on the new definition suitably augmented."
       (fset 'dired-compress 'ange-ftp-dired-compress)
       (fset 'ange-ftp-real-dired-uncompress (symbol-function 'dired-uncompress))
       (fset 'dired-uncompress 'ange-ftp-dired-uncompress)))
+
   (ange-ftp-overwrite-fn 'dired-find-file)
   (ange-ftp-overwrite-fn 'dired-revert))
 

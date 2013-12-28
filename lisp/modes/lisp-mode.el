@@ -1,11 +1,11 @@
 ;; Lisp mode, and its idiosyncratic commands.
-;; Copyright (C) 1985 Free Software Foundation, Inc.
+;; Copyright (C) 1985, 1992 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -58,20 +58,19 @@
       (modify-syntax-entry ?\[ "(]  " emacs-lisp-mode-syntax-table)
       (modify-syntax-entry ?\] ")[  " emacs-lisp-mode-syntax-table)))
 
+(if lisp-mode-syntax-table
+    nil
+  (setq lisp-mode-syntax-table
+	(copy-syntax-table emacs-lisp-mode-syntax-table))
+  (modify-syntax-entry ?\| "\"   " lisp-mode-syntax-table)
+  (modify-syntax-entry ?\[ "_   " lisp-mode-syntax-table)
+  (modify-syntax-entry ?\] "_   " lisp-mode-syntax-table))
+
 (define-abbrev-table 'lisp-mode-abbrev-table ())
 
 (defun lisp-mode-variables (lisp-syntax)
-  (cond (lisp-syntax
-	  (if (not lisp-mode-syntax-table)
-	      (progn (setq lisp-mode-syntax-table
-			   (copy-syntax-table emacs-lisp-mode-syntax-table))
-		     (modify-syntax-entry ?\| "\"   "
-					  lisp-mode-syntax-table)
-		     (modify-syntax-entry ?\[ "_   "
-					  lisp-mode-syntax-table)
-		     (modify-syntax-entry ?\] "_   "
-					  lisp-mode-syntax-table)))
-	  (set-syntax-table lisp-mode-syntax-table)))
+  (if lisp-syntax
+      (set-syntax-table lisp-mode-syntax-table))
   (setq local-abbrev-table lisp-mode-abbrev-table)
   (make-local-variable 'paragraph-start)
   (setq paragraph-start (concat "^$\\|" page-delimiter))

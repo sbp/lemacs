@@ -35,6 +35,8 @@ typedef struct {
   Lisp_Object	proc;		/* Emacs process */
   c_hashtable	binfo_hash;	/* hashtable for buffers */
   Lisp_Object	gc_save;	/* Objects saved for GC */
+  int		major;		/* protocol version number */
+  int		minor;
 } Editor;
 
 

@@ -42,6 +42,8 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* #define NOMULTIPLEJOBS */
 
+#define HAVE_TZSETWALL
+
 /* Default is to set interrupt_input to 1: do input buffering within Emacs */
 
 #define INTERRUPT_INPUT

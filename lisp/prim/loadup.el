@@ -28,7 +28,7 @@
 ;; we can call directory-files and get the rest of the dirs (so that we can
 ;; dump stuff from modes/ and packages/.)
 ;;
-(setq load-path (nconc (directory-files "../lisp" t "^[^.]" nil 'dirs)
+(setq load-path (nconc (directory-files "../lisp" t "^[^-.]" nil 'dirs-only)
 		       (cons "../lisp" load-path)))
 
 (load "subr")
@@ -53,6 +53,7 @@
 (load "page")
 (load "register")
 (garbage-collect)
+(load "iso8859-1") ;This must be before any modes (sets standard syntax table)
 (load "paragraphs")
 (load "lisp-mode")
 (garbage-collect)
@@ -61,7 +62,7 @@
 (garbage-collect)
 (load "c-mode")
 (garbage-collect)
-(load "isearch")
+(load "isearch-mode")
 (garbage-collect)
 (load "replace")
 (if (eq system-type 'vax-vms)
@@ -83,6 +84,8 @@
 
 (if (fboundp 'x-create-screen)	; preload the X code, for faster startup.
     (progn
+      (load "screen")
+      (load "menubar")
       (load "x-faces")
       (load "x-iso8859-1")
       (load "x-mouse")
@@ -171,7 +174,7 @@
 (if (or (equal (nth 3 command-line-args) "run-temacs")
 	(equal (nth 4 command-line-args) "run-temacs"))
     (progn
-      (message "bootstrapping from temacs...")
+      (send-string-to-terminal "\nbootstrapping from temacs...\n")
       (run-emacs-from-temacs)
       (kill-emacs)))
 

@@ -113,7 +113,7 @@ Lisp_Object QSFundamental;	/* A string "Fundamental" */
 nsberror (spec)
      Lisp_Object spec;
 {
-  if (XTYPE (spec) == Lisp_String)
+  if (STRINGP (spec))
     error ("No buffer named %s", XSTRING (spec)->data);
   error ("Invalid buffer argument");
 }
@@ -146,7 +146,7 @@ NAME may also be a buffer; if so, the value is that buffer.")
   (name)
      register Lisp_Object name;
 {
-  if (XTYPE (name) == Lisp_Buffer)
+  if (BUFFERP (name))
     return name;
   CHECK_STRING (name, 0);
 
@@ -184,8 +184,8 @@ If there is no such live buffer, return nil.")
   for (tail = Vbuffer_alist; CONSP (tail); tail = XCONS (tail)->cdr)
     {
       buf = Fcdr (XCONS (tail)->car);
-      if (XTYPE (buf) != Lisp_Buffer) continue;
-      if (XTYPE (XBUFFER (buf)->filename) != Lisp_String) continue;
+      if (!BUFFERP (buf)) continue;
+      if (!STRINGP (XBUFFER (buf)->filename)) continue;
       tem = Fstring_equal (filename,
 			   (find_file_compare_truenames
 			    ? XBUFFER (buf)->truename
@@ -210,7 +210,7 @@ push_buffer_alist (name, buf)
   for (rest = Vscreen_list; !NILP (rest); rest = XCONS (rest)->cdr)
     {
       struct screen *s;
-      if (XTYPE (XCONS (rest)->car) != Lisp_Screen)
+      if (!SCREENP (XCONS (rest)->car))
 	abort ();
       s = XSCREEN (XCONS (rest)->car);
       s->buffer_alist = nconc2 (s->buffer_alist, Fcons (cons, Qnil));
@@ -231,7 +231,7 @@ delete_from_buffer_alist (buf)
   for (rest = Vscreen_list; !NILP (rest); rest = XCONS (rest)->cdr)
     {
       struct screen *s;
-      if (XTYPE (XCONS (rest)->car) != Lisp_Screen)
+      if (!SCREENP (XCONS (rest)->car))
 	abort ();
       s = XSCREEN (XCONS (rest)->car);
       s->buffer_alist = delq_no_quit (cons, s->buffer_alist);
@@ -242,6 +242,8 @@ delete_from_buffer_alist (buf)
 
 /* Incremented for each buffer created, to assign the buffer number. */
 int buffer_count;
+
+extern void init_buffer_cached_stack (struct buffer* b);
 
 DEFUN ("get-buffer-create", Fget_buffer_create, Sget_buffer_create, 1, 1, 0,
   "Return the buffer named NAME, or create such a buffer and return it.\n\
@@ -259,7 +261,7 @@ The value is never nil.")
   if (!NILP (buf))
     return buf;
 
-  b = (struct buffer *) malloc (sizeof (struct buffer));
+  b = (struct buffer *) xmalloc (sizeof (struct buffer));
   if (!b)
     memory_full ();
 
@@ -293,6 +295,9 @@ The value is never nil.")
     b->undo_list = Qt;
 
   reset_buffer (b);
+
+  /* initialize the extent cache */
+  init_buffer_cached_stack (b);
 
   /* Put this in the alist of all live buffers.  */
   push_buffer_alist (name, buf);
@@ -793,24 +798,27 @@ when the hook functions are called.")
 	return Qnil;
     }
 
-  /* Run kill-buffer hooks with the buffer to be killed the current buffer.  */
-  {
-    register Lisp_Object val;
-    int count = specpdl_ptr - specpdl;
+  /* Run kill-buffer hooks with the buffer to be killed temporarily selected,
+     unless the buffer is already dead.
+   */
+  if (!NILP (b->name))
+    {
+      register Lisp_Object val;
+      int count = specpdl_ptr - specpdl;
 
-    record_unwind_protect (save_excursion_restore, save_excursion_save ());
-    Fset_buffer (buf);
-    call1 (Vrun_hooks, intern ("kill-buffer-hook"));
+      record_unwind_protect (save_excursion_restore, save_excursion_save ());
+      Fset_buffer (buf);
+      call1 (Vrun_hooks, intern ("kill-buffer-hook"));
 #ifdef HAVE_X_WINDOWS
-    /* If an X selection was in this buffer, disown it.
-       We could have done this by simply adding this function to the
-       kill-buffer-hook, but the user might mess that up.
-     */
-    if (!NILP (Vwindow_system))
-      call0 (intern ("xselect-kill-buffer-hook"));
+      /* If an X selection was in this buffer, disown it.
+	 We could have done this by simply adding this function to the
+	 kill-buffer-hook, but the user might mess that up.
+	 */
+      if (!NILP (Vwindow_system))
+	call0 (intern ("xselect-kill-buffer-hook"));
 #endif
-    unbind_to (count);
-  }
+      unbind_to (count);
+    }
 
   /* We have no more questions to ask.  Verify that it is valid
      to kill the buffer.  This must be done after the questions
@@ -852,7 +860,7 @@ when the hook functions are called.")
   Vinhibit_quit = tem;
 
   /* Delete any auto-save file.  */
-  if (XTYPE (b->auto_save_file_name) == Lisp_String)
+  if (STRINGP (b->auto_save_file_name))
     {
       Lisp_Object tem;
       tem = Fsymbol_value (intern ("delete-auto-save-files"));
@@ -1135,8 +1143,8 @@ validate_region (b, e)
 {
   register int i;
 
-  CHECK_NUMBER_COERCE_MARKER (*b, 0);
-  CHECK_NUMBER_COERCE_MARKER (*e, 1);
+  CHECK_FIXNUM_COERCE_MARKER (*b, 0);
+  CHECK_FIXNUM_COERCE_MARKER (*e, 1);
 
   if (XINT (*b) > XINT (*e))
     {
@@ -1247,15 +1255,15 @@ if any protected fields overlap this portion.")
       fieldlist = XBUFFER (buffer)->fieldlist;
     }
 
-  CHECK_NUMBER_COERCE_MARKER (start, 2);
+  CHECK_FIXNUM_COERCE_MARKER (start, 2);
   start_loc = XINT (start);
 
-  CHECK_NUMBER_COERCE_MARKER (end, 2);
+  CHECK_FIXNUM_COERCE_MARKER (end, 2);
   end_loc = XINT (end);
   
   collector = Qnil;
   
-  while (XTYPE (fieldlist) == Lisp_Cons)
+  while (CONSP (fieldlist))
     {
       register Lisp_Object field;
       register int field_start, field_end;
@@ -1547,9 +1555,12 @@ Automatically becomes buffer-local when set in any fashion.");
   DEFVAR_PER_BUFFER ("ctl-arrow", &current_buffer->ctl_arrow,
     "*Non-nil means display control chars with uparrow.\n\
 Nil means use backslash and octal digits.\n\
-Non-t and non-nil means display 8-bit characters (that is, characters\n\
-whose code is greater than 160 (SPC with the high bit on) will be\n\
-displayed as a single glyph.)\n\
+An integer means characters >= ctl-arrow are assumed to be printable, and\n\
+will be displayed as a single glyph.\n\
+Any other value is the same as 160 - the code SPC with the high bit on.\n\
+\n\
+The interpretation of this variable is likely to change in the future.\n\
+\n\
 Automatically becomes buffer-local when set in any fashion.\n\
 This variable does not apply to characters whose display is specified\n\
 in the current display table (if there is one).");

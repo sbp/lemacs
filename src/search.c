@@ -183,7 +183,7 @@ matched by parenthesis constructs in the pattern.")
     {
       int len = XSTRING (string)->size;
 
-      CHECK_NUMBER (start, 2);
+      CHECK_FIXNUM (start, 2);
       s = XINT (start);
       if (s < 0 && -s <= len)
 	s = len - s;
@@ -322,7 +322,7 @@ skip_chars (forwardp, string, lim)
   if (NILP (lim))
     XFASTINT (lim) = forwardp ? ZV : BEGV;
   else
-    CHECK_NUMBER_COERCE_MARKER (lim, 1);
+    CHECK_FIXNUM_COERCE_MARKER (lim, 1);
 
   /* In any case, don't allow scan outside bounds of buffer.  */
   if (XFASTINT (lim) > ZV)
@@ -398,7 +398,7 @@ search_command (string, bound, noerror, count, direction, RE)
 
   if (!NILP (count))
     {
-      CHECK_NUMBER (count, 3);
+      CHECK_FIXNUM (count, 3);
       n *= XINT (count);
     }
 
@@ -407,7 +407,7 @@ search_command (string, bound, noerror, count, direction, RE)
     lim = n > 0 ? ZV : BEGV;
   else
     {
-      CHECK_NUMBER_COERCE_MARKER (bound, 1);
+      CHECK_FIXNUM_COERCE_MARKER (bound, 1);
       lim = XINT (bound);
       if (n > 0 ? lim < point : lim > point)
 	error ("Invalid search bound (wrong side of point)");
@@ -1085,7 +1085,7 @@ match_limit (num, beginningp)
 {
   register int n;
 
-  CHECK_NUMBER (num, 0);
+  CHECK_FIXNUM (num, 0);
   n = XINT (num);
   if (n < 0 || n >= RE_NREGS)
     args_out_of_range (num, make_number (RE_NREGS));
@@ -1181,20 +1181,20 @@ LIST should have been created by calling match-data previously.")
 	}
       else
 	{
-	  if (XTYPE (marker) == Lisp_Marker
+	  if (MARKERP (marker)
 	      && XMARKER (marker)->buffer == 0)
 	    XFASTINT (marker) = 0;
 
-	  CHECK_NUMBER_COERCE_MARKER (marker, 0);
+	  CHECK_FIXNUM_COERCE_MARKER (marker, 0);
 	  search_regs.start[i] = XINT (marker);
 	  list = Fcdr (list);
 
 	  marker = Fcar (list);
-	  if (XTYPE (marker) == Lisp_Marker
+	  if (MARKERP (marker)
 	      && XMARKER (marker)->buffer == 0)
 	    XFASTINT (marker) = 0;
 
-	  CHECK_NUMBER_COERCE_MARKER (marker, 0);
+	  CHECK_FIXNUM_COERCE_MARKER (marker, 0);
 	  search_regs.end[i] = XINT (marker);
 	}
       list = Fcdr (list);
@@ -1281,7 +1281,7 @@ syms_of_search ()
   compute_trt_inverse (downcase_table);    */
 
   searchbuf.allocated = 100;
-  searchbuf.buffer = (char *) malloc (searchbuf.allocated);
+  searchbuf.buffer = (char *) xmalloc (searchbuf.allocated);
   searchbuf.fastmap = search_fastmap;
 
   Qsearch_failed = intern ("search-failed");

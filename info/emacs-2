@@ -24,6 +24,29 @@ versions, except that the sections entitled "The GNU Manifesto",
 translation approved by the author instead of in the original English.
 
 
+File: emacs,  Node: Character Representation,  Next: Commands,  Prev: Super and Hyper Keys,  Up: Keystrokes
+
+Representation of Characters
+============================
+
+   This section briefly discusses how characters are represented in
+Emacs buffers.  *Note Key Sequences:: for information on representing
+key sequences to create key bindings.
+
+   ASCII graphic characters in Emacs buffers are displayed with their
+graphics.  LFD is the same as a newline character; it is displayed by
+starting a new line.  TAB is displayed by moving to the next tab stop
+column (usually every 8 spaces).  Other control characters are
+displayed as a caret (`^') followed by the non-control version of the
+character; thus, `C-a' is displayed as `^A'.  Non-ASCII characters 128
+and up are displayed with octal escape sequences; thus, character code
+243 (octal), also called `M-#' when used as an input character, is
+displayed as `\243'.
+
+   The variable `ctl-arrow' may be used to alter this behavior.  *Note
+Display Vars::.
+
+
 File: emacs,  Node: Commands,  Next: Pull-down Menus,  Prev: Character Representation,  Up: Top
 
 Keys and Commands
@@ -35,11 +58,11 @@ Emacs assigns meanings to "functions", and then gives keys their
 meanings by "binding" them to functions.
 
    A function is a Lisp object that can be executed as a program. 
-Usually it is a Lisp symbol which has been given a function
-definition; every symbol has a name, usually made of a few English
-words separated by dashes, such as `next-line' or `forward-word'.  It
-also has a "definition" which is a Lisp program.  Only some functions
-can be the bindings of keys; these are functions whose definitions use
+Usually it is a Lisp symbol that has been given a function definition;
+every symbol has a name, usually made of a few English words separated
+by dashes, such as `next-line' or `forward-word'.  It also has a
+"definition", which is a Lisp program.  Only some functions can be the
+bindings of keys; these are functions whose definitions use
 `interactive' to specify how to call them interactively.  Such
 functions are called "commands", and their names are "command names". 
 More information on this subject will appear in the GNU Emacs Lisp
@@ -59,12 +82,12 @@ is bound to that function.  If you rebind `C-n' to the function
 Rebinding keys is a common method of customization.
 
    The rest of this manual usually ignores this subtlety to keep
-things simple.  To give the customizer the information she needs, we
-often state the name of the command which really does the work in
-parentheses after mentioning the key that runs it.  For example, we
-will say that "The command `C-n' (`next-line') moves point vertically
-down," meaning that `next-line' is a command that moves vertically
-down and `C-n' is a key that is standardly bound to it.
+things simple.  To give the customizer the information needed, we often
+state the name of the command that really does the work in parentheses
+after mentioning the key that runs it.  For example, we will say that
+"The command `C-n' (`next-line') moves point vertically down," meaning
+that `next-line' is a command that moves vertically down and `C-n' is
+a key that is standardly bound to it.
 
    While we are on the subject of information for customization only,
 it's a good time to tell you about "variables".  Often the description
@@ -107,7 +130,7 @@ Buffers
 Help
      Access to Emacs Info.
 
-   There are two ways of selecting an item from a pulldown menu:
+   There are two ways of selecting an item from a pull-down menu:
 
    * Select an item in the menu bar by moving the cursor over it and
      click the left mouse-button.  Then move the cursor over the item
@@ -126,7 +149,7 @@ operate; after you select a block of text, edit commands are enabled.
 *Note Mouse Selection:: for information on using the mouse to select
 text.  *Note Using X Selections:: for related information.
 
-   There are `M-x' equivalents for each menu item.  To find the
+   There are also `M-x' equivalents for each menu item.  To find the
 equivalent for any left-button menu item, do the following:
 
   1. Type `C-h k' to get the `Describe Key' prompt.
@@ -160,7 +183,8 @@ New Screen
      Creates a new Emacs screen, that is, a new X window running under
      the same Emacs process.  You can remove the screen using the
      Delete Screen menu item. When you remove the last screen, you
-     exit Emacs and are prompted for confirmation.
+     exit Emacs and are prompted for confirmation.  This is bound to
+     `C-x 5' by default.
 
 Open File...
      Prompts you for a filename and loads that file into a new buffer. 
@@ -221,11 +245,6 @@ text, the X selection.  They appear faded until you select a block of
 text (activate a region) with the mouse.  *Note Using X Selections::,
 *note Killing::., and *note Yanking::. for more information.
 
-   Note: By default, you can use the Edit menu items on the region
-between point an the mark as well as regions selected with the mouse.
-To change this behavior, set the variable `zmacs-regions' to `t'.
-*Note Active Regions:: for more information.
-
 Undo
      Undoes the previous command.  Undo is equivalent to the Emacs
      command `undo' (`C-x u').
@@ -238,18 +257,17 @@ Cut
 
 Copy
      Makes a selected text block the X clipboard selection, and places
-     it in the kill ring. By default, you can select text using on of
-     the Emacs region selection commands or select a text region with
-     the mouse.
+     it in the kill ring.  You can select text using one of the Emacs
+     region selection commands or select a text region with the mouse.
 
 Paste
      Inserts the current value of the X clipboard selection in the
      current buffer.  Note that this is not necessarily the same as
      the Emacs `yank' command because the Emacs kill ring and the X
-     clipboard selection are by default not the same thing. You can
-     paste in text you place in the clipboard using Copy or Cut.  You
-     can also use Paste to insert text that was pasted into the
-     clipboard from other applications.
+     clipboard selection are not the same thing.  You can paste in
+     text you have placed in the clipboard using Copy or Cut.  You can
+     also use Paste to insert text that was pasted into the clipboard
+     from other applications.
 
 Clear
      Removes the selected text block from the current buffer but does
@@ -266,7 +284,7 @@ item List All Buffers, which provides a Buffer List. *Note List
 Buffers:: for more information.
 
 
-File: emacs,  Node: Help Menu,  Prev: Buffers Menu,  Up: Pull-down Menus
+File: emacs,  Node: Help Menu,  Next: Menu Customization,  Prev: Buffers Menu,  Up: Pull-down Menus
 
 The Help Menu
 .............
@@ -277,6 +295,110 @@ Help:: for more information.
 
    The Help menu also gives access to UNIX online manual pages via the
 UNIX Manual Page option.
+
+
+File: emacs,  Node: Menu Customization,  Prev: Help Menu,  Up: Pull-down Menus
+
+Customizing Lucid GNU Emacs Menus
+---------------------------------
+
+   You can customize any of the pull-down menus by adding or removing
+menu items and disabling or enabling existing menu items.
+
+   The following functions are available:
+
+`add-menu: (MENU-PATH MENU-NAME MENU-ITEMS &OPTIONAL BEFORE)'
+     Add a menu to the menubar or one of its submenus.
+
+`add-menu-item: (MENU-PATH ITEM-NAME FUNCTION ENABLED-P &OPTIONAL BEFORE)'
+     Add a menu item to a menu, creating the menu first if necessary.
+
+`delete-menu-item: (PATH)'
+     Remove the menu item defined by PATH from the menu hierarchy.
+
+`disable-menu-item: (PATH)'
+     Disable the specified menu item.
+
+`enable-menu-item: (PATH)'
+     Enable the specified previously disabled menu item.
+
+`relabel-menu-item: (PATH NEW-NAME)'
+     Change the string of the menu item specified by PATH to NEW-NAME.
+
+   Use the function `add-menu' to add a new menu or submenu.  If a
+menu or submenu of the given name exists already, it is changed.
+
+   MENU-PATH identifies the menu under which the new menu should be
+inserted.  It is a list of strings; for example, `("File")' names the
+top-level File menu.  `("File" "Foo")' names a hypothetical submenu of
+File.  If MENU-PATH is `nil', the menu is added to the menubar itself.
+
+   MENU-NAME is the string naming the menu to be added.
+
+   MENU-ITEMS is a list of menu item descriptions.  Each menu item
+should be a vector of three elements:
+
+   * A string, which is the name of the menu item.
+
+   * A symbol naming a command, or a form to evaluate.
+
+   * `t' or `nil' to indicate whether the item is selectable.
+
+   The optional argument BEFORE is the name of the menu before which
+the new menu or submenu should be added.  If the menu is already
+present, it is not moved.
+
+   The function `add-menu-item' adds a menu item to the specified
+menu, creating the menu first if necessary.  If the named item already
+exists, the menu remains unchanged.
+
+   MENU-PATH identifies the menu into which the new menu item should
+be inserted.  It is a list of strings; for example, `("File")' names
+the top-level File menu.  `("File" "Foo")' names a hypothetical
+submenu of File.
+
+   ITEM-NAME is the string naming the menu item to add.
+
+   FUNCTION is the command to invoke when this menu item is selected. 
+If it is a symbol, it is invoked with `call-interactively', in the
+same way that functions bound to keys are invoked.  If it is a list,
+the list is simply evaluated.
+
+   ENABLED-P controls whether the item is selectable or not.
+
+   For example, to make the `rename-file' command available from the
+File menu, use the following code:
+
+     (add-menu-item '("File") "Rename File" 'rename-file t)
+
+   To add a submenu of file management commands using a File Management
+item, use the following code:
+
+     (add-menu-item '("File" "File Management") "Copy File" 'copy-file t)
+     (add-menu-item '("File" "File Management") "Delete File" 'delete-file t)
+     (add-menu-item '("File" "File Management") "Rename File" 'rename-file t)
+
+   The optional BEFORE argument is the name of a menu item before
+which the new item should be added.  If the item is already present, it
+is not moved.
+
+   To remove a specified menu item from the menu hierarchy, use
+`delete-menu-item'.
+
+   PATH is a list of strings that identify the position of the menu
+item in the menu hierarchy.  `("File" "Save")' means the menu item
+called Save under the top level File menu.  `("Menu" "Foo" "Item")'
+means the menu item called Item under the FOO submenu of MENU.
+
+   To disable a menu item, use `disable-menu-item'.  The disabled menu
+item is grayed and can no longer be selected.  To make the item
+selectable again, use `enable-menu-item'.  `disable-menu-item' and
+`enable-menu-item' both have the argument PATH.
+
+   To change the string of the specified menu item, use
+`relabel-menu-item'. This function also takes the argument PATH.
+
+   NEW-NAME is the string to which the menu item will be changed.
 
 
 File: emacs,  Node: Entering Emacs,  Next: Exiting,  Prev: Mouse Selection,  Up: Top
@@ -407,13 +529,13 @@ standard Xt command line arguments are available as well.
 
    The following sections list:
 
-  1. Command line arguments that you can always use.
+   * Command line arguments that you can always use.
 
-  2. Command line arguments that have to appear at the beginning of the
-     argument list
+   * Command line arguments that have to appear at the beginning of the
+     argument list.
 
-  3. Command line arguments that are only relevant if you are running
-     Lucid GNU Emacs under X
+   * Command line arguments that are only relevant if you are running
+     Lucid GNU Emacs under X.
 
    Command line arguments are processed in the order they appear on the
 command line; however, certain arguments (the ones in the second
@@ -511,13 +633,16 @@ available to control color, border, and window title and icon name:
 
 `-T TITLE'
 `-wn TITLE'
-     Use TITLE as the window title. This sets the SCREEN-TITLE-FORMAT
-     variable.
+     Use TITLE as the window title. This sets the
+     `screen-title-format' variable, which controls the title of the X
+     window corresponding to the selected screen.  This is the same
+     format as `mode-line-format'.
 
 `-in TITLE'
 `-iconname TITLE'
      Use TITLE as the icon name. This sets the
-     SCREEN-ICON-TITLE-FORMAT variable.
+     `screen-icon-title-format' variable, which controls the title of
+     the icon corresponding to the selected screen.
 
 `-mc COLOR'
      Use COLOR as the mouse color.
@@ -526,7 +651,7 @@ available to control color, border, and window title and icon name:
      Use COLOR as the text-cursor foreground color.
 
    In addition, Lucid GNU Emacs allows you to use a number of standard
-XT command line arguments.
+Xt command line arguments.
 
 `-bg COLOR'
 `-background COLOR'
@@ -564,17 +689,17 @@ XT command line arguments.
 
 `-r'
 `-reverse'
-     Bring up Emacs in reverse video
+     Bring up Emacs in reverse video.
 
 `-name'
      Use the resource manager specified by NAME.
 
 `-xrm'
      Read something into the resource database for this invocation of
-     Emacs.  text t
+     Emacs.
 
 `-title TITLE'
-     Same as `-wn', sets the window title using WINDOW-TITLE-FORMAT
+     Same as `-wn', sets the window title using `window-title-format'.
 
 
 File: emacs,  Node: Basic,  Next: Undo,  Prev: Command Switches,  Up: Top
@@ -804,7 +929,7 @@ help facilities.  *Note Help::.
 
 * Menu:
 
-* Blank Lines::        Commands to make                         or delete blank lines.
+* Blank Lines::        Commands to make or delete blank lines.
 * Continuation Lines:: Lines too wide for the screen.
 * Position Info::      What page, line, row, or column is point on?
 * Arguments::	       Numeric arguments for repeating a command.
@@ -1079,152 +1204,5 @@ change actions that Emacs can remembered.
    There are two keys to run the `undo' command, `C-x u' and `C-_',
 because on some keyboards, it is not obvious how to type `C-_'. `C-x
 u' is an alternative you can type in the same fashion on any terminal.
-
-
-File: emacs,  Node: Minibuffer,  Next: M-x,  Prev: Undo,  Up: Top
-
-The Minibuffer
-**************
-
-   Emacs commands use the "minibuffer" to read arguments more
-complicated than a single number.  Minibuffer arguments can be file
-names, buffer names, Lisp function names, Emacs command names, Lisp
-expressions, and many other things, depending on the command reading
-the argument.  To edit the argument in the minibuffer, you can use
-Emacs editing commands.
-
-   When the minibuffer is in use, it appears in the echo area, and the
-cursor moves there.  The beginning of the minibuffer line displays a
-"prompt" indicating what kind of input you should supply and how it
-will be used.  The prompt is often derived from the name of the command
-the argument is for.  The prompt normally ends with a colon.
-
-   Sometimes a "default argument" appears in parentheses after the
-colon; it too is part of the prompt.  The default is used as the
-argument value if you enter an empty argument (e.g., just type RET). 
-For example, commands that read buffer names always show a default,
-which is the name of the buffer that will be used if you type just RET.
-
-   The simplest way to give a minibuffer argument is to type the text
-you want, terminated by RET to exit the minibuffer.  To get out of the
-minibuffer and cancel the command that it was for, type `C-g'.
-
-   Since the minibuffer uses the screen space of the echo area, it can
-conflict with other ways Emacs customarily uses the echo area.  Here
-is how Emacs handles such conflicts:
-
-   * If a command gets an error while you are in the minibuffer, this
-     does not cancel the minibuffer.  However, the echo area is needed
-     for the error message and therefore the minibuffer itself is
-     hidden for a while.  It comes back after a few seconds, or as
-     soon as you type anything.
-
-   * If you use a command in the minibuffer whose purpose is to print a
-     message in the echo area (for example `C-x =') the message is
-     displayed normally, and the minibuffer is hidden for a while.  It
-     comes back after a few seconds, or as soon as you type anything.
-
-   * Echoing of keystrokes does not take place while the minibuffer is
-     in use.
-
-* Menu:
-
-* File: Minibuffer File.  Entering file names with the minibuffer.
-* Edit: Minibuffer Edit.  How to edit in the minibuffer.
-* Completion::		  An abbreviation facility for minibuffer input.
-* Repetition::		  Re-executing commands that used the minibuffer.
-
-
-File: emacs,  Node: Minibuffer File,  Next: Minibuffer Edit,  Prev: Minibuffer,  Up: Minibuffer
-
-Minibuffers for File Names
-==========================
-
-   Sometimes the minibuffer starts out with text in it.  For example,
-when you are supposed to give a file name, the minibuffer starts out
-containing the "default directory", which ends with a slash.  This
-informs you in which directory the file will be found if you do not
-specify one.  For example, the minibuffer might start out with
-
-     Find File: /u2/emacs/src/
-
-where `Find File: ' is the prompt.  Typing `buffer.c' specifies the
-file 
-`/u2/emacs/src/buffer.c'.  To find files in nearby directories, use
-`..'; thus, if you type `../lisp/simple.el', the file that you visit
-will be the one named 
-`/u2/emacs/lisp/simple.el'.  Alternatively, you can use  `M-DEL' to
-kill directory names you don't want (*note Words::.).
-
-   You can also type an absolute file name, one starting with a slash
-or a tilde, ignoring the default directory.  For example, to find the
-file `/etc/termcap', just type the name, giving
-
-     Find File: /u2/emacs/src//etc/termcap
-
-Two slashes in a row are not normally meaningful in Unix file names,
-but they are allowed in GNU Emacs.  They mean, "ignore everything
-before the second slash in the pair."  Thus, `/u2/emacs/src/' is
-ignored, and you get the file `/etc/termcap'.
-
-   If you set `insert-default-directory' to `nil', the default
-directory is not inserted in the minibuffer.  This way, the minibuffer
-starts out empty.  But the name you type, if relative, is still
-interpreted with respect to the same default directory.
-
-
-File: emacs,  Node: Minibuffer Edit,  Next: Completion,  Prev: Minibuffer File,  Up: Minibuffer
-
-Editing in the Minibuffer
-=========================
-
-   The minibuffer is an Emacs buffer (albeit a peculiar one), and the
-usual Emacs commands are available for editing the text of an argument
-you are entering.
-
-   Since RET in the minibuffer is defined to exit the minibuffer, you
-must use `C-o' or `C-q LFD' to insert a newline into the minibuffer.
-(Recall that a newline is really the LFD character.)
-
-   The minibuffer has its own window which always has space on the
-screen but acts as if it were not there when the minibuffer is not in
-use.  When the minibuffer is in use. The minibuffer window is just
-like the others; you can switch to another window with `C-x o', edit
-text in other windows and perhaps even visit more files, before
-returning to the minibuffer to submit the argument.  You can kill text
-in another window, return to the minibuffer window, and then yank the
-text to use it in the argument.  *Note Windows::.
-
-   There are, however, some restrictions on the use of the minibuffer
-window.  You cannot switch buffers in it--the minibuffer and its
-window are permanently attached.  You also cannot split or kill the
-minibuffer window, but you can make it taller with `C-x ^'.
-
-   If you are in the minibuffer and issue a command that displays help
-text in another window, that window will be scrolled if you type
-`C-M-v' while in the minibuffer until you exit the minibuffer.  This
-feature is helpful if a completing minibuffer gives you a long list of
-possible completions.
-
-   If the variable `minibuffer-confirm-incomplete' is `true', you are
-asked for confirmation if there is no known completion for the text
-you typed. For example, if you attempted to visit a non-existent file,
-the minibuffer might read:
-
-             Find File:chocolate_bar.c [no completions, confirm]
-
-   If you press `Return' again, that confirms the filename. Otherwise,
-you can continue editing it.
-
-   Emacs supports recursive use of the minibuffer.  However, it is
-easy to do this by accident (because of autorepeating keyboards, for
-example) and get confused.  Therefore, most Emacs commands that use the
-minibuffer refuse to operate if the minibuffer window is selected.  If
-the minibuffer is active but you have switched to a different window,
-recursive use of the minibuffer is allowed--if you know enough to try
-to do this, you probably will not get confused.
-
-   If you set the variable `enable-recursive-minibuffers' to be
-non-`nil', recursive use of the minibuffer is always allowed.
 
 

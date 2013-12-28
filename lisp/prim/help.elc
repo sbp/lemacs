@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Tue Jun  2 20:03:29 1992
-;;; from file /u/jwz/emacs19/lisp/help.el
-;;; emacs version 19.0.21 Lucid.
-;;; bytecomp version 2.06; 17-may-92.
+;;; compiled by jwz@thalidomide on Wed Sep  2 01:03:03 1992
+;;; from file /wg1/emacs-base/lisp/prim/help.el
+;;; emacs version 19.2.19 Lucid.
+;;; bytecomp version 2.08; 27-aug-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -13,7 +13,7 @@
 (defvar help-map (make-sparse-keymap) "\
 Keymap for characters following the Help key.")
 (byte-code "À	ÂÃ#ˆÃMˆÀÂÅ#ˆÀÆÅ#ˆÀÇÈ#ˆÀÉÊ#ˆÀËÌ#ˆÀÍÎ#ˆÀÏĞ#ˆÀÑÒ#ˆÀÓÔ#ˆÀÕÖ#ˆÀ×Ø#ˆÀÙØ#ˆÀÚÛ#ˆÀÜİ#ˆÀŞß#ˆÀàá#ˆÀâá#ˆÀãä#ˆÀåæ#ˆÀçè#ˆÀéê#ˆëìMˆÀ	íë#‡" [define-key global-map "" help-command help-map help-for-help "?" "" describe-copying "" describe-distribution "" describe-no-warranty "a" command-apropos "b" describe-bindings "p" describe-pointer "c" describe-key-briefly "k" describe-key "d" describe-function "f" "i" info "l" view-lossage "m" describe-mode "" view-emacs-news "n" "s" describe-syntax "t" help-with-tutorial "w" where-is "v" describe-variable deprecated-help-command #[nil "ÀÁ!Â=«‰ÃÄÅ \"‰‡Ç ‡" [key-binding "" help-command character-to-event 8 allocate-event unread-command-event help-for-help] 3 nil nil] backspace] 4)
-(fset 'help-with-tutorial #[nil "ÀÁ!Ã ˆÄ\n!«‡ÅÄ\n!!ª¾ÅÆ\n!!ˆ\nÀÈ!	ÊÌÀÍ\"!ˆebˆÏĞ!ˆÑyˆ`Êˆ`|ˆÒÓÔ !Õe`\"ZÖZ!ˆebˆ×Ê!)‡" [expand-file-name "~/TUTORIAL" file delete-other-windows get-file-buffer switch-to-buffer create-file-buffer buffer-file-name "~/" default-directory nil auto-save-file-name insert-file-contents "TUTORIAL" exec-directory search-forward "\n<<" 0 newline window-height selected-window count-lines 6 set-buffer-modified-p] 5 "\
+(fset 'help-with-tutorial #[nil "ÀÁ!Ã ˆÄ\n!«‡ÅÄ\n!!ª¾ÅÆ\n!!ˆ\nÀÈ!	ÊÌÀÍ\"!ˆebˆÏĞ!ˆÑyˆ`Êˆ`|ˆÒÓÔ !Õe`\"ZÖZ!ˆebˆ×Ê!)‡" [expand-file-name "~/TUTORIAL" file delete-other-windows get-file-buffer switch-to-buffer create-file-buffer buffer-file-name "~/" default-directory nil buffer-auto-save-file-name insert-file-contents "TUTORIAL" exec-directory search-forward "\n<<" 0 newline window-height selected-window count-lines 6 set-buffer-modified-p] 5 "\
 Select the Emacs learn-by-doing tutorial." nil])
 (fset 'describe-key-briefly #[(key) "À	!‰«„\n¨«ˆÃÄÅ	!\"ªÃÆÅ	!\n9«ƒ\nªƒÇ\n!#)‡" [key-binding key defn message "%s is undefined" key-description "%s runs the command %s" prin1-to-string] 6 "\
 Print the name of the function KEY invokes.  KEY is a string." "kDescribe key briefly: "])
@@ -21,7 +21,7 @@ Print the name of the function KEY invokes.  KEY is a string." "kDescribe key br
 Display or return message saying how to restore windows after help command.
 Computes a message and applies the argument FUNCTION to it.
 If FUNCTION is nil, applies `message' to it, thus printing it."])
-(fset 'describe-key #[(key) "ÀÂ!«¾GÄU«¸ÅÆH!«±ÆHÈ!É!D‰@Ê=«„	A@	¢Ë=«„	A@	:«‡	A¬ƒ	@)ª„Ì!	«„	¨«ˆÍÎÏ!\"ªĞÑ	!ˆÒÓ!ˆÔ	!«ˆÒÔ	!!ˆª„ÒÕ!ˆÖ ‘)‡" [nil defn vectorp key 1 menu-event-p 0 event event-function event-object eval call-interactively key-binding message "%s is undefined" key-description "*Help*" prin1 princ ":\n" documentation "not documented" print-help-return-message] 5 "\
+(fset 'describe-key #[(key) "ÀÂ!«¾GÄU«¸ÅÆH!«±ÆHÈ!É!D‰@Ê=«„	A@	¢Ë=«„	A@	:«‡	A¬ƒ	@)ª„Ì!	«„	¨«ˆÍÎÏ!\"ªÑĞÑ	!ˆÒÓ!ˆ	;¬…Â	!«ªÌ	!ÒÕ!ˆ«šÒÖ!ˆÒ!ˆÒ×!ˆØ!«‡ÒØ!!ˆ)ª‘Ø	!«ˆÒØ	!!ˆª„ÒÙ!ˆÚ ‘)‡" [nil defn vectorp key 1 menu-event-p 0 event event-function event-object eval call-interactively key-binding message "%s is undefined" key-description "*Help*" prin1 princ ":\n" cmd "a keyboard macro" " which runs the command " ":\n\n" documentation "not documented" print-help-return-message] 5 "\
 Display documentation of the function KEY invokes.  
 KEY is a string, or vector of events.  When called interactvely, key may
 also be a menu selection." "kDescribe key: "])
@@ -75,9 +75,9 @@ C-w print information on absence of warranty for GNU Emacs." nil])
 (defvar describe-function-show-arglist t "\
 *If true, then describe-function will show its arglist if the function is
 not an autoload.")
-(fset 'describe-function #[(function) "ÀÁ\n!ˆÃÄ!ˆÅ«½\n‰9«ˆK‰ªuÉ!«ƒÊª”¢Ë=«ƒËªŠÌ!­„ÍH‰«‡Á!ˆª„ÃÎ!ˆ)ÃÏ!ˆĞ\n!«ˆÃĞ\n!!ˆª„ÃÑ!ˆÊ=«³ŠÀqˆdbˆÒyˆÓÔ!«£`Í•bˆ`d{d|ˆebˆÅˆÖ×!ˆØcˆcˆ)))Ù ‘‡" ["*Help*" prin1 function princ ": " nil arglist describe-function-show-arglist def subrp subr autoload compiled-function-p 0 "()" "\n" documentation "not documented" -1 looking-at "arguments:" p delete-backward-char 5 " " print-help-return-message] 5 "\
-Display the full documentation of FUNCTION (a symbol)." (byte-code "À ÁÂÆ«†ÇÈ\"ªÉ\nËÁ$‰Ìš«ƒªƒÍ!+C‡" [function-called-at-point t nil val enable-recursive-minibuffers fn completing-read format "Describe function (default %s): " "Describe function: " obarray fboundp "" intern] 6)])
-(fset 'variable-at-point #[nil "ÀÁÂ‡" [nil (byte-code "ŠÀÁ!ˆÂÃwˆÄp!‰9­†Æ!­*‡" [forward-sexp -1 "'" nil read obj boundp] 3) ((error))] 3])
+(fset 'describe-function #[(function) "ÀÁ\n\"ˆÄ ˆŠqˆÅ )‘‡" ["*Help*" describe-function-1 function standard-output print-help-return-message buffer-string] 4 "\
+Display the full documentation of FUNCTION (a symbol)." (byte-code "À ÂÄ	«†ÅÆ	\"ªÇÉÂ$)‰\nËš«ƒ	ª„Ì\n!*C‡" [function-called-at-point fn t enable-recursive-minibuffers completing-read format "Describe function (default %s): " "Describe function: " obarray fboundp val "" intern] 6)])
+(byte-code "ÀÁMˆÂÃM‡" [describe-function-1 #[(function stream) "À	\n\"ˆÃÄ\n\"ˆ	Æ	!®ÇÉ\nÉ9«£	=¬˜\n«Œ\nÌÍ!ÎR\nªˆÏÍ!ÎQ\nK‰ªZ«Ë¢Ñ=¬Å¢Ò=«‹ÃA@®Ó!ˆª¯Ô!«‹ÃÕH®Ó!ˆªŸÖ!«Ÿ×Ø\"«˜ÃÙ”Ù•O\n\"ˆÕ‰”OÃÚ\n\"ˆ\n«†Ã\n\n\"ˆÛ;¬…İ!«ŠÃŞ\n\"ˆßªóÖ!«‡à!ˆªçÔ!«‡á!ˆªÛ9«ŒÃâãä!\"\n\"ˆªË¢Ò=«‡å!ˆª¾¢æ=«‡Ãç\n\"ˆª±¢è=«‡Ãé\n\"ˆª¤¢Ñ=«ê!ˆÃëœ«ƒìªí\n\"ˆÃî\n\"ˆÀÙœ\n\"ˆ)ï ˆ«¨Ãğ\n\"ˆÃñ!\n\"ˆò!‰­šÃó\n\"ˆÃ\n\"ˆÃô\n\"ˆõ\n\"ª…Ã\n\",‡" [prin1 function stream princ ": " def documentation "not documented" doc nil aliases kbd-macro-p "\n     which is an alias for " symbol-name ", " "an alias for " describe-function-show-arglist autoload lambda "()" compiled-function-p 0 subrp string-match "[\n	 ]*\narguments: ?\\((.*)\\)\n?\\'" 1 "\n  -- " #[(string) "ÀÁ\n!«ƒÃªÄ\"ˆÀ\"‡" [princ commandp def "an interactive " "a " stream string] 3] int vectorp "a keyboard macro." t "built-in function." "compiled Lisp function." format "alias for `%s'." prin1-to-string "Lisp function." macro "a Lisp macro." mocklisp "a mocklisp function." "autoloaded Lisp " 4 "macro" "function" "\n  -- loads from " terpri "These characters are executed:\n\n	" key-description key-binding "\n\nwhich executes the command " ".\n\n" describe-function-1] 6] variable-at-point #[nil "ÀÁÂ‡" [nil (byte-code "ŠÀÁ!ˆÂÃwˆÄp!‰9­†Æ!­*‡" [forward-sexp -1 "'" nil read obj boundp] 3) ((error))] 3]] 2)
 (fset 'describe-variable #[(variable) "ÀÁ\n!ˆÃÄ!ˆÅ\n!¬†ÃÆ!ˆª…Á\nJ!ˆÇ ˆÇ ˆÃÈ!ˆÇ ˆÉ\nÊ\"‰«‰ÃÌ!!ˆª„ÃÍ!ˆ)Î ‘‡" ["*Help*" prin1 variable princ "'s value is " boundp "void." terpri "Documentation:" documentation-property variable-documentation doc substitute-command-keys "not documented as a variable." print-help-return-message] 5 "\
 Display the full documentation of VARIABLE (a symbol)." (byte-code "À ÁÂÆ«†ÇÈ\"ªÉ\nËÁ$‰Ìš«ƒªƒÍ!+C‡" [variable-at-point t nil val enable-recursive-minibuffers v completing-read format "Describe variable (default %s): " "Describe variable: " obarray boundp "" intern] 6)])
 (fset 'command-apropos #[(string) "ÀÁ!ÃÄ!)ÆÈÉ#ˆ­ƒÅ!)‡" [get-buffer-create "*Help*" standard-output print-help-return-message identity message apropos string t commandp] 4 "\

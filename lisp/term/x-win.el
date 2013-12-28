@@ -36,13 +36,15 @@
 (if (eq window-system 'x)
     (progn
       (setq window-setup-hook (cons 'x-pop-initial-window window-setup-hook))
+      (setq screen-creation-func 'x-create-screen)
       (require 'screen)
       (require 'x-faces)
       (require 'x-iso8859-1)
       (setq suspend-hook
 	    '(lambda ()
 	       (error "Suspending an emacs running under X makes no sense")))
-      (setq args (cdr (x-open-connection command-line-args))))
+      (setq command-line-args-left (cdr (x-open-connection command-line-args)))
+      )
   (error "Loading x-win.el but not compiled for X"))
 
 
@@ -101,6 +103,20 @@
 (define-key global-map 'next		"\C-n")
 (define-key global-map 'end		"\C-e")
 (define-key global-map 'begin		"\C-a")
+
+(define-key global-map 'kp_enter	[return])
+(define-key global-map 'kp_tab		[tab])
+
+;; if we define these this way (instead of leaving them bound to
+;; self-insert-command), then the ^Hb display is hidiously cluttered.
+;(define-key global-map 'kp_space	" ")
+;(define-key global-map 'kp_equal	"=")
+;(define-key global-map 'kp_multiply	"*")
+;(define-key global-map 'kp_add		"+")
+;(define-key global-map 'kp_separator	",")
+;(define-key global-map 'kp_subtract	"-")
+;(define-key global-map 'kp_decimal	".")
+;(define-key global-map 'kp_divide	"/")
 
 (define-key global-map 'undo		'undo)
 (define-key global-map 'help		'help-for-help)

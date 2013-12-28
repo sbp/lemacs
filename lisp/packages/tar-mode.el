@@ -402,6 +402,8 @@ is visible (and the real data of the buffer is hidden)."
 	 (bs100 (max 1 (/ bs 100)))
 	(tokens nil))
     (while (not (eq tokens 'empty-tar-block))
+      (if (>= (+ pos 512) (point-max))
+	  (error "truncated tar file"))
       (let* ((hblock (buffer-substring pos (+ pos 512))))
 	(setq tokens (tokenize-tar-header-block hblock))
 	(setq pos (+ pos 512))

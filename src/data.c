@@ -21,12 +21,15 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include <stdio.h>		/* For sprintf */
 #include <signal.h>
 
+#include "puresize.h"
 #include "config.h"
 #include "lisp.h"
 
 #ifndef standalone
 #include "buffer.h"
 #endif
+
+#include "emacssignal.h"
 
 #ifdef LISP_FLOAT_TYPE
 #include <math.h>
@@ -48,8 +51,8 @@ Lisp_Object Qcdr;
 
 #ifdef LISP_FLOAT_TYPE
 Lisp_Object Qfloatp, Qinteger_or_floatp, Qinteger_or_float_or_marker_p;
-Lisp_Object Qnumberp, Qnumber_or_marker_p;
 #endif
+Lisp_Object Qnumberp, Qnumber_or_marker_p;
 
 Lisp_Object Qscreenp;
 Lisp_Object Qextentp;
@@ -66,11 +69,11 @@ wrong_type_argument (predicate, value)
     {
       if (!EQ (Vmocklisp_arguments, Qt))
 	{
-	 if (XTYPE (value) == Lisp_String &&
+	 if (STRINGP (value) &&
 	     (EQ (predicate, Qintegerp)
 	      || EQ (predicate, Qinteger_or_marker_p)))
 	   return Fstring_to_int (value, Qt);
-	 if (XTYPE (value) == Lisp_Int && EQ (predicate, Qstringp))
+	 if (FIXNUMP (value) && EQ (predicate, Qstringp))
 	   return Fint_to_string (value);
 	}
       value = Fsignal (Qwrong_type_argument,
@@ -153,7 +156,7 @@ DEFUN ("consp", Fconsp, Sconsp, 1, 1, 0, "T if OBJECT is a cons cell.")
   (obj)
      Lisp_Object obj;
 {
-  if (XTYPE (obj) == Lisp_Cons)
+  if (CONSP (obj))
     return Qt;
   return Qnil;
 }
@@ -162,7 +165,7 @@ DEFUN ("atom", Fatom, Satom, 1, 1, 0, "T if OBJECT is not a cons cell.  This inc
   (obj)
      Lisp_Object obj;
 {
-  if (XTYPE (obj) == Lisp_Cons)
+  if (CONSP (obj))
     return Qnil;
   return Qt;
 }
@@ -171,7 +174,7 @@ DEFUN ("listp", Flistp, Slistp, 1, 1, 0, "T if OBJECT is a list.  This includes 
   (obj)
      Lisp_Object obj;
 {
-  if (XTYPE (obj) == Lisp_Cons || NILP (obj))
+  if (CONSP (obj) || NILP (obj))
     return Qt;
   return Qnil;
 }
@@ -180,7 +183,7 @@ DEFUN ("nlistp", Fnlistp, Snlistp, 1, 1, 0, "T if OBJECT is not a list.  Lists i
   (obj)
      Lisp_Object obj;
 {
-  if (XTYPE (obj) == Lisp_Cons || NILP (obj))
+  if (CONSP (obj) || NILP (obj))
     return Qnil;
   return Qt;
 }
@@ -189,7 +192,7 @@ DEFUN ("symbolp", Fsymbolp, Ssymbolp, 1, 1, 0, "T if OBJECT is a symbol.")
   (obj)
      Lisp_Object obj;
 {
-  if (XTYPE (obj) == Lisp_Symbol)
+  if (SYMBOLP (obj))
     return Qt;
   return Qnil;
 }
@@ -198,7 +201,7 @@ DEFUN ("vectorp", Fvectorp, Svectorp, 1, 1, 0, "T if OBJECT is a vector.")
   (obj)
      Lisp_Object obj;
 {
-  if (XTYPE (obj) == Lisp_Vector)
+  if (VECTORP (obj))
     return Qt;
   return Qnil;
 }
@@ -207,7 +210,7 @@ DEFUN ("stringp", Fstringp, Sstringp, 1, 1, 0, "T if OBJECT is a string.")
   (obj)
      Lisp_Object obj;
 {
-  if (XTYPE (obj) == Lisp_String)
+  if (STRINGP (obj))
     return Qt;
   return Qnil;
 }
@@ -216,7 +219,7 @@ DEFUN ("arrayp", Farrayp, Sarrayp, 1, 1, 0, "T if OBJECT is an array (string or 
   (obj)
      Lisp_Object obj;
 {
-  if (XTYPE (obj) == Lisp_Vector || XTYPE (obj) == Lisp_String)
+  if (VECTORP (obj) || STRINGP (obj))
     return Qt;
   return Qnil;
 }
@@ -227,7 +230,7 @@ DEFUN ("sequencep", Fsequencep, Ssequencep, 1, 1, 0,
      register Lisp_Object obj;
 {
   if (CONSP (obj) || NILP (obj) ||
-      XTYPE (obj) == Lisp_Vector || XTYPE (obj) == Lisp_String)
+      VECTORP (obj) || STRINGP (obj))
     return Qt;
   return Qnil;
 }
@@ -236,7 +239,7 @@ DEFUN ("bufferp", Fbufferp, Sbufferp, 1, 1, 0, "T if OBJECT is an editor buffer.
   (obj)
      Lisp_Object obj;
 {
-  if (XTYPE (obj) == Lisp_Buffer)
+  if (BUFFERP (obj))
     return Qt;
   return Qnil;
 }
@@ -245,7 +248,7 @@ DEFUN ("markerp", Fmarkerp, Smarkerp, 1, 1, 0, "T if OBJECT is a marker (editor 
   (obj)
      Lisp_Object obj;
 {
-  if (XTYPE (obj) == Lisp_Marker)
+  if (MARKERP (obj))
     return Qt;
   return Qnil;
 }
@@ -255,7 +258,7 @@ DEFUN ("integer-or-marker-p", Finteger_or_marker_p, Sinteger_or_marker_p, 1, 1, 
   (obj)
      register Lisp_Object obj;
 {
-  if (XTYPE (obj) == Lisp_Marker || XTYPE (obj) == Lisp_Int)
+  if (MARKERP (obj) || FIXNUMP (obj))
     return Qt;
   return Qnil;
 }
@@ -264,7 +267,7 @@ DEFUN ("subrp", Fsubrp, Ssubrp, 1, 1, 0, "T if OBJECT is a built-in function.")
   (obj)
      Lisp_Object obj;
 {
-  if (XTYPE (obj) == Lisp_Subr)
+  if (SUBRP (obj))
     return Qt;
   return Qnil;
 }
@@ -274,7 +277,7 @@ DEFUN ("compiled-function-p", Fcompiled_function_p, Scompiled_function_p, 1, 1, 
        "T if OBJECT is a compiled function object (as returned by make-byte-code.)")
      (obj)
 {
-  if (XTYPE (obj) == Lisp_Compiled)
+  if (COMPILEDP (obj))
     return Qt;
   return Qnil;
 }
@@ -283,7 +286,7 @@ DEFUN ("char-or-string-p", Fchar_or_string_p, Schar_or_string_p, 1, 1, 0, "T if 
   (obj)
      register Lisp_Object obj;
 {
-  if (XTYPE (obj) == Lisp_Int || XTYPE (obj) == Lisp_String)
+  if (FIXNUMP (obj) || STRINGP (obj))
     return Qt;
   return Qnil;
 }
@@ -292,7 +295,7 @@ DEFUN ("integerp", Fintegerp, Sintegerp, 1, 1, 0, "T if OBJECT is a number.")
   (obj)
      Lisp_Object obj;
 {
-  if (XTYPE (obj) == Lisp_Int)
+  if (FIXNUMP (obj))
     return Qt;
   return Qnil;
 }
@@ -301,7 +304,7 @@ DEFUN ("natnump", Fnatnump, Snatnump, 1, 1, 0, "T if OBJECT is a nonnegative num
   (obj)
      Lisp_Object obj;
 {
-  if (XTYPE (obj) == Lisp_Int && XINT (obj) >= 0)
+  if (FIXNUMP (obj) && XINT (obj) >= 0)
     return Qt;
   return Qnil;
 }
@@ -312,17 +315,18 @@ DEFUN ("floatp", Ffloatp, Sfloatp, 1, 1, 0,
   (obj)
      Lisp_Object obj;
 {
-  if (XTYPE (obj) == Lisp_Float)
+  if (FLOATP (obj))
     return Qt;
   return Qnil;
 }
+#endif /* LISP_FLOAT_TYPE */
 
 DEFUN ("numberp", Fnumberp, Snumberp, 1, 1, 0,
        "T if OBJECT is a number (floating point or integer).")
   (obj)
      Lisp_Object obj;
 {
-  if (XTYPE (obj) == Lisp_Float || XTYPE (obj) == Lisp_Int)
+  if (NUMBERP (obj))
     return Qt;
   return Qnil;
 }
@@ -333,20 +337,17 @@ DEFUN ("number-or-marker-p", Fnumber_or_marker_p,
   (obj)
      Lisp_Object obj;
 {
-  if (XTYPE (obj) == Lisp_Float
-      || XTYPE (obj) == Lisp_Int
-      || XTYPE (obj) == Lisp_Marker)
+  if (NUMBERP (obj) || MARKERP (obj))
     return Qt;
   return Qnil;
 }
-#endif /* LISP_FLOAT_TYPE */
 
 DEFUN ("extentp", Fextentp, Sextentp, 1, 1, 0,
   "T if OBJECT is an extent..")
   (extent)
      Lisp_Object extent;
 {
-  if (XTYPE (extent) == Lisp_Extent)
+  if (EXTENTP (extent))
     return Qt;
   return Qnil;
 }
@@ -361,7 +362,7 @@ Error if arg is not nil and not a cons cell.  See also `car-safe'.")
 {
   while (1)
     {
-      if (XTYPE (list) == Lisp_Cons)
+      if (CONSP (list))
 	return XCONS (list)->car;
       else if (EQ (list, Qnil))
 	return Qnil;
@@ -375,7 +376,7 @@ DEFUN ("car-safe", Fcar_safe, Scar_safe, 1, 1, 0,
   (object)
      Lisp_Object object;
 {
-  if (XTYPE (object) == Lisp_Cons)
+  if (CONSP (object))
     return XCONS (object)->car;
   else
     return Qnil;
@@ -390,7 +391,7 @@ Error if arg is not nil and not a cons cell.  See also `cdr-safe'.")
 {
   while (1)
     {
-      if (XTYPE (list) == Lisp_Cons)
+      if (CONSP (list))
 	return XCONS (list)->cdr;
       else if (EQ (list, Qnil))
 	return Qnil;
@@ -404,7 +405,7 @@ DEFUN ("cdr-safe", Fcdr_safe, Scdr_safe, 1, 1, 0,
   (object)
      Lisp_Object object;
 {
-  if (XTYPE (object) == Lisp_Cons)
+  if (CONSP (object))
     return XCONS (object)->cdr;
   else
     return Qnil;
@@ -415,7 +416,7 @@ DEFUN ("setcar", Fsetcar, Ssetcar, 2, 2, 0,
   (cell, newcar)
      register Lisp_Object cell, newcar;
 {
-  if (XTYPE (cell) != Lisp_Cons)
+  if (!CONSP (cell))
     cell = wrong_type_argument (Qconsp, cell);
 
   CHECK_IMPURE (cell);
@@ -428,7 +429,7 @@ DEFUN ("setcdr", Fsetcdr, Ssetcdr, 2, 2, 0,
   (cell, newcdr)
      register Lisp_Object cell, newcdr;
 {
-  if (XTYPE (cell) != Lisp_Cons)
+  if (!CONSP (cell))
     cell = wrong_type_argument (Qconsp, cell);
 
   CHECK_IMPURE (cell);
@@ -598,7 +599,7 @@ store_symval_forwarding (sym, valcontents, newval)
 #endif
     {
     case Lisp_Intfwd:
-      CHECK_NUMBER (newval, 1);
+      CHECK_FIXNUM (newval, 1);
       *XINTPTR (valcontents) = XINT (newval);
       break;
 
@@ -1084,14 +1085,14 @@ ARRAY may be a vector or a string, or a byte-code object.  INDEX starts at 0.")
 {
   register int idxval;
 
-  CHECK_NUMBER (idx, 1);
+  CHECK_FIXNUM (idx, 1);
   idxval = XINT (idx);
-  if (XTYPE (array) != Lisp_Vector && XTYPE (array) != Lisp_String
-      && XTYPE (array) != Lisp_Compiled)
+  if (!VECTORP (array) && !STRINGP (array)
+      && !COMPILEDP (array))
     array = wrong_type_argument (Qarrayp, array);
   if (idxval < 0 || idxval >= XVECTOR (array)->size)
     args_out_of_range (array, idx);
-  if (XTYPE (array) == Lisp_String)
+  if (STRINGP (array))
     {
       Lisp_Object val;
       XFASTINT (val) = (unsigned char) XSTRING (array)->data[idxval];
@@ -1110,15 +1111,15 @@ ARRAY may be a vector or a string.  INDEX starts at 0.")
 {
   register int idxval;
 
-  CHECK_NUMBER (idx, 1);
+  CHECK_FIXNUM (idx, 1);
   idxval = XINT (idx);
-  if (XTYPE (array) != Lisp_Vector && XTYPE (array) != Lisp_String)
+  if (!VECTORP (array) && !STRINGP (array))
     array = wrong_type_argument (Qarrayp, array);
   if (idxval < 0 || idxval >= XVECTOR (array)->size)
     args_out_of_range (array, idx);
   CHECK_IMPURE (array);
 
-  if (XTYPE (array) == Lisp_Vector)
+  if (VECTORP (array))
     XVECTOR (array)->contents[idxval] = newelt;
   else
     XSTRING (array)->data[idxval] = XINT (newelt);
@@ -1131,8 +1132,8 @@ Farray_length (array)
      register Lisp_Object array;
 {
   register Lisp_Object size;
-  if (XTYPE (array) != Lisp_Vector && XTYPE (array) != Lisp_String
-      && XTYPE (array) != Lisp_Compiled)
+  if (!VECTORP (array) && !STRINGP (array)
+      && !COMPILEDP (array))
     array = wrong_type_argument (Qarrayp, array);
   XFASTINT (size) = XVECTOR (array)->size;
   return size;
@@ -1150,19 +1151,16 @@ arithcompare (num1, num2, comparison)
   double f1, f2;
   int floatp = 0;
 
-#ifdef LISP_FLOAT_TYPE
-  CHECK_NUMBER_OR_FLOAT_COERCE_MARKER (num1, 0);
-  CHECK_NUMBER_OR_FLOAT_COERCE_MARKER (num2, 0);
-
-  if (XTYPE (num1) == Lisp_Float || XTYPE (num2) == Lisp_Float)
-    {
-      floatp = 1;
-      f1 = (XTYPE (num1) == Lisp_Float) ? XFLOAT (num1)->data : XINT (num1);
-      f2 = (XTYPE (num2) == Lisp_Float) ? XFLOAT (num2)->data : XINT (num2);
-    }
-#else
   CHECK_NUMBER_COERCE_MARKER (num1, 0);
   CHECK_NUMBER_COERCE_MARKER (num2, 0);
+
+#ifdef LISP_FLOAT_TYPE
+  if (FLOATP (num1) || FLOATP (num2))
+    {
+      floatp = 1;
+      f1 = (FLOATP (num1)) ? XFLOAT (num1)->data : XINT (num1);
+      f2 = (FLOATP (num2)) ? XFLOAT (num2)->data : XINT (num2);
+    }
 #endif /* LISP_FLOAT_TYPE */
 
   switch (comparison)
@@ -1253,17 +1251,15 @@ DEFUN ("zerop", Fzerop, Szerop, 1, 1, 0, "T if NUMBER is zero.")
   (num)
      register Lisp_Object num;
 {
-#ifdef LISP_FLOAT_TYPE
-  CHECK_NUMBER_OR_FLOAT (num, 0);
+  CHECK_NUMBER (num, 0);
 
-  if (XTYPE(num) == Lisp_Float)
+#ifdef LISP_FLOAT_TYPE
+  if (FLOATP (num))
     {
       if (XFLOAT(num)->data == 0.0)
 	return Qt;
       return Qnil;
     }
-#else
-  CHECK_NUMBER (num, 0);
 #endif /* LISP_FLOAT_TYPE */
 
   if (!XINT (num))
@@ -1279,12 +1275,10 @@ Uses a minus sign if negative.")
 {
   char buffer[20];
 
-#ifndef LISP_FLOAT_TYPE
   CHECK_NUMBER (num, 0);
-#else
-  CHECK_NUMBER_OR_FLOAT (num, 0);
 
-  if (XTYPE(num) == Lisp_Float)
+#ifdef LISP_FLOAT_TYPE
+  if (FLOATP (num))
     {
       char pigbuf[350];	/* see comments in float_to_string */
 
@@ -1309,7 +1303,7 @@ DEFUN ("string-to-int", Fstring_to_int, Sstring_to_int, 1, 2, 0,
     return make_float (atof ((char *)XSTRING (str)->data));
 #endif /* LISP_FLOAT_TYPE */
 
-  return make_number (atoi (XSTRING (str)->data));
+  return make_number (atoi ((char *) XSTRING (str)->data));
 }
   
 enum arithop
@@ -1347,14 +1341,11 @@ arith_driver
   for (argnum = 0; argnum < nargs; argnum++)
     {
       val = args[argnum];    /* using args[argnum] as argument to CHECK_NUMBER_... */
+      CHECK_NUMBER_COERCE_MARKER (val, argnum);
 #ifdef LISP_FLOAT_TYPE
-      CHECK_NUMBER_OR_FLOAT_COERCE_MARKER (val, argnum);
-
-      if (XTYPE (val) == Lisp_Float) /* time to do serious math */
+      if (FLOATP (val)) /* time to do serious math */
 	return (float_arith_driver ((double) accum, argnum, code,
 				    nargs, args));
-#else
-      CHECK_NUMBER_COERCE_MARKER (val, argnum);
 #endif /* LISP_FLOAT_TYPE */
       args[argnum] = val;    /* runs into a compiler bug. */
       next = XINT (args[argnum]);
@@ -1402,9 +1393,9 @@ float_arith_driver (accum, argnum, code, nargs, args)
   for (; argnum < nargs; argnum++)
     {
       val = args[argnum];    /* using args[argnum] as argument to CHECK_NUMBER_... */
-      CHECK_NUMBER_OR_FLOAT_COERCE_MARKER (val, argnum);
+      CHECK_NUMBER_COERCE_MARKER (val, argnum);
 
-      if (XTYPE (val) == Lisp_Float)
+      if (FLOATP (val))
 	{
 	  next = XFLOAT (val)->data;
 	}
@@ -1502,27 +1493,27 @@ Both must be numbers or markers.")
 {
   Lisp_Object val;
 
+  CHECK_NUMBER_COERCE_MARKER (num1, 0);
+  CHECK_NUMBER_COERCE_MARKER (num2, 0);
 #ifdef LISP_FLOAT_TYPE
-  CHECK_NUMBER_OR_FLOAT_COERCE_MARKER (num1, 0);
-  CHECK_NUMBER_OR_FLOAT_COERCE_MARKER (num2, 0);
-
-  if (XTYPE (num1) == Lisp_Float || XTYPE (num2) == Lisp_Float)
+  if (FLOATP (num1) || FLOATP (num2))
     {
       double f1, f2;
 
-      f1 = XTYPE (num1) == Lisp_Float ? XFLOAT (num1)->data : XINT (num1);
-      f2 = XTYPE (num2) == Lisp_Float ? XFLOAT (num2)->data : XINT (num2);
+      f1 = FLOATP (num1) ? XFLOAT (num1)->data : XINT (num1);
+      f2 = FLOATP (num2) ? XFLOAT (num2)->data : XINT (num2);
 
-#ifdef BSD /* Maybe there's a better conditional for this... */
+#ifdef HAVE_DREM
       return (make_float (drem (f1,f2)));
 #else
+#ifdef HAVE_REMAINDER
       return (make_float (remainder (f1,f2)));
+#else
+      return (make_float (fmod (f1,f2)));
+#endif
 #endif
     }
-#else /* not LISP_FLOAT_TYPE */
-  CHECK_NUMBER_COERCE_MARKER (num1, 0);
-  CHECK_NUMBER_COERCE_MARKER (num2, 1);
-#endif /* not LISP_FLOAT_TYPE */
+#endif /* LISP_FLOAT_TYPE */
 
   XSET (val, Lisp_Int, XINT (num1) % XINT (num2));
   return val;
@@ -1587,8 +1578,8 @@ In this case, the sign bit is duplicated.")
 {
   register Lisp_Object val;
 
-  CHECK_NUMBER (num1, 0);
-  CHECK_NUMBER (num2, 1);
+  CHECK_FIXNUM (num1, 0);
+  CHECK_FIXNUM (num2, 1);
 
   if (XINT (num2) > 0)
     XSET (val, Lisp_Int, XINT (num1) << XFASTINT (num2));
@@ -1606,8 +1597,8 @@ In this case,  zeros are shifted in on the left.")
 {
   register Lisp_Object val;
 
-  CHECK_NUMBER (num1, 0);
-  CHECK_NUMBER (num2, 1);
+  CHECK_FIXNUM (num1, 0);
+  CHECK_FIXNUM (num2, 1);
 
   if (XINT (num2) > 0)
     XSET (val, Lisp_Int, (unsigned) XFASTINT (num1) << XFASTINT (num2));
@@ -1622,13 +1613,10 @@ Markers are converted to integers.")
   (num)
      register Lisp_Object num;
 {
-#ifdef LISP_FLOAT_TYPE
-  CHECK_NUMBER_OR_FLOAT_COERCE_MARKER (num, 0);
-
-  if (XTYPE (num) == Lisp_Float)
-    return (make_float (1.0 + XFLOAT (num)->data));
-#else
   CHECK_NUMBER_COERCE_MARKER (num, 0);
+#ifdef LISP_FLOAT_TYPE
+  if (FLOATP (num))
+    return (make_float (1.0 + XFLOAT (num)->data));
 #endif /* LISP_FLOAT_TYPE */
 
   XSETINT (num, XFASTINT (num) + 1);
@@ -1641,13 +1629,10 @@ Markers are converted to integers.")
   (num)
      register Lisp_Object num;
 {
-#ifdef LISP_FLOAT_TYPE
-  CHECK_NUMBER_OR_FLOAT_COERCE_MARKER (num, 0);
-
-  if (XTYPE (num) == Lisp_Float)
-    return (make_float (-1.0 + XFLOAT (num)->data));
-#else
   CHECK_NUMBER_COERCE_MARKER (num, 0);
+#ifdef LISP_FLOAT_TYPE
+  if (FLOATP (num))
+    return (make_float (-1.0 + XFLOAT (num)->data));
 #endif /* LISP_FLOAT_TYPE */
 
   XSETINT (num, XFASTINT (num) - 1);
@@ -1659,7 +1644,7 @@ DEFUN ("lognot", Flognot, Slognot, 1, 1, 0,
   (num)
      register Lisp_Object num;
 {
-  CHECK_NUMBER (num, 0);
+  CHECK_FIXNUM (num, 0);
   XSETINT (num, ~XFASTINT (num));
   return num;
 }
@@ -1710,11 +1695,12 @@ syms_of_data ()
 
 #ifdef LISP_FLOAT_TYPE
   Qfloatp = intern ("floatp");
-  Qnumberp = intern ("numberp");
-  Qnumber_or_marker_p = intern ("number-or-marker-p");
   Qinteger_or_floatp = intern ("integer-or-float-p");
   Qinteger_or_float_or_marker_p = intern ("integer-or-float-or-marker-p");
 #endif /* LISP_FLOAT_TYPE */
+
+  Qnumberp = intern ("numberp");
+  Qnumber_or_marker_p = intern ("number-or-marker-p");
 
   Qscreenp = intern ("screenp");
 
@@ -1848,11 +1834,11 @@ syms_of_data ()
   staticpro (&Qinteger_or_marker_p);
 #ifdef LISP_FLOAT_TYPE
   staticpro (&Qfloatp);
-  staticpro (&Qnumberp);
   staticpro (&Qinteger_or_floatp);
-  staticpro (&Qnumber_or_marker_p);
-  staticpro (&Qinteger_or_float_or_marker_p);
 #endif /* LISP_FLOAT_TYPE */
+  staticpro (&Qinteger_or_float_or_marker_p);
+  staticpro (&Qnumberp);
+  staticpro (&Qnumber_or_marker_p);
 
   staticpro (&Qboundp);
   staticpro (&Qfboundp);
@@ -1873,9 +1859,9 @@ syms_of_data ()
   defsubr (&Sintegerp);
 #ifdef LISP_FLOAT_TYPE
   defsubr (&Sfloatp);
+#endif /* LISP_FLOAT_TYPE */
   defsubr (&Snumberp);
   defsubr (&Snumber_or_marker_p);
-#endif /* LISP_FLOAT_TYPE */
   defsubr (&Snatnump);
   defsubr (&Ssymbolp);
   defsubr (&Sstringp);
@@ -1950,10 +1936,14 @@ arith_error (signo)
      must reestablish each time */
   signal (signo, arith_error);
 #endif /* USG */
+#ifdef VMS
+  /* VMS systems are like USG.  */
+  signal (signo, arith_error);
+#endif /* VMS */
 #ifdef BSD4_1
   sigrelse (SIGFPE);
 #else /* not BSD4_1 */
-  sigsetmask (0);
+  sigsetmask (SIGEMPTYMASK);
 #endif /* not BSD4_1 */
 
   Fsignal (Qarith_error, Qnil);

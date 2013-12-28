@@ -1,11 +1,11 @@
 /* Mocklisp compatibility functions for GNU Emacs Lisp interpreter.
-   Copyright (C) 1985, 1986 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -121,7 +121,7 @@ DEFUN ("ml-arg", Fml_arg, Sml_arg, 1, 2, 0,
 {
   if (EQ (Vmocklisp_arguments, Qinteractive))
     return Fread_string (prompt, Qnil);
-  CHECK_NUMBER (n, 0);
+  CHECK_FIXNUM (n, 0);
   XSETINT (n, XINT (n) - 1);	/* Mocklisp likes to be origin-1 */
   return Fcar (Fnthcdr (n, Vmocklisp_arguments));
 }
@@ -185,8 +185,8 @@ If either FROM or LENGTH is negative, the length of STRING is added to it.")
      Lisp_Object string, from, to;
 {
   CHECK_STRING (string, 0);
-  CHECK_NUMBER (from, 1);
-  CHECK_NUMBER (to, 2);
+  CHECK_FIXNUM (from, 1);
+  CHECK_FIXNUM (to, 2);
 
   if (XINT (from) < 0)
     XSETINT (from, XINT (from) + XSTRING (string)->size);
@@ -211,9 +211,9 @@ is converted into a string by expressing it in decimal.")
     {
       tem = args[argnum];
     retry:
-      if (XTYPE (tem) == Lisp_Int)
+      if (FIXNUMP (tem))
 	tem = Fint_to_string (tem);
-      if (XTYPE (tem) == Lisp_String)
+      if (STRINGP (tem))
 	insert1 (tem);
       else
 	{

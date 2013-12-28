@@ -17,12 +17,10 @@ You should have received a copy of the GNU General Public License
 along with GNU Emacs; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
-
-static char 
-rcs_id [] = "$Header: lwlib-Xm.c,v 100.6 92/05/12 20:10:19 jwz Exp $";
-
 #include "lwlib-Xm.h"
 #include "lwlib-utils.h"
+
+#include <string.h>
 
 #include <X11/StringDefs.h>
 #include <X11/IntrinsicP.h>
@@ -53,19 +51,68 @@ rcs_id [] = "$Header: lwlib-Xm.c,v 100.6 92/05/12 20:10:19 jwz Exp $";
 static void
 xm_pull_down_callback (Widget widget, XtPointer closure, XtPointer call_data);
 static void
+xm_internal_update_other_instances (Widget widget, XtPointer closure,
+				    XtPointer call_data);
+static void
 xm_generic_callback (Widget widget, XtPointer closure, XtPointer call_data);
 static void
 xm_pop_down_callback (Widget widget, XtPointer closure, XtPointer call_data);
 
 
 static void
-xm_update_menu (widget_instance* instance, Widget widget, widget_value* val);
+xm_update_menu (widget_instance* instance, Widget widget, widget_value* val,
+		Boolean deep_p);
+
+/* Structures to keep destroyed instances */
+typedef struct _destroyed_instance 
+{
+  char*		name;
+  char*		type;
+  Widget 	widget;
+  Widget	parent;
+  Boolean	pop_up_p;
+  struct _destroyed_instance*	next;
+} destroyed_instance;
+
+static destroyed_instance*
+all_destroyed_instances = NULL;
+
+static destroyed_instance*
+make_destroyed_instance (char* name, char* type, Widget widget, Widget parent,
+			 Boolean pop_up_p)
+{
+  destroyed_instance* instance =
+    (destroyed_instance*)malloc (sizeof (destroyed_instance));
+  instance->name = strdup (name);
+  instance->type = strdup (type);
+  instance->widget = widget;
+  instance->parent = parent;
+  instance->pop_up_p = pop_up_p;
+  instance->next = NULL;
+  return instance;
+}
+			 
+static void
+free_destroyed_instance (destroyed_instance* instance)
+{
+  free (instance->name);
+  free (instance->type);
+  free (instance);
+}
 
 /* motif utility functions */
+Widget
+first_child (Widget widget)
+{
+  return ((CompositeWidget)widget)->composite.children [0];
+}
+
 Boolean
 lw_motif_widget_p (Widget widget)
 {
-  return XmIsPrimitive (widget) || XmIsManager (widget) || XmIsGadget (widget);
+  return 
+    XtClass (widget) == xmDialogShellWidgetClass
+      || XmIsPrimitive (widget) || XmIsManager (widget) || XmIsGadget (widget);
 }
 
 static XmString
@@ -82,8 +129,8 @@ resource_motif_string (Widget widget, char* name)
   resource.default_type = XtRImmediate;
   resource.default_addr = 0;
 
-  XtGetSubresources (widget, (XtPointer)&result, "string", "String",
-		     &resource, 1, NULL, 0);
+  XtGetSubresources (widget, (XtPointer)&result, "dialogString",
+		     "DialogString", &resource, 1, NULL, 0);
   return result;
 }
 
@@ -116,7 +163,8 @@ destroy_all_children (Widget widget)
 static void
 xm_update_label (widget_instance* instance, Widget widget, widget_value* val)
 {
-  XmString string = 0;
+  XmString res_string = 0;
+  XmString built_string = 0;
   XmString key_string = 0;
   Arg al [256];
   int ac;
@@ -125,30 +173,32 @@ xm_update_label (widget_instance* instance, Widget widget, widget_value* val)
 
   if (val->value)
     {
-      string = resource_motif_string (widget, val->value);
+      res_string = resource_motif_string (widget, val->value);
 
-      if (string)
+      if (res_string)
 	{
-	  XtSetArg (al [ac], XmNlabelString, string); ac++;
-	  XtSetArg (al [ac], XmNlabelType, XmSTRING); ac++;
+	  XtSetArg (al [ac], XmNlabelString, res_string); ac++;
 	}
+      else
+	{
+	  built_string =
+	    XmStringCreateLtoR (val->value, XmSTRING_DEFAULT_CHARSET);
+	  XtSetArg (al [ac], XmNlabelString, built_string); ac++;
+	}
+      XtSetArg (al [ac], XmNlabelType, XmSTRING); ac++;
     }
   
   if (val->key)
     {
       key_string = XmStringCreateLtoR (val->key, XmSTRING_DEFAULT_CHARSET);
-
-      if (key_string)
-	{
-	  XtSetArg (al [ac], XmNacceleratorText, key_string); ac++;
-	}
+      XtSetArg (al [ac], XmNacceleratorText, key_string); ac++;
     }
 
   if (ac)
     XtSetValues (widget, al, ac);
-  
-  if (string)
-    XmStringFree (string);
+
+  if (built_string)
+    XmStringFree (built_string);
 
   if (key_string)
     XmStringFree (key_string);
@@ -159,6 +209,7 @@ static void
 xm_update_pushbutton (widget_instance* instance, Widget widget,
 		      widget_value* val)
 {
+  XtVaSetValues (widget, XmNalignment, XmALIGNMENT_CENTER, 0);
   XtRemoveAllCallbacks (widget, XmNactivateCallback);
   XtAddCallback (widget, XmNactivateCallback, xm_generic_callback, instance);
 }
@@ -177,7 +228,11 @@ xm_update_cascadebutton (widget_instance* instance, Widget widget,
 static void
 xm_update_toggle (widget_instance* instance, Widget widget, widget_value* val)
 {
-  XtVaSetValues (widget, XmNset, val->selected, 0);
+  XtRemoveAllCallbacks (widget, XmNvalueChangedCallback);
+  XtAddCallback (widget, XmNvalueChangedCallback,
+		 xm_internal_update_other_instances, instance);
+  XtVaSetValues (widget, XmNset, val->selected,
+		 XmNalignment, XmALIGNMENT_BEGINNING, 0);
 }
 
 static void
@@ -191,15 +246,31 @@ xm_update_radiobox (widget_instance* instance, Widget widget,
   XtRemoveAllCallbacks (widget, XmNentryCallback);
   XtAddCallback (widget, XmNentryCallback, xm_generic_callback, instance);
 
-  /* STRUCTURAL_CHANGE is not supported for radiobox */
-  for (cur = val; cur; cur = cur->next)
+  /* first update all the toggles */
+  /* Energize kernel interface is currently bad.  It sets the selected widget
+     with the selected flag but returns it by its name.  So we currently
+     have to support both setting the selection with the selected slot
+     of val contents and setting it with the "value" slot of val.  The latter
+     has a higher priority.  This to be removed when the kernel is fixed. */
+  for (cur = val->contents; cur; cur = cur->next)
     {
       toggle = XtNameToWidget (widget, cur->value);
       if (toggle)
-	XtVaSetValues (toggle,
-		       XmNset, cur->selected,
-		       XmNsensitive, cur->enabled,
-		       0);
+	{
+	  XtVaSetValues (toggle, XmNsensitive, cur->enabled, 0);
+	  if (!val->value && cur->selected)
+	    XtVaSetValues (toggle, XmNset, cur->selected, 0);
+	  if (val->value && strcmp (val->value, cur->value))
+	    XtVaSetValues (toggle, XmNset, False, 0);
+	}
+    }
+
+  /* The selected was specified by the value slot */
+  if (val->value)
+    {
+      toggle = XtNameToWidget (widget, val->value);
+      if (toggle)
+	XtVaSetValues (toggle, XmNset, True, 0);
     }
 }
 
@@ -247,7 +318,7 @@ make_menu_in_widget (widget_instance* instance, Widget widget,
     {    
       ac = 0;
       XtSetArg (al [ac], XmNsensitive, cur->enabled); ac++;
-      XtSetArg (al [ac], XmNalignment, 0); ac++;
+      XtSetArg (al [ac], XmNalignment, XmALIGNMENT_BEGINNING); ac++;
       XtSetArg (al [ac], XmNuserData, cur->call_data); ac++;
       
       if (all_dashes_p (cur->name))
@@ -302,7 +373,7 @@ make_menu_in_widget (widget_instance* instance, Widget widget,
 
 static void
 update_one_menu_entry (widget_instance* instance, Widget widget,
-		       widget_value* val)
+		       widget_value* val, Boolean deep_p)
 {
   Arg al [256];
   int ac;
@@ -349,12 +420,13 @@ update_one_menu_entry (widget_instance* instance, Widget widget,
       XtSetValues (widget, al, ac);
       XtDestroyWidget (menu);
     }
-  else if (contents->change != NO_CHANGE)
-    xm_update_menu (instance, menu, val);
+  else if (deep_p && contents->change != NO_CHANGE)
+    xm_update_menu (instance, menu, val, 1);
 }
 
 static void
-xm_update_menu (widget_instance* instance, Widget widget, widget_value* val)
+xm_update_menu (widget_instance* instance, Widget widget, widget_value* val,
+		Boolean deep_p)
 {
   /* Widget is a RowColumn widget whose contents have to be updated
    * to reflect the list of items in val->contents */
@@ -381,7 +453,7 @@ xm_update_menu (widget_instance* instance, Widget widget, widget_value* val)
 	      if (children [i]->core.being_destroyed
 		  || strcmp (XtName (children [i]), cur->name))
 		continue;
-	      update_one_menu_entry (instance, children [i], cur);
+	      update_one_menu_entry (instance, children [i], cur, deep_p);
 	      cur = cur->next;
 	    }
 	  XtFree (children);
@@ -397,18 +469,24 @@ xm_update_menu (widget_instance* instance, Widget widget, widget_value* val)
 static void
 xm_update_text (widget_instance* instance, Widget widget, widget_value* val)
 {
-  XmTextSetString (widget, val->value);
+  XmTextSetString (widget, val->value ? val->value : "");
   XtRemoveAllCallbacks (widget, XmNactivateCallback);
   XtAddCallback (widget, XmNactivateCallback, xm_generic_callback, instance);
+  XtRemoveAllCallbacks (widget, XmNvalueChangedCallback);
+  XtAddCallback (widget, XmNvalueChangedCallback,
+		 xm_internal_update_other_instances, instance);
 }
 
 static void
 xm_update_text_field (widget_instance* instance, Widget widget,
 		      widget_value* val)
 {
-  XmTextFieldSetString (widget, val->value);
+  XmTextFieldSetString (widget, val->value ? val->value : "");
   XtRemoveAllCallbacks (widget, XmNactivateCallback);
   XtAddCallback (widget, XmNactivateCallback, xm_generic_callback, instance);
+  XtRemoveAllCallbacks (widget, XmNvalueChangedCallback);
+  XtAddCallback (widget, XmNvalueChangedCallback,
+		 xm_internal_update_other_instances, instance);
 }
 
 
@@ -416,10 +494,13 @@ xm_update_text_field (widget_instance* instance, Widget widget,
 
 void
 xm_update_one_widget (widget_instance* instance, Widget widget,
-		      widget_value* val)
+		      widget_value* val, Boolean deep_p)
 {
   WidgetClass class;
   
+  /* Mark as not edited */
+  val->edited = False;
+
   /* Common to all widget types */
   XtVaSetValues (widget,
 		 XmNsensitive, val->enabled,
@@ -457,7 +538,7 @@ xm_update_one_widget (widget_instance* instance, Widget widget,
       if (radiobox)
 	xm_update_radiobox (instance, widget, val);
       else
-	xm_update_menu (instance, widget, val);
+	xm_update_menu (instance, widget, val, deep_p);
     }
   else if (class == xmTextWidgetClass)
     {
@@ -479,26 +560,464 @@ xm_update_one_value (widget_instance* instance, Widget widget,
   if (class == xmToggleButtonWidgetClass || class == xmToggleButtonGadgetClass)
     {
       XtVaGetValues (widget, XmNset, &val->selected, 0);
+      val->edited = True;
     }
   else if (class == xmTextWidgetClass)
     {
       if (val->value)
 	free (val->value);
       val->value = XmTextGetString (widget);
+      val->edited = True;
     }
   else if (class == xmTextFieldWidgetClass)
     {
       if (val->value)
 	free (val->value);
       val->value = XmTextFieldGetString (widget);
+      val->edited = True;
+    }
+  else if (class == xmRowColumnWidgetClass)
+    {
+      Boolean radiobox = 0;
+      int ac = 0;
+      Arg al [1];
+      
+      XtSetArg (al [ac], XmNradioBehavior, &radiobox); ac++;
+      XtGetValues (widget, al, ac);
+      
+      if (radiobox)
+	{
+	  CompositeWidget radio = (CompositeWidget)widget;
+	  int i;
+	  for (i = 0; i < radio->composite.num_children; i++)
+	    {
+	      int set = False;
+	      Widget toggle = radio->composite.children [i];
+	      
+	      XtVaGetValues (toggle, XmNset, &set, 0);
+	      if (set)
+		{
+		  if (val->value)
+		    free (val->value);
+		  val->value = strdup (XtName (toggle));
+		}
+	    }
+	  val->edited = True;
+	}
     }
 }
 
 
 /* creation functions */
 
+/* dialogs */
+static Widget
+make_dialog (char* name, Widget parent, Boolean pop_up_p,
+	     char* shell_title, char* icon_name, Boolean text_input_slot,
+	     Boolean radio_box, int left_buttons, int right_buttons)
+{
+  Widget result;
+  Widget form;
+  Widget row;
+  Widget icon;
+  Widget icon_separator;
+  Widget message;
+  Widget value;
+  Widget separator;
+  Widget button;
+  Widget children [16];		/* for the final XtManageChildren */
+  int	 n_children;
+  Arg 	al[64];			/* Arg List */
+  int 	ac;			/* Arg Count */
+  int 	i;
+  int	sep_buttons = 1;
+  
+  if (pop_up_p)
+    {
+      ac = 0;
+      XtSetArg(al[ac], XmNtitle, shell_title); ac++;
+      XtSetArg(al[ac], XtNallowShellResize, True); ac++;
+      result = XmCreateDialogShell (parent, "dialog", al, ac);
+      ac = 0;
+      XtSetArg(al[ac], XmNautoUnmanage, FALSE); ac++;
+      XtSetArg(al[ac], XmNnavigationType, XmTAB_GROUP); ac++;
+      form = XmCreateForm (result, shell_title, al, ac);
+    }
+  else
+    {
+      ac = 0;
+      XtSetArg(al[ac], XmNautoUnmanage, FALSE); ac++;
+      XtSetArg(al[ac], XmNnavigationType, XmTAB_GROUP); ac++;
+      form = XmCreateForm (parent, shell_title, al, ac);
+      result = form;
+    }
+
+  ac = 0;
+  XtSetArg(al[ac], XmNpacking, XmPACK_COLUMN); ac++;
+  XtSetArg(al[ac], XmNorientation, XmVERTICAL); ac++;
+  XtSetArg(al[ac], XmNnumColumns,
+	   left_buttons + sep_buttons + right_buttons); ac++;
+  XtSetArg(al[ac], XmNmarginWidth, 0); ac++;
+  XtSetArg(al[ac], XmNmarginHeight, 0); ac++;
+  XtSetArg(al[ac], XmNspacing, 13); ac++;
+  XtSetArg(al[ac], XmNadjustLast, False); ac++;
+  XtSetArg(al[ac], XmNalignment, XmALIGNMENT_CENTER); ac++;
+  XtSetArg(al[ac], XmNisAligned, True); ac++;
+  XtSetArg(al[ac], XmNtopAttachment, XmATTACH_NONE); ac++;
+  XtSetArg(al[ac], XmNbottomAttachment, XmATTACH_FORM); ac++;
+  XtSetArg(al[ac], XmNbottomOffset, 13); ac++;
+  XtSetArg(al[ac], XmNleftAttachment, XmATTACH_FORM); ac++;
+  XtSetArg(al[ac], XmNleftOffset, 13); ac++;
+  XtSetArg(al[ac], XmNrightAttachment, XmATTACH_FORM); ac++;
+  XtSetArg(al[ac], XmNrightOffset, 13); ac++;
+  row = XmCreateRowColumn (form, "row", al, ac);
+  
+  n_children = 0;
+  for (i = 0; i < left_buttons; i++)
+    {
+      char button_name [16];
+      sprintf (button_name, "button%d", i + 1);
+      ac = 0;
+      if (i == 0)
+	{
+	  XtSetArg(al[ac], XmNhighlightThickness, 1); ac++;
+	  XtSetArg(al[ac], XmNshowAsDefault, TRUE); ac++;
+	}
+      XtSetArg(al[ac], XmNnavigationType, XmTAB_GROUP); ac++;
+      children [n_children] = XmCreatePushButton (row, button_name, al, ac);
+
+      if (i == 0)
+	{
+	  button = children [n_children];
+	  ac = 0;
+	  XtSetArg(al[ac], XmNdefaultButton, button); ac++;
+	  XtSetValues (row, al, ac);
+	}
+
+      n_children++;
+    }
+
+  for (i = 0; i < sep_buttons; i++)
+    {
+      ac = 0;
+      XtSetArg (al[ac], XmNmappedWhenManaged, FALSE); ac++;
+      children [n_children] = XmCreateLabel (row, "separator_button", al, ac);
+      n_children++;
+    }
+  
+  for (i = 0; i < right_buttons; i++)
+    {
+      char button_name [16];
+      sprintf (button_name, "button%d", left_buttons + i + 1);
+      ac = 0;
+      XtSetArg(al[ac], XmNnavigationType, XmTAB_GROUP); ac++;
+      children [n_children] = XmCreatePushButton (row, button_name, al, ac);
+      n_children++;
+    }
+  
+  XtManageChildren (children, n_children);
+  
+  ac = 0;
+  XtSetArg(al[ac], XmNtopAttachment, XmATTACH_NONE); ac++;
+  XtSetArg(al[ac], XmNbottomAttachment, XmATTACH_WIDGET); ac++;
+  XtSetArg(al[ac], XmNbottomOffset, 13); ac++;
+  XtSetArg(al[ac], XmNbottomWidget, row); ac++;
+  XtSetArg(al[ac], XmNleftAttachment, XmATTACH_FORM); ac++;
+  XtSetArg(al[ac], XmNleftOffset, 0); ac++;
+  XtSetArg(al[ac], XmNrightAttachment, XmATTACH_FORM); ac++;
+  XtSetArg(al[ac], XmNrightOffset, 0); ac++;
+  separator = XmCreateSeparator (form, "", al, ac);
+
+  ac = 0;
+  XtSetArg(al[ac], XmNlabelType, XmPIXMAP); ac++;
+  XtSetArg(al[ac], XmNtopAttachment, XmATTACH_FORM); ac++;
+  XtSetArg(al[ac], XmNtopOffset, 13); ac++;
+  XtSetArg(al[ac], XmNbottomAttachment, XmATTACH_NONE); ac++;
+  XtSetArg(al[ac], XmNleftAttachment, XmATTACH_FORM); ac++;
+  XtSetArg(al[ac], XmNleftOffset, 13); ac++;
+  XtSetArg(al[ac], XmNrightAttachment, XmATTACH_NONE); ac++;
+  icon = XmCreateLabel (form, icon_name, al, ac);
+
+  ac = 0;
+  XtSetArg(al[ac], XmNmappedWhenManaged, FALSE); ac++;
+  XtSetArg(al[ac], XmNtopAttachment, XmATTACH_WIDGET); ac++;
+  XtSetArg(al[ac], XmNtopOffset, 6); ac++;
+  XtSetArg(al[ac], XmNtopWidget, icon); ac++;
+  XtSetArg(al[ac], XmNbottomAttachment, XmATTACH_WIDGET); ac++;
+  XtSetArg(al[ac], XmNbottomOffset, 6); ac++;
+  XtSetArg(al[ac], XmNbottomWidget, separator); ac++;
+  XtSetArg(al[ac], XmNleftAttachment, XmATTACH_NONE); ac++;
+  XtSetArg(al[ac], XmNrightAttachment, XmATTACH_NONE); ac++;
+  icon_separator = XmCreateLabel (form, "", al, ac);
+
+  if (text_input_slot)
+    {
+      ac = 0;
+      XtSetArg(al[ac], XmNcolumns, 50); ac++;
+      XtSetArg(al[ac], XmNtopAttachment, XmATTACH_NONE); ac++;
+      XtSetArg(al[ac], XmNbottomAttachment, XmATTACH_WIDGET); ac++;
+      XtSetArg(al[ac], XmNbottomOffset, 13); ac++;
+      XtSetArg(al[ac], XmNbottomWidget, separator); ac++;
+      XtSetArg(al[ac], XmNleftAttachment, XmATTACH_WIDGET); ac++;
+      XtSetArg(al[ac], XmNleftOffset, 13); ac++;
+      XtSetArg(al[ac], XmNleftWidget, icon); ac++;
+      XtSetArg(al[ac], XmNrightAttachment, XmATTACH_FORM); ac++;
+      XtSetArg(al[ac], XmNrightOffset, 13); ac++;
+      value = XmCreateTextField (form, "value", al, ac);
+    }
+  else if (radio_box)
+    {
+      Widget radio_butt;
+      ac = 0;
+      XtSetArg(al[ac], XmNmarginWidth, 0); ac++;
+      XtSetArg(al[ac], XmNmarginHeight, 0); ac++;
+      XtSetArg(al[ac], XmNspacing, 13); ac++;
+      XtSetArg(al[ac], XmNalignment, XmALIGNMENT_CENTER); ac++;
+      XtSetArg(al[ac], XmNorientation, XmHORIZONTAL); ac++;
+      XtSetArg(al[ac], XmNbottomAttachment, XmATTACH_WIDGET); ac++;
+      XtSetArg(al[ac], XmNbottomOffset, 13); ac++;
+      XtSetArg(al[ac], XmNbottomWidget, separator); ac++;
+      XtSetArg(al[ac], XmNleftAttachment, XmATTACH_WIDGET); ac++;
+      XtSetArg(al[ac], XmNleftOffset, 13); ac++;
+      XtSetArg(al[ac], XmNleftWidget, icon); ac++;
+      XtSetArg(al[ac], XmNrightAttachment, XmATTACH_FORM); ac++;
+      XtSetArg(al[ac], XmNrightOffset, 13); ac++;
+      value = XmCreateRadioBox (form, "radiobutton1", al, ac);
+      ac = 0;
+      i = 0;
+      radio_butt = XmCreateToggleButtonGadget (value, "radio1", al, ac);
+      children [i++] = radio_butt;
+      radio_butt = XmCreateToggleButtonGadget (value, "radio2", al, ac);
+      children [i++] = radio_butt;
+      radio_butt = XmCreateToggleButtonGadget (value, "radio3", al, ac);
+      children [i++] = radio_butt;
+      XtManageChildren (children, i);
+    }
+  
+  ac = 0;
+  XtSetArg(al[ac], XmNalignment, XmALIGNMENT_BEGINNING); ac++;
+  XtSetArg(al[ac], XmNtopAttachment, XmATTACH_FORM); ac++;
+  XtSetArg(al[ac], XmNtopOffset, 13); ac++;
+  XtSetArg(al[ac], XmNbottomAttachment, XmATTACH_WIDGET); ac++;
+  XtSetArg(al[ac], XmNbottomOffset, 13); ac++;
+  XtSetArg(al[ac], XmNbottomWidget,
+	   text_input_slot || radio_box ? value : separator); ac++;
+  XtSetArg(al[ac], XmNleftAttachment, XmATTACH_WIDGET); ac++;
+  XtSetArg(al[ac], XmNleftOffset, 13); ac++;
+  XtSetArg(al[ac], XmNleftWidget, icon); ac++;
+  XtSetArg(al[ac], XmNrightAttachment, XmATTACH_FORM); ac++;
+  XtSetArg(al[ac], XmNrightOffset, 13); ac++;
+  message = XmCreateLabel (form, "message", al, ac);
+  
+  i = 0;
+  children [i] = row; i++;
+  children [i] = separator; i++;
+  if (text_input_slot || radio_box)
+    {
+      children [i] = value; i++;
+    }
+  children [i] = message; i++;
+  children [i] = icon; i++;
+  children [i] = icon_separator; i++;
+  XtManageChildren (children, i);
+  
+  if (text_input_slot)
+    {
+      XtInstallAccelerators (value, button);
+      XtSetKeyboardFocus (result, value);
+    }
+  else
+    {
+      XtInstallAccelerators (form, button);
+      XtSetKeyboardFocus (result, button);
+    }
+  
+  return result;
+}
+
+static destroyed_instance*
+find_matching_instance (widget_instance* instance)
+{
+  destroyed_instance*	cur;
+  destroyed_instance*	prev;
+  char*	type = instance->info->type;
+  char*	name = instance->info->name;
+
+  for (prev = NULL, cur = all_destroyed_instances;
+       cur;
+       prev = cur, cur = cur->next)
+    {
+      if (!strcmp (cur->name, name)
+	  && !strcmp (cur->type, type)
+	  && cur->parent == instance->parent
+	  && cur->pop_up_p == instance->pop_up_p)
+	{
+	  if (prev)
+	    prev->next = cur->next;
+	  else
+	    all_destroyed_instances = cur->next;
+	  return cur;
+	}
+      /* do some cleanup */
+      else if (!cur->widget)
+	{
+	  if (prev)
+	    prev->next = cur->next;
+	  else
+	    all_destroyed_instances = cur->next;
+	  free_destroyed_instance (cur);
+	  cur = prev ? prev : all_destroyed_instances;
+	}
+    }
+  return NULL;
+}
+
+static void
+mark_dead_instance_destroyed (Widget widget, XtPointer closure,
+			      XtPointer call_data)
+{
+  destroyed_instance* instance = (destroyed_instance*)closure;
+  instance->widget = NULL;
+}
+
+static void
+recenter_widget (Widget widget)
+{
+  Widget parent = XtParent (widget);
+  Screen* screen = XtScreen (widget);
+  Dimension screen_width = WidthOfScreen (screen);
+  Dimension screen_height = HeightOfScreen (screen);
+  Dimension parent_width = 0;
+  Dimension parent_height = 0;
+  Dimension child_width = 0;
+  Dimension child_height = 0;
+  Position x;
+  Position y;
+
+  XtVaGetValues (widget, XtNwidth, &child_width, XtNheight, &child_height, 0);
+  XtVaGetValues (parent, XtNwidth, &parent_width, XtNheight, &parent_height,
+		 0);
+
+  x = (((Position)parent_width) - ((Position)child_width)) / 2;
+  y = (((Position)parent_height) - ((Position)child_height)) / 2;
+  
+  XtTranslateCoords (parent, x, y, &x, &y);
+
+  if (x + child_width > screen_width)
+    x = screen_width - child_width;
+  if (x < 0)
+    x = 0;
+
+  if (y + child_height > screen_height)
+    y = screen_height - child_height;
+  if (y < 0)
+    y = 0;
+
+  XtVaSetValues (widget, XtNx, x, XtNy, y, 0);
+}
+
+static Widget
+recycle_instance (destroyed_instance* instance)
+{
+  Widget widget = instance->widget;
+
+  /* widget is NULL if the parent was destroyed. */
+  if (widget)
+    {
+      Widget focus;
+      Widget separator;
+
+      /* Remove the destroy callback as the instance is not in the list
+	 anymore */
+      XtRemoveCallback (instance->parent, XtNdestroyCallback,
+			mark_dead_instance_destroyed,
+			(XtPointer)instance);
+
+      /* Give the focus to the initial item */
+      focus = XtNameToWidget (widget, "*value");
+      if (!focus)
+	focus = XtNameToWidget (widget, "*button1");
+      if (focus)
+	XtSetKeyboardFocus (widget, focus);
+      
+      /* shrink the separator label back to their original size */
+      separator = XtNameToWidget (widget, "*separator_button");
+      if (separator)
+	XtVaSetValues (separator, XtNwidth, 5, XtNheight, 5, 0);
+
+      /* Center the dialog in its parent */
+      recenter_widget (widget);
+    }
+  free_destroyed_instance (instance);
+  return widget;
+}
+
 Widget
-xm_create_menubar (widget_instance* instance)
+xm_create_dialog (widget_instance* instance)
+{
+  char* 	name = instance->info->type;
+  Widget 	parent = instance->parent;
+  Boolean 	pop_up_p = instance->pop_up_p;
+  char*		shell_name;
+  char* 	icon_name;
+  Boolean	text_input_slot = False;
+  Boolean	radio_box = False;
+  int		total_buttons;
+  int		left_buttons = 0;
+  int		right_buttons = 1;
+  destroyed_instance*	dead_one;
+
+  /* try to find a widget to recycle */
+  dead_one = find_matching_instance (instance);
+  if (dead_one)
+    {
+      Widget recycled_widget = recycle_instance (dead_one);
+      if (recycled_widget)
+	return recycled_widget;
+    }
+
+  switch (name [0]){
+  case 'E': case 'e':
+    icon_name = "dbox-error";
+    shell_name = "Error";
+    break;
+
+  case 'I': case 'i':
+    icon_name = "dbox-info";
+    shell_name = "Information";
+    break;
+
+  case 'P': case 'p':
+    text_input_slot = True;
+    icon_name = "dbox-question";
+    shell_name = "Prompt";
+    break;
+
+  case 'Q': case 'q':
+    icon_name = "dbox-question";
+    shell_name = "Question";
+    break;
+  }
+  
+  total_buttons = name [1] - '0';
+
+  if (name [3] == 'T' || name [3] == 't')
+    {
+      text_input_slot = False;
+      radio_box = True;
+    }
+  else if (name [3])
+    right_buttons = name [4] - '0';
+  
+  left_buttons = total_buttons - right_buttons;
+  
+  return make_dialog (name, parent, pop_up_p,
+		      shell_name, icon_name, text_input_slot, radio_box,
+		      left_buttons, right_buttons);
+}
+
+static Widget
+make_menubar (widget_instance* instance)
 {
   return XmCreateMenuBar (instance->parent, instance->info->name, NULL, 0);
 }
@@ -510,8 +1029,8 @@ remove_grabs (Widget shell, XtPointer closure, XtPointer call_data)
   XmRemoveFromPostFromList (menu, XtParent (XtParent (menu)));
 }
 
-Widget
-xm_create_popup_menu (widget_instance* instance)
+static Widget
+make_popup_menu (widget_instance* instance)
 {
   Widget parent = instance->parent;
   Window parent_window = parent->core.window;
@@ -527,13 +1046,128 @@ xm_create_popup_menu (widget_instance* instance)
 }
 
 /* Table of functions to create widgets */
+/* interface with the XDesigner generated functions */
+typedef Widget
+(*widget_maker) (Widget);
+
+extern Widget
+create_project_p_sheet (Widget parent);
+
+extern Widget
+create_debugger_p_sheet (Widget parent);
+
+extern Widget
+create_breaklist_p_sheet (Widget parent);
+
+extern Widget
+create_le_browser_p_sheet (Widget parent);
+
+extern Widget
+create_class_browser_p_sheet (Widget parent);
+
+extern Widget
+create_call_browser_p_sheet (Widget parent);
+
+static Widget
+make_one (widget_instance* instance, widget_maker fn)
+{
+  Widget result;
+  Widget shell;
+  Arg 	al [64];
+  int 	ac = 0;
+
+  if (instance->pop_up_p)
+    {
+      XtSetArg (al [ac], XmNallowShellResize, TRUE); ac++;
+      shell = XmCreateDialogShell (instance->parent, "dialog", NULL, 0);
+      result = (*fn) (shell);
+    }
+  else
+    {
+      result = (*fn) (instance->parent);
+      XtRealizeWidget (result);
+    }
+  return result;
+}
+
+static Widget
+make_project_p_sheet (widget_instance* instance)
+{
+  return make_one (instance, create_project_p_sheet);
+}
+
+static Widget
+make_debugger_p_sheet (widget_instance* instance)
+{
+  return make_one (instance, create_debugger_p_sheet);
+}
+
+static Widget
+make_breaklist_p_sheet (widget_instance* instance)
+{
+  return make_one (instance, create_breaklist_p_sheet);
+}
+
+static Widget
+make_le_browser_p_sheet (widget_instance* instance)
+{
+  return make_one (instance, create_le_browser_p_sheet);
+}
+
+static Widget
+make_class_browser_p_sheet (widget_instance* instance)
+{
+  return make_one (instance, create_class_browser_p_sheet);
+}
+
+static Widget
+make_call_browser_p_sheet (widget_instance* instance)
+{
+  return make_one (instance, create_call_browser_p_sheet);
+}
+
+
 widget_creation_entry
 xm_creation_table [] = 
 {
-  {"menubar", xm_create_menubar},
-  {"popup", xm_create_popup_menu},
+  {"menubar", 			make_menubar},
+  {"popup",			make_popup_menu},
+  {"project_p_sheet",		make_project_p_sheet},
+  {"debugger_p_sheet",		make_debugger_p_sheet},
+  {"breaklist_psheet",		make_breaklist_p_sheet},
+  {"leb_psheet",       		make_le_browser_p_sheet},
+  {"class_browser_psheet",	make_class_browser_p_sheet},
+  {"ctree_browser_psheet",	make_call_browser_p_sheet},
   {NULL, NULL}
 };
+
+/* Destruction of instances */
+void
+xm_destroy_instance (widget_instance* instance)
+{
+  Widget widget = instance->widget;
+  /* recycle the dialog boxes */
+  /* Disable the recycling until we can find a way to have the dialog box
+     get reasonable layout after we modify its contents. */
+  if (0
+      && XtClass (widget) == xmDialogShellWidgetClass)
+    {
+      destroyed_instance* dead_instance =
+	make_destroyed_instance (instance->info->name,
+				 instance->info->type,
+				 instance->widget,
+				 instance->parent,
+				 instance->pop_up_p);
+      dead_instance->next = all_destroyed_instances;
+      all_destroyed_instances = dead_instance;
+      XtUnmanageChild (first_child (instance->widget));
+      XFlush (XtDisplay (instance->widget));
+      XtAddCallback (instance->parent, XtNdestroyCallback,
+		     mark_dead_instance_destroyed, (XtPointer)dead_instance);
+    }
+  else
+    XtDestroyWidget (instance->widget);
+}
 
 /* popup utility */
 void
@@ -572,6 +1206,41 @@ xm_popup_menu (Widget widget)
   XtManageChild (widget);
 }
 
+static void
+set_min_dialog_size (Widget w)
+{
+  short width;
+  short height;
+  XtVaGetValues (w, XmNwidth, &width, XmNheight, &height, 0);
+  XtVaSetValues (w, XmNminWidth, width, XmNminHeight, height, 0);
+}
+
+void
+xm_pop_instance (widget_instance* instance, Boolean up)
+{
+  Widget widget = instance->widget;
+  Widget widget_to_manage;
+
+  if (XtClass (widget) == xmDialogShellWidgetClass)
+    {
+      Widget widget_to_manage = first_child (widget);
+      if (up)
+	{
+	  XtManageChild (widget_to_manage);
+	  set_min_dialog_size (widget);
+	  XtSetKeyboardFocus (instance->parent, widget);
+	}
+      else
+	XtUnmanageChild (widget_to_manage);
+    }
+  else
+    {
+      if (up)
+	XtManageChild (widget);
+      else
+	XtUnmanageChild (widget);	
+    }
+}
 
 
 /* motif callback */ 
@@ -585,12 +1254,19 @@ do_call (Widget widget, XtPointer closure, enum do_call_type type)
   int ac;
   XtPointer user_data;
   widget_instance* instance = (widget_instance*)closure;
+  Widget instance_widget;
+  BITS32 id;
 
   if (!instance)
     return;
   if (widget->core.being_destroyed)
     return;
 
+  instance_widget = instance->widget;
+  if (!instance_widget)
+    return;
+
+  id = instance->info->id;
   ac = 0;
   user_data = NULL;
   XtSetArg (al [ac], XmNuserData, &user_data); ac++;
@@ -599,28 +1275,47 @@ do_call (Widget widget, XtPointer closure, enum do_call_type type)
     {
     case pre_activate:
       if (instance->info->pre_activate_cb)
-	instance->info->pre_activate_cb (instance->widget, user_data);
+	instance->info->pre_activate_cb (widget, id, user_data);
       break;
     case selection:
       if (instance->info->selection_cb)
-	instance->info->selection_cb (instance->widget, user_data);
+	instance->info->selection_cb (widget, id, user_data);
       break;
     case no_selection:
       if (instance->info->selection_cb)
-	instance->info->selection_cb (instance->widget, (XtPointer) -1);
+	instance->info->selection_cb (widget, id, (XtPointer) -1);
       break;
     case post_activate:
       if (instance->info->post_activate_cb)
-	instance->info->post_activate_cb (instance->widget, user_data);
+	instance->info->post_activate_cb (widget, id, user_data);
       break;
     default:
       exit (-69);
     }
 }
 
+/* Like lw_internal_update_other_instances except that it does not do
+   anything if its shell parent is not managed.  This is to protect 
+   lw_internal_update_other_instances to dereference freed memory
+   if the widget was ``destroyed'' by caching it in the all_destroyed_instances
+   list */
+static void
+xm_internal_update_other_instances (Widget widget, XtPointer closure,
+				    XtPointer call_data)
+{
+  Widget parent;
+  for (parent = widget; parent; parent = XtParent (parent))
+    if (XtIsShell (parent))
+      break;
+    else if (!XtIsManaged (parent))
+      return;
+   lw_internal_update_other_instances (widget, closure, call_data);
+}
+
 static void
 xm_generic_callback (Widget widget, XtPointer closure, XtPointer call_data)
 {
+  lw_internal_update_other_instances (widget, closure, call_data);
   do_call (widget, closure, selection);
 }
 

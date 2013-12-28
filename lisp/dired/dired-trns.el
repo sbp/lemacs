@@ -1,6 +1,6 @@
 ;; dired-trns.el - file transformers for dired shell commands.
 
-;; $Id: dired-trns.el,v 1.6 1992/03/01 14:24:34 jwz Exp $
+;; Id: dired-trns.el,v 1.6 1991/07/05 13:36:01 sk RelBeta 
 
 ;; Code contributed by Hans Chalupsky <hans@cs.Buffalo.EDU>.
 ;; Integrated with my dired.el sk@sparc0 11-Jan-1991 14:38.
@@ -10,7 +10,7 @@
 ;;    LCD Archive Entry:
 ;;    dired-trns|Hans Chalupsky|hans@cs.Buffalo.EDU
 ;;    |Filename Transformation for Tree Dired Shell Commands 
-;;    |$Date: 1992/03/01 14:24:34 $|$Revision: 1.6 $|
+;;    |Date: 1991/07/05 13:36:01 |Revision: 1.6 |
 
 ;; INSTALLATION ======================================================
 ;; Put this file into your load-path and add (load "dired-trns") to

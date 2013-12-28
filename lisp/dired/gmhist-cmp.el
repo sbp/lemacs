@@ -1,5 +1,4 @@
 ;; gmhist-cmp.el
-;; $Id: gmhist-cmp.el,v 1.1 1991/09/12 18:59:10 jwz Exp $
 
 ;; Gmhist support for completer.el by ccm@CS.CMU.EDU (Christopher McConnell).
 ;; This is known to work with version 3.01 of completer.el.

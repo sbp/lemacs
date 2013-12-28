@@ -1,0 +1,13 @@
+;;; compiled by jwz@thalidomide on Wed Sep  2 01:01:11 1992
+;;; from file /wg1/emacs-base/lisp/packages/pending-del.el
+;;; emacs version 19.2.19 Lucid.
+;;; bytecomp version 2.08; 27-aug-92.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(byte-code "ÀÁMˆÂÃMˆÄÅÆÇ#ˆÄÈÆÇ#ˆÄÉÆÇ#ˆÄÊÆË#ˆÄÌÆË#ˆÄÍÆË#ˆÄÎÆÇ#ˆÄÏÆÇ#ˆÄĞÆÇ#ˆÑÒÂ\"ˆÇÀ‡" [delete-active-region #[(&optional killp) "?­«Á\n!­¦ÃÄ\n!W­ŸÃÅ\n!W­˜«‹ÇÄ\n!Å\n!\"ˆªˆÄ\n!Å\n!|ˆÈ‡" [buffer-read-only extentp primary-selection-extent 0 extent-start-position extent-end-position killp kill-region t] 4] pending-delete-pre-hook #[nil "9­ƒÁN‰Ã=«…ÄÅ!ª•\nÆ=«ŠÄÇ!­‹È‰ª†\n­ƒÄÇ!)‡" [this-command pending-delete type kill delete-active-region t supersede nil (lambda nil (interactive))] 3] put self-insert-command pending-delete t yank x-yank-clipboard-selection delete-backward-char supersede backward-delete-char-untabify delete-char newline-and-indent newline open-line add-hook pre-command-hook zmacs-regions] 4)

@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Fri Jun 12 23:20:58 1992
-;;; from file /cadillac-th/jwz/emacs19/lisp/shell.el
-;;; emacs version 19.1 Lucid.
-;;; bytecomp version 2.07; 12-jun-92.
+;;; compiled by jwz@thalidomide on Tue Jun 30 21:57:52 1992
+;;; from file /wg1/emacs-base/lisp/comint/shell.el
+;;; emacs version 19.2.1 Lucid.
+;;; bytecomp version 2.07; 17-jun-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 

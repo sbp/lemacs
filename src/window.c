@@ -1,12 +1,12 @@
 /* Window creation, deletion and examination for GNU Emacs.
    Does not include redisplay.
-   Copyright (C) 1985, 1986, 1987 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1987, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -110,7 +110,7 @@ DEFUN ("windowp", Fwindowp, Swindowp, 1, 1, 0,
   (obj)
      Lisp_Object obj;
 {
-  return XTYPE (obj) == Lisp_Window ? Qt : Qnil;
+  return WINDOWP (obj) ? Qt : Qnil;
 }
 
 Lisp_Object
@@ -200,7 +200,7 @@ POS defaults to point; WINDOW, to the selected window.")
     posint = point;
   else
     {
-      CHECK_NUMBER_COERCE_MARKER (pos, 0);
+      CHECK_FIXNUM_COERCE_MARKER (pos, 0);
       posint = XINT (pos);
     }
 
@@ -302,7 +302,7 @@ NCOL should be zero or positive.")
 {
   register struct window *w;
 
-  CHECK_NUMBER (ncol, 1);
+  CHECK_FIXNUM (ncol, 1);
   if (XINT (ncol) < 0) XFASTINT (ncol) = 0;
   if (XFASTINT (ncol) >= (1 << (SHORTBITS - 1)))
     args_out_of_range (ncol, Qnil);
@@ -381,7 +381,7 @@ DEFUN ("set-window-point", Fset_window_point, Sset_window_point, 2, 2, 0,
 {
   register struct window *w = decode_window (window);
 
-  CHECK_NUMBER_COERCE_MARKER (pos, 1);
+  CHECK_FIXNUM_COERCE_MARKER (pos, 1);
   if (w == XWINDOW (selected_window))
     Fgoto_char (pos);
   else
@@ -399,7 +399,7 @@ from overriding motion of point in order to display at this exact start.")
 {
   register struct window *w = decode_window (window);
 
-  CHECK_NUMBER_COERCE_MARKER (pos, 1);
+  CHECK_FIXNUM_COERCE_MARKER (pos, 1);
   set_marker_restricted (w->start, pos, w->buffer);
   /* this is not right, but much easier than doing what is right. */
   w->start_at_line_beg = Qnil;
@@ -465,13 +465,13 @@ window_display_table (w)
 {
   Lisp_Object tem;
   tem = w->display_table;
-  if (XTYPE (tem) == Lisp_Vector && XVECTOR (tem)->size == DISP_TABLE_SIZE)
+  if (VECTORP (tem) && XVECTOR (tem)->size == DISP_TABLE_SIZE)
     return XVECTOR (tem);
   tem = XBUFFER (w->buffer)->display_table;
-  if (XTYPE (tem) == Lisp_Vector && XVECTOR (tem)->size == DISP_TABLE_SIZE)
+  if (VECTORP (tem) && XVECTOR (tem)->size == DISP_TABLE_SIZE)
     return XVECTOR (tem);
   tem = Vstandard_display_table;
-  if (XTYPE (tem) == Lisp_Vector && XVECTOR (tem)->size == DISP_TABLE_SIZE)
+  if (VECTORP (tem) && XVECTOR (tem)->size == DISP_TABLE_SIZE)
     return XVECTOR (tem);
   return 0;
 }
@@ -587,9 +587,14 @@ If window is the only one on the screen, the screen is destroyed.")
 #ifdef MULTI_SCREEN
   if (ONLY_WINDOW_P (p))
     {
-      if (EQ (p->screen, next_screen (p->screen, 0)))
-	error ("Attempt to delete the only window on the only screen");
       windows_or_buffers_changed++;
+      if (NILP (memq_no_quit (p->screen, Vscreen_list)))
+	/* this screen isn't fully initialized yet; don't blow up. */
+	return Qnil;
+      if (EQ (p->screen, next_screen (p->screen, 0, 1)))
+	error ((EQ (p->screen, next_screen (p->screen, 0, 0))) ?
+	       "Attempt to delete the only window on the only screen" :
+	       "Attempt to delete the only window on the only visible screen");
       Fdelete_screen (p->screen);
       return Qnil;
     }
@@ -710,9 +715,9 @@ DEFUN ("next-window", Fnext_window, Snext_window, 0, 3, 0,
 Optional second arg MINIBUF t means count the minibuffer window\n\
 even if not active.  If MINIBUF is neither t nor nil it means\n\
 not to count the minibuffer even if it is active.\n\
-Optional third arg ALL-SCREENS t means include all windows in all screens;\n\
-otherwise cycle within the selected screen, with the exception that if a\n\
-global minibuffer screen is in use, all screens are used.")
+Optional third arg ALL-SCREENS t means include all windows in all visible\n\
+screens; otherwise cycle within the selected screen, with the exception that\n\
+if a global minibuffer screen is in use, all screens are used.")
   (window, mini, all_screens)
      register Lisp_Object window, mini, all_screens;
 {
@@ -742,7 +747,7 @@ global minibuffer screen is in use, all screens are used.")
 	    tem = WINDOW_SCREEN (XWINDOW (window));
 #ifdef MULTI_SCREEN
 	    if (! NILP (all_screens))
-	      tem = next_screen (tem, NILP (mini) ? 0 : 1);
+	      tem = next_screen (tem, (NILP (mini) ? 0 : 1), 1);
 #endif
 	    tem = SCREEN_ROOT_WINDOW (XSCREEN (tem));
 	    break;
@@ -772,9 +777,9 @@ DEFUN ("previous-window", Fprevious_window, Sprevious_window, 0, 3, 0,
 Optional second arg MINIBUF t means count the minibuffer window\n\
 even if not active.  If MINIBUF is neither t nor nil it means\n\
 not to count the minibuffer even if it is active.\n\
-Optional third arg ALL-SCREENS t means include all windows in all screens;\n\
-otherwise cycle within the selected screen, with the exception that if a\n\
-global minibuffer screen is in use, all screens are used.")
+Optional third arg ALL-SCREENS t means include all windows in all visible\n\
+screens; otherwise cycle within the selected screen, with the exception\n\
+that if a global minibuffer screen is in use, all screens are used.")
   (window, mini, all_screens)
      register Lisp_Object window, mini, all_screens;
 {
@@ -806,7 +811,7 @@ global minibuffer screen is in use, all screens are used.")
 	    tem = WINDOW_SCREEN (XWINDOW (window));
 #ifdef MULTI_SCREEN
 	    if (! NILP (all_screens))
-	      tem = prev_screen (tem, NILP (mini) ? 0 : 1);
+	      tem = prev_screen (tem, (NILP (mini) ? 0 : 1), 1);
 #endif
 #if 0
 	    tem = XWINDOW (XSCREEN (tem)->minibuffer_window)->prev;
@@ -850,7 +855,7 @@ argument ALL_SCREENS is non-nil, cycle through all screens.")
   register int i;
   register Lisp_Object w;
 
-  CHECK_NUMBER (n, 0);
+  CHECK_FIXNUM (n, 0);
   w = selected_window;
   i = XINT (n);
 
@@ -893,17 +898,18 @@ window_loop (type, obj, mini, this_screen)
      int mini;
 {
   register Lisp_Object w, tem;
-  Lisp_Object w1, start_w;
+  Lisp_Object start_w;
   register struct window *p, *q;
   register Lisp_Object ret_w = Qnil;
   register SCREEN_PTR screen;
+  int lose_lose = 0;
 
   if (NILP (this_screen) || EQ (this_screen, Qt))
     screen = selected_screen;
   else
     screen = XSCREEN (this_screen);
 
-  if (XTYPE (obj) == Lisp_Window)
+  if (WINDOWP (obj))
     w = obj;
   else
     w = SCREEN_SELECTED_WINDOW (screen);
@@ -911,6 +917,12 @@ window_loop (type, obj, mini, this_screen)
 
   while (1)
     {
+
+      /* Given the outstanding quality of the rest of this code, 
+	 I feel no shame about putting this piece of shit in. */
+      if (++lose_lose >= 500)
+	return Qnil;
+
       p = XWINDOW (w);
 
       if (!MINI_WINDOW_P (XWINDOW (w)))
@@ -980,6 +992,9 @@ window_loop (type, obj, mini, this_screen)
 		  Fset_buffer (p->buffer);
 	      }
 	    break;
+
+	  case WINDOW_LOOP_UNUSED:
+	    abort ();
 	  }
 
       if (EQ (this_screen, Qt))
@@ -990,7 +1005,7 @@ window_loop (type, obj, mini, this_screen)
       if (EQ (w, SCREEN_SELECTED_WINDOW (screen)))
 	return ret_w;
     }
-}     
+}
 
 DEFUN ("get-lru-window", Fget_lru_window, Sget_lru_window, 0, 1, 0,
   "Return the window least recently selected or used for display.\n\
@@ -1025,7 +1040,7 @@ then all screens are searched.")
      Lisp_Object buffer, screen;
 {
   buffer = Fget_buffer (buffer);
-  if (XTYPE (buffer) == Lisp_Buffer)
+  if (BUFFERP (buffer))
     return window_loop (GET_BUFFER_WINDOW, buffer, 1, screen);
   else return Qnil;
 }
@@ -1536,7 +1551,7 @@ and put SIZE columns in the first of the pair.")
     }
   else
     {
-      CHECK_NUMBER (chsize, 1);
+      CHECK_FIXNUM (chsize, 1);
       size = XINT (chsize);
     }
 
@@ -1625,7 +1640,7 @@ From program, optional second arg non-nil means grow sideways ARG columns.")
   (n, side)
      register Lisp_Object n, side;
 {
-  CHECK_NUMBER (n, 0);
+  CHECK_FIXNUM (n, 0);
   change_window_height (XINT (n), !NILP (side));
   zmacs_region_stays = 1;
   return Qnil;
@@ -1637,7 +1652,7 @@ From program, optional second arg non-nil means shrink sideways ARG columns.")
   (n, side)
      register Lisp_Object n, side;
 {
-  CHECK_NUMBER (n, 0);
+  CHECK_FIXNUM (n, 0);
   change_window_height (-XINT (n), !NILP (side));
   zmacs_region_stays = 1;
   return Qnil;
@@ -1684,7 +1699,8 @@ change_window_height (delta, widthflag)
   register int (*setsizefun) () = (widthflag
 				   ? set_window_width
 				   : set_window_height);
-
+  if (delta == 0)
+    return 0;
 
   if (EQ (selected_window,
 	  SCREEN_ROOT_WINDOW (XSCREEN (XWINDOW (selected_window)->screen))))
@@ -1999,9 +2015,9 @@ showing that buffer, popping the buffer up if necessary.")
     window_scroll (window, next_screen_context_lines - ht);
   else
     {
-      if (XTYPE (n) == Lisp_Cons)
+      if (CONSP (n))
 	n = Fcar (n);
-      CHECK_NUMBER (n, 0);
+      CHECK_FIXNUM (n, 0);
       window_scroll (window, XINT (n));
     }
   Fset_marker (w->pointm, make_number (point), Qnil);
@@ -2067,14 +2083,14 @@ redraws with point in the center.")
       SET_SCREEN_GARBAGED (XSCREEN (WINDOW_SCREEN (w)));
       XFASTINT (n) = ht / 2;
     }
-  else if (XTYPE (n) == Lisp_Cons) /* Just C-u. */
+  else if (CONSP (n)) /* Just C-u. */
     {
       XFASTINT (n) = ht / 2;
     }
   else
     {
       n = Fprefix_numeric_value (n);
-      CHECK_NUMBER (n, 0);
+      CHECK_FIXNUM (n, 0);
     }
 
   if (XINT (n) < 0)
@@ -2125,6 +2141,7 @@ negative means relative to bottom of window.")
   else
     SET_PT (start);
 
+  zmacs_region_stays = 1;
   return Fvertical_motion (arg, selected_window);
 }
 
@@ -2225,7 +2242,7 @@ by `current-window-configuration' (which see).")
     
       Lisp_Object new_desired = data->p_sheet_buffer;
     
-      if (XTYPE (new_desired) == Lisp_Buffer &&
+      if (BUFFERP (new_desired) &&
 	  NILP (XBUFFER (new_desired)->name))
 	new_desired = Qnil;	/* the desired buffer was killed */
     

@@ -56,9 +56,10 @@ than adding to it."
 		     (prog1
 			 (search-forward "is free software" nil t)
 		       (goto-char (point-min))))
-	     (re-search-forward
-		  "[Cc]opyright[^0-9]*\\(\\([-, \t]*\\([0-9]+\\)\\)\\)+"
-		  nil t)
+		 (and (re-search-forward
+		       "[Cc]opyright[^0-9]*\\(\\([-, \t]*\\([0-9]+\\)\\)\\)+.*Free Software Foundation"
+		       nil t)
+		      (goto-char (match-end 1)))
 		 (or (not ask-upd)
 		     (save-window-excursion
 		       (pop-to-buffer (current-buffer))

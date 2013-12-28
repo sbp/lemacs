@@ -1,6 +1,6 @@
 ;;; -*- Mode: Emacs-lisp -*- ;;;
 ;;; dired-cd.el - Adjust Working Directory for Tree Dired Shell Commands 
-;;; $Id: dired-cd.el,v 1.14 1992/03/01 14:23:27 jwz Exp $
+;;; Id: dired-cd.el,v 1.14 1991/11/01 14:28:27 sk RelBeta 
 ;;; Copyright (C) 1991 Hugh Secker-Walker
 ;;;
 ;;; Author:  Hugh Secker-Walker   hugh@ear-ache.mit.edu
@@ -25,7 +25,7 @@
 ;;    LCD Archive Entry:
 ;;    dired-cd|Hugh Secker-Walker|hugh@ear-ache.mit.edu
 ;;    |Adjust Working Directory for Tree Dired Shell Commands 
-;;    |$Date: 1992/03/01 14:23:27 $|$Revision: 1.14 $|
+;;    |Date: 1991/11/01 14:28:27 |Revision: 1.14 |
 
 ;;; SUMMARY
 

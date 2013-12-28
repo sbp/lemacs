@@ -1,14 +1,13 @@
 ;;; -*- Mode: Emacs-lisp -*- ;;;
 ;;; dired-guess.el - In Dired, guess what shell command to apply.
-;;; $Id: dired-guess.el,v 1.1 1991/07/13 01:17:36 jwz Exp $
 
-;;; Copyright (C) 1991 Gregory N. Shapiro
+;;; Copyright (C) 1991, 1992 Gregory N. Shapiro
 ;;;
 ;;; Author:  Gregory N. Shapiro   gshapiro@wpi.wpi.edu
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
-;;; the Free Software Foundation; either version 1, or (at your option)
+;;; the Free Software Foundation; either version 2, or (at your option)
 ;;; any later version.
 ;;;
 ;;; This program is distributed in the hope that it will be useful,
@@ -41,7 +40,6 @@
 ;;    LCD Archive Entry:
 ;;    dired-guess|Gregory N. Shapiro|gshapiro@wpi.wpi.edu
 ;;    |Guess a Dired shell command from the filename.
-;;    |$Date: 1991/07/13 01:17:36 $|$Revision: 1.1 $|
 
 ;; INSTALLATION
 ;;

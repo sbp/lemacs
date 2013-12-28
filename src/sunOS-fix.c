@@ -9,6 +9,24 @@
    This appears to be fixed in SunOS 4.1.2.
  */
 
+#ifdef __STDC__
+
+#include <stdlib.h>
+
+size_t mbstowcs (wchar_t *foo, const char *bar, size_t baz)
+{
+  abort ();
+  return 0;
+}
+
+size_t wcstombs (char *foo, const wchar_t *bar, size_t baz)
+{
+  abort ();
+  return 0;
+}
+
+#else
+
 void mbstowcs ()
 {
   abort ();
@@ -18,3 +36,5 @@ void wcstombs ()
 {
   abort ();
 }
+
+#endif

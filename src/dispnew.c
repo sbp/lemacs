@@ -66,10 +66,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #undef SIGIO
 #endif
 
-
-void bzero ();
-void bcopy ();
-
 #include "termchar.h"
 #include "termopts.h"
 #include "cm.h"
@@ -1525,7 +1521,6 @@ x_update_line (screen, vpos, pix_y)
 
 int detect_input_pending ();
 int scrolling ();
-int ioctl ();
 unsigned sleep ();		/* int clashes with <unistd.h> */
 
 /* At the time this function is called, no line is common
@@ -1859,7 +1854,12 @@ pixel_to_glyph_translation (s, pix_x, pix_y, x, y, w, bufp, gly, class,
       next_bufp = bufpos;
       bufcol = 0;
       if (bufpos < 0)
-	minibuf_len = strlen (minibuf_prompt);
+	{
+	  if (STRINGP (Vminibuf_prompt))
+	    minibuf_len = (XSTRING (Vminibuf_prompt)->size);
+	  else
+	    abort ();
+	}
       this_pix = current_screen->top_left_x[line];
       switch (current_screen->face_list[line][run].type)
 	{
@@ -1878,10 +1878,13 @@ pixel_to_glyph_translation (s, pix_x, pix_y, x, y, w, bufp, gly, class,
 
 	  c = ((bufpos > 0)
 	       ? BUF_CHAR_AT (buffer, bufpos)
-	       : minibuf_prompt[minibuf_len + bufpos - 1]);
+	       : XSTRING(Vminibuf_prompt)->data[minibuf_len + bufpos - 1]);
 	  if ((c >= 040 && c < 0177) || /* Normal character. */
 	      (!NILP (ctl_arrow) &&	/* 8-bit display */
-	       !EQ (ctl_arrow, Qt) && c >= 0240))
+	       !EQ (ctl_arrow, Qt) &&
+	       (FIXNUMP (ctl_arrow)
+		? c >= 0240
+		: c >= XINT (ctl_arrow))))
 	    {
 	    }
 	  else if (c == '\t')	/* Tab character. */
@@ -1978,9 +1981,12 @@ pixel_to_glyph_translation (s, pix_x, pix_y, x, y, w, bufp, gly, class,
 
 	  c = ((bufpos > 0)
 	       ? BUF_CHAR_AT (buffer, bufpos)
-	       : minibuf_prompt[minibuf_len + bufpos - 1]);
+	       : XSTRING(Vminibuf_prompt)->data[minibuf_len + bufpos - 1]);
 	  if ((c >= 040 && c < 0177) || /* Normal character. */
-	      (!NILP (ctl_arrow) && !EQ (ctl_arrow, Qt) && c >= 0240))
+	      (!NILP (ctl_arrow) && !EQ (ctl_arrow, Qt)
+	       && (FIXNUMP (ctl_arrow)
+		   ? c >= XINT (ctl_arrow)
+		   : c >= 0240)))
 	    {
 	    }
 	  else if (c == '\t')	/* Tab character. */
@@ -2260,7 +2266,12 @@ init_display ()
 
   /* Look at the TERM variable */
   terminal_type = (char *) getenv ("TERM");
-  if (!terminal_type)
+
+  if (!terminal_type
+#ifdef HAVE_X_WINDOWS
+      && (inhibit_window_system || !egetenv ("DISPLAY"))
+#endif
+      )
     {
 #ifdef VMS
       fprintf (stderr, "Please specify your terminal type.\n\
@@ -2305,7 +2316,10 @@ For types not defined in VMS, use  define emacs_term \"TYPE\".\n\
   SCREEN_HEIGHT (selected_screen) = screen_height;
 #endif
 
-  remake_screen_glyphs (selected_screen);
+#ifdef HAVE_X_WINDOWS
+  if (inhibit_window_system || !egetenv ("DISPLAY"))
+#endif
+    remake_screen_glyphs (selected_screen);
 
   /* X and Y coordiates of the cursor between updates. */
   SCREEN_CURSOR_X (selected_screen) = 0;

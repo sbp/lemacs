@@ -11,6 +11,7 @@
 #       This is a little less dangerous.
 
 SHELL = /bin/sh
+CC = cc
 
 # Where to install things
 # Note that on system V you must change MANDIR to /use/local/man/man1.
@@ -107,19 +108,19 @@ install.xenix: all mkdir lockdir
 
 install.aix: all mkdir lockdir
 	-if [ "`/bin/pwd`" != "`(cd ${LIBDIR} && /bin/pwd)`" ] ; then \
-		tar cf - ${COPYDIR} | (cd ${LIBDIR}; umask 0; tar xBf - ) ;\
-		for i in ${CLEANDIR}; do \
-			(rm -rf ${LIBDIR}/$$i/RCS; \
-			 rm -f ${LIBDIR}/$$i/\#*; \
-			 rm -f ${LIBDIR}/$$i/*~); \
-		done \
-	else true; \
-	fi
-	install -f ${BINDIR} etc/emacsclient
-	install -f ${BINDIR} etc/etags
-	install -f ${BINDIR} etc/ctags
-	install -M 1755 -f ${BINDIR} src/xemacs
-	install -M 444 -f ${MANDIR} etc/emacs.1
+                tar cf - ${COPYDIR} | (cd ${LIBDIR}; umask 0; tar xBf - ) ;\
+                for i in ${CLEANDIR}; do \
+                        (rm -rf ${LIBDIR}/$$i/RCS; \
+                         rm -f ${LIBDIR}/$$i/\#*; \
+                         rm -f ${LIBDIR}/$$i/*~); \
+                done \
+        else true; \
+        fi
+	$(INSTALL) -c etc/emacsclient ${BINDIR}/emacsclient
+	$(INSTALL) -c etc/etags ${BINDIR}/etags
+	$(INSTALL) -c etc/ctags ${BINDIR}/ctags
+	$(INSTALL) -c -m 1755 src/xemacs ${BINDIR}/xemacs
+	$(INSTALL) -c -m 444 etc/emacs.1 ${MANDIR}/emacs.1
 	-rm -f ${BINDIR}/emacs
 	mv ${BINDIR}/xemacs ${BINDIR}/emacs
 

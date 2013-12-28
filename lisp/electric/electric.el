@@ -1,12 +1,12 @@
 ;; electric -- Window maker and Command loop for `electric' modes.
-;; Copyright (C) 1985, 1986 Free Software Foundation, Inc.
+;; Copyright (C) 1985, 1986, 1992 Free Software Foundation, Inc.
 ;; Principal author K. Shane Hartman
 
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -72,22 +72,16 @@
 			      &optional prompt inhibit-quit
 					loop-function loop-state)
   (if (not prompt) (setq prompt "->"))
-  (let (cmd events
-	(err nil))
+  (let (cmd events err)
     (while t
-      (setq cmd (mapconcat
-		 (function (lambda (event)
-			     (make-string 1 (event-to-character event))))
-		 (setq events
-		       (read-key-sequence (if (stringp prompt)
-					      prompt (funcall prompt))))
-		 ""))
+      (setq events (read-key-sequence
+		    (if (stringp prompt) prompt (funcall prompt))))
       (or prefix-arg (setq last-command this-command))
       (setq last-command-event (aref events (1- (length events)))
-	    this-command (key-binding cmd)
+	    this-command (key-binding events)
 	    cmd this-command)
       (if (or (prog1 quit-flag (setq quit-flag nil))
-	      (= (event-to-character last-input-event) interrupt-char))
+	      (eq (event-to-character last-input-event) interrupt-char))
 	  (progn (setq unread-command-event nil
 		       prefix-arg nil)
 		 ;; If it wasn't cancelling a prefix character, then quit.

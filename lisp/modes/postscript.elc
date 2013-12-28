@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Tue Apr 21 17:51:03 1992
-;;; from file /u/jwz/emacs19/lisp/postscript.el
-;;; emacs version 19.0.2 Lucid.
-;;; bytecomp version 2.05; 9-mar-92.
+;;; compiled by jwz@thalidomide on Tue Sep  8 23:32:22 1992
+;;; from file /wg1/emacs-base/lisp/modes/postscript.el
+;;; emacs version 19.2.23 Lucid.
+;;; bytecomp version 2.08; 27-aug-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -24,7 +24,7 @@
 Keymap used in PostScript mode buffers")
 (defvar ps-mode-syntax-table nil "\
 PostScript mode syntax table")
-(fset 'postscript-mode #[nil "À ˆÁ\n!ˆ«†Ä!ˆª¥Å Ä!ˆÆÇÈ\"ˆÆÉÊ\"ˆÆËÌ\"ˆÆÍÎ\"ˆÆÏÐ\"ˆÆÑÒ\"ˆÓÔ!ˆÓÕ!ˆÓÖ!ˆÓ×!ˆÓØ!ˆÓÙ!ˆÚÛÇÜÝß á\"ãä!‡" [kill-all-local-variables use-local-map ps-mode-map ps-mode-syntax-table set-syntax-table make-syntax-table modify-syntax-entry 40 "(" 41 ")" 91 "(]" 93 ")[" 37 "<" 10 ">" make-local-variable comment-start comment-start-skip comment-column indent-line-function tab-stop-list page-delimiter "% " "% *" ps-indent-line "^showpage" ps-tab-stop-list "PostScript" mode-name postscript-mode major-mode run-hooks ps-mode-hook] 3 "\
+(fset 'postscript-mode #[nil "À ˆÁ\n!ˆ«†Ä!ˆª¥Å Ä!ˆÆÇÈ\"ˆÆÉÊ\"ˆÆËÌ\"ˆÆÍÎ\"ˆÆÏÐ\"ˆÆÑÒ\"ˆÓÔ!ˆÓÕ!ˆÓÖ!ˆÓ×!ˆÓØ!ˆÓÙ!ˆÚÛÇÜÝß á\"ãä!ˆãå!‡" [kill-all-local-variables use-local-map ps-mode-map ps-mode-syntax-table set-syntax-table make-syntax-table modify-syntax-entry 40 "(" 41 ")" 91 "(]" 93 ")[" 37 "<" 10 ">" make-local-variable comment-start comment-start-skip comment-column indent-line-function tab-stop-list page-delimiter "% " "% *" ps-indent-line "^showpage" ps-tab-stop-list "PostScript" mode-name postscript-mode major-mode run-hooks ps-mode-hook postscript-mode-hook] 3 "\
 Major mode for editing PostScript files.
 
 \\[ps-execute-buffer] will send the contents of the buffer to the NeWS
@@ -39,8 +39,8 @@ arrays and begin/end pairs.
 
 \\{ps-mode-map}
 
-\\[postscript-mode] calls the value of the variable ps-mode-hook with no args,
-if that value is non-nil." nil])
+\\[postscript-mode] calls the value of the variable postscript-mode-hook 
+with no args, if that value is non-nil." nil])
 (fset 'ps-tab #[nil "ŠÀÁxˆn)«ƒÂ ‡ŠÂ )‡" [" 	" nil ps-indent-line] 2 "\
 Command assigned to the TAB key in PostScript mode." nil])
 (fset 'ps-indent-line #[nil "ÀyˆÁ ˆÂÃ!®‚Ä ?­™`dW«Š`fzÅ=«ƒÆ ‡ÂÇ!«ƒÈ ‡É ‡" [0 delete-horizontal-space looking-at "%%" ps-top-level-p 41 ps-indent-close "\\(dict\\|class\\)?end\\|cdef\\|grestore" ps-indent-end ps-indent-in-block] 2 "\

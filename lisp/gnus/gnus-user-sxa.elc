@@ -1,7 +1,7 @@
-;;; compiled by devin@watergate on Sat May 16 14:13:58 1992
+;;; compiled by jwz@thalidomide on Tue Jun 30 22:05:13 1992
 ;;; from file /wg1/emacs-base/lisp/gnus/gnus-user-sxa.el
-;;; emacs version 19.0.16 Lucid.
-;;; bytecomp version 2.06; 23-apr-92.
+;;; emacs version 19.2.1 Lucid.
+;;; bytecomp version 2.07; 17-jun-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 

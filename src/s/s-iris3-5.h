@@ -54,6 +54,8 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #define HAVE_TERMIO
 
+#define HAVE_DREM
+
 /*
  *	Define HAVE_TIMEVAL if the system supports the BSD style clock values.
  *	Look in <sys/time.h> for a timeval structure.

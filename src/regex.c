@@ -153,7 +153,7 @@ re_set_syntax (syntax)
     if (bufp->allocated == (1<<16)) goto too_big; \
     bufp->allocated *= 2; \
     if (bufp->allocated > (1<<16)) bufp->allocated = (1<<16); \
-    if (!(bufp->buffer = (char *) realloc (bufp->buffer, bufp->allocated))) \
+    if (!(bufp->buffer = (char *) xrealloc (bufp->buffer, bufp->allocated))) \
       goto memory_exhausted; \
     c = bufp->buffer - old_buffer; \
     b += c; \
@@ -244,10 +244,10 @@ re_compile_pattern (pattern, size, bufp)
       bufp->allocated = 28;
       if (bufp->buffer)
 	/* EXTEND_BUFFER loses when bufp->allocated is 0 */
-	bufp->buffer = (char *) realloc (bufp->buffer, 28);
+	bufp->buffer = (char *) xrealloc (bufp->buffer, 28);
       else
 	/* Caller did not allocate a buffer.  Do it for him */
-	bufp->buffer = (char *) malloc (28);
+	bufp->buffer = (char *) xmalloc (28);
       if (!bufp->buffer) goto memory_exhausted;
       begalt = b = bufp->buffer;
     }
@@ -1557,10 +1557,10 @@ re_comp (s)
 
   if (!re_comp_buf.buffer)
     {
-      if (!(re_comp_buf.buffer = (char *) malloc (200)))
+      if (!(re_comp_buf.buffer = (char *) xmalloc (200)))
 	return "Memory exhausted";
       re_comp_buf.allocated = 200;
-      if (!(re_comp_buf.fastmap = (char *) malloc (1 << BYTEWIDTH)))
+      if (!(re_comp_buf.fastmap = (char *) xmalloc (1 << BYTEWIDTH)))
 	return "Memory exhausted";
     }
   return re_compile_pattern (s, strlen (s), &re_comp_buf);
@@ -1632,7 +1632,7 @@ main (argc, argv)
     obscure_syntax = atoi (argv[1]);
 
   buf.allocated = 40;
-  buf.buffer = (char *) malloc (buf.allocated);
+  buf.buffer = (char *) xmalloc (buf.allocated);
   buf.fastmap = fastmap;
   buf.translate = upcase;
 

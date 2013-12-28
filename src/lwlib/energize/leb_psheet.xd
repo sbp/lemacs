@@ -1,0 +1,253 @@
+module 'leb_psheet'
+applicationName = 'leb_psheet';
+generateNameC = 'leb_psheet.xdc';
+generateNameUIL = '';
+generateNameResDB = '';
+generateUidFile = '';
+generateMask = 458980;
+object '' : XmDialogShell {
+	arguments {
+	name = 'widget0';
+	XmNtitle = 'Prompt dialog';
+	XmNallowShellResize = true;
+	};
+object '' : XmFrame {
+	arguments {
+	name = 'lebrowserPanel';
+	XmNshadowType=8;
+	};
+object '' : XmForm {
+	arguments {
+	name = 'panel';
+	XmNautoUnmanage = false;
+	XmNdefaultButton = 'widget23';
+	};
+object '' : XmLabel {
+	arguments {
+	name = 'nameLabel';
+	};
+};
+object '' : XmText {
+	arguments {
+	name = 'nameText';
+	XmNmarginHeight=2;
+	XmNmarginWidth=1;
+	};
+};
+object '' : XmLabel {
+	arguments {
+	name = 'fileLabel';
+	};
+};
+object '' : XmText {
+	arguments {
+	name = 'fileText';
+	XmNmarginHeight=2;
+	XmNmarginWidth=1;
+	};
+};
+object '' : XmLabel {
+	arguments {
+	name = 'projectLabel';
+	};
+};
+object '' : XmText {
+	arguments {
+	name = 'projectText';
+	XmNmarginHeight=2;
+	XmNmarginWidth=1;
+	};
+};
+object '' : XmToggleButton {
+	arguments {
+	name = 'functions';
+	};
+};
+object '' : XmToggleButton {
+	arguments {
+	name = 'classes';
+	};
+};
+object '' : XmToggleButton {
+	arguments {
+	name = 'macros';
+	};
+};
+object '' : XmToggleButton {
+	arguments {
+	name = 'variables';
+	};
+};
+object '' : XmToggleButton {
+	arguments {
+	name = 'types';
+	};
+};
+object '' : XmToggleButton {
+	arguments {
+	name = 'doc';
+	};
+};
+object '' : XmToggleButton {
+	arguments {
+	name = 'whereDeclared';
+	};
+};
+object '' : XmToggleButton {
+	arguments {
+	name = 'highlightUses';
+	};
+};
+object '' : XmToggleButton {
+	arguments {
+	name = 'verbose';
+	};
+};
+object '' : XmRadioBox {
+	arguments {
+	name = 'nameStyle';
+	XmNmarginWidth=0;
+	XmNmarginHeight=0;
+	XmNorientation=2;
+	};
+object '' : XmToggleButton GADGET {
+	arguments {
+	name = 'nameOnly';
+	};
+};
+object '' : XmToggleButton GADGET {
+	arguments {
+	name = 'prototype';
+	};
+};
+object '' : XmToggleButton GADGET {
+	arguments {
+	name = 'mangled';
+	};
+};
+};
+object '' : XmSeparator {
+	arguments {
+	name = 'separator';
+	XmNwidth=300;
+	};
+};
+object '' : XmPushButton {
+	arguments {
+	name = 'apply';
+	};
+};
+    attachments {
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 1 0 2;
+	XmNbottomAttachment = 0 0 0;
+	XmNtopAttachment = 1 0 5;
+    };
+    attachment {
+	XmNrightAttachment = 3 18 2;
+	XmNleftAttachment = 3 1 2;
+	XmNbottomAttachment = 0 0 0;
+	XmNtopAttachment = 4 1 -4;
+    };
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 1 0 2;
+	XmNbottomAttachment = 0 0 0;
+	XmNtopAttachment = 4 4 4;
+    };
+    attachment {
+	XmNrightAttachment = 3 18 2;
+	XmNleftAttachment = 4 2 0;
+	XmNbottomAttachment = 0 0 0;
+	XmNtopAttachment = 3 2 2;
+    };
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 1 0 2;
+	XmNbottomAttachment = 0 0 0;
+	XmNtopAttachment = 4 6 4;
+    };
+    attachment {
+	XmNrightAttachment = 3 18 2;
+	XmNleftAttachment = 4 4 0;
+	XmNbottomAttachment = 0 0 0;
+	XmNtopAttachment = 3 4 2;
+    };
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 1 0 2;
+	XmNbottomAttachment = 0 0 0;
+	XmNtopAttachment = 3 6 2;
+    };
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 3 7 2;
+	XmNbottomAttachment = 0 0 0;
+	XmNtopAttachment = 3 6 2;
+    };
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 3 8 2;
+	XmNbottomAttachment = 0 0 0;
+	XmNtopAttachment = 3 6 2;
+    };
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 3 9 2;
+	XmNbottomAttachment = 0 0 0;
+	XmNtopAttachment = 3 6 2;
+    };
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 3 10 2;
+	XmNbottomAttachment = 0 0 0;
+	XmNtopAttachment = 3 6 2;
+    };
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 1 0 2;
+	XmNbottomAttachment = 0 0 0;
+	XmNtopAttachment = 3 17 0;
+    };
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 3 12 2;
+	XmNbottomAttachment = 0 0 0;
+	XmNtopAttachment = 3 17 0;
+    };
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 3 13 2;
+	XmNbottomAttachment = 0 0 0;
+	XmNtopAttachment = 3 17 0;
+    };
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 3 14 2;
+	XmNbottomAttachment = 0 0 0;
+	XmNtopAttachment = 3 17 0;
+    };
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 1 0 0;
+	XmNbottomAttachment = 0 0 0;
+	XmNtopAttachment = 3 12 0;
+    };
+    attachment {
+	XmNrightAttachment = 1 0 0;
+	XmNleftAttachment = 1 0 0;
+	XmNbottomAttachment = 0 0 0;
+	XmNtopAttachment = 3 7 0;
+    };
+    attachment {
+	XmNrightAttachment = 1 0 2;
+	XmNleftAttachment = 0 0 0;
+	XmNbottomAttachment = 0 0 0;
+	XmNtopAttachment = 3 1 -4;
+    };
+    };
+};
+};
+};
+end module;

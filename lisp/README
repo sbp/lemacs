@@ -10,6 +10,9 @@ speed up this process, this directory has been rearranged to have very few
 files at the top-level, so that emacs doesn't have to stat() several hundred
 files to find the dozen or so which are actually subdirectories.
 
+Directories whose names begin with "-" or "." are not added to the default
+load-path.
+
 The only files which remain at top-level are those which you might reasonably
 want to alter when installing or customizing emacs at your site.  The files
 at top level are:

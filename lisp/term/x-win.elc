@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Mon Jun 15 01:42:18 1992
-;;; from file /u/jwz/emacs19/lisp/term/x-win.el
-;;; emacs version 19.1 Lucid.
-;;; bytecomp version 2.06; 17-may-92.
+;;; compiled by jwz@thalidomide on Sat Aug 29 19:43:27 1992
+;;; from file /wg1/emacs-base/lisp/term/x-win.el
+;;; emacs version 19.2.13 Lucid.
+;;; bytecomp version 2.08;  7-aug-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -12,4 +12,4 @@
 
 (defvar x-daemon-mode nil "\
 When set, means initially create just a minibuffer.")
-(byte-code "ÀÁMˆ\nÃ=«œÄBÆÇ!ˆÆÈ!ˆÆÉ!ˆÊÌ!Aª„ÏĞ!ˆÑÒMˆÓÕÑÑÄÙMˆÚÜİ#ˆÚŞß#ˆÚàá#ˆÚâã#ˆÚäå#ˆÚæá#ˆÚçå#ˆÚèé#ˆÚêİ#ˆÚë‰#ˆÚìí#ˆÚ.ìí#ˆïğñ#ˆïğñ2#‡" [x-establish-daemon-mode #[(switch) "À‰‡" [t x-daemon-mode] 2] window-system x x-pop-initial-window window-setup-hook require screen x-faces x-iso8859-1 (lambda nil (error "Suspending an emacs running under X makes no sense")) suspend-hook x-open-connection command-line-args args error "Loading x-win.el but not compiled for X" x-activate-region-as-selection #[nil "ÀÁÂ!!­‰ÃÄÂ!ÁÂ!B!‡" [marker-buffer mark-marker t x-own-selection point-marker] 4] (x-own-clipboard x-store-cutbuffer) kill-hooks x-disown-selection zmacs-deactivate-region-hook zmacs-activate-region-hook zmacs-update-region-hook #[nil "ÀÁÂÁ#ˆÃÄ!ˆÃÅ!ˆÆÈ	ÊÂ!ˆË!‡" [set-input-mode t nil require x-mouse xselect x-track-pointer mouse-motion-handler x-iso8859/1 character-set-property pop-initial-screen delete-screen terminal-screen] 4] define-key global-map home "" left "" up "" right "" down "" prior next end "" begin undo help help-for-help help-map substitute-key-definition split-window-horizontally x-new-screen ctl-x-map] 4)
+(byte-code "ÀÁMˆ\nÃ=«ŸÄBÆÈÉ!ˆÈÊ!ˆÈË!ˆÌÎ!Aª„ÑÒ!ˆÓÔMˆÕ×ÓÓÄÛMˆÜŞß#ˆÜàá#ˆÜâã#ˆÜäå#ˆÜæç#ˆÜèã#ˆÜéç#ˆÜêë#ˆÜìß#ˆÜíî#ˆÜïğ#ˆÜñ‰#ˆÜòó#ˆÜ4òó#ˆõö÷#ˆõö÷8#‡" [x-establish-daemon-mode #[(switch) "À‰‡" [t x-daemon-mode] 2] window-system x x-pop-initial-window window-setup-hook x-create-screen screen-creation-func require screen x-faces x-iso8859-1 (lambda nil (error "Suspending an emacs running under X makes no sense")) suspend-hook x-open-connection command-line-args command-line-args-left error "Loading x-win.el but not compiled for X" x-activate-region-as-selection #[nil "ÀÁÂ!!­‰ÃÄÂ!ÁÂ!B!‡" [marker-buffer mark-marker t x-own-selection point-marker] 4] (x-own-clipboard x-store-cutbuffer) kill-hooks x-disown-selection zmacs-deactivate-region-hook zmacs-activate-region-hook zmacs-update-region-hook #[nil "ÀÁÂÁ#ˆÃÄ!ˆÃÅ!ˆÆÈ	ÊÂ!ˆË!‡" [set-input-mode t nil require x-mouse xselect x-track-pointer mouse-motion-handler x-iso8859/1 character-set-property pop-initial-screen delete-screen terminal-screen] 4] define-key global-map home "" left "" up "" right "" down "" prior next end "" begin kp_enter [return] kp_tab [tab] undo help help-for-help help-map substitute-key-definition split-window-horizontally x-new-screen ctl-x-map] 4)

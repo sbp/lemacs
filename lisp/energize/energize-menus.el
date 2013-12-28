@@ -20,6 +20,55 @@
   "obarray used for fast mapping of symbolic energize request-names to the 
 functions that invoke them.")
 
+(defvar energize-menu-state ()
+  "Buffer local variable listing the menu items associated with a buffer.")
+
+(defvar energize-default-menu-state ()
+  "List of the Energize menu items associated with every buffers.")
+
+;;; Hook to update the menu state when the kernel tells us it changed
+
+(defun energize-update-menu-state (items)
+  (let ((buffer (car items))
+	(previous-buffer (current-buffer))
+	(extent (car (cdr items))))
+    (if (null buffer)
+	(setq energize-default-menu-state items)
+      (unwind-protect
+	  (progn
+	    (set-buffer buffer)
+	    (setq energize-menu-state items))
+	(set-buffer previous-buffer)))))
+
+(setq energize-menu-update-hook 'energize-update-menu-state)
+
+;;; The energize-with-timeout macro is used to show to the user that we are 
+;;; waiting for a reply from the energize kernel when it is too slow.
+
+(defvar initial-energize-timeout-state
+  (let ((l '("." ".." "..." "...." "....." "......" "......." "........")))
+    (nconc l l)))
+
+(defvar energize-timeout-state initial-energize-timeout-state)
+
+(defun energize-warn-kernel-slow (pair)
+  (setq energize-timeout-state (cdr energize-timeout-state))
+  (message (if (eq interrupt-char ?\C-g)
+	       "%s Type ^G to cancel%s"
+	     (format "%%s Type %c to cancel%%s" interrupt-char))
+	   (car pair) (car energize-timeout-state))
+  (rplacd pair t))
+
+(defmacro energize-with-timeout (notice &rest body)
+  (list 'let* (list
+	       (list 'timeout-pair (list 'cons notice nil))
+	       '(timeout (add-timeout 1.5 'energize-warn-kernel-slow
+				      timeout-pair 1.5)))
+	(list 'unwind-protect (cons 'progn body)
+	      '(disable-timeout timeout)
+	      '(setq energize-timeout-state initial-energize-timeout-state)
+	      '(if (cdr timeout-pair) (message "")))))
+
 (defun energize-def-menu-item (name function &optional dont-define)
   ;; function->name mapping is on the function name's plist
   ;; name->function mapping is via an obarray
@@ -35,7 +84,7 @@ functions that invoke them.")
 	    (` (lambda ()
 		 (, (format "Executes the Energize \"%s\" command." name))
 		 (interactive)
-		 (execute-energize-choice (, name) t)))))
+		 (energize-execute-command (, name))))))
   ;; Return the menu-item descriptor.
   (vector name function nil))
 
@@ -43,7 +92,7 @@ functions that invoke them.")
   (` (list (, menu-name)
 	   (,@ (mapcar
 		'(lambda (x)
-		   (if (consp x)
+		   (if (and (consp x) (stringp (car x)))
 		       (cons 'energize-def-menu-item
 			     (mapcar '(lambda (xx)
 					(if (stringp xx) xx (list 'quote xx)))
@@ -52,13 +101,6 @@ functions that invoke them.")
 		items)))))
 
 (put 'energize-def-menu 'lisp-indent-function 1)
-
-(defun energize-kill-server ()
-  "Kill the Energize server and all buffers associated with it."
-  (interactive)
-  (condition-case nil
-      (execute-energize-choice "quit" t)
-    (error nil)))
 
 (defconst energize-menubar
   (let ((file (or (assoc "File" default-menubar) (error "no File menu?")))
@@ -107,7 +149,6 @@ functions that invoke them.")
    ("debuggerpanel"	energize-show-debugger-panel)
    "-----"
    ("breaklist"		energize-list-breakpoints)
-   ;; the automatically-generated -set-breakpoint function is redefined later.
    ("setbreakpoint"	energize-set-breakpoint)
    "-----"
    ("runprogram"	energize-run-target)
@@ -145,20 +186,30 @@ functions that invoke them.")
    )
 
  (energize-def-menu "Project"
-   ("newproject"	energize-new-project)
+   ("newproject"		energize-new-project)
+   ("importproject"		energize-import-project)
    "-----"
-   ("import"		energize-import-file)
-   ("addusedproject"	energize-add-used-project)
-   ("changedirectory"	energize-set-project-directory)
+   ("importprojectlist"		energize-import-project-list)
+   ("writeprojectlist"		energize-write-project-list)
    "-----"
-   ("alphaorder"	energize-project-sort-alpha)
-   ("linkorder"		energize-project-sort-link)
-   ("nameinfo"		energize-project-view-names)
-;;   ("lslinfo"		energize-project-view-long)
-   ("compileinfo"	energize-project-view-options)
+   (energize-def-menu "addtarget"
+     ("addfiletarget"		energize-insert-file-target)
+     ("addexecutabletarget"	energize-insert-executable-target)
+     ("addlibrarytarget"	energize-insert-library-target)
+     ("addcollectiontarget"	energize-insert-collection-target))
+   ("abbreviatetargets"		energize-abbreviate-targets)
+   ("fulltargets"		energize-full-targets)
+   "-----"
+   ("showallfiles"		energize-show-all-files)
+   ("onlyshowsources"		energize-show-only-sources)
+   ("shownofiles"		energize-show-no-files)
+   "-----"
+   ("revertproject"		energize-fully-revert-project-buffer)
    )
- 
+
  buffers
+
+ nil
  
  '("Help"	["Info"			info			t]
 		["Describe Mode"	describe-mode		t]
@@ -177,24 +228,25 @@ functions that invoke them.")
  ))
   "The emacs menubar used when Energize is installed.")
 
+(set-menubar energize-menubar)
+
+(defun energize-kill-server ()
+  "Kill the Energize server and all buffers associated with it."
+  (interactive)
+  (condition-case nil
+      (energize-execute-command "quit")
+    (error nil)))
+
 (defun energize-unix-manual ()
   "Display a manual entry; if connected to Energize, uses the Energize version.
 Otherwise, just runs the normal emacs `manual-entry' command."
   (interactive)
   (if (connected-to-energize-p)
-      (execute-energize-choice "manual" t)
+      (energize-execute-command "manual")
     (call-interactively 'manual-entry)))
 
-(defun energize-set-breakpoint ()
-  "Executes the Energize \"setbreakpoint\" command, to set a breakpoint
-at the current cursor position."
-  (interactive)
-  (execute-energize-choice "setbreakpoint" t 
-			   (save-excursion
-			     (vector (energize-buffer-id (current-buffer))
-				     (progn (beginning-of-line) (1- (point)))
-				     (progn (end-of-line) (1- (point)))))))
-
+;;; These functions are used in the menubar activate hook to update the
+;;; enable state of the menu items
 
 (defsubst activate-energize-menu-item-internal (item)
   (cond
@@ -225,38 +277,48 @@ at the current cursor position."
 	      items (cdr items)))
       change-p)))
 
+(defun energize-build-menubar-names ()
+  ;;; makes the list of currently active menu items.
+  (let* ((selection-p (x-selection-exists-p 'PRIMARY))
+	 (menubar
+	  (if (< (cdr (energize-protocol-level)) 7)
+	      (energize-with-timeout
+	       "Getting updated menubar from kernel..."
+	       (energize-list-menu (current-buffer) () selection-p))
+	    (append energize-menu-state energize-default-menu-state))))
+    (delq nil
+	  (mapcar '(lambda (x)
+		     (and (vectorp x)
+			  (if (/= 0 (logand 1 (aref x 3)))
+			      nil
+			    (symbol-value
+			     (intern-soft (aref x 0)
+					  energize-menu-item-table)))))
+		  menubar))))
 
-(defun activate-energize-menu-items-hook (menubar)
+(defun activate-energize-menu-items-hook (nothing)
   ;; This is O^2 because of the `rassq', but it looks like the elisp part
-  ;; of it only takes .03 seconds.  Calling `energize-list-menu' takes
-  ;; almost .1 second, but that's still pretty negligible.
-  (let* ((items menubar)
-	 (change-p nil)
-	 (active-items
-	  ;; convert a list of Energize names into a list of the functions
-	  ;; which invoke them.
-	  (delq nil
-	    (mapcar '(lambda (x)
-		       (if (/= 0 (logand 1 (aref x 3)))
-			   nil
-			 (symbol-value
-			  (intern-soft (aref x 0) energize-menu-item-table))))
-		    (cdr (cdr (energize-list-menu (current-buffer) nil))))))
-	 item)
-    (while items
-      (setq item (car items)
-	    change-p (or (and item (activate-energize-menu-items-internal
-				    (if (consp item) (cdr item) item)))
-			 change-p)
-	    items (cdr items)))
-    (if change-p
-	;; return the modified menubar...
-	menubar
-      ;; otherwise return t, meaning no change.
-      t)))
+  ;; of it only takes .03 seconds.  
+  (if (connected-to-energize-p)
+      (let* ((items current-menubar)
+	     (change-p nil)
+	     (active-items (energize-build-menubar-names))
+	     item)
+	(while items
+	  (setq item (car items)
+		change-p (or (and item (activate-energize-menu-items-internal
+					(if (consp item) (cdr item) item)))
+			     change-p)
+		items (cdr items)))
+	(not change-p))))
 
 
-(fset 'energize-announce 'play-sound)
+(or (memq 'activate-energize-menu-items-hook activate-menubar-hook)
+    (setq activate-menubar-hook
+	  (nconc activate-menubar-hook '(activate-energize-menu-items-hook))))
+ 
+
+;;; Popup-menus
 
 (defvar energize-popup-menu)
 
@@ -265,14 +327,18 @@ at the current cursor position."
   (let* ((buffer (window-buffer (event-window event)))
 	 (extent (if (extentp (event-glyph event))
 		     (event-glyph event)
-		   (menu-extent-at (event-point event) buffer)))
+		   (energize-menu-extent-at (event-point event) buffer)))
 	 choices)
     (select-window (event-window event))
     (if (null extent)
-	(error "No Energize menu here"))
-    (setq choices (cdr (cdr (energize-list-menu buffer extent))))
-    (if energize-kernel-busy
-      (error "Can't pop up a menu right now, Energize server is busy"))
+	(error "No extent with an Energize menu here"))
+    (energize-with-timeout
+     "Asking for extent menu to Energize server..."
+     (setq choices
+	   (cdr
+	    (cdr
+	     (energize-list-menu buffer extent
+				 (x-selection-exists-p 'PRIMARY))))))
     (if (null choices)
 	(error "No Energize menu here"))
     (force-highlight-extent extent t)
@@ -280,23 +346,13 @@ at the current cursor position."
     (setq energize-popup-menu
 	  (cons "energizePopup"
 		(mapcar
-		 '(lambda (item)
-		    (vector
-		     (aref item 0)
-		     (if (equal (aref item 0) "setbreakpoint")
-			 ;; Evil!  Can be flushed when the choice protocol
-			 ;; has a bit telling to report (point) as the argument
-			 (list 'energize-execute-menu-item-with-selection
-			       buffer extent item
-			       (save-excursion
-				 (vector (energize-buffer-id (current-buffer))
-					 (progn (beginning-of-line) (1- (point)))
-					 (progn (end-of-line) (1- (point)))))
-			       nil)
-		       (list 'energize-execute-menu-item-with-selection
-			     buffer extent item nil nil))
-		     (= 0 (logand 1 (aref item 3)))
-		     ))
+		 (function (lambda (item)
+			     (vector
+			      (aref item 0)
+			      (list 'energize-execute-command
+				    (aref item 0)
+				    extent)
+			      (= 0 (logand 1 (aref item 3))))))
 		 choices)))
     (popup-menu 'energize-popup-menu)
     ;;
@@ -316,15 +372,105 @@ at the current cursor position."
     (setq zmacs-region-stays t)))
 
 
-(or (memq 'activate-energize-menu-items-hook activate-menubar-hook)
-    (setq activate-menubar-hook
-	  (nconc activate-menubar-hook '(activate-energize-menu-items-hook))))
+;;; Functions to interactively execute menu items by their names.
 
+(defun energize-menu-extent-at (pos buffer)
+  (if (null pos)
+      nil
+    (let ((extent (extent-at pos buffer 'menu)))
+      (if (and extent (energize-extent-menu-p extent))
+	  extent
+	nil))))
 
-(defun install-energize-menu (screen)
-  (set-screen-menubar energize-menubar screen))
+;;; functions to execute the menu with the keyboard
+(defun default-selection-value-for-item (menu-item)
+  (let ((flags (aref menu-item 3)))
+    (cond ((= (logand flags 2) 2)
+	   (if (x-selection-owner-p 'PRIMARY)
+	       (x-get-selection-internal 'PRIMARY 'STRING)))
+	  ((= (logand flags 4) 4)
+	   (if (x-selection-owner-p 'PRIMARY)
+	       (x-get-selection-internal 'PRIMARY 'ENERGIZE_OBJECT)))
+	  ((= (logand flags 128) 128)
+	   (if (x-selection-owner-p 'SECONDARY)
+	       (x-get-selection-internal 'SECONDARY 'STRING)))
+	  ((= (logand flags 256) 256)
+	   (if (x-selection-owner-p 'SECONDARY)
+	       (x-get-selection-internal 'SECONDARY 'ENERGIZE_OBJECT))))))
+  
+(defun energize-execute-menu-item-with-selection (buffer
+						  extent
+						  item
+						  selection
+						  no-confirm)
+  (if (/= 0 (logand 1 (aref item 3)))
+      (error "The `%s' command is inappropriate in this context"
+	     (aref item 0)))
+  (if (null selection)
+      (setq selection (default-selection-value-for-item item)))
+  (energize-execute-menu-item buffer extent item selection no-confirm))
 
-(setq create-screen-hook 'install-energize-menu)
+(defun energize-find-item (name list)
+  (let ((l list) i (found ()))
+    (while (and l (not found))
+      (setq i (car l) l (cdr l))
+      (if (and (vectorp i) (equal (aref i 0) name))
+	  (setq found i)))
+    found))
+
+(defun energize-menu-item-for-name (extent name)
+  (if (or extent (< (cdr (energize-protocol-level)) 7))
+      (energize-with-timeout
+       "Checking Energize command with kernel..."
+       (energize-list-menu (current-buffer) extent
+			   (x-selection-exists-p 'PRIMARY) name))
+    (or (energize-find-item name energize-menu-state)
+	(energize-find-item name energize-default-menu-state))))
+
+(defun energize-execute-command (name &optional extent selection no-confirm)
+  ;; add completion here...
+  (interactive "sExecute Energize command named: ")
+
+  (if (not (stringp name))
+      (error "Can't execute a choice, %s, that is not a string" name))
+
+  ;; patch the selection argument for "setbreakpoint"
+  (if (and (equal name "setbreakpoint")
+	   (null selection))
+      (setq selection
+	    (save-excursion
+	      (vector (energize-buffer-id (current-buffer))
+		      (progn (beginning-of-line) (1- (point)))
+		      (progn (end-of-line) (1- (point)))))))
+
+  (let* ((buffer (current-buffer))
+	 (extent (if extent
+		     (if (extentp extent)
+			 extent
+		       (energize-menu-extent-at (point) buffer))
+		   nil)))
+    (if (< (cdr (energize-protocol-level)) 7)
+	;; old way
+	(let ((item (energize-menu-item-for-name extent name)))
+	  (if (not item)
+	      (error "No Energize command named %s" name))
+	  (energize-execute-menu-item-with-selection buffer extent item
+						     selection no-confirm))
+      ;; new way
+      (if (and (null selection)
+	       (x-selection-exists-p 'PRIMARY))
+	  (setq selection
+		(condition-case
+		    ()
+		    (x-get-selection-internal 'PRIMARY 'STRING)
+		  (error ""))))
+      (let ((energize-make-many-buffers-visible-should-enqueue-event ()))
+	(energize-execute-command-internal buffer
+					   extent
+					   name
+					   selection
+					   no-confirm)))))
+
 
 
 ;;; Sparc function keys.  This isn't the most appropriate place for this...
@@ -345,3 +491,17 @@ at the current cursor position."
     (setq window-setup-hook
 	  (cons 'setup-sparc-function-keys window-setup-hook)))
 (setup-sparc-function-keys)
+(fset 'energize-announce 'play-sound)
+
+;;; Buffer modified the first time hook
+;;; Should be in energize-init.el but is here to benefit from the 
+;;; add-timeout macro  
+
+(defun energize-check-if-buffer-locked ()
+  (if (connected-to-energize-p)
+      (energize-with-timeout
+       "Asking kernel if buffer is editable..."
+       (energize-barf-if-buffer-locked))))
+
+(setq first-change-function 'energize-check-if-buffer-locked)
+

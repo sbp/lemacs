@@ -22,6 +22,7 @@ typedef struct _XlwMenu_part
   /* slots set by the resources */
   XFontStruct*	font;
   int		foreground;
+  Pixel		button_foreground;
   Dimension	margin;
   Dimension	horizontal_spacing;
   Dimension	vertical_spacing;
@@ -53,12 +54,15 @@ typedef struct _XlwMenu_part
 
   /* Internal part, set by the XlwMenu */
   GC			foreground_gc;
+  GC			button_gc;
   GC			background_gc;
   GC			inactive_gc;
+  GC			inactive_button_gc;
   GC			shadow_top_gc;
   GC			shadow_bottom_gc;
   Cursor		cursor;
   Boolean		popped_up;
+  Pixmap		gray_pixmap;
 } XlwMenuPart;
 
 /* Full instance record declaration */

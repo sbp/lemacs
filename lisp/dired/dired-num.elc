@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Tue May 19 23:06:01 1992
-;;; from file /cadillac-th/jwz/emacs19/lisp/dired/dired-num.el
-;;; emacs version 19.0.16 Lucid.
-;;; bytecomp version 2.06; 17-may-92.
+;;; compiled by jwz@watergate on Tue Aug 18 17:13:44 1992
+;;; from file /wg1/emacs-base/lisp/dired/dired-num.el
+;;; emacs version 19.2.2 Lucid.
+;;; bytecomp version 2.08;  7-aug-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -10,8 +10,8 @@
 	     (string-lessp emacs-version "19")))
     (error "This file was compiled for Emacs19."))
 
-(defconst dired-num-version (substring "$Revision: 1.2 $" 11 -2) "\
-$Id: dired-num.el,v 1.2 1992/05/20 05:27:10 jwz Exp $")
+(defconst dired-num-version (substring "!Revision: 1.2 !" 11 -2) "\
+Id: dired-num.el,v 1.2 1991/10/15 13:24:10 sk RelBeta ")
 (byte-code "ÀÁ!ˆÂÃMˆÄÅM‡" [require dired dired-number-of-marked-files #[(&optional arg) "ŠÀ‰‰‰«™¨«‘ÆÇ\"ˆÈW«„	ŸªÔ	ªÑÀCªÍÉ À\nŠebˆÌÀÍ#­‚Î ‰\n??\n«¤\nbˆÀ	B\nbˆÏyˆ\nÀ‰“ˆÌÀÍ#­‚Î ‰\n¬\\)\n«ƒ	ª‚ÀC*,Ð ˆ)G‡" [nil results found case-fold-search buffer-read-only arg dired-repeat-over-lines #[nil "À	B‰‡" [nil results] 2] 0 dired-marker-regexp next-position regexp re-search-forward t point-marker 1 dired-move-to-filename] 5] dired-do-create-files-numeric #[(file-creator operation arg format start &optional arg) "SÂÄ$)‡" [start i dired-create-files-non-directory file-creator #[(x) "À	T‰\"‡" [format i] 4] operation arg] 5]] 2)
 (fset 'dired-do-rename-numeric #[(format start &optional arg) "ÀÁÂ%‡" [dired-do-create-files-numeric dired-rename-file "Rename-numeric" arg format start] 6 "\
 Rename all marked (or next ARG) files using numbers.

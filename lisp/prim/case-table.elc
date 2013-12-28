@@ -1,35 +1,0 @@
-;;; compiled by jwz@thalidomide on Tue Apr 21 17:37:20 1992
-;;; from file /u/jwz/emacs19/lisp/case-table.el
-;;; emacs version 19.0.2 Lucid.
-;;; bytecomp version 2.05; 9-mar-92.
-;;; optimization is on.
-;;; this file uses opcodes which do not exist in Emacs18.
-
-(if (and (boundp 'emacs-version)
-	 (or (and (boundp 'epoch::version) epoch::version)
-	     (string-lessp emacs-version "19")))
-    (error "This file was compiled for Emacs19."))
-
-(fset 'describe-buffer-case-table #[nil "ÀÁÂ\"Ã ÄÁW«¬‰—U¬‰ÉÊ—!Pª‘‰–U¬‰ËÊ–!PªÌIˆT‰ªP+ÍÎ!‘‡" [make-vector 256 nil current-case-table 0 i case-table vector ch "uppercase, matches " text-char-description "lowercase, matches " "case-invariant" "*Help*" describe-vector] 6 "\
-Describe the case table of the current buffer." nil])
-(fset 'invert-case #[(count) "ÁW«Š`S[^‰[uˆÁV­¤g–U¬‡Ä–!ˆª‹—U¬…Ä—!ˆ)ÅuˆS‰ªX‡" [count 0 oc ch replace-char 1] 3 "\
-Change the case of the character just after point and move over it.
-With arg, applies to that many chars.
-Negative arg inverts characters before point but does not move." "p"])
-(fset 'set-case-syntax-delims #[(l r table) "@	‰Iˆ@\n‰IˆÃ	ÄÅ\n!ÆQÇ #ˆÃ	ÄÅ\n!ÆQ#ˆÃ\nÉÅ	!ÆQÇ #ˆÃ\nÉÅ	!ÆQ#‡" [table l r modify-syntax-entry "(" char-to-string "  " standard-syntax-table text-mode-syntax-table ")"] 5 "\
-Make characters L and R a matching pair of non-case-converting delimiters.
-Sets the entries for L and R in standard-case-table,
-standard-syntax-table, and text-mode-syntax-table to indicate
-left and right delimiters."])
-(fset 'set-case-syntax-pair #[(uc lc table) "@	\nIˆÃ\nÄÅ #ˆÃ\nÄ#ˆÃ	ÄÅ #ˆÃ	Ä#‡" [table uc lc modify-syntax-entry "w   " standard-syntax-table text-mode-syntax-table] 4 "\
-Make characters UC and LC a pair of inter-case-converting letters.
-Sets the entries for characters UC and LC in
-standard-case-table, standard-syntax-table, and
-text-mode-syntax-table to indicate an (uppercase, lowercase)
-pair of letters."])
-(fset 'set-case-syntax #[(c syntax table) "@	‰IˆÂ	Ä #ˆÂ	#‡" [table c modify-syntax-entry syntax standard-syntax-table text-mode-syntax-table] 4 "\
-Make characters C case-invariant with syntax SYNTAX.
-Sets the entries for character C in standard-case-table,
-standard-syntax-table, and text-mode-syntax-table to indicate this.
-SYNTAX should be \" \", \"w\", \".\" or \"_\"."])
-(provide 'case-table)

@@ -1,11 +1,11 @@
 /* GNU Emacs case conversion functions.
-   Copyright (C) 1985 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -36,7 +36,7 @@ casify_object (flag, obj)
 
   while (1)
     {
-      if (XTYPE (obj) == Lisp_Int)
+      if (FIXNUMP (obj))
 	{
 	  c = XINT (obj);
 	  if (c >= 0 && c <= 0400)
@@ -48,7 +48,7 @@ casify_object (flag, obj)
 	    }
 	  return obj;
 	}
-      if (XTYPE (obj) == Lisp_String)
+      if (STRINGP (obj))
 	{
 	  obj = Fcopy_sequence (obj);
 	  len = XSTRING (obj)->size;
@@ -193,7 +193,7 @@ operate_on_word (arg)
   Lisp_Object val, end;
   int farend;
 
-  CHECK_NUMBER (arg, 0);
+  CHECK_FIXNUM (arg, 0);
   farend = scan_words (point, XINT (arg));
   if (!farend)
     farend = XINT (arg) > 0 ? ZV : BEGV;

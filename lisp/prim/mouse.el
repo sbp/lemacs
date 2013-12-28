@@ -19,6 +19,8 @@
 
 (provide 'mouse)
 
+(require 'mode-motion)
+
 (global-set-key 'button1 'mouse-track)
 (global-set-key '(shift button1) 'mouse-track-adjust)
 (global-set-key '(control button1) 'mouse-track-insert)
@@ -295,8 +297,10 @@ Display cursor at that position for a second."
 	(disable-timeout mouse-track-timeout-id)
 	(setq mouse-track-timeout-id nil))))
 
-(defsubst mouse-track-beginning-of-word ()
-  (let ((word-constituent "\\w\\|\\s_\\|\\s'")
+(defsubst mouse-track-beginning-of-word (symbolp)
+  (let ((word-constituent (cond ((eq symbolp t) "\\w\\|\\s_\\|\\s'")
+				((null symbolp) "\\w")
+				(t "[^ \t\n]")))
 	(white-space "[ \t]"))
     (cond ((looking-at word-constituent)
 	   (backward-char)
@@ -308,9 +312,11 @@ Display cursor at that position for a second."
 	   (while (looking-at white-space)
 	     (backward-char))
 	   (forward-char)))))
-		    
-(defun mouse-track-end-of-word ()
-  (let ((word-constituent "\\w\\|\\s_\\|\\s'|\\n")
+
+(defun mouse-track-end-of-word (symbolp)
+  (let ((word-constituent (cond ((eq symbolp t) "\\w\\|\\s_\\|\\s'")
+				((null symbolp) "\\w")
+				(t "[^ \t\n]")))
 	(white-space "[ \t]"))
     (cond ((looking-at word-constituent) ; word or symbol constituent
 	   (while (looking-at word-constituent)
@@ -324,8 +330,8 @@ Display cursor at that position for a second."
 	 ;; trap the beginning and end of buffer errors
 	 (condition-case ()
 	     (if forwardp
-		 (mouse-track-end-of-word)
-	       (mouse-track-beginning-of-word))
+		 (mouse-track-end-of-word t)
+	       (mouse-track-beginning-of-word t))
 	   (error ())))
 	((eq type 'line)
 	 (if forwardp (end-of-line) (beginning-of-line)))))

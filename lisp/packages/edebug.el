@@ -4,7 +4,6 @@
 ;; LCD Archive Entry:
 ;; edebug|Daniel LaLiberte|liberte@cs.uiuc.edu
 ;; |A source level debugger for Emacs Lisp.
-;; |$Date: 92/06/03 13:29:45 $|$Revision: 2.9 $|~/modes/edebug.el
 
 ;; This file will be part of GNU Emacs.
 
@@ -77,14 +76,6 @@
 ;;; Change list
 ;;; -----------
 
-;;; $Header: edebug.el,v 2.9 92/06/03 13:29:45 jwz Exp $
-;;; $Log:	edebug.el,v $
-;;; Revision 2.9  92/06/03  13:29:45  jwz
-;;; *** empty log message ***
-;;; 
-;;; Revision 2.8  92/05/16  14:10:55  devin
-;;; *** empty log message ***
-;;; 
 ;;; Revision 2.7  92/03/23  18:29:26  liberte
 ;;; Fix edebug-get-displayed-buffer-points to actually change buffers.
 ;;; 

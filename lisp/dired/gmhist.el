@@ -1,9 +1,9 @@
 ;;;; gmhist.el - Provide generic minibuffer history for commands
 
-(defconst gmhist-version  (substring "$Revision: 4.27 $" 11 -2)
-  "$Id: gmhist.el,v 4.27 1992/05/20 05:25:08 jwz Exp $
+(defconst gmhist-version  (substring "!Revision: 4.27 !" 11 -2)
+  "Id: gmhist.el,v 4.27 1992/04/20 17:17:47 sk RelBeta 
 Report bugs to Sebastian Kremer <sk@thp.uni-koeln.de>.")
-
+  
 ;; Copyright (C) 1990 by Sebastian Kremer <sk@thp.uni-koeln.de>
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -24,7 +24,7 @@ Report bugs to Sebastian Kremer <sk@thp.uni-koeln.de>.")
 ;;    LCD Archive Entry:
 ;;    gmhist|Sebastian Kremer|sk@thp.uni-koeln.de
 ;;    |Generic minibuffer history package.
-;;    |$Date: 1992/05/20 05:25:08 $|$Revision: 4.27 $|
+;;    |Date: 1992/04/20 17:17:47 |Revision: 4.27 |
 
 ;; INSTALLATION ======================================================
 ;; 

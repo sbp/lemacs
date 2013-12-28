@@ -1,4 +1,3 @@
-/* $Header: lwlib.h,v 100.3 92/05/04 15:04:40 devin Exp $ */
 #ifndef LWLIB_H
 #define LWLIB_H
 
@@ -45,6 +44,8 @@ typedef struct _widget_value
   Boolean	enabled;
   /* true if selected */
   Boolean	selected;
+  /* true if was edited (maintained by get_value) */
+  Boolean	edited;
   /* true if has changed (maintained by lw library) */
   change_type	change;
   /* Contents of the sub-widgets, also selected slot for checkbox */
@@ -53,11 +54,24 @@ typedef struct _widget_value
   XtPointer	call_data;
   /* next one in the list */
   struct _widget_value*	next;
+  /* slot for the toolkit dependent part.  Always initialize to NULL. */
+  void* toolkit_data;
 } widget_value;
 
 
 typedef void
-(*lw_callback) (Widget w, void* data);
+(*lw_callback) (Widget w, BITS32 id, void* data);
+
+void 
+lw_register_widget (char* type, char* name, BITS32 id, widget_value* val,
+		    lw_callback pre_activate_cb, lw_callback selection_cb,
+		    lw_callback post_activate_cb);
+
+Widget
+lw_get_widget (BITS32 id, Widget parent, Boolean pop_up_p);
+
+Widget
+lw_make_widget (BITS32 id, Widget parent, Boolean pop_up_p);
 
 Widget
 lw_create_widget (char* type, char* name, BITS32 id, widget_value* val,
@@ -68,7 +82,7 @@ BITS32
 lw_get_widget_id (Widget w);
 
 void
-lw_modify_all_widgets (BITS32 id, widget_value* val);
+lw_modify_all_widgets (BITS32 id, widget_value* val, Boolean deep_p);
 
 void
 lw_destroy_widget (Widget w);
@@ -76,8 +90,26 @@ lw_destroy_widget (Widget w);
 void
 lw_destroy_all_widgets (BITS32 id);
 
+void
+lw_destroy_everything ();
+
+void
+lw_destroy_all_pop_ups ();
+
+Widget
+lw_raise_all_pop_up_widgets ();
+
 widget_value*
-lw_get_values (Widget widget);
+lw_get_all_values (BITS32 id);
+
+Boolean
+lw_get_some_values (BITS32 id, widget_value* val);
+
+void
+lw_pop_up_all_widgets (BITS32 id);
+
+void
+lw_pop_down_all_widgets (BITS32 id);
 
 /* Toolkit independent way of focusing on a Widget at the Xt level. */
 void

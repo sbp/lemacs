@@ -70,11 +70,11 @@ buffer_display_table (struct buffer* buffer)
   Lisp_Object thisbuf;
 
   thisbuf = buffer->display_table;
-  if (XTYPE (thisbuf) == Lisp_Vector
+  if (VECTORP (thisbuf)
       && XVECTOR (thisbuf)->size == DISP_TABLE_SIZE)
     return XVECTOR (thisbuf);
 
-  if (XTYPE (Vstandard_display_table) == Lisp_Vector
+  if (VECTORP (Vstandard_display_table)
       && XVECTOR (Vstandard_display_table)->size == DISP_TABLE_SIZE)
     return XVECTOR (Vstandard_display_table);
 
@@ -87,7 +87,7 @@ list_length (list)
 {
   int length = 0;
 
-  while (XTYPE (list) == Lisp_Cons)
+  while (CONSP (list))
     {
       length++;
       list = XCONS (list)->cdr;
@@ -189,10 +189,10 @@ even if that goes past COLUMN; by default, MIN is zero.")
   int opoint = 0;
   EXTENT extent = extent_at (point, current_buffer, EF_INVISIBLE);
 
-  CHECK_NUMBER (col, 0);
+  CHECK_FIXNUM (col, 0);
   if (NILP (minimum))
     XFASTINT (minimum) = 0;
-  CHECK_NUMBER (minimum, 1);
+  CHECK_FIXNUM (minimum, 1);
 
   fromcol = current_column ();
   mincol = fromcol + XINT (minimum);
@@ -335,7 +335,7 @@ and if COLUMN is in the middle of a tab character, change it to spaces.")
 	  col += tab_width;
 	  col = col / tab_width * tab_width;
 	}
-      else if (dp != 0 && XTYPE (DISP_CHAR_ROPE (dp, c)) == Lisp_String)
+      else if (dp != 0 && STRINGP (DISP_CHAR_ROPE (dp, c)))
 	col += XSTRING (DISP_CHAR_ROPE (dp, c))->size / sizeof (GLYPH);
       else if (!NILP (ctl_arrow) && (c < 040 || c == 0177))
         col++;
@@ -481,12 +481,12 @@ compute_motion (window, from, fromvpos, fromhpos, to,
 	break;
 
       /* Deal with the overlay arrow. */
-      if (XTYPE (Voverlay_arrow_position) == Lisp_Marker
+      if (MARKERP (Voverlay_arrow_position)
 	  && current_buffer == XMARKER (Voverlay_arrow_position)->buffer
 	  && (pos == BEGV
 	      || BUF_CHAR_AT (buffer, pos - 1) == '\n')
 	  && pos == marker_position (Voverlay_arrow_position)
-	  && XTYPE (Voverlay_arrow_string) == Lisp_String
+	  && STRINGP (Voverlay_arrow_string)
 	  && ! overlay_arrow_seen)
 	{
 	  cpos++;
@@ -768,7 +768,7 @@ vmotion (from, vtarget, width, hscroll, window)
   register int first;
   int lmargin = hscroll > 0 ? 1 - hscroll : 0;
   int selective
-    = XTYPE (current_buffer->selective_display) == Lisp_Int
+    = FIXNUMP (current_buffer->selective_display)
       ? XINT (current_buffer->selective_display)
 	: !NILP (current_buffer->selective_display) ? -1 : 0;
   int start_hpos = (EQ (window, minibuf_window) ? minibuf_prompt_width : 0);
@@ -872,7 +872,7 @@ Optional second argument is WINDOW to move in.")
       - (XFASTINT (w->width) + XFASTINT (w->left)
 	 != SCREEN_WIDTH (XSCREEN (w->screen)));
 
-    CHECK_NUMBER (lines, 0);
+    CHECK_FIXNUM (lines, 0);
 
     pos = *vmotion (point, XINT (lines), width,
 		    XINT (w->hscroll), window);

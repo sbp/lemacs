@@ -1,11 +1,11 @@
 ;; Basic lisp subroutines for Emacs
-;; Copyright (C) 1985, 1986 Free Software Foundation, Inc.
+;; Copyright (C) 1985, 1986, 1992 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -83,19 +83,17 @@ Optional argument PROMPT specifies a string to use to prompt the user."
   "Make MAP override all normally self-inserting keys to be undefined.
 Normally, as an exception, digits and minus-sign are set to make prefix args,
 but optional second arg NODIGITS non-nil treats them like other chars."
-  (let ((i 0))
-    (while (<= i 127)
-      (if (eql (lookup-key global-map (char-to-string i)) 'self-insert-command)
-	  (define-key map (char-to-string i) 'undefined))
-      (setq i (1+ i))))
+  (map-keymap (function (lambda (key binding)
+			  (if (eq binding 'self-insert-command)
+			      (define-key map (vector key) 'undefined))))
+	      global-map)
   (or nodigits
-      (let (loop)
+      (let ((string (make-string 1 ?0)))
 	(define-key map "-" 'negative-argument)
 	;; Make plain numbers do numeric args.
-	(setq loop ?0)
-	(while (<= loop ?9)
-	  (define-key map (char-to-string loop) 'digit-argument)
-	  (setq loop (1+ loop))))))
+	(while (<= (aref string 0) ?9)
+	  (define-key map string 'digit-argument)
+	  (aset string 0 (1+ (aref string 0)))))))
 
 ;; now in fns.c
 ;(defun nth (n list)
@@ -159,7 +157,6 @@ perhaps they ought to be."
 (fset 'move-marker 'set-marker)
 (fset 'eql 'eq)
 (fset 'not 'null)
-(fset 'numberp 'integerp)
 (fset 'rplaca 'setcar)
 (fset 'rplacd 'setcdr)
 (fset 'beep 'ding) ;preserve lingual purtity
@@ -285,8 +282,10 @@ FILE should be the name of a library, with no directory name."
 This tries to remain unaffected by `su', by looking in environment variables."
   (or (getenv "LOGNAME") (getenv "USER") (user-login-name)))
 
-(defun force-mode-line-update (&optional all)
+(defun redraw-mode-line (&optional all)
   "Force the mode-line of the current buffer to be redisplayed.
 With optional non-nil ALL then force then force redisplay of all mode-lines."
   (if all (save-excursion (set-buffer (other-buffer))))
   (set-buffer-modified-p (buffer-modified-p)))
+
+(fset 'force-mode-line-update 'redraw-mode-line)
