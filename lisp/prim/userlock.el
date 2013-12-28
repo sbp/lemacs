@@ -1,4 +1,9 @@
-;; Copyright (C) 1985, 1986, 1992 Free Software Foundation, inc.
+;;; userlock.el --- handle file access contention between multiple users
+
+;; Copyright (C) 1985, 1986, 1993 Free Software Foundation, inc.
+
+;; Maintainer: FSF
+;; Keywords: internal
 
 ;; This file is part of GNU Emacs.
 
@@ -16,12 +21,14 @@
 ;; along with GNU Emacs; see the file COPYING.  If not, write to
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
+;;; Commentary:
 
-;; This file is autloaded to handle certain conditions
+;; This file is autoloaded to handle certain conditions
 ;; detected by the file-locking code within Emacs.
 ;; The two entry points are `ask-user-about-lock' and
 ;; `ask-user-about-supersession-threat'.
 
+;;; Code:
 
 (put 'file-locked 'error-conditions '(file-locked file-error error))
 
@@ -69,7 +76,8 @@ You can <q>uit; don't modify this file.")))
   (save-window-excursion
     (let (answer)
       (while (null answer)
-	(message "File has changed on disk; really want to edit the buffer? (y, n or C-h) ")
+	(message "%s changed on disk; really edit the buffer? (y, n or C-h) "
+                 (file-name-nondirectory fn))
 	(let ((tem (downcase (let ((cursor-in-echo-area t))
 			       (read-char)))))
 	  (setq answer
@@ -110,8 +118,7 @@ to get the latest version of the file, then make the change again.")))
 ;;; dialog-box versions
 
 (defun ask-user-about-lock-dbox (fn opponent)
-  (let ((event (allocate-event))
-	(echo-keystrokes 0)
+  (let ((echo-keystrokes 0)
 	(dbox
 	 (cons
 	  (format "%s is locking %s\n
@@ -126,22 +133,21 @@ to get the latest version of the file, then make the change again.")))
     (popup-dialog-box dbox)
     (catch 'aual-done
       (while t
-	(next-command-event event)
-	(cond ((and (menu-event-p event) (eq (event-object event) 'proceed))
-	       (throw 'aual-done nil))
-	      ((and (menu-event-p event) (eq (event-object event) 'steal))
-	       (throw 'aual-done t))
-	      ((and (menu-event-p event) (eq (event-object event) 'yield))
-	       (signal 'file-locked (list "File is locked" fn opponent)))
-	      ((button-release-event-p event) ;; don't beep twice
-	       nil)
-	      (t
-	       (beep)
-	       (message "please answer the dialog box")))))))
+	(let ((event (next-command-event)))
+	  (cond ((and (menu-event-p event) (eq (event-object event) 'proceed))
+		 (throw 'aual-done nil))
+		((and (menu-event-p event) (eq (event-object event) 'steal))
+		 (throw 'aual-done t))
+		((and (menu-event-p event) (eq (event-object event) 'yield))
+		 (signal 'file-locked (list "File is locked" fn opponent)))
+		((button-release-event-p event) ;; don't beep twice
+		 nil)
+		(t
+		 (beep)
+		 (message "please answer the dialog box"))))))))
 
 (defun ask-user-about-supersession-threat-dbox (fn)
-  (let ((event (allocate-event))
-	(echo-keystrokes 0)
+  (let ((echo-keystrokes 0)
 	(dbox
 	 (cons
 	  (format "File %s has changed on disk
@@ -157,26 +163,28 @@ Do you really want to edit the buffer? " fn)
     (popup-dialog-box dbox)
     (catch 'auast-done
       (while t
-	(next-command-event event)
-	(cond ((and (menu-event-p event) (eq (event-object event) 'proceed))
-	       (throw 'auast-done nil))
-	      ((and (menu-event-p event) (eq (event-object event) 'yield))
-	       (signal 'file-supersession (list "File changed on disk" fn)))
-	      ((and (menu-event-p event) (eq (event-object event) 'revert))
-	       (or (equal fn (buffer-file-name))
-		   (error "ask-user-about-supersession-threat called bogusly"))
-	       (revert-buffer nil t)
-	       (signal 'file-supersession
-		       (list "File changed on disk; reverted" fn)))
-	      ((button-release-event-p event) ;; don't beep twice
-	       nil)
-	      (t
-	       (beep)
-	       (message "please answer the dialog box")))))))
+	(let ((event (next-command-event)))
+	  (cond ((and (menu-event-p event) (eq (event-object event) 'proceed))
+		 (throw 'auast-done nil))
+		((and (menu-event-p event) (eq (event-object event) 'yield))
+		 (signal 'file-supersession (list "File changed on disk" fn)))
+		((and (menu-event-p event) (eq (event-object event) 'revert))
+		 (or (equal fn (buffer-file-name))
+		     (error
+		      "ask-user-about-supersession-threat called bogusly"))
+		 (revert-buffer nil t)
+		 (signal 'file-supersession
+			 (list "File changed on disk; reverted" fn)))
+		((button-release-event-p event) ;; don't beep twice
+		 nil)
+		(t
+		 (beep)
+		 (message "please answer the dialog box"))))))))
 
 
 ;;; top-level
 
+;;;###autoload
 (defun ask-user-about-lock (fn opponent)
   "Ask user what to do when he wants to edit FILE but it is locked by USER.
 This function has a choice of three things to do:
@@ -193,6 +201,7 @@ You can rewrite it to use any criterion you like to choose which one to do."
       (ask-user-about-lock-dbox fn opponent)
     (ask-user-about-lock-minibuf fn opponent)))
 
+;;;###autoload
 (defun ask-user-about-supersession-threat (fn)
   "Ask a user who is about to modify an obsolete buffer what to do.
 This function has two choices: it can return, in which case the modification

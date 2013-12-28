@@ -2,11 +2,15 @@
 
 ;; Copyright (C) 1991 Free Software Foundation, Inc.
 
+;; Author: Michael D. Ernst <mernst@theory.lcs.mit.edu>
+;; Created: Jan 1991
+;; Maintainer: FSF
+
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -18,7 +22,7 @@
 ;; along with GNU Emacs; see the file COPYING.  If not, write to
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
-;;; Written by Michael D. Ernst, mernst@theory.lcs.mit.edu, Jan 1991.
+;;; Commentary:
 
 ;;; Reposition-window makes an entire function definition or comment visible,
 ;;; or, if it is already visible, places it at the top of the window;
@@ -31,6 +35,8 @@
 ;;; where it doesn't behave well, let me know.  This function is modeled
 ;;; after one of the same name in ZMACS, but the code is all-new and the
 ;;; behavior in some situations differs.
+
+;;; Code:
 
 ;;;###autoload
 (defun reposition-window (&optional arg)
@@ -64,7 +70,8 @@ first comment line visible (if point is in a comment)."
 	       (repos-count-screen-lines-signed
 		;; the beginning of the preceding comment
 		(save-excursion
-		  (forward-char 1) (end-of-defun -1) 
+		  (if (not (eobp)) (forward-char 1))
+		  (end-of-defun -1) 
 		  ;; Skip whitespace, newlines, and form feeds.
 		  (re-search-forward "[^\\s \n\014]")
 		  (backward-char 1)

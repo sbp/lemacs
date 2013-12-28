@@ -11,6 +11,10 @@
 #include <ctype.h>
 #include "../src/paths.h"      /* For PATH_EXEC.  */
 
+#if __STDC__
+#include <time.h> /* for time() */
+#endif
+
 #define BUFSIZE  80
 #define SEP      '\0'
 

@@ -64,7 +64,8 @@
       (define-key news-reply-mode-map "\C-c\C-y" 'news-reply-yank-original)
       (define-key news-reply-mode-map "\C-c\C-q" 'mail-fill-yanked-message)
       (define-key news-reply-mode-map "\C-c\C-c" 'news-inews)
-      (define-key news-reply-mode-map "\C-c\C-s" 'news-inews)))
+      (define-key news-reply-mode-map "\C-c\C-s" 'news-inews)
+      (define-key news-reply-mode-map 'button3 'news-reply-menu)))
 
 (defun news-reply-mode ()
   "Major mode for editing news to be posted on USENET.
@@ -407,3 +408,55 @@ While composing the message, use \\[news-reply-yank-original] to yank the
 original message into it."
   (interactive)
   (mail-other-window nil nil nil nil nil (current-buffer)))
+
+
+;; menus
+
+(defconst news-reply-menu
+  '("Post News"
+    "Go to Field:"
+    "----"
+    ["Subject:"			mail-subject		 t]
+    ["Summary:"			news-reply-summary	 t]
+    ["Keywords:"		news-reply-keywords	 t]
+    ["Newsgroups:"		news-reply-newsgroups	 t]
+    ["Followup-To:"		news-reply-followup-to	 t]
+    ["Distribution:"		news-reply-distribution	 t]
+    ["Text" (let ((mail-header-separator "")) (mail-text)) t]
+    "----"
+    "Miscellaneous Commands:"
+    "----"
+    ["Yank Original"		news-reply-yank-original t]
+    ["Fill Yanked Message"	mail-fill-yanked-message t]
+;;  ["Insert Signature"		news-reply-signature	 t]
+    ["Caesar (rot13) Message"	news-caesar-buffer-body	 t]
+    "----"
+    ["Post Message"		news-inews		 t]
+    ))
+
+(defun news-reply-menu (event)
+  (interactive "e")
+  (select-window (event-window event))
+  (let (yank sig fill rot (rest news-reply-menu))
+    (while rest
+      (if (vectorp (car rest))
+	  (cond ((eq (aref (car rest) 1) 'news-reply-yank-original)
+		 (setq yank (car rest)))
+		((eq (aref (car rest) 1) 'news-reply-signature)
+		 (setq sig (car rest)))
+		((eq (aref (car rest) 1) 'mail-fill-yanked-message)
+		 (setq fill (car rest)))
+		((eq (aref (car rest) 1) 'news-caesar-buffer-body)
+		 (setq rot (car rest)))))
+      (setq rest (cdr rest)))
+    (if yank (aset yank 2 (not (null mail-reply-buffer))))
+    (if sig (aset sig 2 (and (stringp mail-signature-file)
+			     (file-exists-p mail-signature-file))))
+    (let ((body-p (save-excursion
+		    (goto-char (point-min))
+		    (and (search-forward (concat "\n" mail-header-separator
+						 "\n") nil t)
+			 (not (looking-at "[ \t\n]*\\'"))))))
+      (if fill (aset fill 2 body-p))
+      (if rot (aset rot 2 body-p))))
+  (popup-menu 'news-reply-menu))

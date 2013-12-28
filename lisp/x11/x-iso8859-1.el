@@ -1,5 +1,5 @@
 ;; Mapping between X keysym names and ISO 8859-1 (aka Latin1) character codes.
-;; Copyright (C) 1992 Free Software Foundation, Inc.
+;; Copyright (C) 1992, 1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -37,6 +37,12 @@
 
 (require 'iso8859-1)
 
+(defconst iso8859/1-code-to-x-keysym-table nil
+  "Maps iso8859/1 to an X keysym name which corresponds to it.
+There may be more than one X name for this keycode; this returns the first one.
+Note that this is X specific; one should avoid using this table whenever 
+possible, in the interest of portability.")
+
 ;; (This esoteric little construct is how you do MACROLET in elisp.  It
 ;; generates the most efficient code for the .elc file by unwinding the
 ;; loop at compile-time.)
@@ -62,6 +68,24 @@
 		   (list 'global-set-key (list 'quote (car sym-and-code))
 			 ''self-insert-command))
 		syms-and-iso8859/1-codes)
+	;;
+	;; Then emit the value of iso8859/1-code-to-x-keysym-table.
+	;;
+	(let ((v (make-vector 256 nil)))
+	  ;; the printing ASCII chars have 1-char names.
+	  (let ((i 33))
+	    (while (< i 127)
+	      (aset v i (intern (make-string 1 i)))
+	      (setq i (1+ i))))
+	  ;; these are from the keyboard character set.
+	  (mapcar '(lambda (x) (aset v (car x) (car (cdr x))))
+		  '((8 backspace) (9 tab) (10 linefeed) (13 return)
+		    (27 escape) (32 space) (127 delete)))
+	  (mapcar '(lambda (sym-and-code)
+		     (or (aref v (car (cdr sym-and-code)))
+			 (aset v (car (cdr sym-and-code)) (car sym-and-code))))
+		  syms-and-iso8859/1-codes)
+	  (list (list 'setq 'iso8859/1-code-to-x-keysym-table v)))
 	))))
 
  ;; The names and capitalization here are as per the MIT X11R4 and X11R5

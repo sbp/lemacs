@@ -1,4 +1,5 @@
 ;;; Mouse and font support for PCL-CVS 1.3 running in Lucid GNU Emacs
+;; @(#) Id: pcl-cvs-lucid.el,v 1.2 1993/05/31 19:37:34 ceder Exp 
 ;; Copyright (C) 1992-1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
@@ -34,42 +35,47 @@
 
 (defvar cvs-menu
   '("CVS"
-    ["Find File"			cvs-find-file			t]
-    ["Find File Other Window"		cvs-find-file-other-window	t]
-    ["Diff against Repository"		cvs-diff-cvs			t]
-    ["Diff against Backup Version"	cvs-diff-backup			t]
+    ["Find File"			cvs-mode-find-file		t]
+    ["Find File Other Window"		cvs-mode-find-file-other-window	t]
+    ["Interactively Merge (emerge)"	cvs-mode-emerge			t]
+    ["Diff against Repository"		cvs-mode-diff-cvs		t]
+    ["Diff against Backup Version"	cvs-mode-diff-backup		t]
     "----"
-    ["Commit Changes to Repository"	cvs-commit			t]
-    ["Revert File from Repository"	cvs-undo-local-changes		t]
-    ["Add File to Repository"		cvs-add				t]
-    ["Remove File from Repository"	cvs-remove-file			t]
-    ["Ignore File"			cvs-ignore			t]
-    ["Hide File"			cvs-acknowledge			t]
-    ["Hide Handled Files"		cvs-remove-handled		t]
+    ["Commit Changes to Repository"	cvs-mode-commit			t]
+    ["Revert File from Repository"	cvs-mode-undo-local-changes	t]
+    ["Add File to Repository"		cvs-mode-add			t]
+    ["Remove File from Repository"	cvs-mode-remove-file		t]
+    ["Ignore File"			cvs-mode-ignore			t]
+    ["Hide File"			cvs-mode-acknowledge		t]
+    ["Hide Handled Files"		cvs-mode-remove-handled		t]
     "----"
-    ["Add ChangeLog Entry"	cvs-add-change-log-entry-other-window	t]
-    ["Show CVS Log"			cvs-log				t]
-    ["Show CVS Status"			cvs-status			t]
+    ["Add ChangeLog Entry"	cvs-mode-add-change-log-entry-other-window t]
+    ["Show CVS Log"			cvs-mode-log			t]
+    ["Show CVS Status"			cvs-mode-status			t]
     "----"
-    ["Mark File"			cvs-mark			t]
-    ["Unmark File"			cvs-unmark			t]
-    ["Mark All Files"			cvs-mark-all-files		t]
-    ["Unmark All Files"			cvs-unmark-all-files		t]
+    ["Mark File"			cvs-mode-mark			t]
+    ["Unmark File"			cvs-mode-unmark			t]
+    ["Mark All Files"			cvs-mode-mark-all-files		t]
+    ["Unmark All Files"			cvs-mode-unmark-all-files	t]
+    "----"
+    ["Quit"				bury-buffer			t]
     ))
 
 (defun cvs-menu (e)
   (interactive "e")
   (mouse-set-point e)
   (beginning-of-line)
-  (or (looking-at "^[* ] ") (error ""))
+  (if cvs-update-running (error "CVS update is running"))
+  (or (looking-at "^[* ] ") (error "No CVS file line here"))
   (popup-menu cvs-menu))
 
 (defun cvs-mouse-find-file (e)
   (interactive "e")
   (mouse-set-point e)
   (beginning-of-line)
-  (or (looking-at "^[* ] ") (error ""))
-  (cvs-find-file (point)))
+  (if cvs-update-running (error "CVS update is running"))
+  (or (looking-at "^[* ] ") (error "No CVS file line here"))
+  (cvs-mode-find-file (point)))
 
 (define-key cvs-mode-map 'button3 'cvs-menu)
 (define-key cvs-mode-map 'button2 'cvs-mouse-find-file)
@@ -101,6 +107,14 @@
 		 (looking-at "^[* ] ")))))
       (mode-motion-highlight-line event)))
 
+(defconst pcl-cvs-font-lock-keywords
+  '(("^In directory \\(.+\\)$" 1 cvs-header-face)
+    ("^[* ] \\w+ +\\(ci\\)" 1 cvs-status-face)
+    ("^[* ] \\(Conflict\\|Merged\\)" 1 cvs-status-face)
+    ("^[* ] \\w+ +\\(ci +\\)?\\(.+\\)$" 2 cvs-filename-face)
+    )
+  "Patterns to highlight in the *cvs* buffer.")
+
 (defun pcl-cvs-fontify ()
   ;;
   ;; set up line highlighting
@@ -114,22 +128,8 @@
 	(add-menu nil "CVS" (cdr cvs-menu))))
   ;;
   ;; fontify mousable lines
-  (save-excursion
-    (goto-char (point-min))
-    (search-forward "\n\n" nil t)
-    (while (not (eobp))
-      (cond ((looking-at "In directory \\(.+\\)$")
-	     (set-extent-face (make-extent (match-beginning 1) (match-end 1))
-			      'cvs-header-face))
-	    ((looking-at "[* ] \\w+ +\\(ci +\\)?\\(.+\\)$")
-	     (if (match-beginning 1)
-		 (set-extent-face
-		  (make-extent (match-beginning 1) (match-end 1))
-		  'cvs-status-face))
-	     (set-extent-face (make-extent (match-beginning 2) (match-end 2))
-			      'cvs-filename-face))
-	    )
-      (forward-line 1)))
+  (set (make-local-variable 'font-lock-keywords) pcl-cvs-font-lock-keywords)
+  (font-lock-mode 1)
   )
 
 (add-hook 'cvs-mode-hook 'pcl-cvs-fontify)

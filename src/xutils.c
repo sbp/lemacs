@@ -1,5 +1,5 @@
 /* Random utilities used by X.
-   Copyright (C) 1991, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1991, 1992, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -20,7 +20,9 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "config.h"
 #include "lisp.h"
 #include "xterm.h"
+#include "xobjs.h"
 #include "dispextern.h"
+#include "faces.h"
 #include "screen.h"
 
 #define NO_CHAR_INFO(ch) (((ch)->width == 0) &&    \
@@ -58,9 +60,6 @@ x_read_mouse_position (s, x, y)
   Window w;
   int ix, iy;
   int ibw = s->display.x->internal_border_width;
-#ifdef LINE_INFO_COLUMN
-  int licw = s->display.x->line_info_column_width;
-#endif
 
   Window root_window;
   int root_x, root_y;
@@ -76,10 +75,6 @@ x_read_mouse_position (s, x, y)
     }
   UNBLOCK_INPUT;
 
-#ifdef LINE_INFO_COLUMN
-  *x = (ix - (ibw + licw)) / FONT_WIDTH (SCREEN_NORMAL_FACE (s).font);
-#else
-  *x = (ix - ibw) / FONT_WIDTH (SCREEN_NORMAL_FACE (s).font);
-#endif
+  *x = (ix - ibw) / XFONT (SCREEN_DEFAULT_FONT (s))->width;
   *y = (iy - ibw) / (s->display.x->text_height + x_interline_space);
 }

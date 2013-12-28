@@ -26,7 +26,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
  *   compile this file unless you have the Xt sources online.
  */
 
-#include <IntrinsicI.h>
+#include <IntrinsicI.h>   /* Don't change this: see comments in Imakefile. */
 #include <X11/Xatom.h>
 #include "dispatch.h"
 

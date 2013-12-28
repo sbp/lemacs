@@ -55,13 +55,13 @@
 ;; macros must come first... or byte-compile'd code will throw back its
 ;; head and scream.
 
-(defmacro decrement (variable)
+(defmacro timer-decf (variable)
   (list 'setq variable (list '1- variable)))
 
-(defmacro increment (variable)
+(defmacro timer-incf (variable)
   (list 'setq variable (list '1+ variable)))
 
-(defmacro signum (n)
+(defmacro timer-signum (n)
   (list 'if (list '> n 0) 1
     (list 'if (list 'zerop n) 0 -1)))
 
@@ -233,7 +233,7 @@ Returns the newly created timer."
 	(num 2))
     (while (get-timer name)
       (setq name (concat oname "<" num ">"))
-      (increment num)))
+      (timer-incf num)))
   (let ((inhibit-quit t))
     ;; add the timer to the global list
     (setq timer-list
@@ -364,7 +364,7 @@ x      start a new timer
 		    (while (and (>= opoint (point)) (< n 4))
 		      (forward-sexp 2)
 		      (backward-sexp)
-		      (increment n))
+		      (timer-incf n))
 		    (cond ((eq n 1) (error "Cannot change timer name."))
 			  ((eq n 2) 'value)
 			  ((eq n 3) 'restart)
@@ -413,7 +413,7 @@ x      start a new timer
 (defun timer-edit-next-field (count)
   (interactive "p")
   (timer-edit-beginning-of-field)
-  (cond ((> (signum count) 0)
+  (cond ((> (timer-signum count) 0)
 	 (while (not (zerop count))
 	   (forward-sexp)
 	   ;; wrap from eob to timer-edit-start-marker
@@ -428,8 +428,8 @@ x      start a new timer
 	       (progn
 		 (forward-sexp 2)
 		 (backward-sexp)))
-	   (decrement count)))
-	((< (signum count) 0)
+	   (timer-decf count)))
+	((< (timer-signum count) 0)
 	 (while (not (zerop count))
 	   (backward-sexp)
 	   ;; treat fields at beginning of line as if they weren't there.
@@ -440,7 +440,7 @@ x      start a new timer
 	       (progn
 		 (goto-char (point-max))
 		 (backward-sexp)))
-	   (increment count)))))
+	   (timer-incf count)))))
 
 (defun timer-edit-previous-field (count)
   (interactive "p")
@@ -507,17 +507,25 @@ For this variable to have any effect, you must do (require 'timer).
 See also the variable `auto-save-interval', which controls auto-saving based
 on the number of characters typed.")
 
+(defvar auto-gc-threshold (/ gc-cons-threshold 3)
+  ;; this should be sanity-checked!
+  "*GC when this many bytes have been consed since the last GC, 
+and the user has been idle for `auto-save-timeout' seconds to happen.
+
+For this variable to have any effect you must do (require 'timer).")
+
 (defun auto-save-timer ()
   "For use as a timer callback function.
-Auto-saves based on the size of the current buffer and the value of
-auto-save-timeout and the current keyboard idle-time."
+Auto-saves and garbage-collects based on the size of the current buffer
+and the value of `auto-save-timeout', `auto-gc-threshold', and the current
+keyboard idle-time."
   (if (or (null auto-save-timeout)
 	  (<= auto-save-timeout 0)
 	  (eq (minibuffer-window) (selected-window)))
       nil
     (let ((buf-size (1+ (ash (buffer-size) -8)))
 	  (delay-level 0)
-	  (now (current-time-seconds))
+	  (now (current-time))
 	  delay)
       (while (> buf-size 64)
 	(setq delay-level (1+ delay-level)
@@ -527,10 +535,15 @@ auto-save-timeout and the current keyboard idle-time."
       ;; delay_level is 4 for files under around 50k, 7 at 100k, 9 at 200k,
       ;; 11 at 300k, and 12 at 500k, 15 at 1 meg, and 17 at 2 meg.
       (setq delay (/ (* delay-level auto-save-timeout) 4))
-      (if (or (not (consp last-input-time))
-	      (/= (car now) (car last-input-time))
-	      (> (- (cdr now) (cdr last-input-time)) delay))
-	  (do-auto-save))))
+      (let ((idle-time (if (or (not (consp last-input-time))
+			       (/= (car now) (car last-input-time)))
+			   (1+ delay)
+			 (- (car (cdr now)) (cdr last-input-time)))))
+	(and (> idle-time delay)
+	     (do-auto-save))
+	(and (> idle-time auto-save-timeout)
+	     (> (consing-since-gc) auto-gc-threshold)
+	     (garbage-collect)))))
   ;; Look at the timer that's currently running; if the user has changed
   ;; the value of auto-save-timeout, modify this timer to have the correct
   ;; restart time.  There will be some latency between when the user changes

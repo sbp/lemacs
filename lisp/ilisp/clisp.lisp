@@ -2,9 +2,101 @@
 ;;; Common Lisp initializations 
 ;;; Author: Chris McConnell, ccm@cs.cmu.edu
 ;;;
-#+allegro-v4.0 (setq excl:*cltl1-in-package-compatibility-p* t)
-(in-package "ILISP" :use '("LISP"))
+;;; ange-ftp hack added by ivan Wed Mar 10 12:30:15 1993
+;;; ilisp-errors *gc-verbose* addition ivan Tue Mar 16 03:21:51 1993
+;;;
+;;; Rcs_Info: clisp.lisp,v 1.26 1993/09/03 02:05:07 ivan Rel $
+;;;
+;;; Rcs_Info: clisp.lisp,v $
+;;; Revision 1.26  1993/09/03  02:05:07  ivan
+;;; "Deposit for Release 5.5"
+;;;
+;;; Revision 1.25  1993/08/31  09:45:22  ivan
+;;; "Deposit for Release 5.5"
+;;;
+;;; Revision 1.24  1993/08/31  09:07:17  ivan
+;;; "Deposit for Release 5.5"
+;;;
+;;; Revision 1.23  1993/08/31  01:50:03  ivan
+;;; "Deposit for Release 5.5"
+;;;
+;;; Revision 1.22  1993/08/31  01:37:44  ivan
+;;; "Deposit for Release 5.5"
+;;;
+;;; Revision 1.21  1993/08/29  09:35:48  ivan
+;;; "Deposit for Release 5.5"
+;;;
+;;; Revision 1.20  1993/08/25  20:37:50  ivan
+;;; "Deposit for release ILISP_FIVE_O_FOUR"
+;;;
+;;; Revision 1.19  1993/08/24  22:01:52  ivan
+;;; Use defpackage instead of just IN-PACKAGE.
+;;; Renamed FUNCTION to FUN in ilisp-arglist to get around CMUCL 17b bug.
+;;;
+;;; Revision 1.18  1993/06/29  06:13:12  ivan
+;;; "Deposit for release ILISP_FIVE_O_THREE"
+;;;
+;;; Revision 1.17  1993/06/29  06:12:03  ivan
+;;; "Deposit for release ILISP_FIVE_O_2"
+;;;
+;;; Revision 1.16  1993/06/29  05:51:35  ivan
+;;; Added Ed Gamble's #'readtable-case fix and Hans Chalupsky's
+;;; allegro-4.1 addition.
+;;;
+;;; Revision 1.15  1993/06/28  20:30:00  ivan
+;;; "Deposit for release ILISP_FIVE_O_2"
+;;;
+;;; Revision 1.14  1993/06/28  19:35:05  ivan
+;;; "Deposit for release ILISP_FIVE_O_2"
+;;;
+;;; Revision 1.13  1993/06/28  16:44:02  ivan
+;;; "Deposit for release ILISP_FIVE_O_1"
+;;;
+;;; Revision 1.12  1993/06/28  03:26:07  ivan
+;;; "Deposit for release ILISP_FIVE_O"
+;;;
+;;; Revision 1.11  1993/06/28  03:12:44  ivan
+;;; "Deposit for release ILISP_FIVE_O"
+;;;
+;;; Revision 1.10  1993/06/28  01:00:24  ivan
+;;; "Deposit for release ILISP_FIVE_O"
+;;;
+;;; Revision 1.9  1993/06/28  00:59:02  ivan
+;;; Deposit
+;;;
+;;; Revision 1.8  1993/06/28  00:57:42  ivan
+;;; Stopped using 'COMPILED-FUNCTION-P for compiled check.
+;;;
+;;; Revision 1.7  1993/06/28  00:41:52  ivan
+;;; Deposit for release ILISP_FIVE_O
+;;;
+;;; Revision 1.6  1993/06/28  00:39:28  ivan
+;;; Deposit for release
+;;;
+;;; Revision 1.5  1993/06/28  00:36:20  ivan
+;;; Deposit for release
+;;;
+;;; Revision 1.4  1993/06/11  19:03:47  ivan
+;;; *** empty log message ***
+;;;
+;;; Revision 1.3  1993/03/16  23:22:10  ivan
+;;; Added breakp arg to ilisp-trace.
+;;;
+;;; Revision 1.2  1993/03/16  09:45:56  ivan
+;;; *** empty log message ***
+;;;
+;;; Revision 1.1  1993/03/16  08:21:17  ivan
+;;; Initial revision
+;;;
+;;;
 
+
+#+(or allegro-v4.0 allegro-v4.1)
+(eval-when (compile load eval)
+  (setq excl:*cltl1-in-package-compatibility-p* t))
+
+(defpackage "ILISP" (:use "LISP"))
+(in-package "ILISP")
 ;;;
 (defvar *ilisp-old-result* nil "Used for save/restore of top level values.")
 
@@ -21,7 +113,7 @@
 ;;;
 (defun ilisp-readtable-case (readtable)
   (if (fboundp 'readtable-case)
-      (funcall 'readtable-case readtable)
+      (funcall #'readtable-case readtable)
       #+allegro (case excl:*current-case-mode*
 		  (:case-insensitive-upper :upcase)
 		  (:case-insensitive-lower :downcase)
@@ -32,13 +124,18 @@
 (defmacro ilisp-errors (form)
   "Handle errors when evaluating FORM."
   `(let ((*standard-output* *terminal-io*)
-	 (*error-output* *terminal-io*))
+	 (*error-output* *terminal-io*)
+	 #+cmu
+	 (ext:*gc-verbose* nil) ; cmulisp outputs "[GC ...]" which
+				; doesn't read well...
+	 )
      (princ " ")			;Make sure we have output
      (ilisp-handler-case
       ,form	
       (error (error)
        (with-output-to-string (string)
 	 (format string "ILISP: ~A" error))))))
+
 
 ;;;
 (defun ilisp-save ()
@@ -87,7 +184,15 @@ handle case issues intelligently."
 (defun ilisp-eval (form package filename)
   "Evaluate FORM in PACKAGE recording FILENAME as the source file."
   (princ " ")
-  (let* ((*package* (ilisp-find-package package))
+  ;; Ivan's hack for getting away with dumb /ivan@bu-conx:/foo/bar/baz
+  ;; filenames...
+  (let* ((at-location (position #\@ filename))
+	 (colon-location (position #\: filename))
+	 (filename
+	  (if (and at-location colon-location)
+	      (subseq filename (1+ colon-location))
+	      filename))
+	 (*package* (ilisp-find-package package))
 	 #+allegro (excl::*source-pathname* filename)
 	 #+allegro (excl::*redefinition-warnings* nil)
 	 #+lucid (lucid::*source-pathname*
@@ -158,16 +263,16 @@ handle case issues intelligently."
 	 (*print-level* nil)
 	 (*package* (ilisp-find-package package)))
      (if (and real-symbol (fboundp real-symbol))
-	 (pprint (let* ((function (symbol-function real-symbol))
+	 (pprint (let* ((fun (symbol-function real-symbol))
 			(generic-p
 			 (find-symbol "GENERIC-FUNCTION-P"
 				      (or (find-package "PCL")
 					  *package*))))
-		   (if (and (fboundp generic-p) (funcall generic-p function))
+		   (if (and (fboundp generic-p) (funcall generic-p fun))
 		       (funcall
 			(find-symbol "GENERIC-FUNCTION-PRETTY-ARGLIST"
 				     (or (find-package "PCL") *package*))
-			function)
+			fun)
 		       #+allegro (excl::arglist real-symbol)
 		       #+lucid (lucid::arglist real-symbol)
 		       #+(or ibcl kcl) (help real-symbol)
@@ -237,11 +342,13 @@ macro."
      (pprint (macroexpand-1 (read-from-string expression))))))
 
 ;;;
-(defun ilisp-trace (symbol package)
+(defun ilisp-trace (symbol package breakp)
   "Trace SYMBOL in PACKAGE."
+  (declare (ignore breakp)) ; No way to do this in CL.
   (ilisp-errors
    (let ((real-symbol (ilisp-find-symbol symbol package)))
      (when real-symbol (eval `(trace ,real-symbol))))))
+
 (defun ilisp-untrace (symbol package)
   "Untrace SYMBOL in PACKAGE."
   (ilisp-errors
@@ -394,5 +501,7 @@ original string."
 		  ilisp-compile-file ilisp-casify
 		  ilisp-matching-symbols))
   (export symbol))
-(unless (compiled-function-p #'ilisp-matching-symbols)
-  (format t "\"ILISP: File is not compiled, use M-x ilisp-compile-inits\""))
+(when
+    #+cmu (eval:interpreted-function-p #'ilisp-matching-symbols)
+    #-cmu (not (compiled-function-p #'ilisp-matching-symbols))
+    (format t "\"ILISP: File is not compiled, use M-x ilisp-compile-inits\""))

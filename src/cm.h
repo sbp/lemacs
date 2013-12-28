@@ -1,5 +1,5 @@
 /* Cursor motion calculation definitions for GNU Emacs
-   Copyright (C) 1985-1993 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1989, 1992, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -39,25 +39,25 @@ struct cm
     int cm_curX;			/* Current column */
 
     /* Capabilities from termcap */
-    char *cm_up;		/* up (up) */
-    char *cm_down;		/* down (do) */
-    char *cm_left;		/* left (le) */
-    char *cm_right;		/* right (nd) */
-    char *cm_home;		/* home (ho) */
-    char *cm_cr;		/* carriage return (cr) */
-    char *cm_ll;		/* last line (ll) */
-    char *cm_tab;		/* tab (ta) */
-    char *cm_backtab;		/* backtab (bt) */
-    char *cm_abs;		/* absolute (cm) */
-    char *cm_habs;		/* horizontal absolute (ch) */
-    char *cm_vabs;		/* vertical absolute (cv) */
+    const char *cm_up;		/* up (up) */
+    const char *cm_down;	/* down (do) */
+    const char *cm_left;	/* left (le) */
+    const char *cm_right;	/* right (nd) */
+    const char *cm_home;	/* home (ho) */
+    const char *cm_cr;		/* carriage return (cr) */
+    const char *cm_ll;		/* last line (ll) */
+    const char *cm_tab;		/* tab (ta) */
+    const char *cm_backtab;	/* backtab (bt) */
+    const char *cm_abs;		/* absolute (cm) */
+    const char *cm_habs;	/* horizontal absolute (ch) */
+    const char *cm_vabs;	/* vertical absolute (cv) */
 #if 0
-    char *cm_ds;		/* "don't send" string (ds) */
+    const char *cm_ds;		/* "don't send" string (ds) */
 #endif
-    char *cm_multiup;		/* multiple up (UP) */
-    char *cm_multidown;		/* multiple down (DO) */
-    char *cm_multileft;		/* multiple left (LE) */
-    char *cm_multiright;	/* multiple right (RI) */
+    const char *cm_multiup;	/* multiple up (UP) */
+    const char *cm_multidown;	/* multiple down (DO) */
+    const char *cm_multileft;	/* multiple left (LE) */
+    const char *cm_multiright;	/* multiple right (RI) */
     int cm_cols;		/* number of cols on screen (co) */
     int cm_rows;		/* number of rows on screen (li) */
     int cm_tabwidth;		/* tab width (it) */
@@ -163,8 +163,8 @@ extern short ospeed;		/* Output speed (from sg_ospeed) */
 #define losecursor()	(curX = -1, curY = -1)
 
 extern int cost;
-extern int evalcost (char c);
-extern int cmputc (char c);
+extern void evalcost (int c);
+extern void cmputc (int c);
 extern void cmcostinit (void);
 extern void cmgoto (int, int);
 extern void Wcm_clear (void);

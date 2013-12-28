@@ -25,6 +25,13 @@
 
 (provide 'pending-del)
 
+(defvar pending-delete-verbose
+  1
+  "*nil disables on/off messages for pending-del mode
+1 suppresses messages on loading
+t enables all messages")
+
+
 (defun delete-active-region (&optional killp)
   (if (and (not buffer-read-only)
 	   (extentp primary-selection-extent)
@@ -64,22 +71,32 @@
 (put 'newline 'pending-delete t)
 (put 'open-line 'pending-delete t)
 
+(defun pending-delete-on (verbose)
+  "Turn on pending delete."
+  (interactive "P")
+  (add-hook 'pre-command-hook 'pending-delete-pre-hook)
+  (and verbose
+    (message "Pending delete is ON, use M-x pending-delete to turn it OFF")))
+
+(defun pending-delete-off (verbose)
+  "Turn off pending delete."
+  (interactive "P")
+  (remove-hook 'pre-command-hook 'pending-delete-pre-hook)
+  (and verbose (message "pending delete is OFF")))
+
 (defun pending-delete ()
   "Toggle the state of the pending-delete package.  
 When ON typed text replaces the selection if the selection is active.
 When OFF typed text is just inserted at point."
   (interactive)
   (if (memq 'pending-delete-pre-hook pre-command-hook)
-      (progn
-	(remove-hook 'pre-command-hook 'pending-delete-pre-hook)
-	(message "pending delete is OFF"))
-    (progn
-      (add-hook 'pre-command-hook 'pending-delete-pre-hook)
-      (message
-       "Pending delete is ON, use M-x pending-delete to turn it OFF"))))
-
-(pending-delete)
-
+      (pending-delete-off pending-delete-verbose)
+    (pending-delete-on pending-delete-verbose)))
+  
+;; Add pending-del mode.  Assume that if we load it then we obviously wanted
+;; it on, even if it is already on.
+(pending-delete-on (equal pending-delete-verbose t))
+  
 ;; This new definition of control-G makes the first control-G disown the 
 ;; selection and the second one signal a QUIT.
 ;; This is very useful for cancelling a selection in the minibuffer without 

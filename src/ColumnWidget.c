@@ -8,6 +8,8 @@
 #include <X11/cursorfont.h>
 #include "ColumnWidgetP.h"
 
+#undef MAX
+#undef MIN
 #define MAX(a,b) ((a)>(b)?(a):(b))
 #define MIN(a,b) ((a)<(b)?(a):(b))
 
@@ -111,7 +113,8 @@ do_layout (parent)
     /* divide remaining space by number of children
      */
     if ((n_managed_children > 1) && (parent->core.height > childheight))
-      pad = (parent->core.height - childheight) / (n_managed_children - 1);
+      pad = (Dimension) (parent->core.height - childheight) /
+	(Dimension) (n_managed_children - 1);
 
     printf("pad = %d\n", pad);
 
@@ -146,6 +149,7 @@ static XtGeometryResult PreferredSize (w, request, preferred)
     preferred->width = 0;
     preferred->height = 0;
     for (i=0; i<w->composite.num_children; i++) {
+       child = w->composite.children[i];
        if (child->core.managed) {
 	  preferred->width += child->core.width + 2*child->core.border_width;
 	  preferred->height += child->core.height + 2*child->core.border_width;

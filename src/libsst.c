@@ -137,7 +137,7 @@ int fd;
 	{
 	perror( "sst_close: SETREG MMR2" );
 	}
-    close( fd );
+    emacs_close( fd );
     }
 
 /* These are tables of values to be loaded into various gain registers.

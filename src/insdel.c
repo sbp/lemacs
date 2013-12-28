@@ -21,33 +21,28 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "config.h"
 #include "lisp.h"
 #include "buffer.h"
+#include "insdel.h"
 #include "extents.h"
 #include "window.h"
-#include "insdel.h"
 
 
 /* Routines for dealing with the gap. */
 
 /* Add `amount' to the position of every marker in the current buffer
    whose current position is between `from' (exclusive) and `to' (inclusive).
-   Also, any markers past the outside of that range, in the direction
-   of adjustment, are first moved back to the near end of the range
+   Also, any markers past the outside of that interval, in the direction
+   of adjustment, are first moved back to the near end of the interval
    and then adjusted by `amount'.  */
 
 static void
-adjust_markers (from, to, amount)
-     int from, to, amount;
+adjust_markers (struct buffer *buf, int adjust_extents_as_well_p,
+                int from, int to, int amount)
 {
-  Lisp_Object marker;
   struct Lisp_Marker *m;
-  int mpos;
 
-  marker = current_buffer->markers;
-
-  while (!NILP (marker))
+  for (m = buf->markers; m; m = marker_next (m))
     {
-      m = XMARKER (marker);
-      mpos = m->bufpos;
+      int mpos = m->bufpos;
       if (amount > 0)
 	{
 	  if (mpos > to && mpos < to + amount)
@@ -61,24 +56,24 @@ adjust_markers (from, to, amount)
       if (mpos > from && mpos <= to)
 	mpos += amount;
       m->bufpos = mpos;
-      marker = m->chain;
     }
+  if (adjust_extents_as_well_p)
+    adjust_extents (from, to, amount, buf);
 }
 
 /* Move the gap to POS, which is less than the current GPT.   If NEWGAP
    is nonzero, then don't update beg_unchanged and end_unchanged.  */
 
 static void
-gap_left (pos, newgap)
-     register int pos;
-     int newgap;
+gap_left (struct buffer *buf, int pos, int newgap)
 {
   register unsigned char *to, *from;
   register int i;
   int new_s1;
+
   pos--;
 
-  if (!newgap)
+  if (newgap == 0 && buf == current_buffer)
     {
       if (unchanged_modified == MODIFF)
 	{
@@ -94,10 +89,10 @@ gap_left (pos, newgap)
 	}
     }
 
-  i = GPT;
-  to = GAP_END_ADDR;
-  from = GPT_ADDR;
-  new_s1 = GPT - BEG;
+  i = BUF_GPT (buf);
+  from = BUF_BEG_ADDR (buf) + BUF_GPT (buf) - 1;
+  to = from + BUF_GAP_SIZE (buf);
+  new_s1 = BUF_GPT (buf) - BUF_BEG (buf);
 
   /* Now copy the characters.  To move the gap down,
      copy characters up.  */
@@ -118,46 +113,68 @@ gap_left (pos, newgap)
       /* Move at most 32000 chars before checking again for a quit.  */
       if (i > 32000)
 	i = 32000;
-      new_s1 -= i;
-      while (--i >= 0)
-	*--to = *--from;
+#ifdef GAP_USE_BCOPY
+      if (i >= 128
+	  /* bcopy is safe if the two areas of memory do not overlap
+	     or on systems where bcopy is always safe for moving upward.  */
+	  && (BCOPY_UPWARD_SAFE
+	      || to - from >= 128))
+	{
+	  /* If overlap is not safe, avoid it by not moving too many
+	     characters at once.  */
+	  if (!BCOPY_UPWARD_SAFE && i > to - from)
+	    i = to - from;
+	  new_s1 -= i;
+	  from -= i, to -= i;
+	  memcpy (to, from, i);
+	}
+      else
+#endif
+	{
+	  new_s1 -= i;
+	  while (--i >= 0)
+	    *--to = *--from;
+	}
     }
 
   /* Adjust markers, and buffer data structure, to put the gap at POS.
      POS is where the loop above stopped, which may be what was specified
      or may be where a quit was detected.  */
-  adjust_markers (pos + 1, GPT, GAP_SIZE);
-  adjust_extents (pos + 1, GPT, GAP_SIZE, current_buffer);
-  GPT = pos + 1;
+  adjust_markers (buf, 1, 
+                  pos + 1, BUF_GPT (buf), BUF_GAP_SIZE (buf));
+  BUF_GPT (buf) = pos + 1;
   QUIT;
 }
 
 static void
-gap_right (pos)
-     register int pos;
+gap_right (struct buffer *buf, int pos)
 {
   register unsigned char *to, *from;
   register int i;
   int new_s1;
+
   pos--;
 
-  if (unchanged_modified == MODIFF)
+  if (buf == current_buffer)
     {
-      beg_unchanged = pos;
-      end_unchanged = Z - pos - 1;
-    }
-  else
-    {
-      if (Z - pos - 1 < end_unchanged)
-	end_unchanged = Z - pos - 1;
-      if (GPT - BEG < beg_unchanged)
-	beg_unchanged = GPT - BEG;
+      if (unchanged_modified == MODIFF)
+	{
+	  beg_unchanged = pos;
+	  end_unchanged = Z - pos - 1;
+	}
+      else
+	{
+	  if (Z - pos - 1 < end_unchanged)
+	    end_unchanged = Z - pos - 1;
+	  if (GPT - BEG < beg_unchanged)
+	    beg_unchanged = GPT - BEG;
+	}
     }
 
-  i = GPT;
-  from = GAP_END_ADDR;
-  to = GPT_ADDR;
-  new_s1 = GPT - 1;
+  i = BUF_GPT (buf);
+  to = BUF_BEG_ADDR (buf) + BUF_GPT (buf) - 1;
+  from = to + BUF_GAP_SIZE (buf);
+  new_s1 = BUF_GPT (buf) - 1;
 
   /* Now copy the characters.  To move the gap up,
      copy characters down.  */
@@ -178,15 +195,38 @@ gap_right (pos)
       /* Move at most 32000 chars before checking again for a quit.  */
       if (i > 32000)
 	i = 32000;
-      new_s1 += i;
-      while (--i >= 0)
-	*to++ = *from++;
+#ifdef GAP_USE_BCOPY
+      if (i >= 128
+	  /* bcopy is safe if the two areas of memory do not overlap
+	     or on systems where bcopy is always safe for moving downward. */
+	  && (BCOPY_DOWNWARD_SAFE
+	      || from - to >= 128))
+	{
+	  /* If overlap is not safe, avoid it by not moving too many
+	     characters at once.  */
+	  if (!BCOPY_DOWNWARD_SAFE && i > from - to)
+	    i = from - to;
+	  new_s1 += i;
+	  memcpy (to, from, i);
+	  from += i, to += i;
+	}
+      else
+#endif
+	{
+	  new_s1 += i;
+	  while (--i >= 0)
+	    *to++ = *from++;
+	}
     }
 
-  adjust_markers (GPT + GAP_SIZE, pos + 1 + GAP_SIZE, - GAP_SIZE);
-  adjust_extents (GPT + GAP_SIZE, pos + 1 + GAP_SIZE, - GAP_SIZE,
-		  current_buffer);
-  GPT = pos + 1;
+  {
+    int gsize = BUF_GAP_SIZE (buf);
+    adjust_markers (buf, 1,
+                    BUF_GPT (buf) + gsize,
+                    pos + 1 + gsize,
+                    - gsize);
+    BUF_GPT (buf) = pos + 1;
+  }
   QUIT;
 }
 
@@ -194,13 +234,12 @@ gap_right (pos)
    Note that this can quit!  */
 
 void
-move_gap (pos)
-     int pos;
+move_gap (struct buffer *buf, int pos)
 {
-  if (pos < GPT)
-    gap_left (pos, 0);
-  else if (pos > GPT)
-    gap_right (pos);
+  if (pos < BUF_GPT (buf))
+    gap_left (buf, pos, 0);
+  else if (pos > BUF_GPT (buf))
+    gap_right (buf, pos);
 }
 
 /* Make the gap INCREMENT characters longer.  */
@@ -216,7 +255,7 @@ make_gap (increment)
 
   /* If we have to get more space, get enough to last a while.  We use
      a geometric progession that saves on realloc space. */
-  increment += 2000 + (Z - BEG) * .1;
+  increment += 2000 + ((Z - BEG) / 8);
 
   result = BUFFER_REALLOC (BEG_ADDR, (Z - BEG + GAP_SIZE + increment));
   if (result == 0)
@@ -236,7 +275,7 @@ make_gap (increment)
 
   /* Move the new gap down to be consecutive with the end of the old one.
      This adjusts the markers properly too.  */
-  gap_left (real_gap_loc + old_gap_size, 1);
+  gap_left (current_buffer, real_gap_loc + old_gap_size, 1);
 
   /* Now combine the two into one large gap.  */
   GAP_SIZE += old_gap_size;
@@ -245,10 +284,10 @@ make_gap (increment)
   Vinhibit_quit = tem;
 }
 
-void signal_before_change (int, int);
-
 /* Check that it is okay to modify the buffer between START and END.
    Run the before-change-function, if any.  */
+
+static void signal_before_change (int start, int end);
 
 void
 prepare_to_modify_buffer (start, end)
@@ -258,15 +297,6 @@ prepare_to_modify_buffer (start, end)
     Fbarf_if_buffer_read_only ();
 
   verify_extent_modification (current_buffer, start, end);
-
-#ifdef ENERGIZE
-  /* If buffer is unmodified, run a special hook for that case.  */
-  if (current_buffer->save_modified >= MODIFF
-      && !NILP (Vfirst_change_function))
-    {
-      safe_funcall_hook (Vfirst_change_function, 0, 0, 0, 0);
-    }
-#endif
 
 #ifdef CLASH_DETECTION
   if (!NILP (current_buffer->filename)
@@ -285,10 +315,24 @@ prepare_to_modify_buffer (start, end)
   signal_before_change (start, end);
 }
 
+/* Call this if you're about to change the region of BUFFER from START
+   to END.  This checks the read-only properties of the region, calls
+   the necessary modification hooks, and warns the next redisplay that
+   it should pay attention to that area.  */
 void
-modify_region (start, end)
-     int start, end;
+modify_region (struct buffer *buf, int start, int end)
 {
+  Lisp_Object old = Qnil;
+  struct gcpro gcpro1;
+
+  if (buf != current_buffer)
+  {
+    set_buffer_internal (buf);
+    old = Fcurrent_buffer ();
+  }
+
+  GCPRO1 (old);
+
   prepare_to_modify_buffer (start, end);
 
   if (start - 1 < beg_unchanged || unchanged_modified == MODIFF)
@@ -296,51 +340,46 @@ modify_region (start, end)
   if (Z - end < end_unchanged
       || unchanged_modified == MODIFF)
     end_unchanged = Z - end;
-  MODIFF++;
+  /* MODIFF++; -- should be done by callers (insert, delete range)
+     else record_first_change isn't called */
+
+  if (!NILP (old))
+    set_buffer_internal (XBUFFER (old));
+
+  UNGCPRO;
 }
 
-static Lisp_Object
-before_change_function_restore (value)
-     Lisp_Object value;
-{
-  Vbefore_change_function = value;
-  return Qnil;
-}
+static int inside_change_hook;
 
 static Lisp_Object
-after_change_function_restore (value)
-     Lisp_Object value;
+change_function_restore (Lisp_Object ignored)
 {
-  Vafter_change_function = value;
-  return Qnil;
+  inside_change_hook = 0;
+  return (ignored);
 }
 
 /* Signal a change to the buffer immediatly before it happens.
    START and END are the bounds of the text to be changed,
    as Lisp objects.  */
 
-void
-signal_before_change (start, end)
-     int start, end;
+static void
+signal_before_change (int start, int end)
 {
+  /* If buffer is unmodified, run a special hook for that case.  */
+  if (current_buffer->save_modified >= MODIFF
+      && !NILP (Vfirst_change_hook)
+      && !NILP (Vrun_hooks))
+    call1 (Vrun_hooks, Qfirst_change_hook);
+
   /* Now in any case run the before-change-function if any.  */
-  if (!NILP (Vbefore_change_function))
+  if (!NILP (Vbefore_change_function) && !inside_change_hook)
     {
-      int count = specpdl_depth;
-      Lisp_Object function, s, e;
-
-      function = Vbefore_change_function;
-      record_unwind_protect (after_change_function_restore,
-			     Vafter_change_function);
-      record_unwind_protect (before_change_function_restore,
-			     Vbefore_change_function);
-      Vafter_change_function = Qnil;
-      Vbefore_change_function = Qnil;
-
-      XSET (s, Lisp_Int, start);
-      XSET (e, Lisp_Int, end);
-      safe_funcall_hook (function, 2, s, e, 0);
-      unbind_to (count, Qnil);
+      int speccount = specpdl_depth ();
+      record_unwind_protect (change_function_restore, Qzero);
+      inside_change_hook = 1;
+      run_hook_with_args (Qbefore_change_function,
+			  2, make_number (start), make_number (end));
+      unbind_to (speccount, Qnil);
     }
 }
 
@@ -354,53 +393,53 @@ void
 signal_after_change (pos, lendel, lenins)
      int pos, lendel, lenins;
 {
-  if (!NILP (Vafter_change_function))
+  if (!NILP (Vafter_change_function) && !inside_change_hook)
     {
-      int count = specpdl_depth;
-      Lisp_Object function;
-      function = Vafter_change_function;
-
-      record_unwind_protect (after_change_function_restore,
-			     Vafter_change_function);
-      record_unwind_protect (before_change_function_restore,
-			     Vbefore_change_function);
-      Vafter_change_function = Qnil;
-      Vbefore_change_function = Qnil;
-
-      safe_funcall_hook (function, 3, make_number (pos),
-			 make_number (pos + lenins), make_number (lendel));
-      unbind_to (count, Qnil);
+      int speccount = specpdl_depth ();
+      record_unwind_protect (change_function_restore, Qzero);
+      inside_change_hook = 1;
+      run_hook_with_args (Qafter_change_function, 3, 
+                          make_number (pos), 
+                          make_number (pos + lenins),
+                          make_number (lendel));
+      unbind_to (speccount, Qnil);
     }
 }
 
 /* Insertion of strings. */
 
 void
-insert_relocatable_raw_string (string, length, obj)
-     Lisp_Object obj;
-     const char *string;
-     int length;
+insert_relocatable_raw_string (const char *string, int length, Lisp_Object obj)
 {
-  struct gcpro gcpro1;
-  Lisp_Object dup_list = 
-    (STRINGP (obj))?(XSTRING(obj)->dup_list):Qnil;
+  struct gcpro gcpro1, gcpro2;
+  Lisp_Object dup_list = Qnil;
+  int offset = -1;
   Lisp_Object temp;
-  int opoint = point;
+  int opoint = PT;
+
+  if (STRINGP (obj))
+  {
+    dup_list = string_dups (XSTRING (obj));
+    offset = ((string)
+              ? ((const unsigned char *) string - XSTRING (obj)->data)
+              : 0);
+    if (length < 0) length = XSTRING (obj)->size;
+  }
 
   if (length < 1)
     return;
-
-  GCPRO1 (obj);
 
   /* Make sure that point-max won't exceed the size of an emacs int. */
   XSET (temp, Lisp_Int, length + Z);
   if (length + Z != XINT (temp))
     error ("maximum buffer size exceeded");
 
+  GCPRO2 (obj, dup_list);
+
   prepare_to_modify_buffer (opoint, opoint);
 
   if (opoint != GPT)
-    move_gap (opoint);
+    move_gap (current_buffer, opoint);
   if (GAP_SIZE < length)
     make_gap (length - GAP_SIZE);
 
@@ -409,7 +448,7 @@ insert_relocatable_raw_string (string, length, obj)
 
   /* string may have been relocated up to this point */
   if (STRINGP (obj))
-    string = (char *) XSTRING (obj) -> data;
+    string = (char *) XSTRING (obj)->data + offset;
 
   memcpy (GPT_ADDR, string, length);
 
@@ -425,139 +464,50 @@ insert_relocatable_raw_string (string, length, obj)
   signal_after_change (opoint, 0, length);
 
   UNGCPRO;
-}
-
-void
-insert_from_string (obj, pos, length)
-     Lisp_Object obj;
-     int pos, length;
-{
-  unsigned char *string = XSTRING (obj)->data;
-  struct gcpro gcpro1;
-  Lisp_Object dup_list = 
-    (STRINGP (obj)) ? (XSTRING (obj)->dup_list) : Qnil;
-  Lisp_Object temp;
-  int opoint = point;
-
-  (void)pos;			/* pos is always 0 */
-
-  if (length < 1)
-    return;
-
-  GCPRO1 (obj);
-
-  /* Make sure that point-max won't exceed the size of an emacs int. */
-  XSET (temp, Lisp_Int, length + Z);
-  if (length + Z != XINT (temp))
-    error ("maximum buffer size exceeded");
-
-  prepare_to_modify_buffer (opoint, opoint);
-
-  if (opoint != GPT)
-    move_gap (opoint);
-  if (GAP_SIZE < length)
-    make_gap (length - GAP_SIZE);
-
-  record_insert (opoint, length);
-  MODIFF++;
-
-  /* string may have been relocated up to this point */
-  if (STRINGP (obj))
-    string = XSTRING (obj) -> data;
-
-  memcpy (GPT_ADDR, string, length);
-
-  process_extents_for_insertion (opoint, length, current_buffer);
-
-  GAP_SIZE -= length;
-  GPT += length;
-  ZV += length;
-  Z += length;
-  SET_PT (opoint + length);
-
-  splice_in_extent_replicas (opoint, length, dup_list, current_buffer);
-  signal_after_change (opoint, 0, length);
-
-  UNGCPRO;
-}
-
-/* Insert a raw string of specified length before point */
-
-void
-insert_raw_string (string, length)
-     const char *string;
-     int length;
-{
-  insert_relocatable_raw_string (string, length, 0);
-  return;
-}
-
-void
-insert (string, length)
-     const char *string;
-     int length;
-{
-  insert_relocatable_raw_string (string, length, 0);
-  return;
 }
 
 /* Insert the null-terminated string S before point */
 
 void
-insert_string (s)
-     const char *s;
+insert_string (const char *s)
 {
-  insert_raw_string (s, strlen (s));
-}
-
-/* Insert the character C before point */
-
-void
-insert_char (char c)
-{
-  insert_raw_string (&c, 1);
-}
-
-/* Like `insert_raw_string' except that all markers pointing at the place where
-   the insertion happens are adjusted to point after it.  */
-
-void
-insert_before_markers (string, length)
-     const char *string;
-     register int length;
-{
-  register int opoint = point;
-  insert_raw_string (string, length);
-  adjust_markers (opoint - 1, opoint, length);
+  insert_relocatable_raw_string (s, strlen (s), Qzero);
 }
 
 void
-insert_from_string_before_markers (string, pos, length)
-     Lisp_Object string;
-     int pos, length;
+insert_char (int ch)
 {
-  register int opoint = point;
-  insert_from_string (string, pos, length);
-  adjust_markers (opoint - 1, opoint, length);
+  char c = ch;
+  insert_relocatable_raw_string (&c, 1, Qzero);
 }
 
+/* Like `insert_relocatable_raw_string' except that all markers pointing
+   at the place where the insertion happens are adjusted to point after it. */
 
-/* This section deals with fat strings, i.e., those with extents. */
+void
+insert_before_markers (const char *string, int length, 
+                       Lisp_Object obj)
+{
+  register int opoint = PT;
+  if (length < 0 && STRINGP (obj))
+    length = XSTRING (obj)->size;
+  if (length < 1)
+    return;
+  insert_relocatable_raw_string (string, length, obj);
+  adjust_markers (current_buffer, 0,
+                  opoint - 1, opoint, length);
+}
 
 /* Insert the string which begins at INDEX in buffer B into
    the current buffer at point. */
 
 void
-insert_buffer_string (b, index, length)
-     struct buffer *b;
-     int index, length;
+insert_buffer_string (struct buffer *b, int index, int length)
 {
-  struct gcpro gcpro1;
-  Lisp_Object str = make_string_from_buffer (b, index, length);
-  GCPRO1 (str);
-  insert_from_string (str, 0, XSTRING (str)->size);
-  UNGCPRO;
+  insert_relocatable_raw_string (0, -1, 
+                                 make_string_from_buffer (b, index, length));
 }
+
 
 /* Delete characters in current buffer
    from FROM up to (but not including) TO.  */
@@ -567,8 +517,7 @@ extern int inside_parse_buffer; /* total kludge */
 #endif
 
 void
-del_range (from, to)
-     register int from, to;
+del_range (int from, int to)
 {
   int numdel;
 
@@ -582,35 +531,37 @@ del_range (from, to)
     return;
 
   /* Make sure the gap is somewhere in or next to what we are deleting.  */
-  if (from > GPT)
-    gap_right (from);
   if (to < GPT)
-    gap_left (to, 0);
+    gap_left (current_buffer, to, 0);
+  if (from > GPT)
+    gap_right (current_buffer, from);
 
   prepare_to_modify_buffer (from, to);
-
-  /* Relocate point appropriately relative to the deleted chars. */
-  if (from < point)
-    {
-      if (point < to)
-	SET_PT (from);
-      else
-	SET_PT (point - numdel);
-    }
 
 #ifdef ENERGIZE
   if (!inside_parse_buffer)
 #endif
     record_delete (from, numdel);
-
   MODIFF++;
+
+  /* Relocate point as if it were a marker.  */
+  if (from < PT)
+    {
+      if (PT < to)
+	SET_PT (from);
+      else
+	SET_PT (PT - numdel);
+    }
 
   /* Relocate all markers pointing into the new, larger gap
      to point at the end of the text before the gap.  */
-  adjust_markers (to + GAP_SIZE, to + GAP_SIZE, - numdel - GAP_SIZE);
+  adjust_markers (current_buffer, 0,
+                  (to + GAP_SIZE),
+                  (to + GAP_SIZE), 
+                  (- numdel - GAP_SIZE));
 
   /* this must come AFTER record_delete(), so that the appropriate extents
-     will be present to be recorded, and BEFORE the gap size of increased,
+     will be present to be recorded, and BEFORE the gap size is increased,
      as otherwise we will be confused about where the extents end. */
   /* Passing to + GAP_SIZE ensures that the extent update code leaves no
      extent endpoints hanging inside the gap.
@@ -633,10 +584,17 @@ del_range (from, to)
      before frobbing markers, above, the point-marker gets frobbed twice.
      */
   {
-    int p = point;
+    int p = PT;
     if (p > GPT) p += GAP_SIZE;
     XMARKER (current_buffer->point_marker)->bufpos = p;
   }
 
   signal_after_change (from, numdel, 0);
+}
+
+
+void
+init_insdel ()
+{
+  inside_change_hook = 0;
 }

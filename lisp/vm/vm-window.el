@@ -125,8 +125,8 @@
       (or message (setq message (current-buffer)))
       (or summary (setq summary (or vm-summary-buffer scratch)))
       (or composition (setq composition scratch))	
-      (screen-replace-map-element (nth 1 config) 'buffer-name 'symbol-value)
-      (set-screen-map (nth 1 config))
+      (tapestry-replace-map-element (nth 1 config) 'buffer-name 'symbol-value)
+      (set-tapestry-map (nth 1 config))
       (save-excursion
 	(set-buffer message)
 	(setq vm-window-configuration (car tags)))
@@ -145,9 +145,9 @@
   (if (null vm-window-configuration-file)
       (error "Configurable windows not enabled."))
   (let (map p)
-    (setq map (screen-map))
-    (screen-replace-map-element map 'buffer-name 'vm-screen-buffer-to-label)
-    (screen-nullify-map-elements map t nil t t t nil)
+    (setq map (tapestry-map))
+    (tapestry-replace-map-element map 'buffer-name 'vm-screen-buffer-to-label)
+    (tapestry-nullify-map-elements map t nil t t t nil)
     (setq p (assq tag vm-window-configurations))
     (if p
 	(setcar (cdr p) map)

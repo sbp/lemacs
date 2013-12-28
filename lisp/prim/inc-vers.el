@@ -1,5 +1,9 @@
-;; Load this file to increment the recorded Emacs version number.
-;; Copyright (C) 1985, 1986, 1992 Free Software Foundation, Inc.
+;;; inc-vers.el --- load this to increment the recorded Emacs version number.
+
+;; Copyright (C) 1985, 1986, 1993 Free Software Foundation, Inc.
+
+;; Maintainer: FSF
+;; Keywords: internal
 
 ;; This file is part of GNU Emacs.
 
@@ -18,8 +22,7 @@
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
 
-(load "startup")
-(set-default-load-path)
+;;; Code:
 
 (insert-file-contents "../lisp/version.el")
 
@@ -29,7 +32,6 @@
 		   (forward-char -1)
 		 (goto-char (match-beginning 2))
 		 (read (current-buffer)))))
-  (widen)
   (if (null version)
       (insert ".1")
     (delete-region (match-beginning 2) (match-end 2))
@@ -40,8 +42,13 @@
 			   (progn (skip-chars-forward "^\"") (point))))
 
 
+(if (and (file-accessible-directory-p "../lisp/")
+	 (null (file-writable-p "../lisp/version.el")))
+    (delete-file "../lisp/version.el"))
 (write-region (point-min) (point-max) "../lisp/version.el" nil 'nomsg)
 (erase-buffer)
 (set-buffer-modified-p nil)
 
 (kill-emacs)
+
+;;; inc-vers.el ends here

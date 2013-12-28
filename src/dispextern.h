@@ -17,8 +17,8 @@ You should have received a copy of the GNU General Public License
 along with GNU Emacs; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
-#ifndef DISPEXTERN_DOT_H
-#define DISPEXTERN_DOT_H
+#ifndef _EMACS_DISPEXTERN_H_
+#define _EMACS_DISPEXTERN_H_
 
 #ifdef emacs
 /* Nonzero means don't assume anything about current
@@ -33,94 +33,11 @@ extern int display_completed;
    since last redisplay that finished */
 extern int windows_or_buffers_changed;
 
-#endif /* emacs */
-
-#if defined(HAVE_X_WINDOWS) && defined(emacs)
+#ifdef HAVE_X_WINDOWS
 #include <X11/Xlib.h>
 #endif
 
-struct face
-{
-  unsigned char underline;
-  unsigned char hilited;
-  unsigned char modif;
-#ifdef HAVE_X_WINDOWS
-  GC 		facegc;
-#ifdef emacs
-  XFontStruct *	font;
-#else
-  void *	font;
-#endif
-  unsigned long	foreground;
-  unsigned long	background;
-  Pixmap	back_pixmap;
-  unsigned int	pixmap_w, pixmap_h /* , pixmap_depth */;
-#endif /* HAVE_X_WINDOWS */
-};
-
-enum run_type
-{
-  unused_run,
-  glyph,
-  column_glyph,
-  font,
-  space,
-  window			/* indicate a window change */
-};
-
-struct run
-{
-  enum run_type type;
-  int length;			/* Length in glyphs */
-  struct face *faceptr;
-  struct window* w;		/* window starting here */
-  int bufp;			/* position in buffer */
-  Lisp_Object class;		/* extent containing, if any */
-  int begin_p;			/* 1 begin glyph 0 if end glyph*/
-#ifdef HAVE_X_WINDOWS
-  int pix_length;		/* Length in pixels */
-#endif
-#ifdef LINE_INFO_COLUMN
-  int lineinfo_glyph_index;	/* Since glyphs in the lineinfo column don't
-				   go into the glyphs array (because they
-				   don't take up screen space) we need to
-				   store them somewhere. */
-#endif
-};
-
-/* This structure is used for the actual display of text on a screen.
-
-   There are two instantiations of it:  the glyphs currently displayed,
-   and the glyphs we desire to display.  The latter object is generated
-   from buffers being displayed. */
-
-struct screen_glyphs
-  {
-#ifdef MULTI_SCREEN
-    struct screen *screen;	/* Screen these glyphs belong to. */
-#endif /* MULTI_SCREEN */
-    int height;
-    int width;
-
-    int *used;			/* Vector of widths (in chars) of lines. */
-    GLYPH **glyphs;		/* glyphs[Y][X] is the GLYPH at X,Y. */
-    GLYPH *total_contents;	/* The actual contents. `glyphs' points here */
-    char *enable;		/* Vector indicating meaningful contents. */
-    int   *bufp;		/* Buffer offset of this line's first char. */
-    int *nruns;			/* N runs of differently displayed text. */
-    struct run **face_list;
-    struct run *faces;
-
-    int short_cut_taken;	/* 1 if any short_cut was taken during redisplay */
-
-#ifdef HAVE_X_WINDOWS
-    short *top_left_x;		/* Pixel position of top left corner */
-    short *top_left_y;
-    short *pix_width;		/* Pixel width of line. */
-    short *pix_height;		/* Pixel height of line. */
-    short *max_ascent;		/* Pixel value of max font->ascent of line. */
-#endif	/* HAVE_X_WINDOWS */
-  };
+#endif /* emacs */
 
 #define GLYPH_CLASS_VECTOR_SIZE 100
 
@@ -130,9 +47,6 @@ struct glyphs_from_chars
   {
     UCHAR c;
     GLYPH *glyphs;
-#ifdef LINE_INFO_COLUMN
-    Lisp_Object info_column_glyphs;
-#endif
     int columns;
     struct face *faceptr;
     Lisp_Object begin_class[GLYPH_CLASS_VECTOR_SIZE];
@@ -172,40 +86,104 @@ struct glyph_dimensions
   };
 #endif /* HAVE_X_WINDOWS */
 
-#define GLYPH_LINE_SIZE(s) ((int) SCREEN_DESIRED_GLYPHS (s)->glyphs[1]   \
-			    - (int) SCREEN_DESIRED_GLYPHS (s)->glyphs[0])
-#define RUN_LINE_SIZE(s) ((int) SCREEN_DESIRED_GLYPHS (s)->face_list[1]     \
-			    - (int) SCREEN_DESIRED_GLYPHS (s)->face_list[0])
-
-
-#ifdef HAVE_X_WINDOWS
-/* The window width preceding the truncation glyph */
-#define TRUNCATE_WIDTH(s) (SCREEN_IS_X (s)			\
-			? (MAX_LINE_WIDTH (s)			\
-			   - builtin_truncator_pixmap.width)	\
-			: max_width - 1)
-/* The window width preceding the continuer glyph */
-#define CONTINUE_WIDTH(s) (SCREEN_IS_X (s)			\
-			? (MAX_LINE_WIDTH (s) -			\
-			   builtin_continuer_pixmap.width)	\
-			: max_width - 1)
-#endif
-
 #ifdef emacs
 
-extern void get_display_line ();
-extern struct face default_face;
-
-extern char *message_buf;
-extern int message_buf_size;
 extern int in_display;
 
-extern struct face *change_attributes ();
-extern void mark_attributes ();
-extern struct face *copy_attributes ();
-extern struct glyph_dimensions *get_glyph_dimensions ();
-extern struct glyphs_from_chars *glyphs_from_bufpos ();
+extern struct glyph_dimensions *get_glyph_dimensions (void);
+
+struct char_block
+{
+  struct char_block *next;	/* Next charblock */
+  struct char_block *prev;
+  /* #### these should be lisp objects eventually */
+  struct face *face;		/* Style for display */
+  struct extent *e;		/* Used to associate annotations with glyphs. */
+  GLYPH glyph;
+  short xpos;			/* Start pos (x) */
+  short width;			/* Pixel width of character */
+  unsigned char ch;		/* character at this pos */  
+  unsigned int char_b	:1;	/* true for characters, false for glyphs */
+  unsigned int blank	:1;	/* true if the width should be blanked */
+  unsigned int new	:1;
+  unsigned int changed	:1;
+};
+
+struct line_header
+{
+  struct line_header *next,*prev; /* Next line */
+  short ypos;			/* Baseline pos for line */
+  short prevy;			/* Previous y position */
+  short ascent,descent;		/* Max ascent,descent for line */
+  short chars;			/* Number of chars on this line */
+  short lwidth;			/* Line width (pixels) */
+  short mwidth;			/* Margin width (pixels) */
+  short in_display;
+  struct char_block *body;	/* Chars on this line */
+  struct char_block *end;	/* Ptr to last char/dummy on this line */
+  struct char_block *margin_start;	/* Chars in extra margin space */
+  struct char_block *margin_end;	/* Ptr to last char/dummy in margin */
+  /* Flags used in redisplay process */
+  unsigned int modeline	:1;  
+  unsigned int changed	:1;
+  unsigned int shifted	:1;
+  unsigned int new	:1;
+  unsigned int tabs	:1;
+};
+
+struct redisplay_block
+{
+  union
+    {
+      struct line_update
+	{
+	  struct line_header *l;	/* line containing block */
+	  struct char_block *cb;	/* start of block */
+	  struct char_block *end;       /* end of block */
+	  char clear_line;		/* clear to end of line? */
+	} line;
+      struct clear_region
+	{
+	  int top,bottom;		/* start,end of region to clear. */
+	} area;
+      struct blit_region
+	{
+	  struct line_header *l1; /* start */
+	  struct line_header *l2; /* end */
+	  short old_top;
+	} blit;
+    } block;
+  char type;			/* type of redisplay block */  
+  char done;
+};
+
+#define BODY_LINE 1
+#define MARGIN_LINE 4
+#define AREA 2
+#define BLIT 3
+
+#define BODY	0
+#define MARGIN	1
+
+#define BLOCK_DONE(x)		(display_list[x].done)
+#define BLOCK_TYPE(x)  		(display_list[x].type)
+#define BLOCK_LINE(x)		(display_list[x].block.line.l)
+#define BLOCK_LINE_START(x)	(display_list[x].block.line.cb)
+#define BLOCK_LINE_END(x)	(display_list[x].block.line.end)
+#define BLOCK_LINE_CLEAR(x)	(display_list[x].block.line.clear_line)
+#define BLOCK_AREA_TOP(x)	(display_list[x].block.area.top)
+#define BLOCK_AREA_BOTTOM(x)	(display_list[x].block.area.bottom)
+#define BLOCK_BLIT_START(x)	(display_list[x].block.blit.l1)
+#define BLOCK_BLIT_END(x)	(display_list[x].block.blit.l2)
+#define BLOCK_BLIT_OLD_TOP(x)	(display_list[x].block.blit.old_top)
+
+/* >>> This decl should really live somewhere else. */
+extern struct glyphs_from_chars *glyphs_from_bufpos
+     (struct screen *screen, struct buffer *buffer,
+      int pos, struct Lisp_Vector *dp,
+      int hscroll, register int columns,
+      int tab_offset, int direction, int only_nonchars);
 
 #endif /* emacs */
 
-#endif /* DISPEXTERN_DOT_H */
+#endif /* _EMACS_DISPEXTERN_H_ */

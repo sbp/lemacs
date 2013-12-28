@@ -1,6 +1,6 @@
 ;; Abbrev mode commands for Emacs
 
-;; Copyright (C) 1985, 1986, 1992 Free Software Foundation, Inc.
+;; Copyright (C) 1985, 1986, 1992, 1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -17,6 +17,216 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with GNU Emacs; see the file COPYING.  If not, write to
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+
+
+(defvar abbrev-table-name-list '()
+  "List of symbols whose values are abbrev tables.")
+
+(defvar abbrevs-changed nil
+  "Set non-nil by defining or altering any word abbrevs.
+This causes `save-some-buffers' to offer to save the abbrevs.")
+
+(defun make-abbrev-table ()
+  "Create a new, empty abbrev table object."
+  (make-vector 59 0)) ; 59 is prime
+
+(defun clear-abbrev-table (table)
+  "Undefine all abbrevs in abbrev table TABLE, leaving it empty."
+  (fillarray table 0)
+  (setq abbrevs-changed t)
+  nil)
+
+
+(defun define-abbrev-table (name defs)
+  "Define TABNAME (a symbol) as an abbrev table name.
+Define abbrevs in it according to DEFINITIONS, which is a list of elements
+of the form (ABBREVNAME EXPANSION HOOK USECOUNT)."
+  (let ((table (and (boundp name) (symbol-value name))))
+    (cond ((vectorp table))
+          ((not table)
+           (setq table (make-abbrev-table))
+           (set name table)
+           (setq abbrev-table-name-list (cons name abbrev-table-name-list)))
+          (t
+           (setq table (signal 'wrong-type-argument (list 'vectorp table)))
+           (set name table)))
+    (while defs
+      (apply (function define-abbrev) table (car defs))
+      (setq defs (cdr defs)))))
+
+(defun define-abbrev (table name &optional expansion hook count)
+  "Define an abbrev in TABLE named NAME, to expand to EXPANSION or call HOOK.
+NAME and EXPANSION are strings.  Hook is a function or `nil'.
+To undefine an abbrev, define with the an expansion of `nil'."
+  (or (not expansion)
+      (stringp expansion)
+      (setq expansion (signal 'wrong-type-argument
+                              (list 'stringp expansion))))
+  (or (not count)
+      (integerp count)
+      (setq count (signal 'wrong-type-argument
+                          (list 'fixnump count))))
+  (let* ((sym (intern name table))
+         (oexp (and (boundp sym) (symbol-value sym)))
+         (ohook (and (fboundp sym) (symbol-function sym))))
+    (if (not (and (equal ohook hook)
+                  (stringp oexp)
+                  (stringp expansion)
+                  (string-equal oexp expansion)))
+        (setq abbrevs-changed t))
+    (set sym expansion)
+    (fset sym hook)
+    (setplist sym (or count 0))
+    name))
+
+
+;; Fixup stuff from bootstrap def of define-abbrev-table in subr.el
+(let ((l abbrev-table-name-list))
+  (while l
+    (let ((fixup (car l)))
+      (if (consp fixup)
+          (progn
+            (setq abbrev-table-name-list (delq fixup abbrev-table-name-list))
+            (define-abbrev-table (car fixup) (cdr fixup))))
+      (setq l (cdr l))))
+  ;; These are no longer initialised by C code
+  (if (not global-abbrev-table)
+      (progn
+        (setq global-abbrev-table (make-abbrev-table))
+        (setq abbrev-table-name-list (cons 'global-abbrev-table
+                                           abbrev-table-name-list))))
+  (if (not fundamental-mode-abbrev-table)
+      (progn
+        (setq fundamental-mode-abbrev-table (make-abbrev-table))
+        (setq abbrev-table-name-list (cons 'fundamental-mode-abbrev-table
+                                           abbrev-table-name-list))))
+  (and (eq major-mode 'fundamental-mode)
+       (not local-abbrev-table)
+       (setq local-abbrev-table fundamental-mode-abbrev-table)))
+
+
+(defun define-global-abbrev (name expansion)
+  "Define ABBREV as a global abbreviation for EXPANSION."
+  (interactive "sDefine global abbrev: \nsExpansion for %s: ")
+  (define-abbrev global-abbrev-table
+                 (downcase name) expansion nil 0))
+
+(defun define-mode-abbrev (name expansion)
+  "Define ABBREV as a mode-specific abbreviation for EXPANSION."
+  (interactive "sDefine mode abbrev: \nsExpansion for %s: ")
+  (define-abbrev (or local-abbrev-table
+                     (error "Major mode has no abbrev table"))
+		 (downcase name) nil 0))
+
+(defun abbrev-symbol (abbrev &optional table)
+  "Return the symbol representing abbrev named ABBREV.
+This symbol's name is ABBREV, but it is not the canonical symbol of that name;
+it is interned in an abbrev-table rather than the normal obarray.
+The value is nil if that abbrev is not defined.
+Optional second arg TABLE is abbrev table to look it up in.
+The default is to try buffer's mode-specific abbrev table, then global table."
+  (let ((frob (function (lambda (table)
+                (let ((sym (intern abbrev table)))
+                  (if (and (boundp sym)
+                           (stringp (symbol-value sym)))
+                      sym
+                      nil))))))
+    (if table
+        (funcall frob table)
+        (or (and local-abbrev-table
+                 (funcall frob local-abbrev-table))
+            (funcall frob global-abbrev-table)))))
+
+(defun abbrev-expansion (abbrev &optional table)
+  "Return the string that ABBREV expands into in the current buffer.
+Optionally specify an abbrev table as second arg;
+then ABBREV is looked up in that table only."
+  (let ((sym (abbrev-symbol abbrev table)))
+    (if sym
+        (symbol-value sym)
+        nil)))
+
+(defun unexpand-abbrev ()
+  "Undo the expansion of the last abbrev that expanded.
+This differs from ordinary undo in that other editing done since then
+is not undone."
+  (if (or (< last-abbrev-location (point-min))
+          (> last-abbrev-location (point-max))
+          (not (stringp last-abbrev-text)))
+      nil
+    (let* ((opoint (point))
+           (val (symbol-value last-abbrev))
+           (adjust (length val)))
+      ;; This isn't correct if (symbol-function last-abbrev-text)
+      ;;  was used to do the expansion
+      (goto-char last-abbrev-location)
+      (delete-region last-abbrev-location (+ last-abbrev-location adjust))
+      (insert last-abbrev-text)
+      (setq adjust (- adjust (length last-abbrev-text)))
+      (setq last-abbrev-text nil)
+      (if (< last-abbrev-location opoint)
+          (goto-char (- opoint adjust))
+          (goto-char opoint)))))
+
+
+
+(defun insert-abbrev-table-description (name human-readable)
+  "Insert before point a full description of abbrev table named NAME.
+NAME is a symbol whose value is an abbrev table.
+If optional 2nd arg HUMAN is non-nil, insert a human-readable description.
+Otherwise the description is an expression,
+a call to `define-abbrev-table', which would
+define the abbrev table NAME exactly as it is currently defined."
+  (let ((table (symbol-value name))
+        (stream (current-buffer)))
+    (message "Abbrev-table %s..." name) 
+    (if human-readable
+        (progn
+          (prin1 (list name) stream)
+          ;; Need two terpri's or cretinous edit-abbrevs blows out
+          (terpri stream)
+          (terpri stream)
+          (mapatoms (function (lambda (sym)
+                      (if (symbol-value sym)
+                          (let* ((n (prin1-to-string (symbol-name sym)))
+                                 (pos (length n)))
+                            (princ n stream)
+                            (while (< pos 14)
+                              (write-char ?\  stream)
+                              (setq pos (1+ pos)))
+                            (princ (format " %-5S " (symbol-plist sym))
+                                   stream)
+                            (if (not (symbol-function sym))
+                                (prin1 (symbol-value sym) stream)
+                              (progn
+                                (setq n (prin1-to-string (symbol-value sym))
+                                      pos (+ pos 6 (length n)))
+                                (princ n stream)
+                                (while (< pos 45)
+                                  (write-char ?\  stream)
+                                  (setq pos (1+ pos)))
+                                (prin1 (symbol-function sym) stream)))
+                            (terpri stream)))))
+                    table)
+          (terpri stream))
+        (progn
+          (princ "\(define-abbrev-table '" stream)
+          (prin1 name stream)
+          (princ " '\(\n" stream)
+          (mapatoms (function (lambda (sym)
+                      (if (symbol-value sym)
+                          (progn
+                            (princ "    " stream)
+                            (prin1 (list (symbol-name sym)
+                                         (symbol-value sym)
+                                         (symbol-function sym)
+                                         (symbol-plist sym))
+                                   stream)
+                            (terpri stream)))))
+                    table)
+          (princ "    \)\)\n" stream)))
+    (terpri stream))
+  (message ""))
 
 
 (defun abbrev-mode (arg)
@@ -118,15 +328,18 @@ the ones defined from the buffer now."
    (while (and (not (eobp)) (re-search-forward "^(" nil t))
      (let* ((buf (current-buffer))
 	    (table (read buf))
-	    abbrevs)
+	    (abbrevs '()))
        (forward-line 1)
        (while (progn (forward-line 1)
 		     (not (eolp)))
-	 (setq name (read buf) count (read buf) exp (read buf))
-	 (skip-chars-backward " \t\n\f")
-	 (setq hook (if (not (eolp)) (read buf)))
-	 (skip-chars-backward " \t\n\f")
-	 (setq abbrevs (cons (list name exp hook count) abbrevs)))
+	 (let* ((name (read buf))
+                (count (read buf))
+                (exp (read buf))
+                hook)
+           (skip-chars-backward " \t\n\f")
+           (setq hook (if (not (eolp)) (read buf)))
+           (skip-chars-backward " \t\n\f")
+           (setq abbrevs (cons (list name exp hook count) abbrevs))))
        (define-abbrev-table table abbrevs)))))
 
 (defun read-abbrev-file (&optional file quietly)

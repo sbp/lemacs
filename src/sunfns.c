@@ -109,7 +109,7 @@ or -1 if can not open it.")
 
   if ((! already_initialized) || (!NILP(force))) {
     cp = getenv("WINDOW_GFX");
-    if (cp != 0) win_fd = open(cp, 2);
+    if (cp != 0) win_fd = emacs_open (cp, 2);
     if (win_fd > 0)
       {
 	Sun_Font = pf_default();
@@ -298,7 +298,7 @@ sel_read (sel, file)
     if (cp[i] == '\r') cp[i] = '\n';
 
   Current_Selection = make_string (cp, n);
-  free (cp);
+  xfree (cp);
   return (0);
 }
 
@@ -434,11 +434,11 @@ as a menu label.")
   Event *event = &event0;
   Lisp_Object Value, Pair;
   
-  CHECK_FIXNUM(X_Position, 0);
-  CHECK_FIXNUM(Y_Position, 1);
-  CHECK_WINDOW(window, 2);
-  CHECK_FIXNUM(Button, 3);
-  CHECK_VECTOR(MEnu, 4);
+  CHECK_FIXNUM (X_Position, 0);
+  CHECK_FIXNUM (Y_Position, 1);
+  CHECK_WINDOW (window, 2);
+  CHECK_FIXNUM (Button, 3);
+  CHECK_VECTOR (MEnu, 4);
 
   CHECK_GFX (Qnil);
 

@@ -1,12 +1,12 @@
 ;; Lisp mode, and its idiosyncratic commands.
-;; Copyright (C) 1987 Free Software Foundation, Inc.
+;; Copyright (C) 1987, 1993 Free Software Foundation, Inc.
 ;; Written by Richard Mlynarik July 1987
 
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -132,15 +132,15 @@ by lisp-body-indent.")
                    (setq method '(4 (&whole 4 &rest 1) &body))))
 
             (cond ((and (memq (char-after (1- containing-sexp)) '(?\' ?\`))
-                        (not (eql (char-after (- containing-sexp 2)) ?\#)))
+                        (not (eq (char-after (- containing-sexp 2)) ?\#)))
                    ;; No indentation for "'(...)" elements
                    (setq calculated (1+ sexp-column)))
-		  ((or (eql (char-after (1- containing-sexp)) ?\,)
-		       (and (eql (char-after (1- containing-sexp)) ?\@)
-			    (eql (char-after (- containing-sexp 2)) ?\,)))
+		  ((or (eq (char-after (1- containing-sexp)) ?\,)
+		       (and (eq (char-after (1- containing-sexp)) ?\@)
+			    (eq (char-after (- containing-sexp 2)) ?\,)))
 		   ;; ",(...)" or ",@(...)"
 		   (setq calculated normal-indent))
-                  ((eql (char-after (1- containing-sexp)) ?\#)
+                  ((eq (char-after (1- containing-sexp)) ?\#)
                    ;; "#(...)"
                    (setq calculated (1+ sexp-column)))
                   ((null method))

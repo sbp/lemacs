@@ -1,31 +1,44 @@
 /* Merge parameters into a termcap entry string.
-   Copyright (C) 1985, 1987, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1987, 1992, 1993 Free Software Foundation, Inc.
 
-This file is part of GNU Emacs.
-
-GNU Emacs is free software; you can redistribute it and/or modify
+This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
-GNU Emacs is distributed in the hope that it will be useful,
+This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU Emacs; see the file COPYING.  If not, write to
+along with this program; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
-
 
 /* config.h may rename various library functions such as malloc.  */
 #ifdef emacs
+
 #include "config.h"
-extern void *xmalloc ();
-extern void *xrealloc ();
-extern void *memcpy ();
-extern char *strcat ();
+/* #include "dispmisc.h" */
+#include <string.h>
+
+#define realloc xrealloc
+#define malloc xmalloc
+#define free xfree
+extern void *xmalloc (int size);
+extern void *xrealloc (void *, int size);
+
+#else /* emacs */
+
+#ifdef STDC_HEADERS
+#include <stdlib.h>
+#include <string.h>
+#else
+extern char *malloc ();
+extern char *realloc ();
 #endif
+
+#endif /* !emacs */
 
 /* Assuming STRING is the value of a termcap string entry
    containing `%' constructs to expand parameters,
@@ -39,37 +52,32 @@ extern char *strcat ();
 
    The fourth and following args to tparam serve as the parameter values.  */
 
-static char *tparam1 ();
+static char *tparam1 (const char *string, char *outstring, int len,
+                      const char *up, const char *left, 
+                      int *argp);
 
-/* VARARGS 2 */
 char *
 tparam (string, outstring, len, arg0, arg1, arg2, arg3)
-     char *string;
+     const char *string;
      char *outstring;
      int len;
      int arg0, arg1, arg2, arg3;
 {
-#ifdef NO_ARG_ARRAY
   int arg[4];
   arg[0] = arg0;
   arg[1] = arg1;
   arg[2] = arg2;
   arg[3] = arg3;
   return tparam1 (string, outstring, len, 0, 0, arg);
-#else
-  return tparam1 (string, outstring, len, 0, 0, &arg0);
-#endif
 }
 
-char *BC;
-char *UP;
+const char *BC;
+const char *UP;
 
 static char tgoto_buf[50];
 
 char *
-tgoto (cm, hpos, vpos)
-     char *cm;
-     int hpos, vpos;
+tgoto (const char *cm, int hpos, int vpos)
 {
   int args[2];
   if (!cm)
@@ -81,20 +89,20 @@ tgoto (cm, hpos, vpos)
 
 static char *
 tparam1 (string, outstring, len, up, left, argp)
-     char *string;
+     const char *string;
      char *outstring;
      int len;
-     char *up, *left;
+     const char *up, *left;
      register int *argp;
 {
   register int c;
-  register char *p = string;
+  register const char *p = string;
   register char *op = outstring;
   char *outend;
   int outlen = 0;
 
   register int tem;
-  int *oargp = argp;
+  int *old_argp = argp;
   int doleft = 0;
   int doup = 0;
 
@@ -108,20 +116,23 @@ tparam1 (string, outstring, len, up, left, argp)
 	  register char *new;
 	  if (outlen == 0)
 	    {
-	      new = (char *) xmalloc (outlen = 40 + len);
+	      outlen = len + 40;
+	      new = (char *) malloc (outlen);
 	      outend += 40;
 	      memcpy (new, outstring, op - outstring);
 	    }
 	  else
 	    {
 	      outend += outlen;
-	      new = (char *) xrealloc (outstring, outlen *= 2);
+	      outlen *= 2;
+	      new = (char *) realloc (outstring, outlen);
 	    }
 	  op += new - outstring;
 	  outend += new - outstring;
 	  outstring = new;
 	}
-      if (!(c = *p++))
+      c = *p++;
+      if (!c)
 	break;
       if (c == '%')
 	{
@@ -129,19 +140,19 @@ tparam1 (string, outstring, len, up, left, argp)
 	  tem = *argp;
 	  switch (c)
 	    {
-	    case 'd':		/* %d means output in decimal */
+	    case 'd':		/* %d means output in decimal.  */
 	      if (tem < 10)
 		goto onedigit;
 	      if (tem < 100)
 		goto twodigit;
-	    case '3':		/* %3 means output in decimal, 3 digits. */
+	    case '3':		/* %3 means output in decimal, 3 digits.  */
 	      if (tem > 999)
 		{
 		  *op++ = tem / 1000 + '0';
 		  tem %= 1000;
 		}
 	      *op++ = tem / 100 + '0';
-	    case '2':		/* %2 means output in decimal, 2 digits. */
+	    case '2':		/* %2 means output in decimal, 2 digits.  */
 	    twodigit:
 	      tem %= 100;
 	      *op++ = tem / 10 + '0';
@@ -152,15 +163,15 @@ tparam1 (string, outstring, len, up, left, argp)
 
 	    case 'C':
 	      /* For c-100: print quotient of value by 96, if nonzero,
-		 then do like %+ */
+		 then do like %+.  */
 	      if (tem >= 96)
 		{
 		  *op++ = tem / 96;
 		  tem %= 96;
 		}
-	    case '+':		/* %+x means add character code of char x */
+	    case '+':		/* %+x means add character code of char x.  */
 	      tem += *p++;
-	    case '.':		/* %. means output as character */
+	    case '.':		/* %. means output as character.  */
 	      if (left)
 		{
 		  /* If want to forbid output of 0 and \n and \t,
@@ -168,25 +179,25 @@ tparam1 (string, outstring, len, up, left, argp)
 		  while (tem == 0 || tem == '\n' || tem == '\t')
 		    {
 		      tem++;
-		      if (argp == oargp)
+		      if (argp == old_argp)
 			doup++, outend -= strlen (up);
 		      else
 			doleft++, outend -= strlen (left);
 		    }
 		}
 	      *op++ = tem | 0200;
-	    case 'f':		/* %f means discard next arg */
+	    case 'f':		/* %f means discard next arg.  */
 	      argp++;
 	      break;
 
-	    case 'b':		/* %b means back up one arg (and re-use it) */
+	    case 'b':		/* %b means back up one arg (and re-use it). */
 	      argp--;
 	      break;
 
-	    case 'r':		/* %r means interchange following two args */
+	    case 'r':		/* %r means interchange following two args. */
 	      argp[0] = argp[1];
 	      argp[1] = tem;
-	      oargp++;
+	      old_argp++;
 	      break;
 
 	    case '>':		/* %>xy means if arg is > char code of x, */
@@ -195,14 +206,14 @@ tparam1 (string, outstring, len, up, left, argp)
 	      p++;		/* Leave the arg to be output later. */
 	      break;
 
-	    case 'a':		/* %a means arithmetic */
+	    case 'a':		/* %a means arithmetic. */
 	      /* Next character says what operation.
-		 Add or subtract either a constant or some other arg */
+		 Add or subtract either a constant or some other arg. */
 	      /* First following character is + to add or - to subtract
 		 or = to assign.  */
 	      /* Next following char is 'p' and an arg spec
 		 (0100 plus position of that arg relative to this one)
-		 or 'c' and a constant stored in a character */
+		 or 'c' and a constant stored in a character. */
 	      tem = p[2] & 0177;
 	      if (p[1] == 'p')
 		tem = argp[tem - 0100];
@@ -228,12 +239,12 @@ tparam1 (string, outstring, len, up, left, argp)
 	    case '%':		/* %% means output %; no arg. */
 	      goto ordinary;
 
-	    case 'n':		/* %n means xor each of next two args with 140 */
+	    case 'n':		/* %n means xor each of next two args with 140. */
 	      argp[0] ^= 0140;
 	      argp[1] ^= 0140;
 	      break;
 
-	    case 'm':		/* %m means xor each of next two args with 177 */
+	    case 'm':		/* %m means xor each of next two args with 177. */
 	      argp[0] ^= 0177;
 	      argp[1] ^= 0177;
 	      break;
@@ -242,7 +253,7 @@ tparam1 (string, outstring, len, up, left, argp)
 	      argp[0] += 6 * (tem / 10);
 	      break;
 
-	    case 'D':		/* %D means weird Delta Data transformation */
+	    case 'D':		/* %D means weird Delta Data transformation. */
 	      argp[0] -= 2 * (tem % 16);
 	      break;
 	    }

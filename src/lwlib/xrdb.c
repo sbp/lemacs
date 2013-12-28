@@ -15,8 +15,7 @@ extern void lwlib_xrdb_initialize ();
 #define XrmCombineFileDatabase lwlib_CombineFileDatabase
 #define _XtDisplayInitialize _orig_XtDisplayInitialize
 
-/* Suck in the original code 
- */
+/* Suck in the original code.  Don't change this: see comments in Imakefile. */
 #include "Initialize.c"
 
 #undef XrmGetFileDatabase

@@ -397,7 +397,7 @@ unexec(
 	char tmpbuf[L_tmpnam];
 	char *tmpfile;
 
-	infd = open(infile, O_RDONLY, 0);
+	infd = open (infile, O_RDONLY, 0);
 	if (infd < 0) {
 	  	fatal_unexec("cannot open input file `%s'", infile);
 		exit(1);
@@ -410,20 +410,20 @@ unexec(
 	} else {
 		tmpfile++;
 	}
-	outfd = open(tmpfile, O_WRONLY|O_TRUNC|O_CREAT, 0755);
+	outfd = open (tmpfile, O_WRONLY|O_TRUNC|O_CREAT, 0755);
 	if (outfd < 0) {
-		close(infd);
+		close (infd);
 		fatal_unexec("cannot open tmp file `%s'", tmpfile);
 		exit(1);
 	}
 	if (!unexec_doit(infd, outfd)) {
-		close(infd);
-		close(outfd);
+		close (infd);
+		close (outfd);
 		unlink(tmpfile);
 		exit(1);
 	}
-	close(infd);
-	close(outfd);
+	close (infd);
+	close (outfd);
 	if (rename(tmpfile, outfile) < 0) {
 		unlink(tmpfile);
 		fatal_unexec("cannot rename `%s' to `%s'", tmpfile, outfile);

@@ -1,11 +1,11 @@
 /* A general interface to the widgets of different toolkits.
-   Copyright (C) 1992 Lucid, Inc.
+   Copyright (C) 1992, 1993 Lucid, Inc.
 
 This file is part of the Lucid Widget Library.
 
 The Lucid Widget Library is free software; you can redistribute it and/or 
 modify it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 The Lucid Widget Library is distributed in the hope that it will be useful,
@@ -23,11 +23,16 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/types.h>
 #include <string.h>
 #include <stdio.h>
 #include <X11/StringDefs.h>
 #include "lwlib-internal.h"
 #include "lwlib-utils.h"
+
+#if defined(__GNUC__) && !defined(alloca)
+#define alloca __builtin_alloca
+#endif
 
 #if ((!__GNUC__) && !defined(__hpux)) && !defined(AIXV3)
 #include <alloca.h>
@@ -67,16 +72,19 @@ instanciate_widget_instance (widget_instance* instance);
 static char *
 safe_strdup (char* s)
 {
-  if (s) return strdup (s);
-  return ((char *) NULL);
+  char *result;
+  if (! s) return 0;
+  result = (char *) malloc (strlen (s) + 1);
+  if (! result)
+    return 0;
+  strcpy (result, s);
+  return result;
 }
 
 static void
 safe_free_str (char* s)
 {
-  int i;
-  if (s)
-    free (s);
+  if (s) free (s);
 }
 
 static widget_value *widget_value_free_list = 0;
@@ -279,6 +287,7 @@ get_widget_instance (Widget widget, Boolean remove_p)
 	    }
 	  return instance;
 	}
+  return (widget_instance *) 0;
 }
 
 static widget_instance*
@@ -499,7 +508,6 @@ static void
 update_one_widget_instance (widget_instance* instance, Boolean deep_p)
 {
   widget_value *val;
-  Widget widget;
 
   if (!instance->widget)
     /* the widget was destroyed */
@@ -958,7 +966,6 @@ lw_get_some_values (LWLIB_ID id, widget_value* val_out)
   widget_info* info = get_widget_info (id, False);
   widget_instance* instance;
   widget_value* val;
-  Widget widget;
   Boolean result = False;
 
   if (!info)

@@ -41,6 +41,10 @@ char copyright[] =
 #endif /* not lint */
 
 #include <stdio.h>
+#if __STDC__
+#include <stdlib.h>
+#include <unistd.h>
+#endif
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/param.h>

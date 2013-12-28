@@ -1,5 +1,5 @@
 /* Call a Lisp function interactively.
-   Copyright (C) 1985-1993 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1992, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -21,6 +21,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "config.h"
 #include "lisp.h"
 #include "buffer.h"
+#include "bytecode.h"
 #include "commands.h"
 #include "window.h"
 
@@ -48,11 +49,7 @@ Lisp_Object Qread_minibuffer;
 Lisp_Object Qread_command;
 Lisp_Object Qread_number;
 Lisp_Object Qread_string;
-
-
-extern Lisp_Object Qpoint, Qmark, Qregion_beginning, Qregion_end;
-
-extern Lisp_Object ml_apply ();
+Lisp_Object Qevents_to_keys;
 
 /* This comment supplies the doc string for interactive,
    for make-docfile to see.  We cannot put this in the real DEFUN
@@ -104,8 +101,12 @@ In addition, if the string begins with `*'\n\
  then an error is signaled if the buffer is read-only.\n\
  This happens before reading any arguments.\n\
 If the string begins with `@', then the window the mouse is over is selected\n\
- before anything else is done.  You may use both `@' and `*';\n\
-they are processed in the order that they appear."
+ before anything else is done.\n\
+If the string begins with `_', then this command will not cause the region\n\
+ to be deactivated when it completes; that is, `zmacs-region-stays' will be\n\
+ set to t when the command exits successfully.\n\
+You may use any of `@', `*' and `_' at the beginning of the string;\n\
+ they are processed in the order that they appear."
 */
 
 /* ARGSUSED */
@@ -149,11 +150,14 @@ static int
 check_mark ()
 {
   Lisp_Object tem;
+
   if (zmacs_regions && !zmacs_region_active_p)
     error ("The region is not active now");
+
   tem = Fmarker_buffer (current_buffer->mark);
   if (NILP (tem) || (XBUFFER (tem) != current_buffer))
     error ("The mark is not set now");
+
   return (marker_position (current_buffer->mark));
 }
 
@@ -164,19 +168,23 @@ callint_prompt (const char *prompt_start, int prompt_length,
                 const Lisp_Object *args, int nargs)
 {
   Lisp_Object s = make_string (prompt_start, prompt_length);
-  Lisp_Object *xargs;
-  struct gcpro gcpro1;
 
   if (!strchr ((char *) XSTRING (s)->data, '%'))
     return (s);
 
-  /* Oh fuck!  Fformat smashes its arg vector!  Have to copy it */
-  xargs = (Lisp_Object *) alloca ((nargs + 1) * sizeof (Lisp_Object));
-  memcpy ((char *) xargs, (char *) args, (nargs + 1) * sizeof (Lisp_Object));
-  xargs[0] = s;
-  GCPRO1 (*xargs);
-  gcpro1.nvars = (nargs + 1);
-  RETURN_UNGCPRO (Fformat (nargs + 1, xargs));
+  {
+    /* Oh fuck!  Fformat smashes its arg vector!  Have to copy it */
+    Lisp_Object *xargs;
+    struct gcpro gcpro1;
+
+    xargs = (Lisp_Object *) alloca ((nargs + 1) * sizeof (Lisp_Object));
+    xargs[0] = s;
+    memcpy (xargs + 1, args, nargs * sizeof (Lisp_Object));
+
+    GCPRO1 (*xargs);
+    gcpro1.nvars = (nargs + 1);
+    RETURN_UNGCPRO (Fformat (nargs + 1, xargs));
+  }
 }
 
 DEFUN ("call-interactively", Fcall_interactively, Scall_interactively, 1, 2, 0,
@@ -186,13 +194,17 @@ In the case of user-defined functions, this is specified by placing a call\n\
 to the function `interactive' at the top level of the function body.\n\
 See `interactive'.\n\
 \n\
-If optional second arg RECORD-FLAG is `t' then unconditionally put this\n\
-ommand in the command-history.  Otherwise, this is done only if an arg is\n\
-read using the minibuffer.")
+If optional second arg RECORD-FLAG is the symbol `lambda', the interactive\n\
+calling arguments for FUNCTION are read and returned as a list,\n\
+but the function is not called on them.\n\
+\n\
+If RECORD-FLAG is `t' then unconditionally put this command in the\n\
+command-history.  Otherwise, this is done only if an arg is read using\n\
+the minibuffer.")
   (function, record_flag)
      Lisp_Object function, record_flag;
 {
-  int speccount = specpdl_depth;
+  int speccount = specpdl_depth ();
   /* Save this now, since use of minibuffer will clobber it. */
   Lisp_Object prefix = Vcurrent_prefix_arg;
 
@@ -200,7 +212,7 @@ read using the minibuffer.")
   Lisp_Object specs = Qnil;
   /* If SPECS is a string, we reset prompt_data to XSTRING (specs)->data
    *  every time a GC might have occurred */
-  char *prompt_data = 0;
+  const char *prompt_data = 0;
   int prompt_index = 0;
   int argcount;
   int set_zmacs_region_stays = 0;
@@ -225,9 +237,18 @@ read using the minibuffer.")
     }
   else if (COMPILEDP (fun))
     {
-      if (XVECTOR (fun)->size <= COMPILED_INTERACTIVE)
+#ifndef LRECORD_BYTECODE
+      if (vector_size (XVECTOR (fun)) <= COMPILED_INTERACTIVE)
 	goto lose;
       specs = XVECTOR (fun)->contents[COMPILED_INTERACTIVE];
+#else
+      struct Lisp_Bytecode *b = XBYTECODE (fun);
+      if (!(b->flags.interactivep))
+        goto lose;
+      specs = b->doc_and_interactive;
+      if (b->flags.documentationp)
+        specs = XCONS (specs)->cdr;
+#endif /* LRECORD_BYTECODE */
     }
   else if (!CONSP (fun))
     goto lose;
@@ -250,8 +271,10 @@ read using the minibuffer.")
 	    goto lose;
 	  specs = Fcar (Fcdr (specs));
 	}
+#ifdef MOCKLISP_SUPPORT
       else if (EQ (funcar, Qmocklisp))
 	return ml_apply (fun, Qinteractive);
+#endif
       else
 	goto lose;
     }
@@ -264,10 +287,10 @@ read using the minibuffer.")
       GCPRO2 (function, specs);
       specs = Feval (specs);
       if (EQ (record_flag, Qlambda))
-      {
-        UNGCPRO;
-        return (specs);
-      }
+	{
+	  UNGCPRO;
+	  return (specs);
+	}
       if (!NILP (record_flag) || i != num_input_chars)
 	Vcommand_history
 	  = Fcons (Fcons (function, quotify_args (Fcopy_sequence (specs))),
@@ -279,34 +302,42 @@ read using the minibuffer.")
 
   /* Handle special starting chars `*' and `@' and `_'.  */
   prompt_index = 0;
-  if (STRINGP (specs)) prompt_data = (char *) XSTRING (specs)->data;
-  while (1)
-    {
-      if (prompt_data[prompt_index] == '*')
-	{
-	  prompt_index++;
-	  if (!NILP (current_buffer->read_only))
-	    Fbarf_if_buffer_read_only ();
-	}
-      else if (prompt_data[prompt_index] == '@')
-	{
-	  prompt_index++;
-	  if (! NILP (Vcurrent_mouse_event)) 
-          {
-	    Lisp_Object window = Fevent_window (Vcurrent_mouse_event);
-	    if (!NILP (window))
-	      Fselect_window (window);
+  {
+    struct gcpro gcpro1, gcpro2;
+    GCPRO2 (function, specs);
+
+    for (;;)
+      {
+	if (STRINGP (specs)) prompt_data = (const char *) XSTRING (specs)->data;
+    
+	if (prompt_data[prompt_index] == '*')
+	  {
+	    prompt_index++;
+	    if (!NILP (current_buffer->read_only))
+	      Fbarf_if_buffer_read_only ();
 	  }
-	}
-      else if (prompt_data[prompt_index] == '_')
-	{
-	  prompt_index++;
-          set_zmacs_region_stays = 1;
-	}
-      else
-        break;
-      if (STRINGP (specs)) prompt_data = (char *) XSTRING (specs)->data;
-    }
+	else if (prompt_data[prompt_index] == '@')
+	  {
+	    prompt_index++;
+	    if (! NILP (Vcurrent_mouse_event)) 
+	      {
+		Lisp_Object window = Fevent_window (Vcurrent_mouse_event);
+		if (!NILP (window))
+		  Fselect_window (window);
+	      }
+	  }
+	else if (prompt_data[prompt_index] == '_')
+	  {
+	    prompt_index++;
+	    set_zmacs_region_stays = 1;
+	  }
+	else
+	  {
+	    UNGCPRO;
+	    break;
+	  }
+      }
+  }
 
   /* Count the number of arguments the interactive spec would have
      us give to the function.  */
@@ -314,329 +345,349 @@ read using the minibuffer.")
   {
     const char *tem;
     for (tem = prompt_data + prompt_index; *tem; )
-    {
-      /* 'r' specifications ("point and mark as 2 numeric args")
-	 produce *two* arguments.  */
-      if (*tem == 'r')
-        argcount += 2;
-      else
-        argcount += 1;
-      tem = (char *) strchr (tem + 1, '\n');
-      if (!tem)
-        break;
-      tem++;
-    }
+      {
+	/* 'r' specifications ("point and mark as 2 numeric args")
+	   produce *two* arguments.  */
+	if (*tem == 'r')
+	  argcount += 2;
+	else
+	  argcount += 1;
+	tem = (const char *) strchr (tem + 1, '\n');
+	if (!tem)
+	  break;
+	tem++;
+      }
   }
 
   if (argcount == 0)
-  {
-    /* Interactive function or no arguments; just call it */
-    if (EQ (record_flag, Qlambda))
-      return (Qnil);
-    if (!NILP (record_flag))
     {
-      Vcommand_history = Fcons (list1 (function), Vcommand_history);
+      /* Interactive function or no arguments; just call it */
+      if (EQ (record_flag, Qlambda))
+	return (Qnil);
+      if (!NILP (record_flag))
+	{
+	  Vcommand_history = Fcons (list1 (function), Vcommand_history);
+	}
+      specbind (Qcommand_debug_status, Qnil);
+      return (unbind_to (speccount, call0 (fun)));
     }
-    specbind (Qcommand_debug_status, Qnil);
-    return (unbind_to (speccount, call0 (fun)));
-  }
 
+  /* Read interactive arguments */
   {
+    /* args[-1] is the function to call */
+    /* args[n] is the n'th argument to the function */
+    int alloca_size = (1	/* function to call */
+                       + argcount /* actual arguments */
+                       + argcount /* visargs */
+                       + argcount /* varies */
+                       );
     Lisp_Object *args
-      = (Lisp_Object *) alloca ((argcount + 1) * sizeof (Lisp_Object));
-    Lisp_Object *visargs
-      = (Lisp_Object *) alloca ((argcount + 1) * sizeof (Lisp_Object));
+      = (((Lisp_Object *) alloca (sizeof (Lisp_Object) * alloca_size))
+         + 1);
+    /* visargs is >>>  */
+    Lisp_Object *visargs = args + argcount;
     /* If varies[i] is non-null, the i'th argument shouldn't just have
        its value in this call quoted in the command history.  It should be
        recorded as a call to the function named varies[i]]. */
-    Lisp_Object *varies
-      = (int *) alloca ((argcount + 1) * sizeof (Lisp_Object));
+    Lisp_Object *varies = visargs + argcount;
     int arg_from_tty = 0;
     register int argnum;
-    struct gcpro gcpro1, gcpro2, gcpro3, gcpro4;
+    struct gcpro gcpro1, gcpro2;
 
-    for (argnum = 0; argnum < argcount + 1; argnum++)
-    {
+    args[-1] = function;
+    for (argnum = 0; argnum < alloca_size - 1; argnum++)
       args[argnum] = Qnil;
-      visargs[argnum] = Qnil;
-      varies[argnum] = Qnil;
-    }
 
-    GCPRO4 (prefix, function, *args, *visargs);
-    gcpro3.nvars = (argcount + 1);
-    gcpro4.nvars = (argcount + 1);
+    /* Must GC-protect args[-1] (ie function) because Ffuncall doesn't */
+    /* `function' itself isn't GC-protected -- use args[-1] from here
+       (actually, doesn't matter since Emacs GC doesn't relocate, sigh) */
+    GCPRO2 (prefix, args[-1]);
+    gcpro2.nvars = alloca_size;
 
-    if (SYMBOLP (function)
-        && !NILP (Fget (function, Qenable_recursive_minibuffers)))
-      specbind (Qenable_recursive_minibuffers, Qt);
+    /* Marginal kludge.  Use an evaluated interactive spec instead of this!
+     * if (SYMBOLP (args[-1])
+     *     && !NILP (Fget (args[-1], Qenable_recursive_minibuffers, Qnil)))
+     *   specbind (Qenable_recursive_minibuffers, Qt);
+     */
 
-    for (argnum = 1; ; argnum++)
-    {
-      char *prompt_start = prompt_data + prompt_index + 1;
-      char *prompt_limit = strchr (prompt_start, '\n');
-      int prompt_length;
-      if (prompt_limit && prompt_limit[1] == 0)
-        prompt_limit = 0;       /* "sfoo:\n" -- strip tailing return */
-      prompt_length = ((prompt_limit) 
-                       ? (prompt_limit - prompt_start)
-                       : strlen (prompt_start));
-#define PROMPT() \
-	callint_prompt (prompt_start, prompt_length, visargs, argnum)
-
-      switch (prompt_data[prompt_index])
+    for (argnum = 0; ; argnum++)
       {
-      case 'a':                 /* Symbol defined as a function */
-        {
-          args[argnum] = call1 (Qread_function, PROMPT ());
-          visargs[argnum] = Fsymbol_name (args[argnum]);
-          arg_from_tty = 1;
-          break;
-        }
-      case 'b':   		/* Name of existing buffer */
-        {
-          Lisp_Object tem = Fcurrent_buffer ();
-          if (EQ (selected_window, minibuf_window))
-            tem = Fother_buffer (tem, Qnil);
-          args[argnum] = call3 (Qread_buffer, PROMPT (), tem, Qt);
-          arg_from_tty = 1;
-          break;
-        }
-      case 'B':                 /* Name of buffer, possibly nonexistent */
-        {
-          args[argnum] = call2 (Qread_buffer, PROMPT (),
-				Fother_buffer (Fcurrent_buffer (), Qnil));
-          arg_from_tty = 1;
-          break;
-        }
-      case 'c':                 /* Character */
-        {
+	const char *prompt_start = prompt_data + prompt_index + 1;
+	const char *prompt_limit = (const char *) strchr (prompt_start, '\n');
+	int prompt_length;
+	prompt_length = ((prompt_limit) 
+			 ? (prompt_limit - prompt_start)
+			 : strlen (prompt_start));
+	if (prompt_limit && prompt_limit[1] == 0)
+	  {
+	    prompt_limit = 0;	/* "sfoo:\n" -- strip tailing return */
+	    prompt_length -= 1;
+	  }
+	/* This uses `visargs' instead of `args' so that global-set-key
+	   prompts with "Set key C-x C-f to command: "instead of printing
+	   event objects in there.
+	 */
+#define PROMPT() callint_prompt (prompt_start, prompt_length, visargs, argnum)
+	switch (prompt_data[prompt_index])
+	  {
+	  case 'a':		/* Symbol defined as a function */
+	    {
+	      Lisp_Object tem = call1 (Qread_function, PROMPT ());
+	      visargs[argnum] = Fsymbol_name (tem);
+	      args[argnum] = tem;
+	      arg_from_tty = 1;
+	      break;
+	    }
+	  case 'b':   		/* Name of existing buffer */
+	    {
+	      Lisp_Object tem = Fcurrent_buffer ();
+	      if (EQ (selected_window, minibuf_window))
+		tem = Fother_buffer (tem, Qnil);
+	      args[argnum] = call3 (Qread_buffer, PROMPT (), tem, Qt);
+	      arg_from_tty = 1;
+	      break;
+	    }
+	  case 'B':		/* Name of buffer, possibly nonexistent */
+	    {
+	      args[argnum] = call2 (Qread_buffer, PROMPT (),
+				    Fother_buffer (Fcurrent_buffer (), Qnil));
+	      arg_from_tty = 1;
+	      break;
+	    }
+	  case 'c':		/* Character */
+	    {
 #if 0
-          /* screw this.  redisplay just doesn't notice changes in
-	     cursor_in_echo_area */
-          int speccount = specpdl_depth;
-          specbind (Qcursor_in_echo_area, Qt);
+	      /* screw this.  redisplay just doesn't notice changes in
+		 cursor_in_echo_area */
+	      int speccount = specpdl_depth ();
+	      specbind (Qcursor_in_echo_area, Qt);
 #endif
-          message ("%s", XSTRING (PROMPT ())->data);
-          args[argnum] = (call0 (Qread_char));
+	      message ("%s", XSTRING (PROMPT ())->data);
+	      args[argnum] = (call0 (Qread_char));
 #if 0
-          unbind_to (speccount, Qnil);
+	      unbind_to (speccount, Qnil);
 #endif
-	  /* #### `C-x / a' should not leave the prompt in the minibuffer.
-	     This isn't the right fix, because (message ...) (read-char)
-	     shouldn't leave the message there either... */
-	  message (0);
+	      /* #### `C-x / a' should not leave the prompt in the minibuffer.
+		 This isn't the right fix, because (message ...) (read-char)
+		 shouldn't leave the message there either... */
+	      message (0);
 
-          arg_from_tty = 1;
-          break;
-        }
-      case 'C':                 /* Command: symbol with interactive function */
-        {
-          args[argnum] = call1 (Qread_command, PROMPT ());
-          visargs[argnum] = Fsymbol_name (args[argnum]);
-          arg_from_tty = 1;
-          break;
-        }
-      case 'd':                 /* Value of point.  Does not do I/O.  */
-        {
-          XFASTINT (args[argnum]) = point;
-          varies[argnum] = Qpoint;
-          break;
-        }
-      case 'e':
-        {
-          args[argnum] = Vcurrent_mouse_event;
-          break;
-        }
-      case 'D':                 /* Directory name. */
-        {
-          args[argnum] = call4 (Qread_directory_name, PROMPT (),
-                                Qnil, /* dir */
-                                current_buffer->directory, /* default */
-                                Qt /* must-match */
-                                );
-          arg_from_tty = 1;
-          break;
-        }
-      case 'f':                 /* Existing file name. */
-        {
-          args[argnum] = call4 (Qread_file_name, PROMPT (),
-                                Qnil, /* dir */
-                                Qnil, /* default */
-                                make_number (0) /* must-match */
-                                );
-          arg_from_tty = 1;
-          break;
-        }
-      case 'F':                 /* Possibly nonexistent file name. */
-        {
-          args[argnum] = call4 (Qread_file_name, PROMPT (),
-                                Qnil, /* dir */
-                                Qnil, /* default */
-                                Qnil /* must-match */
-                                );
-          arg_from_tty = 1;
-          break;
-        }
-      case 'k':                 /* Key sequence (vector of events) */
-	{
-	  args[argnum] = Fread_key_sequence (PROMPT ());
-	  visargs[argnum] = Fkey_description (args[argnum]);
-          arg_from_tty = 1;
-          break;
-        }
+	      arg_from_tty = 1;
+	      break;
+	    }
+	  case 'C':		/* Command: symbol with interactive function */
+	    {
+	      Lisp_Object tem = call1 (Qread_command, PROMPT ());
+	      args[argnum] = tem;
+	      visargs[argnum] = Fsymbol_name (tem);
+	      arg_from_tty = 1;
+	      break;
+	    }
+	  case 'd':		/* Value of point.  Does not do I/O.  */
+	    {
+	      args[argnum] = make_number (point);
+	      varies[argnum] = Qpoint;
+	      break;
+	    }
+	  case 'e':
+	    {
+	      args[argnum] = Vcurrent_mouse_event;
+	      break;
+	    }
+	  case 'D':		/* Directory name. */
+	    {
+	      args[argnum] = call4 (Qread_directory_name, PROMPT (),
+				    Qnil, /* dir */
+				    current_buffer->directory, /* default */
+				    Qt /* must-match */
+				    );
+	      arg_from_tty = 1;
+	      break;
+	    }
+	  case 'f':		/* Existing file name. */
+	    {
+	      args[argnum] = call4 (Qread_file_name, PROMPT (),
+				    Qnil, /* dir */
+				    Qnil, /* default */
+				    make_number (0) /* must-match */
+				    );
+	      arg_from_tty = 1;
+	      break;
+	    }
+	  case 'F':		/* Possibly nonexistent file name. */
+	    {
+	      args[argnum] = call4 (Qread_file_name, PROMPT (),
+				    Qnil, /* dir */
+				    Qnil, /* default */
+				    Qnil /* must-match */
+				    );
+	      arg_from_tty = 1;
+	      break;
+	    }
+	  case 'k':		/* Key sequence (vector of events) */
+	    {
+	      Lisp_Object tem = Fread_key_sequence (PROMPT ());
+	      visargs[argnum] = Fkey_description (tem);
+	      args[argnum] = call1 (Qevents_to_keys, tem);
+	      arg_from_tty = 1;
+	      break;
+	    }
 
-      case 'm':                 /* Value of mark.  Does not do I/O.  */
-        {
-          XFASTINT (args[argnum]) = check_mark ();
-          varies[argnum] = Qmark;
-          break;
-        }
-      case 'N':                 /* Prefix arg, else number from minibuffer */
-        {
-          if (!NILP (prefix))
-            goto have_prefix_arg;
-          else
-           goto read_number;
-        }
-      case 'n':                 /* Read number from minibuffer.  */
-        {
-        read_number:
-	  args[argnum] = call2 (Qread_number, PROMPT (), Qt);
-	  visargs[argnum] = Fprin1_to_string (args[argnum], Qnil);
-	  /* numbers are too boring to go on command history */
-	  /* arg_from_tty = 1; */
-          break;
-        }
-      case 'P':                 /* Prefix arg in raw form.  Does no I/O.  */
-        {
-        have_prefix_arg:
-          args[argnum] = prefix;
-          break;
-        }
-      case 'p':                 /* Prefix arg converted to number.  No I/O. */
-        {
-          args[argnum] = Fprefix_numeric_value (prefix);
-          break;
-        }
-      case 'r':                 /* Region, point and mark as 2 args. */
-        {
-          int tem = check_mark ();
-          XFASTINT (args[argnum]) = ((point < tem) ? point : tem);
-          varies[argnum] = Qregion_beginning;
-          XFASTINT (args[++argnum]) = ((point > tem) ? point : tem);
-          varies[argnum] = Qregion_end;
-          break;
-        }
-      case 's':                 /* String read via minibuffer.  */
-        {
-          args[argnum] = call1 (Qread_string, PROMPT ());
-          arg_from_tty = 1;
-          break;
-        }
-      case 'S':                 /* Any symbol.  */
-        {
-#if 0  /* Historical crock */
-          Lisp_Object tem = intern ("minibuffer-local-ns-map");
-          tem = find_symbol_value (tem);
-          if (EQ (tem, Qunbound)) tem = Qnil;
-          tem = call3 (Qread_from_minibuffer, PROMPT (), Qnil, tem);
-          visargs[argnum] = tem;
-          args[argnum] = Fintern (tem, Qnil);
+	  case 'm':		/* Value of mark.  Does not do I/O.  */
+	    {
+	      args[argnum] = make_number (check_mark ());
+	      varies[argnum] = Qmark;
+	      break;
+	    }
+	  case 'N':		/* Prefix arg, else number from minibuffer */
+	    {
+	      if (!NILP (prefix))
+		goto have_prefix_arg;
+	      else
+		goto read_number;
+	    }
+	  case 'n':		/* Read number from minibuffer.  */
+	    {
+	    read_number:
+	      args[argnum] = call2 (Qread_number, PROMPT (), Qt);
+	      visargs[argnum] = Fprin1_to_string (args[argnum], Qnil);
+	      /* numbers are too boring to go on command history */
+	      /* arg_from_tty = 1; */
+	      break;
+	    }
+	  case 'P':		/* Prefix arg in raw form.  Does no I/O.  */
+	    {
+	    have_prefix_arg:
+	      args[argnum] = prefix;
+	      break;
+	    }
+	  case 'p':		/* Prefix arg converted to number.  No I/O. */
+	    {
+	      args[argnum] = Fprefix_numeric_value (prefix);
+	      break;
+	    }
+	  case 'r':		/* Region, point and mark as 2 args. */
+	    {
+	      int tem = check_mark ();
+	      args[argnum] = make_number (((point < tem) ? point : tem));
+	      varies[argnum] = Qregion_beginning;
+	      args[++argnum] = make_number (((point > tem) ? point : tem));
+	      varies[argnum] = Qregion_end;
+	      break;
+	    }
+	  case 's':		/* String read via minibuffer.  */
+	    {
+	      args[argnum] = call1 (Qread_string, PROMPT ());
+	      arg_from_tty = 1;
+	      break;
+	    }
+	  case 'S':		/* Any symbol.  */
+	    {
+#if 0				/* Historical crock */
+	      Lisp_Object tem = intern ("minibuffer-local-ns-map");
+	      tem = find_symbol_value (tem);
+	      if (EQ (tem, Qunbound)) tem = Qnil;
+	      tem = call3 (Qread_from_minibuffer, PROMPT (), Qnil, tem);
+	      visargs[argnum] = tem;
+	      args[argnum] = Fintern (tem, Qnil);
 #else
-          visargs[argnum] = Qnil;
-          for (;;)
-          {
-            Lisp_Object tem = call5 (Qcompleting_read, PROMPT (), Vobarray,
-				     Qnil, Qnil,
-				     /* nil, or prev attempt */
-				     visargs[argnum]);
-            visargs[argnum] = tem;
-            /* I could use condition-case with this loser, but why bother?
-             * tem = Fread (tem); check-symbol-p;
-             */
-            tem = Fintern (tem, Qnil);
-            args[argnum] = tem;
-            if (XSYMBOL(tem)->name->size > 0)
-              /* Don't accept the empty-named symbol.  If the loser
-                 really wants this s/he can call completing-read directly */
-              break;
-          }
+	      visargs[argnum] = Qnil;
+	      for (;;)
+		{
+		  Lisp_Object tem = call5 (Qcompleting_read,
+					   PROMPT (),
+					   Vobarray,
+					   Qnil,
+					   Qnil,
+					   /* nil, or prev attempt */
+					   visargs[argnum]);
+		  visargs[argnum] = tem;
+		  /* I could use condition-case with this loser, but why bother?
+		   * tem = Fread (tem); check-symbol-p;
+		   */
+		  tem = Fintern (tem, Qnil);
+		  args[argnum] = tem;
+		  if (string_length (XSYMBOL (tem)->name) > 0)
+		    /* Don't accept the empty-named symbol.  If the loser
+		       really wants this s/he can call completing-read 
+                       directly */
+		    break;
+		}
 #endif
-          arg_from_tty = 1;
-          break;
-        }
-   case 'v':                 /* Variable name: user-variable-p symbol */
-        {
-          args[argnum] = call1 (Qread_variable, PROMPT ());
-          visargs[argnum] = Fsymbol_name (args[argnum]);
-          arg_from_tty = 1;
-          break;
-        }
-      case 'x':                 /* Lisp expression read but not evaluated */
-        {
-          args[argnum] = call1 (Qread_minibuffer, PROMPT ());
-          visargs[argnum] = Fprin1_to_string (args[argnum], Qnil);
-          arg_from_tty = 1;
-          break;
-        }
-      case 'X':                 /* Lisp expression read and evaluated */
-        {
-	  Lisp_Object tem = call1 (Qread_minibuffer, PROMPT ());
-          visargs[argnum] = Fprin1_to_string (tem, Qnil);
-	  args[argnum] = Feval (tem);
-          arg_from_tty = 1;
-          break;
-        }
-      default:
-        {
-          error ("Invalid `interactive' control letter \"%c\" (#o%03o).",
-                 prompt_data[prompt_index],
-                 prompt_data[prompt_index]);
-        }
-      }
+	      arg_from_tty = 1;
+	      break;
+	    }
+	  case 'v':		/* Variable name: user-variable-p symbol */
+	    {
+	      Lisp_Object tem = call1 (Qread_variable, PROMPT ());
+	      args[argnum] = tem;
+	      visargs[argnum] = Fsymbol_name (tem);
+	      arg_from_tty = 1;
+	      break;
+	    }
+	  case 'x':		/* Lisp expression read but not evaluated */
+	    {
+	      Lisp_Object tem = call1 (Qread_minibuffer, PROMPT ());
+	      args[argnum] = tem;
+	      visargs[argnum] = Fprin1_to_string (tem, Qnil);
+	      arg_from_tty = 1;
+	      break;
+	    }
+	  case 'X':		/* Lisp expression read and evaluated */
+	    {
+	      Lisp_Object tem = call1 (Qread_minibuffer, PROMPT ());
+	      visargs[argnum] = Fprin1_to_string (tem, Qnil);
+	      args[argnum] = Feval (tem);
+	      arg_from_tty = 1;
+	      break;
+	    }
+	  default:
+	    {
+	      error ("Invalid `interactive' control letter \"%c\" (#o%03o).",
+		     prompt_data[prompt_index],
+		     prompt_data[prompt_index]);
+	    }
+	  }
 #undef PROMPT
 
-      if (NILP (visargs[argnum]) && STRINGP (args[argnum]))
-	visargs[argnum] = args[argnum];
+	if (NILP (visargs[argnum]) && STRINGP (args[argnum]))
+	  visargs[argnum] = args[argnum];
 
-      if (!prompt_limit)
-        break;
-      if (STRINGP (specs)) prompt_data = (char *) XSTRING (specs)->data;
-      prompt_index += prompt_length + 1 + 1; /* +1 to skip spec, +1 for \n */
-    }
+	if (!prompt_limit)
+	  break;
+	if (STRINGP (specs)) prompt_data = (const char *) XSTRING (specs)->data;
+	prompt_index += prompt_length + 1 + 1; /* +1 to skip spec, +1 for \n */
+      }
     unbind_to (speccount, Qnil);
 
     QUIT;
 
     if (EQ (record_flag, Qlambda))
-    {
-      RETURN_UNGCPRO (Flist (argcount, args + 1));
-    }
-      
-    args[0] = function;
-    if (arg_from_tty || !NILP (record_flag))
-    {
-      visargs[0] = function;
-      for (argnum = 1; argnum < argcount + 1; argnum++)
       {
-	if (!NILP (varies[argnum]))
-	  visargs[argnum] = list1 (varies[argnum]);
-	else
-	  visargs[argnum] = quotify_arg (args[argnum]);
+	RETURN_UNGCPRO (Flist (argcount, args));
       }
-      Vcommand_history = Fcons (Flist (argcount + 1, visargs),
-				Vcommand_history);
-    }
+      
+    if (arg_from_tty || !NILP (record_flag))
+      {
+	for (argnum = 0; argnum < argcount; argnum++)
+	  {
+	    if (!NILP (varies[argnum]))
+	      visargs[argnum] = list1 (varies[argnum]);
+	    else
+	      visargs[argnum] = quotify_arg (args[argnum]);
+	  }
+	Vcommand_history = Fcons (Fcons (args[-1], Flist (argcount, visargs)),
+				  Vcommand_history);
+      }
 
     specbind (Qcommand_debug_status, Qnil);
-    fun = Ffuncall (argcount + 1, args);
+    fun = Ffuncall (argcount + 1, args - 1);
     UNGCPRO;
     if (set_zmacs_region_stays)
       zmacs_region_stays = 1;
     return (unbind_to (speccount, fun));
   }
 }
-
 
 DEFUN ("prefix-numeric-value", Fprefix_numeric_value, Sprefix_numeric_value,
   1, 1, 0,
@@ -646,32 +697,27 @@ Its numeric meaning is what you would get from `(interactive \"p\")'.")
   (raw)
      Lisp_Object raw;
 {
-  Lisp_Object val;
-  
-  /* Tag val as an integer, so the rest of the assignments
-     may use XSETINT.  */
-  XFASTINT (val) = 0;
+  int val;
+
   if (NILP (raw))
-    XFASTINT (val) = 1;
+    val = 1;
   else if (SYMBOLP (raw))
-    XSETINT (val, -1);
-  else if (CONSP (raw))
-    XSETINT (val, XINT (XCONS (raw)->car));
+    val = -1;
   else if (FIXNUMP (raw))
-    val = raw;
+    val = XINT (raw);
+  else if (CONSP (raw) && FIXNUMP (XCONS (raw)->car))
+    val = XINT (XCONS (raw)->car);
   else
-    XFASTINT (val) = 1;
+    val = 1;
 
-  return val;
+  return (make_number (val));
 }
-
-Lisp_Object Qminus;
-Lisp_Object Qcurrent_prefix_arg;
 
 void
 syms_of_callint ()
 {
   defsymbol (&Qminus, "-");
+
   defsymbol (&Qcall_interactively, "call-interactively");
   defsymbol (&Qread_from_minibuffer, "read-from-minibuffer");
   defsymbol (&Qcompleting_read, "completing-read");
@@ -684,8 +730,10 @@ syms_of_callint ()
   defsymbol (&Qread_command, "read-command");
   defsymbol (&Qread_number, "read-number");
   defsymbol (&Qread_minibuffer, "read-minibuffer");
+  defsymbol (&Qevents_to_keys, "events-to-keys");
   defsymbol (&Qcommand_debug_status, "command-debug-status");
   defsymbol (&Qenable_recursive_minibuffers, "enable-recursive-minibuffers");
+  defsymbol (&Qcommand_debug_status, "command-debug-status");
   defsymbol (&Quser_variable_p, "user-variable-p");
   defsymbol (&Qcurrent_prefix_arg, "current-prefix-arg");
 

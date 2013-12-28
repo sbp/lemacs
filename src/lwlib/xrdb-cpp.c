@@ -1,11 +1,11 @@
 /* A general interface to the widgets of different toolkits.
-   Copyright (C) 1992 Lucid, Inc.
+   Copyright (C) 1992, 1993 Lucid, Inc.
 
 This file is part of the Lucid Widget Library.
 
 The Lucid Widget Library is free software; you can redistribute it and/or 
 modify it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 The Lucid Widget Library is distributed in the hope that it will be useful,
@@ -80,14 +80,14 @@ lwlib_xrdb_initialize (display)
   Push (CPP_PROGRAM);
 
   Push (" -DCLIENTHOST=");
-  XmuGetHostname (s, s - cpp_string);
+  XmuGetHostname (s, sizeof (cpp_string) - (s - cpp_string));
   s = index (s, 0);
   Push (" -DSERVERHOST=");
   strcpy (s, XDisplayName (DisplayString (display)));
   colon = index (s, ':');
   if (colon == s)
     {
-      XmuGetHostname (s, cpp_string - s);
+      XmuGetHostname (s, sizeof (cpp_string) - (s - cpp_string));
       s = index (s, 0);
     }
   else if (colon)

@@ -1,5 +1,5 @@
 /* Definition of PURESIZE.
-   Copyright (C) 1993 Free Software Foundation, Inc.
+   Copyright (C) 1986, 1988, 1992, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -27,9 +27,9 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #ifndef PURESIZE
 # ifdef ENERGIZE
-#  define PURESIZE 530000
+#  define PURESIZE 570000
 # else
-#  define PURESIZE 250000
+#  define PURESIZE 290000
 # endif
 #endif
 

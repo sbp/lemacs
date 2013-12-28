@@ -1,5 +1,5 @@
 /* The lisp stack.
-   Copyright (C) 1985-1993 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1987, 1992, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -22,9 +22,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include <setjmp.h>
        
-/* These definitions are used variously definition is used in alloc.c 
-   and keyboard.c, and it is reported that putting some of then in
-   lisp.h makes cc bomb out. */
+/* These definitions are used in eval.c and alloc.c */
 
 struct backtrace
   {
@@ -34,6 +32,7 @@ struct backtrace
     int nargs;			/* Length of vector.
 				   If nargs is UNEVALLED, args points to
 				   slot holding list of unevalled args */
+    int pdlcount;               /* specpdl_depth () when invoked */
 #ifdef EMACS_BTL
     /* The value of a Lisp integer that specifies the symbol being
        "invoked" by this node in the backtrace, or 0 if the backtrace
@@ -59,7 +58,27 @@ struct catchtag
     int pdlcount;
   };
 
+struct handler
+  {
+    Lisp_Object handlers;
+    Lisp_Object handler_arg;
+    struct catchtag *tag;
+    struct handler *next;
+  };
+
+/* Dynamic-binding-o-rama */
+
+struct specbinding
+  {
+    Lisp_Object symbol, old_value;
+    Lisp_Object (*func) (Lisp_Object); /* for unwind-protect */
+  };
+
+/* These are extern because GC needs to mark them */
+extern struct specbinding *specpdl;
+extern struct specbinding *specpdl_ptr;
 extern struct catchtag *catchlist;
 extern struct backtrace *backtrace_list;
+extern struct handler *handlerlist;
 
 #endif /* _EMACS_BACKTRACE_H_ */

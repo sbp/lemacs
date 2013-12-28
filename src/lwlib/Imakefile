@@ -54,12 +54,12 @@
  */
 
 #define USE_LUCID
-/* #define USE_MOTIF */
+#define USE_MOTIF
 /* #define USE_OLIT */
 /* #define BUILD_SHARED_LIB */
 /* #define ENERGIZE */
 
-/* #define INCLUDE_EXTENSIONS */
+#define INCLUDE_EXTENSIONS
 
 
 #ifdef INCLUDE_EXTENSIONS	/* this is where it is at our site */
@@ -202,6 +202,10 @@ DependTarget ()
 
 #ifdef ENERGIZE
 
+energize/Imakefile:
+	-mkdir energize
+	-(cd energize ; sh -c "ln -s ../$(VPATH)/energize/* .")
+
 /* #### we should automatically edit BUILD_SHARED_LIB into/out of the energize
    Imakefile, since that's the only thing down there that changes */
 energize/Makefile: energize/Imakefile Imakefile
@@ -224,9 +228,11 @@ clean::
 # define LWObjectRule SpecialLibObjectRule
 #endif
 
+CPPDEFS=-DCPP_PROGRAM=\"CppCmd\"
+
 LWObjectRule (lwlib.o, lwlib.c, $(TOOLKIT_DEFINES))
 LWObjectRule (dispatch.o, dispatch.c, $(EXT_FLAGS))
-LWObjectRule (xrdb-cpp.o, xrdb-cpp.c, $(EXT_FLAGS))
+LWObjectRule (xrdb-cpp.o, xrdb-cpp.c, $(EXT_FLAGS) "$(CPPDEFS)")
 LWObjectRule (xrdb.o,     xrdb.c,     $(EXT_FLAGS))
 LWObjectRule (lwlib-Xm.o, lwlib-Xm.c, $(ENERGIZEP))
 

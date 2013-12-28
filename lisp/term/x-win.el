@@ -56,9 +56,6 @@
 
 ;;; selections and active regions
 
-;;; When something is placed on the kill-ring, we assert it as the
-;;; Clipboard selection.
-;;;
 ;;; If and only if zmacs-regions is true:
 ;;;
 ;;; When a mark is pushed and the region goes into the "active" state, we
@@ -74,8 +71,7 @@
   (if (marker-buffer (mark-marker t))
       (x-own-selection (cons (point-marker t) (mark-marker t)))))
 
-;(setq kill-hooks 'x-own-clipboard)
-(setq kill-hooks '(x-own-clipboard x-store-cutbuffer))
+;(setq kill-hooks 'x-own-clipboard)	; this is too slow with Motif
 
 ;;; these are only ever called if zmacs-regions is true.
 (setq zmacs-deactivate-region-hook 'x-disown-selection)
@@ -105,8 +101,8 @@
 (define-key global-map 'up		"\C-p")
 (define-key global-map 'right		"\C-f")
 (define-key global-map 'down		"\C-n")
-(define-key global-map 'prior		"\C-p")
-(define-key global-map 'next		"\C-n")
+(define-key global-map 'prior		"\M-v")
+(define-key global-map 'next		"\C-v")
 (define-key global-map 'end		"\C-e")
 (define-key global-map 'begin		"\C-a")
 

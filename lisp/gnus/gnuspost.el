@@ -1,25 +1,29 @@
-;;; Post news commands for GNUS newsreader
-;; Copyright (C) 1989 Fujitsu Laboratories LTD.
-;; Copyright (C) 1989, 1990 Masanobu UMEDA
+;;; gnuspost.el --- post news commands for GNUS newsreader
+
+;; Copyright (C) 1989, 1990, 1993 Free Software Foundation, Inc.
+
+;; Author: Masanobu UMEDA <umerin@flab.flab.fujitsu.junet>
+;; Version: $Header: /cadillac-inferno-5/cvs-master/lemacs/lisp/gnus/gnuspost.el,v 1.4 1993/07/30 07:10:32 jwz Exp $
+;; Keywords: news
 
 ;; This file is part of GNU Emacs.
 
+;; GNU Emacs is free software; you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation; either version 2, or (at your option)
+;; any later version.
+
 ;; GNU Emacs is distributed in the hope that it will be useful,
-;; but WITHOUT ANY WARRANTY.  No author or distributor
-;; accepts responsibility to anyone for the consequences of using it
-;; or for whether it serves any particular purpose or works at all,
-;; unless he says so in writing.  Refer to the GNU Emacs General Public
-;; License for full details.
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
 
-;; Everyone is granted permission to copy, modify and redistribute
-;; GNU Emacs, but only under the conditions described in the
-;; GNU Emacs General Public License.   A copy of this license is
-;; supposed to have been given to you along with GNU Emacs so you
-;; can know your rights and responsibilities.  It should be in a
-;; file named COPYING.  Among other things, the copyright notice
-;; and this notice must be preserved on all copies.
+;; You should have received a copy of the GNU General Public License
+;; along with GNU Emacs; see the file COPYING.  If not, write to
+;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
-(provide 'gnuspost)
+;;; Code:
+
 (require 'gnus)
 
 (defvar gnus-organization-file "/usr/lib/news/organization"
@@ -31,9 +35,9 @@
 (autoload 'news-reply-mode "rnewspost")
 (autoload 'timezone-make-date-arpa-standard "timezone")
 
-;;; Post news commands of GNUS Group Mode and Subject Mode
+;;; Post news commands of GNUS Group Mode and Summary Mode
 
-(defun gnus-Group-post-news ()
+(defun gnus-group-post-news ()
   "Post an article."
   (interactive)
   ;; Save window configuration.
@@ -44,21 +48,21 @@
 	     (not (zerop (buffer-size))))
 	;; Restore last window configuration.
 	(set-window-configuration gnus-winconf-post-news)))
-  ;; We don't want to return to Subject buffer nor Article buffer later.
-  (if (get-buffer gnus-Subject-buffer)
-      (bury-buffer gnus-Subject-buffer))
-  (if (get-buffer gnus-Article-buffer)
-      (bury-buffer gnus-Article-buffer)))
+  ;; We don't want to return to Summary buffer nor Article buffer later.
+  (if (get-buffer gnus-summary-buffer)
+      (bury-buffer gnus-summary-buffer))
+  (if (get-buffer gnus-article-buffer)
+      (bury-buffer gnus-article-buffer)))
 
-(defun gnus-Subject-post-news ()
+(defun gnus-summary-post-news ()
   "Post an article."
   (interactive)
-  (gnus-Subject-select-article t nil)
+  (gnus-summary-select-article t nil)
   ;; Save window configuration.
   (setq gnus-winconf-post-news (current-window-configuration))
   (unwind-protect
       (progn
-	(switch-to-buffer gnus-Article-buffer)
+	(switch-to-buffer gnus-article-buffer)
 	(widen)
 	(delete-other-windows)
 	(gnus-post-news))
@@ -67,26 +71,26 @@
 	;; Restore last window configuration.
 	(set-window-configuration gnus-winconf-post-news)))
   ;; We don't want to return to Article buffer later.
-  (bury-buffer gnus-Article-buffer))
+  (bury-buffer gnus-article-buffer))
 
-(defun gnus-Subject-post-reply (yank)
+(defun gnus-summary-followup (yank)
   "Post a reply article.
 If prefix argument YANK is non-nil, original article is yanked automatically."
   (interactive "P")
-  (gnus-Subject-select-article t nil)
+  (gnus-summary-select-article t nil)
   ;; Check Followup-To: poster.
-  (set-buffer gnus-Article-buffer)
+  (set-buffer gnus-article-buffer)
   (if (and gnus-use-followup-to
 	   (string-equal "poster" (gnus-fetch-field "followup-to"))
 	   (or (not (eq gnus-use-followup-to t))
 	       (not (y-or-n-p "Do you want to ignore `Followup-To: poster'? "))))
       ;; Mail to the poster.  GNUS is now RFC1036 compliant.
-      (gnus-Subject-mail-reply yank)
+      (gnus-summary-reply yank)
     ;; Save window configuration.
     (setq gnus-winconf-post-news (current-window-configuration))
     (unwind-protect
 	(progn
-	  (switch-to-buffer gnus-Article-buffer)
+	  (switch-to-buffer gnus-article-buffer)
 	  (widen)
 	  (delete-other-windows)
 	  (gnus-news-reply yank))
@@ -95,18 +99,18 @@ If prefix argument YANK is non-nil, original article is yanked automatically."
 	  ;; Restore last window configuration.
 	  (set-window-configuration gnus-winconf-post-news)))
     ;; We don't want to return to Article buffer later.
-    (bury-buffer gnus-Article-buffer)))
+    (bury-buffer gnus-article-buffer)))
 
-(defun gnus-Subject-post-reply-with-original ()
+(defun gnus-summary-followup-with-original ()
   "Post a reply article with original article."
   (interactive)
-  (gnus-Subject-post-reply t))
+  (gnus-summary-followup t))
 
-(defun gnus-Subject-cancel-article ()
+(defun gnus-summary-cancel-article ()
   "Cancel an article you posted."
   (interactive)
-  (gnus-Subject-select-article t nil)
-  (gnus-eval-in-buffer-window gnus-Article-buffer
+  (gnus-summary-select-article t nil)
+  (gnus-eval-in-buffer-window gnus-article-buffer
     (gnus-cancel-news)))
 
 
@@ -127,16 +131,24 @@ Type \\[describe-mode] once editing the article to get a list of commands."
 	  (y-or-n-p "Are you sure you want to post to all of USENET? "))
       (let ((artbuf (current-buffer))
 	    (newsgroups			;Default newsgroup.
-	     (if (eq major-mode 'gnus-Article-mode) gnus-newsgroup-name))
+	     (if (eq major-mode 'gnus-article-mode) gnus-newsgroup-name))
 	    (subject nil)
-	    (distribution nil))
+	    ;; Get default distribution.
+	    (distribution (car gnus-local-distributions)))
+	;; Connect to NNTP server if not connected yet, and get
+	;; several information.
+	(if (not (gnus-server-opened))
+	    (progn
+	      (gnus-start-news-server t) ;Confirm server.
+	      (gnus-setup-news)))
+	;; Get current article information.
 	(save-restriction
 	  (and (not (zerop (buffer-size)))
 	       ;;(equal major-mode 'news-mode)
-	       (equal major-mode 'gnus-Article-mode)
+	       (equal major-mode 'gnus-article-mode)
 	       (progn
 		 ;;(news-show-all-headers)
-		 (gnus-Article-show-all-headers)
+		 (gnus-article-show-all-headers)
 		 (narrow-to-region (point-min)
 				   (progn (goto-char (point-min))
 					  (search-forward "\n\n")
@@ -165,20 +177,25 @@ Type \\[describe-mode] once editing the article to get a list of commands."
 		;; (setq newsgroups (read-string "Newsgroups: " "general"))
 		(or newsgroups		;Use the default newsgroup.
 		    (setq newsgroups
-			  (completing-read "Newsgroup: " gnus-newsrc-assoc
+			  (completing-read "Newsgroup: "
+					   gnus-newsrc-assoc
 					   nil 'require-match
 					   newsgroups ;Default newsgroup.
 					   )))
 		(setq subject (read-string "Subject: "))
+		;; Choose a distribution from gnus-distribution-list.
+		;; completing-read should not be used with
+		;; 'require-match functionality in order to allow use
+		;; of unknow distribution.
 		(setq distribution
-		      (substring newsgroups 0 (string-match "\\." newsgroups)))
-		(if (string-equal distribution newsgroups)
-		    ;; Newsgroup may be general or control. In this
-		    ;; case, use default distribution.
-		    (setq distribution gnus-default-distribution))
-		(setq distribution
-		      (read-string "Distribution: " distribution))
-		;; An empty string is ok to ignore gnus-default-distribution.
+		      (if (consp gnus-distribution-list)
+			  (completing-read "Distribution: "
+					   gnus-distribution-list
+					   nil nil ;Never 'require-match
+					   distribution ;Default distribution.
+					   )
+			(read-string "Distribution: ")))
+		;; Empty string is okay.
 		;;(if (string-equal distribution "")
 		;;    (setq distribution nil))
 		))
@@ -189,7 +206,7 @@ Type \\[describe-mode] once editing the article to get a list of commands."
 	  ;; Insert Distribution: field.
 	  ;; Suggested by ichikawa@flab.fujitsu.junet.
 	  (mail-position-on-field "Distribution")
-	  (insert (or distribution gnus-default-distribution ""))
+	  (insert (or distribution ""))
 	  ;; Handle author copy using FCC field.
 	  (if gnus-author-copy
 	      (progn
@@ -217,10 +234,10 @@ original message into it."
 	(save-restriction
 	  (and (not (zerop (buffer-size)))
 	       ;;(equal major-mode 'news-mode)
-	       (equal major-mode 'gnus-Article-mode)
+	       (equal major-mode 'gnus-article-mode)
 	       (progn
 		 ;; (news-show-all-headers)
-		 (gnus-Article-show-all-headers)
+		 (gnus-article-show-all-headers)
 		 (narrow-to-region (point-min)
 				   (progn (goto-char (point-min))
 					  (search-forward "\n\n")
@@ -294,11 +311,18 @@ original message into it."
 	      (progn
 		(mail-position-on-field "FCC")
 		(insert gnus-author-copy)))
+	  ;; Insert To: FROM field, which is expected to mail the
+	  ;; message to the author of the article too.
+	  (if (and gnus-auto-mail-to-author from)
+	      (progn
+		(goto-char (point-min))
+		(insert "To: " from "\n")))
 	  (goto-char (point-max)))
 	;; Yank original article automatically.
 	(if yank
 	    (let ((last (point)))
-	      (goto-char (point-max))
+	      ;;(goto-char (point-max))
+	      ;; Insert at current point.
 	      (news-reply-yank-original nil)
 	      (goto-char last)))
 	)
@@ -310,30 +334,37 @@ original message into it."
   (let* ((case-fold-search nil)
 	 (server-running (gnus-server-opened)))
     (save-excursion
-      ;; It is possible to post a news without reading news using
-      ;; `gnus' before.
+      ;; Connect to default NNTP server if necessary.
       ;; Suggested by yuki@flab.fujitsu.junet.
       (gnus-start-news-server)		;Use default server.
       ;; NNTP server must be opened before current buffer is modified.
       (widen)
       (goto-char (point-min))
       (run-hooks 'news-inews-hook)
-      (goto-char (point-min))
-      (search-forward (concat "\n" mail-header-separator "\n"))
-      (replace-match "\n\n")
-      (goto-char (point-max))
-      ;; require a newline at the end for inews to append .signature to
-      (or (= (preceding-char) ?\n)
-	  (insert ?\n))
+      ;; Mail the message too if To: or Cc: exists.
+      (if (save-restriction
+	    (narrow-to-region
+	     (point-min)
+	     (progn
+	       (goto-char (point-min))
+	       (search-forward (concat "\n" mail-header-separator "\n"))
+	       (point)))
+	    (or (mail-fetch-field "to" nil t)
+		(mail-fetch-field "cc" nil t)))
+	  (if gnus-mail-send-method
+	      (progn
+		(message "Sending via mail...")
+		(funcall gnus-mail-send-method)
+		(message "Sending via mail... done"))
+	    (ding)
+	    (message "No mailer defined.  To: and/or Cc: fields ignored.")
+	    (sit-for 1)))
+      ;; Send to NNTP server. 
       (message "Posting to USENET...")
-      ;; Post to NNTP server. 
       (if (gnus-inews-article)
 	  (message "Posting to USENET... done")
 	;; We cannot signal an error.
 	(ding) (message "Article rejected: %s" (gnus-status-message)))
-      (goto-char (point-min))		;restore internal header separator
-      (search-forward "\n\n")
-      (replace-match (concat "\n" mail-header-separator "\n"))
       (set-buffer-modified-p nil))
     ;; If NNTP server is opened by gnus-inews-news, close it by myself.
     (or server-running
@@ -356,7 +387,7 @@ original message into it."
 	(save-excursion
 	  ;; Get header info. from original article.
 	  (save-restriction
-	    (gnus-Article-show-all-headers)
+	    (gnus-article-show-all-headers)
 	    (goto-char (point-min))
 	    (search-forward "\n\n" nil 'move)
 	    (narrow-to-region (point-min) (point))
@@ -371,30 +402,27 @@ original message into it."
 		(downcase (mail-strip-quoted-names from))
 		(downcase (mail-strip-quoted-names (gnus-inews-user-name)))))
 	      (progn
-		(ding) (message "This article is not yours"))
+		(ding) (message "This article is not yours."))
 	    ;; Make control article.
-	    (set-buffer (get-buffer-create " *GNUS-posting*"))
-	    (buffer-disable-undo (current-buffer))
+	    (set-buffer (get-buffer-create " *GNUS-canceling*"))
+	    (buffer-flush-undo (current-buffer))
 	    (erase-buffer)
 	    (insert "Newsgroups: " newsgroups "\n"
 		    "Subject: cancel " message-id "\n"
 		    "Control: cancel " message-id "\n"
-		    ;; We should not use the value of
-		    ;;  `gnus-default-distribution' as default value,
+		    ;; We should not use the first value of
+		    ;;  `gnus-distribution-list' as default value,
 		    ;;  because distribution must be as same as original
 		    ;;  article.
 		    "Distribution: " (or distribution "") "\n"
+		    mail-header-separator "\n"
 		    )
-	    ;; Prepare article headers.
-	    (gnus-inews-insert-headers)
-	    (goto-char (point-max))
-	    ;; Insert empty line.
-	    (insert "\n")
 	    ;; Send the control article to NNTP server.
 	    (message "Canceling your article...")
-	    (if (gnus-request-post)
+	    (if (gnus-inews-article)
 		(message "Canceling your article... done")
 	      (ding) (message "Failed to cancel your article"))
+	    ;; Kill the article buffer.
 	    (kill-buffer (current-buffer))
 	    )))
     ))
@@ -403,55 +431,35 @@ original message into it."
 ;;; Lowlevel inews interface
 
 (defun gnus-inews-article ()
-  "NNTP inews interface."
-  (let ((signature
-	 (if gnus-signature-file
-	     (expand-file-name gnus-signature-file nil)))
-	(distribution nil)
-	(artbuf (current-buffer))
+  "Post an article in current buffer using NNTP protocol."
+  (let ((artbuf (current-buffer))
 	(tmpbuf (get-buffer-create " *GNUS-posting*")))
     (save-excursion
       (set-buffer tmpbuf)
-      (buffer-disable-undo (current-buffer))
+      (buffer-flush-undo (current-buffer))
       (erase-buffer)
       (insert-buffer-substring artbuf)
-      ;; Get distribution.
+      ;; Remove the header separator.
+      (goto-char (point-min))
+      (search-forward (concat "\n" mail-header-separator "\n"))
+      (replace-match "\n\n")
+      (goto-char (point-max))
+      ;; require a newline at the end for inews to append .signature to
+      (or (= (preceding-char) ?\n)
+	  (insert ?\n))
+      ;; This hook may insert a signature.
+      (run-hooks 'gnus-prepare-article-hook)
+      ;; Prepare article headers.  All message body such as signature
+      ;; must be inserted before Lines: field is prepared.
       (save-restriction
 	(goto-char (point-min))
 	(search-forward "\n\n")
 	(narrow-to-region (point-min) (point))
-	(setq distribution (mail-fetch-field "distribution")))
-      (widen)
-      (if signature
-	  (progn
-	    ;; Change signature file by distribution.
-	    ;; Suggested by hyoko@flab.fujitsu.junet.
-	    (if (file-exists-p (concat signature "-" distribution))
-		(setq signature (concat signature "-" distribution)))
-	    ;; Insert signature.
-	    (if (file-exists-p signature)
-		(progn
-		  (goto-char (point-max))
-		  (insert "--\n")
-		  (insert-file-contents signature)))
-	    ))
-      ;; Prepare article headers.
-      (save-restriction
-	(goto-char (point-min))
-	(search-forward "\n\n")
-	(narrow-to-region (point-min) (point))
-	(gnus-inews-insert-headers)
-	;; Save author copy of posted article. The article must be
-	;;  copied before being posted because `gnus-request-post'
-	;;  modifies the buffer.
-	(let ((case-fold-search t))
-	  ;; Find and handle any FCC fields.
-	  (goto-char (point-min))
-	  (if (re-search-forward "^FCC:" nil t)
-	      (gnus-inews-do-fcc))))
-      (widen)
-      ;; Run final inews hooks.
-      (run-hooks 'gnus-Inews-article-hook)
+	(gnus-inews-insert-headers))
+      ;; Run final inews hooks.  This hook may do FCC.
+      ;; The article must be saved before being posted because
+      ;; `gnus-request-post' modifies the buffer.
+      (run-hooks 'gnus-inews-article-hook)
       ;; Post an article to NNTP server.
       ;; Return NIL if post failed.
       (prog1
@@ -459,21 +467,115 @@ original message into it."
 	(kill-buffer (current-buffer)))
       )))
 
+(defun gnus-inews-insert-headers ()
+  "Prepare article headers.
+Fields already prepared in the buffer are not modified.
+Fields in gnus-required-headers will be generated."
+  (save-excursion
+    (let ((date (gnus-inews-date))
+	  (message-id (gnus-inews-message-id))
+	  (organization (gnus-inews-organization)))
+      (goto-char (point-min))
+      (or (mail-fetch-field "path")
+	  (and (memq 'Path gnus-required-headers)
+	       (insert "Path: " (gnus-inews-path) "\n")))
+      (or (mail-fetch-field "from")
+	  (and (memq 'From gnus-required-headers)
+	       (insert "From: " (gnus-inews-user-name) "\n")))
+      ;; If there is no subject, make Subject: field.
+      (or (mail-fetch-field "subject")
+	  (and (memq 'Subject gnus-required-headers)
+	       (insert "Subject: \n")))
+      ;; If there is no newsgroups, make Newsgroups: field.
+      (or (mail-fetch-field "newsgroups")
+	  (and (memq 'Newsgroups gnus-required-headers)
+	       (insert "Newsgroups: \n")))
+      (or (mail-fetch-field "message-id")
+	  (and message-id
+	       (memq 'Message-ID gnus-required-headers)
+	       (insert "Message-ID: " message-id "\n")))
+      (or (mail-fetch-field "date")
+	  (and date
+	       (memq 'Date gnus-required-headers)
+	       (insert "Date: " date "\n")))
+      ;; Optional fields in RFC977 and RFC1036
+      (or (mail-fetch-field "organization")
+	  (and organization
+	       (memq 'Organization gnus-required-headers)
+	       (let ((begin (point))
+		     (fill-column 79)
+		     (fill-prefix "\t"))
+		 (insert "Organization: " organization "\n")
+		 (fill-region-as-paragraph begin (point)))))
+      (or (mail-fetch-field "distribution")
+	  (and (memq 'Distribution gnus-required-headers)
+	       (insert "Distribution: \n")))
+      (or (mail-fetch-field "lines")
+	  (and (memq 'Lines gnus-required-headers)
+	       (insert "Lines: " (gnus-inews-lines) "\n")))
+      )))
+
+
+;; Utility functions.
+
+(defun gnus-inews-insert-signature ()
+  "Insert signature file in current article buffer.
+If there is a file named .signature-DISTRIBUTION, it is used instead
+of usual .signature when the distribution of the article is
+DISTRIBUTION.  Set the variable to nil to prevent appending the
+signature file automatically.
+Signature file is specified by the variable gnus-signature-file."
+  (save-excursion
+    (save-restriction
+      ;; Change signature file by distribution.
+      ;; Suggested by hyoko@flab.fujitsu.co.jp.
+      (let ((signature
+	     (if gnus-signature-file
+		 (expand-file-name gnus-signature-file nil)))
+	    (distribution nil))
+	(goto-char (point-min))
+	(search-forward "\n\n")
+	(narrow-to-region (point-min) (point))
+	(setq distribution (mail-fetch-field "distribution"))
+	(widen)
+	(if signature
+	    (progn
+	      (if (file-exists-p (concat signature "-" distribution))
+		  (setq signature (concat signature "-" distribution)))
+	      ;; Insert signature.
+	      (if (file-exists-p signature)
+		  (progn
+		    (goto-char (point-max))
+		    (insert "--\n")
+		    (insert-file-contents signature)))
+	      ))))))
+
 (defun gnus-inews-do-fcc ()
-  "Process FCC: fields."
+  "Process FCC: fields in current article buffer.
+Unless the first character of the field is `|', the article is saved
+to the specified file using the function specified by the variable
+gnus-author-copy-saver.  The default function rmail-output saves in
+Unix mailbox format.
+If the first character is `|', the contents of the article is send to
+a program specified by the rest of the value."
   (let ((fcc-list nil)
 	(fcc-file nil)
 	(case-fold-search t))		;Should ignore case.
     (save-excursion
       (save-restriction
 	(goto-char (point-min))
+	(search-forward "\n\n")
+	(narrow-to-region (point-min) (point))
+	(goto-char (point-min))
 	(while (re-search-forward "^FCC:[ \t]*" nil t)
-	  (setq fcc-list (cons (buffer-substring (point)
-						 (progn
-						   (end-of-line)
-						   (skip-chars-backward " \t")
-						   (point)))
-			       fcc-list))
+	  (setq fcc-list
+		(cons (buffer-substring
+		       (point)
+		       (progn
+			 (end-of-line)
+			 (skip-chars-backward " \t")
+			 (point)))
+		      fcc-list))
 	  (delete-region (match-beginning 0)
 			 (progn (forward-line 1) (point))))
 	;; Process FCC operations.
@@ -492,44 +594,14 @@ original message into it."
 		(t
 		 ;; Suggested by hyoko@flab.fujitsu.junet.
 		 ;; Save article in Unix mail format by default.
-		 (funcall (or gnus-author-copy-saver 'gnus-rmail-output) fcc-file)
+		 (let ((rmail-delete-after-output nil))
+		   ;; #### need to synchronize rmail-output with fsf version...
+		   (funcall (or gnus-author-copy-saver 'rmail-output)
+			    1 fcc-file))
 		 ))
 	  )
 	))
     ))
-
-(defun gnus-inews-insert-headers ()
-  "Prepare article headers.
-Path:, From:, Subject: and Distribution: are generated.
-Message-ID:, Date:, and Organization: is optional."
-  (save-excursion
-    (let ((date (gnus-inews-date))
-	  (message-id (gnus-inews-message-id))
-	  (organization (gnus-inews-organization)))
-      ;; Insert from the top of headers.
-      (goto-char (point-min))
-      (insert "Path: " (gnus-inews-path) "\n")
-      (insert "From: " (gnus-inews-user-name) "\n")
-      ;; If there is no subject, make Subject: field.
-      (or (mail-fetch-field "subject")
-	  (insert "Subject: \n"))
-      ;; Insert random headers.
-      (if message-id
-	  (insert "Message-ID: " message-id "\n"))
-      (if date
-	  (insert "Date: " date "\n"))
-      (if organization
-	  (let ((begin (point))
-		(fill-column 79)
-		(fill-prefix "\t"))
-	    (insert "Organization: " organization "\n")
-	    (fill-region-as-paragraph begin (point))))
-      (or (mail-fetch-field "distribution")
-	  (insert "Distribution: \n"))
-      ;; Insert Lines: if Cnews, since Cnews does not generate it.
-      (if (eq gnus-news-system 'Cnews)
-	  (insert "Lines: " (gnus-inews-lines) "\n"))
-      )))
 
 (defun gnus-inews-path ()
   "Return uucp path."
@@ -626,33 +698,41 @@ domain is undefined, the domain name is got from it."
       (error "Cannot understand current-time-string: %s." date))
     ))
 
+(defun gnus-current-time-zone (time)
+  "The local time zone in effect at TIME, or nil if not known."
+  (let ((z (and (fboundp 'current-time-zone) (current-time-zone time))))
+    (if (and z (car z)) z gnus-local-timezone)))
+
 (defun gnus-inews-date ()
-  "Bnews date format string of today.
-If the variable gnus-local-timezone is non-nil, valid date will be
-generated in terms of RFC822.  Otherwise, buggy date in which time
-zone is ignored will be generated.  If you are using with Cnews, you
-must use valid date."
-  (cond (gnus-local-timezone
-	 ;; Gnus can generate valid date.
-	 (gnus-inews-valid-date))
-	;; No timezone info.
-	((eq gnus-news-system 'Bnews)
-	 ;; Don't care about it.
-	 (gnus-inews-buggy-date))
-	;; Otherwize, drop date.
-	))
+  "Date string of today.
+If `current-time-zone' works, or if `gnus-local-timezone' is set correctly,
+this yields a date that conforms to RFC 822.  Otherwise a buggy date will
+be generated; this might work with some older news servers."
+  (let* ((now (and (fboundp 'current-time) (current-time)))
+	 (zone (gnus-current-time-zone now)))
+    (if zone
+	(gnus-inews-valid-date now zone)
+      ;; No timezone info.
+      (gnus-inews-buggy-date now))))
 
-(defun gnus-inews-valid-date ()
-  "Bnews date format string of today represented in GMT.
-Local timezone is specified by the variable gnus-local-timezone."
+(defun gnus-inews-valid-date (&optional time zone)
+  "A date string that represents TIME and conforms to the Usenet standard.
+TIME is optional and defaults to the current time.
+Some older versions of Emacs always act as if TIME is nil.
+The optional argument ZONE specifies the local time zone (default GMT)."
   (timezone-make-date-arpa-standard
-   (current-time-string) gnus-local-timezone "GMT"))
+   (if (fboundp 'current-time)
+       (current-time-string time)
+     (current-time-string))
+   zone "GMT"))
 
-(defun gnus-inews-buggy-date ()
-  "Buggy Bnews date format string of today. Time zone is ignored, but fast."
-  ;; Insert buggy date (time zone is ignored), but I don't worry about
-  ;; it since inews will rewrite it.
-  (let ((date (current-time-string)))
+(defun gnus-inews-buggy-date (&optional time)
+  "A buggy date string that represents TIME.
+TIME is optional and defaults to the current time.
+Some older versions of Emacs always act as if TIME is nil."
+  (let ((date (if (fboundp 'current-time)
+		  (current-time-string time)
+		(current-time-string))))
     (if (string-match "^[^ ]+ \\([^ ]+\\)[ ]+\\([0-9]+\\) \\([0-9:]+\\) [0-9][0-9]\\([0-9][0-9]\\)"
 		      date)
 	(concat (substring date (match-beginning 2) (match-end 2)) ;Day
@@ -680,10 +760,12 @@ containing the organization."
        (boundp 'gnus-your-organization)
        (setq gnus-local-organization gnus-your-organization))
   ;; End of compatibility hack.
-  (let ((organization (or (getenv "ORGANIZATION")
-			  gnus-local-organization
-			  (expand-file-name "~/.organization" nil))))
+  (let* ((private-file (expand-file-name "~/.organization" nil))
+	 (organization (or (getenv "ORGANIZATION")
+			   gnus-local-organization
+			   private-file)))
     (and (stringp organization)
+	 (> (length organization) 0)
 	 (string-equal (substring organization 0 1) "/")
 	 ;; Get it from the user and system file.
 	 ;; Suggested by roland@wheaties.ai.mit.edu (Roland McGrath).
@@ -709,6 +791,7 @@ containing the organization."
 	       (prog1 (buffer-string)
 		 (kill-buffer tmpbuf))
 	       )))
+	  ((string-equal organization private-file) nil) ;No such file
 	  (t organization))
     ))
 
@@ -720,3 +803,7 @@ containing the organization."
       (goto-char (point-min))
       (search-forward "\n\n" nil 'move)
       (int-to-string (count-lines (point) (point-max))))))
+
+(provide 'gnuspost)
+
+;;; gnuspost.el ends here

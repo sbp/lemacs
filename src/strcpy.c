@@ -20,18 +20,18 @@ strcpy (char *to, const char *from)
   else if (ALIGNED (to) && ALIGNED (from))
     {
       register unsigned long *to1 = (unsigned long *) to;
-      register unsigned long *from1 = (unsigned long *) from;
+      register const unsigned long *from1 = (const unsigned long *) from;
       register unsigned long c;
       register unsigned long magic = MAGIC;
       register unsigned long not_magic = ~magic;
 /*      register unsigned long hi_bit = 0x80000000; */
 
-      while (c = *from1)
+      while ((c = *from1) != 0)
         {
           if (HAS_ZERO(c)) 
             {
               to = (char *) to1;
-              from = (char *) from1;
+              from = (const char *) from1;
               goto slow_loop;
             }
           else
@@ -52,7 +52,7 @@ strcpy (char *to, const char *from)
 
     slow_loop:
 
-      while (c = *from)
+      while ((c = *from) != 0)
         {
           *to = c;
           to++;
@@ -62,5 +62,3 @@ strcpy (char *to, const char *from)
     }
   return return_value;
 }
-
-

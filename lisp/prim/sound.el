@@ -1,5 +1,5 @@
 ;; Basic lisp subroutines for Emacs
-;; Copyright (C) 1985, 1986, 1992 Free Software Foundation, Inc.
+;; Copyright (C) 1985, 1986, 1992, 1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -21,8 +21,8 @@
   "Read in an audio-file and add it to the sound-alist.
 
 You can only play sound files if you are running on display 0 of the console
-of a Sun SparcStation or an SGI machine.  The sound file must be in the
-Sun/NeXT U-LAW format."
+of a Sun SparcStation, SGI machine, or HP9000s700.  The sound file must be in
+the Sun/NeXT U-LAW format."
   (interactive "fSound file name: \n\
 SSymbol to name this sound: \n\
 nVolume (0 for default): ")
@@ -50,7 +50,8 @@ nVolume (0 for default): ")
 
 (defun load-default-sounds ()
   "Load and install some sound files as beep-types.
-This only works if you're on display 0 of a Sun SparcStation or SGI machine."
+This only works if you're on display 0 of a Sun SparcStation, SGI machine,
+or HP9000s700."
   (interactive)
   (message "Loading sounds...")
   (setq sound-alist nil)

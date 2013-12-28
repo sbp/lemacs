@@ -1,5 +1,5 @@
 /* Definitions for interface to indent.c
-   Copyright (C) 1985-1993 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1992, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -22,10 +22,10 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 struct position
   {
-    int bufpos;			/* Buffer position */
+    long bufpos;		/* Buffer position */
     int hpos;			/* Horizontal window position */
     int vpos;			/* Vertical window position */
-    int prevhpos;		/* Horizontal window position of last char */
+    long prevhpos;		/* Horizontal window position of last char */
     int contin;			/* 0 of not continued, 1 if continued */
     /* hpos in pixels */
     int pixpos;
@@ -33,7 +33,16 @@ struct position
     int column;
   };
 
-struct position *compute_motion ();
-struct position *vmotion ();
+struct position *compute_motion (struct window *w,
+                                 int from, int fromvpos, int fromhpos,
+                                 int to, int tovpos, int tohpos, 
+                                 int hscroll, 
+                                 int tab_offset);
+struct position *vmotion (int from, 
+                          int vtarget,
+                          int hscroll,
+                          Lisp_Object window);
+
+extern void invalidate_current_column (void);
 
 #endif /* _EMACS_INDENT_H_ */

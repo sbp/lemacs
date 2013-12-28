@@ -2,7 +2,7 @@
 
 ;;; Yet Another Webster Protocol.
 ;;; This one is for talking to the kind of Webster server of which 
-;;; pasteur.Berkeley.EDU port 1964 is an instance.
+;;; pasteur.Berkeley.EDU port 1964 is an instance (the "edjames" protocol).
 ;;;
 ;;; The interface and much of the process-handling code in this file were
 ;;; lifted from the Webster client by Jason Glasgow that talks to the kind
@@ -15,6 +15,24 @@
 ;;; 29 aug 92  Jamie Zawinski <jwz@lucid.com>  added 8-bit output
 ;;;  6 nov 92  Jamie Zawinski <jwz@lucid.com>  hack hack
 ;;; 31 dec 92  Jamie Zawinski <jwz@lucid.com>  made it guess the root word
+;;; 17 mar 93  Jamie Zawinski <jwz@lucid.com>  more hacking, more gnashing
+;;; 31 jul 93  Jamie Zawinski <jwz@lucid.com>  variable height fonts in 19.8
+
+;; TODO:
+;; 
+;; vinculum has a "3 character overbar" code.  Really need to figure out
+;; some way to hack overbars...  Background pixmap?  Need to know line
+;; height in pixels to do that.  
+;;
+;; I don't event know what half of these special characters are supposed
+;; to look like.  Like the "s," in the Turkish root of "chouse"...
+;;
+;; We could fake some of these chars (like upside-down-e) by including bitmaps
+;; in this file, and using extent-begin-glpyhs.  Except that right now glyphs
+;; have to come from files, not from '(w h "string") form, so that'll have to
+;; be fixed first.  We could also just create an X font...
+;;
+;; note that googol says "10100" instead of "10(\bI100)\bI
 
 (defvar webster-host "pasteur" "*The host with the webster server")
 (defvar webster-port "1964" "*The port on which the webster server listens")
@@ -28,10 +46,12 @@
 (defvar webster-start-mark nil)
 
 (defvar webster-fontify (string-match "Lucid" emacs-version)
-  "*Set to t to use the Lucid GNU Emacs font-change mechanism.")
+  "*Set to t to use the Lucid Emacs font-change mechanism.")
 
 (defvar webster-iso8859/1 (string-match "Lucid" emacs-version)
   "*Set to t to print certain special characters using ISO-8859/1 codes.")
+
+(defconst webster-completion-table (make-vector 511 0))
 
 (cond ((fboundp 'make-face)
        (or (find-face 'webster)
@@ -39,32 +59,68 @@
 	   (copy-face 'default 'webster))
        (or (find-face 'webster-bold)
 	   (face-differs-from-default-p (make-face 'webster-bold))
-	   (copy-face 'bold 'webster-bold))
+	   (progn
+	     (copy-face 'webster 'webster-bold)
+	     (make-face-bold 'webster-bold)))
        (or (find-face 'webster-italic)
 	   (face-differs-from-default-p (make-face 'webster-italic))
-	   (copy-face 'italic 'webster-italic))
+	   (progn
+	     (copy-face 'webster 'webster-italic)
+	     (make-face-italic 'webster-italic)))
        (or (find-face 'webster-bold-italic)
 	   (face-differs-from-default-p (make-face 'webster-bold-italic))
-	   (copy-face 'bold-italic 'webster-bold-italic))
+	   (progn
+	     (copy-face 'webster 'webster-bold-italic)
+	     (make-face-bold-italic 'webster-bold-italic)))
+       (or (find-face 'webster-underline)
+	   (face-differs-from-default-p (make-face 'webster-underline))
+	   (progn
+	     (copy-face 'webster 'webster-underline)
+	     (set-face-underline-p 'webster-underline t)))
        (or (find-face 'webster-small)
 	   (face-differs-from-default-p (make-face 'webster-small))
 	   (progn
 	     (copy-face 'webster-bold 'webster-small)
-	     (set-face-underline-p 'webster-small t)))
-       (or (find-face 'webster-underline)
-	   (face-differs-from-default-p (make-face 'webster-underline))
-	   (set-face-underline-p 'webster-underline t))
-       (or (find-face 'webster-underline-italic)
-	   (face-differs-from-default-p (make-face 'webster-underline-italic))
+	     (and (fboundp 'make-face-smaller)	; lemacs 19.8+
+		  (make-face-smaller 'webster-small))))
+       (or (find-face 'webster-subscript)
+	   (face-differs-from-default-p (make-face 'webster-subscript))
 	   (progn
-	     (copy-face 'italic 'webster-underline-italic)
-	     (set-face-underline-p 'webster-underline-italic t)))
+	     (copy-face 'webster-italic 'webster-subscript)
+	     (if (fboundp 'make-face-smaller)	; lemacs 19.8+
+		 (and (make-face-smaller 'webster-subscript)
+		      (make-face-smaller 'webster-subscript))
+	       (set-face-underline-p 'webster-subscript t))))
+       (or (find-face 'webster-superscript)
+	   (face-differs-from-default-p (make-face 'webster-superscript))
+	   ;; #### need some way to raise baseline...
+	   (copy-face 'webster-subscript 'webster-superscript))
        ))
 
 (defun webster-fontify (start end face &optional highlight)
-  (let ((e (make-extent start end (current-buffer))))
-    (set-extent-face e face)
-    (if highlight (set-extent-attribute e 'highlight))))
+  (let ((os start)
+	(count 0)
+	e)
+    (save-excursion
+      (goto-char start)
+      ;; this mess is so we don't fontify the spaces between the words, so that
+      ;; when the lines are wrapped, the stuff at the beginning of the line
+      ;; doesn't go in the font of the split word.  Kludge kludge.
+      (while (prog1
+		 (/= (point) end)
+	       (skip-chars-forward " \t")
+	       (setq start (point))
+	       (re-search-forward "[ \t]" (1+ end) 'go)
+	       (forward-char -1))
+	(setq e (make-extent start (point) (current-buffer)))
+	(set-extent-face e face)
+	(setq count (1+ count))))
+    (if highlight
+	(set-extent-attribute
+	 ;; use the same extent if we didn't have to split it.
+	 (if (= count 1) e (make-extent os end (current-buffer)))
+	 'highlight))
+    ))
 
 (defconst webster-umlauts
   '((?A . ?\304) (?E . ?\313) (?I . ?\317) (?O . ?\326) (?U . ?\334)
@@ -216,6 +272,8 @@
 ;	   (substring word 0 (+ 1 (match-beginning 0))))
 	  ((string-match "s\\'" word)
 	   (substring word 0 (match-beginning 0)))
+	  ((string-match "...ed\\'" word)
+	   (substring word (1- (match-end 0))))
 	  (t nil))))
 
 
@@ -402,8 +460,6 @@ Use webster-mode-hook for customization."
 	 (setq end (point))
 	 (buffer-substring beg end))))
 
-(defconst webster-completion-table (make-vector 511 0))
-
 (defun webster-intern (string)
   (intern (webster-strip-crud (webster-unISO (downcase string)))
 	  webster-completion-table))
@@ -442,24 +498,58 @@ Use webster-mode-hook for customization."
       (narrow-to-region start end)
       ;; translate silly "special character" codes into something we can use.
       ;; we need to do this before nuking the recursive backspace codes.
+      ;;
+      ;; Note that mostly these are used as modifiers, like "h(\bQsub-dot)\bQ"
+      ;; meaning h with a dot under it.  We don't handle any of that...
+      ;;
       (goto-char (point-min))
-      (while (re-search-forward "(\bQ[-a-z]+)\bQ" nil t)
+      (while (re-search-forward "(\bQ[-a-z0-9*$ ]+)\bQ" nil t)
 	(goto-char (match-beginning 0))
 	(let ((s (point))
 	      (e (match-end 0)))
 	  (forward-char 3)
-	  (cond
-	   ((looking-at "sub-dot")	 (delete-region s e) (insert ?\377))
-	   ((looking-at "breve")	 (delete-region s e) (insert ?\376))
-	   ((looking-at "sub-breve")     (delete-region s e) (insert ?\375))
-	   ((looking-at "hachek")	 (delete-region s e) (insert ?\374))
-	   ((looking-at "macron-tilda")  (delete-region s e) (insert ?\373))
-	   ((looking-at "sup-circle")    (delete-region s e) (insert ?\372))
-	   ((looking-at "cidilla")	 (delete-region s e) (insert ?\371))
-	   ((looking-at "sub-diaeresis") (delete-region s e) (insert ?\370))
-	   ((looking-at "sub-macron")    (delete-region s e) (insert ?\367))
-	   ((looking-at "a-e")		 (delete-region s e) (insert ?\346))
-	   (t (delete-region (- e 3) e)))))
+	  (if (cond
+	       ((looking-at "circumflex")	(insert ?^)	t)
+	       ((looking-at "brace")		(insert ?\{)	t)
+	       ((looking-at "tilda")		(insert ?\~)	t)
+	       ((looking-at "prime")		(insert ?\')	t)
+	       ((looking-at "accent grave")	(insert ?\`)	t)
+	       ((looking-at "accent acute")	(insert ?\264)	t)
+	       ((looking-at "sub-diaeresis")	(insert ?\250)	t)
+	       ((looking-at "macron")		(insert ?\257)	t)
+	       ((looking-at "a-e")	 	(insert ?\346)	t)
+	       ((looking-at "curly-N")		(insert ?\361)	t)
+	       ((looking-at "sub-macron")	(insert ?\367)	t)
+	       ((looking-at "slash-o")		(insert ?\370)	t)
+	       ((looking-at "cidilla")		(insert ?\371)	t)
+	       ((looking-at "sup-circle")	(insert ?\372)	t)
+	       ((looking-at "macron-tilda")	(insert ?\373)	t)
+	       ((looking-at "hachek")		(insert ?\374)	t)
+	       ((looking-at "sub-breve")	(insert ?\375)	t)
+	       ((looking-at "breve")		(insert ?\376)	t)
+	       ((looking-at "sub-dot")		(insert ?\377)	t)
+	       ((looking-at "double-bar-\\$")	(insert ?$)	t)
+	       ;; talk about your special-purpose characters...
+	       ((looking-at "10\\*10\\*100")
+		(delete-region s e)
+		(insert "10^10^100")
+		nil)
+	       ((looking-at "plus squareroot -1")
+		(delete-region s e)
+		(insert "sqrt(-1)")
+		nil)
+	       ;; We don't handle these yet:
+	       ;; aleph ayin beth breve c-bar check daleth double-arrows
+	       ;; double-half-arrows double-hyphen edh fermata-up fermata-down
+	       ;; fist flat-sign g-sub-macron gimel hachek he heth kaph lamed
+	       ;; mem natural-sign nun parallel pe presa prime qoph radical
+	       ;; radical-sign resh sadhe samekh shin sin slur-down spade
+	       ;; stacked-commas tau teth thorn triple-bond waw yod yogh
+	       ;; zayin "* * *" sadhe(final) "3 character overbar"
+	       (t nil))
+	      (progn
+		(delete-region s (+ s 3))
+		(delete-region (+ s 1) (- e 2))))))
       
       ;; nuke silly recursive backspace codes
       (goto-char (point-min))
@@ -482,7 +572,8 @@ Use webster-mode-hook for customization."
 	(forward-char -1)
 	(cond
 
-	 ((looking-at "([MXYAIJ]")	; start smallcaps/italic/bold/super/sub
+	 ((looking-at "([MXYAIJ]")
+	  ;; start smallcaps/italic/bold/super/sub/subitalic
 	  (looking-at "([MXYAIJ]\\([^\)]*\\))")
 	  (let ((start (match-beginning 1))
 		(end (match-end 1)))
@@ -491,15 +582,16 @@ Use webster-mode-hook for customization."
 	    (if webster-fontify
 		(let ((c (char-after (1- start))))
 		  (webster-fontify start end
-				   (cond ((= ?M c) 'webster-bold)
+				   (cond ((= ?M c) 'webster-small)
 					 ((= ?X c) 'webster-italic)
-					 ((= ?Y c) 'webster-small)
-					 ((= ?A c) 'webster-underline)
-					 ((= ?I c) 'webster-underline)
-					 ((= ?J c) 'webster-underline-italic)
+					 ((= ?Y c) 'webster-bold)
+					 ((= ?A c) 'webster-superscript)
+					 ((= ?I c) 'webster-subscript)
+					 ((= ?J c) 'webster-subscript)
 					 )
 				   (= ?M c))))))
 
+	 ;; #### dubious
 	 ((looking-at "([BGR]")	; start greek/APL/symbol
 	  (and webster-fontify
 	       (looking-at "(\\(.\\)[^\)]*)\^H\\1")
@@ -522,6 +614,7 @@ Use webster-mode-hook for customization."
 	 ((looking-at ")>\\|>)")
 	  (insert  (if webster-iso8859/1 ?\273 ">>")))
 
+	 ;; #### dubious
 	 ((looking-at "[a-z\346][-._]")	; lineover,dotover/under,over/underbar
 	  (insert (following-char))
 	  (if webster-fontify
@@ -639,18 +732,21 @@ Use webster-mode-hook for customization."
 	    (forward-char 1)
 	    (insert ?\,)))
 
-	 ((or (looking-at "[a-zA-Z]\377")	; (\bQsub-dot)\bQ
-	      (looking-at "[a-zA-Z]\376")	; (\bQbreve)\bQ
-	      (looking-at "[a-zA-Z]\375")	; (\bQsub-breve)\bQ
-	      (looking-at "[a-zA-Z]\374")	; (\bQhachek)\bQ
-	      (looking-at "[a-zA-Z]\373")	; (\bQmacron-tilda)\bQ
-	      (looking-at "[a-zA-Z]\372")	; (\bQsup-circle)\bQ
-	      (looking-at "[a-zA-Z]\370")	; (\bQsub-diaeresis)\bQ
-	      (looking-at "[a-zA-Z]\367")	; (\bQsub-macron)\bQ
-	      (looking-at "[a-zA-Z]\346")	; (\bQa-e)\bQ
-	      )
-	  (forward-char 1) (insert " ") (forward-char -1)
-	  (webster-fontify (1- (point)) (point) 'webster-underline))
+;	 ((or (looking-at "[a-zA-Z]\250")	; (\bQsub-diaeresis)\bQ
+;	      (looking-at "[a-zA-Z]\346")	; (\bQa-e)\bQ
+;	      (looking-at "[a-zA-Z]\361")	; (\bQcurly-N)\bQ
+;	      (looking-at "[a-zA-Z]\367")	; (\bQsub-macron)\bQ
+;	      (looking-at "[a-zA-Z]\370")	; (\bQslash-o)\bQ
+;	      (looking-at "[a-zA-Z]\371")	; (\bQcidilla)\bQ
+;	      (looking-at "[a-zA-Z]\372")	; (\bQsup-circle)\bQ
+;	      (looking-at "[a-zA-Z]\373")	; (\bQmacron-tilda)\bQ
+;	      (looking-at "[a-zA-Z]\374")	; (\bQhachek)\bQ
+;	      (looking-at "[a-zA-Z]\375")	; (\bQsub-breve)\bQ
+;	      (looking-at "[a-zA-Z]\376")	; (\bQbreve)\bQ
+;	      (looking-at "[a-zA-Z]\377")	; (\bQsub-dot)\bQ
+;	      )
+;	  (forward-char 1) (insert " ") (forward-char -1)
+;	  (webster-fontify (1- (point)) (point) 'webster-underline))
 
 	 ((looking-at "/[a-zA-Z]")		; greek
 	  (forward-char 1)
@@ -1087,6 +1183,22 @@ Use webster-mode-hook for customization."
 	  "\n****\tThis definition contains unrecognized font-change codes."
 	  "\n****\tPlease tell jwz.\n\n")
 	 (goto-char (point-min))))
+
+  ;; lay down the default font; don't put it over the spaces and tabs on
+  ;; the beginning of the line so that those space as if it was a fixed
+  ;; width font.  There must be a better way than 
+  (if webster-fontify
+      (save-excursion
+	(let (e)
+	(goto-char (point-min))
+	(while (not (eobp))
+	  (skip-chars-forward " \t")
+	  ;; avoid extent overlaps; should be able to use extent priorities
+	  ;; to obviate this, but it's late.
+	  (while (setq e (extent-at (point)))
+	    (goto-char (1+ (extent-end-position e))))
+	  (setq e (make-extent (point) (progn (forward-line 1) (point))))
+	  (set-extent-face e 'webster)))))
   )
 
 
@@ -1154,7 +1266,7 @@ Use webster-mode-hook for customization."
 ;;	)>		guillemotright		everywhere...
 ;;	<(		guillemotleft		everywhere...
 ;;	(<		guillemotleft (?)	come
-;;	-m		longdash
+;;	-m		longdash		pi
 ;;	n_		nj			babbling
 ;;	'o		degree			
 ;;	|)		]
@@ -1293,7 +1405,7 @@ Use webster-mode-hook for customization."
 ;; o@			unknown
 ;; os			unknown
 ;; ot			unknown
-;; s,			unknown
+;; s,			unknown			chouse
 ;; u@			unknown
 ;; | 			unknown
 

@@ -118,6 +118,9 @@
 ;
 ; HISTORY
 ;
+; 27 aug 93	Jamie Zawinski <jwz@lucid.com>
+;	Use mail-extr to parse addresses if it is loadable.
+;
 ; 15 oct 92	Benjamin Pierce (bcp@cs.cmu.edu)
 ;	Merged recent changes
 ;
@@ -198,6 +201,12 @@
 
 (if (string-match "Lucid" emacs-version)
     (require 'timer))
+
+;; Load mail-extr if possible
+(or (fboundp 'mail-extract-address-components)
+    (condition-case ()
+	(load-library "mail-extr")
+      (error nil)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;                       User Variables                          ;;;
@@ -541,10 +550,15 @@ mode line of each buffer (if corresponding user variables are set)."
 	  (setq time-string
 	      (concat time-string
 		      (condition-case ()
-			  (if (zerop (car (load-average)))
-			      ""
-			      (format "%03d" (car (load-average))))
-			(error "load-error"))
+                          (let* ((la (car (load-average)))
+                                 (load (if (zerop la)
+                                           nil
+                                         (format "%03d" la))))
+                            (if load
+                                (concat (substring load 0 -2)
+                                        "." (substring load -2))
+			      ""))
+                        (error "load-error"))
 		      " ")))
       ;; Install the new time for display.
       (setq display-time-string time-string)
@@ -682,14 +696,16 @@ that things may have changed."
 	(set-buffer (get-buffer-create " *reportmail-tmp*"))
 	(if (zerop (buffer-size))
 	    nil
-	  (append-to-file (point-min) (point-max)
-			  display-time-mail-arrived-file)
+	  (write-region (point-min) (point-max)
+			display-time-mail-arrived-file
+			t 'nomsg)
 	  (erase-buffer)
-	  ;; there's no way to get append-to-file to not dump the message
-	  ;; "Wrote file ..." in the echo area, so re-write the last message
-	  ;; we intended to write.
-	  (if display-time-last-message
-	      (display-time-message "%s" display-time-last-message)))))
+;	  ;; there's no way to get append-to-file to not dump the message
+;	  ;; "Wrote file ..." in the echo area, so re-write the last message
+;	  ;; we intended to write.
+;	  (if display-time-last-message
+;	      (display-time-message "%s" display-time-last-message))
+	  )))
   
   (setq display-time-previous-mail-buffer-max (point-max)))
 
@@ -885,25 +901,31 @@ non-nil, always match using regexps."
       s))
 
 (defun display-time-extract-short-addr (long-addr)
-  (let ((name "\\([A-Za-z0-9-_+\\. ]+\\)"))
-    (if (or 
-	 ;; David Plaut <dcp@CS.CMU.EDU>	 -> David Plaut
-	 (string-match (concat name "[ |	]+<.+>") long-addr)
+  (let ((result (and (fboundp 'mail-extract-address-components)
+		     (mail-extract-address-components long-addr))))
+    (or (nth 0 result)  ; hairily extracted real name
+	(let ((name "\\([A-Za-z0-9-_+\\. ]+\\)"))
+	  (setq long-addr (or (nth 2 result) long-addr))
+	  (if (or 
+	       ;; David Plaut <dcp@CS.CMU.EDU>	 -> David Plaut
+	       ;; (doesn't happen if mail-extr loaded)
+	       (string-match (concat name "[ |	]+<.+>") long-addr)
 	
-	 ;; anything (David Plaut) anything	 -> David Plaut
-	 (string-match ".+(\\(.+\\)).*" long-addr)
+	       ;; anything (David Plaut) anything	 -> David Plaut
+	       ;; (doesn't happen if mail-extr loaded)
+	       (string-match ".+(\\(.+\\)).*" long-addr)
 	 
-	 ;; plaut%address.bitnet@vma.cc.cmu.edu -> plaut
-	 (string-match (concat name "%.+@.+") long-addr)
+	       ;; plaut%address.bitnet@vma.cc.cmu.edu -> plaut
+	       (string-match (concat name "%.+@.+") long-addr)
 
-	 ;; random!uucp!addresses!dcp@uu.relay.net -> dcp
-	 (string-match (concat ".*!" name "@.+") long-addr)
+	       ;; random!uucp!addresses!dcp@uu.relay.net -> dcp
+	       (string-match (concat ".*!" name "@.+") long-addr)
 
-	 ;; David.Plaut@CS.CMU.EDU		 -> David.Plaut
-	 (string-match (concat name "@.+") long-addr)
-	 )
-	(substring long-addr (match-beginning 1) (match-end 1))
-	long-addr)))
+	       ;; David.Plaut@CS.CMU.EDU		 -> David.Plaut
+	       (string-match (concat name "@.+") long-addr)
+	       )
+	      (substring long-addr (match-beginning 1) (match-end 1))
+	    long-addr)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;                       Debugging Support                       ;;;

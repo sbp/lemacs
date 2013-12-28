@@ -17,28 +17,29 @@ You should have received a copy of the GNU General Public License
 along with GNU Emacs; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
+#include "config.h"
+#include "lisp.h"
+
 #include <stdio.h>
 #include <X11/X.h>
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
 #include <X11/keysym.h>
-#include <X11/IntrinsicP.h>	/* only describe_event() needs this */
-#include <X11/Xproto.h>		/* only describe_event() needs this */
-#include "ScreenWidgetP.h"
 
-#include "config.h"
-#include "lisp.h"
+#ifdef LWLIB_HAS_EXTENSIONS
+#include <X11/IntrinsicP.h>
+#include "EmacsScreenP.h"
+#endif
+
 #include "process.h"
 #include "events.h"
 
 #include "blockio.h"
 #include "dispextern.h"
 #include "screen.h"
-#include "xterm.h"		/* only describe_event() needs this */
-#include "lwlib.h"
 
-static void describe_event ();
-void emacs_Xt_focus_event_handler ();
+#include "xterm.h"
+#include "lwlib.h"
 
 /* The timestamp of the last button or key event used by emacs itself.
    This is used for asserting selections and input focus. */
@@ -58,20 +59,8 @@ extern struct screen *x_window_to_screen (Window),
 
 extern XtAppContext Xt_app_con;
 
-extern Lisp_Object QKbackspace, QKtab, QKlinefeed, QKreturn;
-extern Lisp_Object QKescape, QKspace, QKdelete, QKnosymbol;
-
-extern Lisp_Object Qeval;
-extern Lisp_Object Qx_EnterNotify_internal, Qx_LeaveNotify_internal;
-extern Lisp_Object Qx_FocusIn_internal, Qx_FocusOut_internal;
-extern Lisp_Object Qx_VisibilityNotify_internal;
-extern Lisp_Object Qx_non_VisibilityNotify_internal;
-extern Lisp_Object Qx_MapNotify_internal, Qx_UnmapNotify_internal;
-
-extern Display *x_current_display;
 extern Atom Xatom_WM_PROTOCOLS, Xatom_WM_DELETE_WINDOW, Xatom_WM_TAKE_FOCUS;
 
-extern void repaint_lines (struct screen *, int, int, int, int);
 
 /* X bogusly doesn't define the interpretations of any bits besides
    ModControl, ModShift, and ModLock; so the Interclient Communication
@@ -164,11 +153,15 @@ x_reset_modifier_mapping (display)
   /* Boy, I really wish C had local functions...
    */
 #define index_to_name(index) \
-((index == ShiftMapIndex ? "ModShift" : (index == LockMapIndex ? "ModLock" : \
-  (index == ControlMapIndex ? "ModControl" : (index == Mod1MapIndex ? "Mod1" : \
-   (index == Mod2MapIndex ? "Mod2" : (index == Mod3MapIndex ? "Mod3" : \
-    (index == Mod4MapIndex ? "Mod4" : (index == Mod5MapIndex ? "Mod5" : \
-     "???")))))))))
+  ((index == ShiftMapIndex ? "ModShift" \
+    : (index == LockMapIndex ? "ModLock" \
+       : (index == ControlMapIndex ? "ModControl" \
+          : (index == Mod1MapIndex ? "Mod1" \
+             : (index == Mod2MapIndex ? "Mod2" \
+                : (index == Mod3MapIndex ? "Mod3" \
+                   : (index == Mod4MapIndex ? "Mod4" \
+                      : (index == Mod5MapIndex ? "Mod5" \
+                         : "???")))))))))
 
 #define modwarn(name,old,other) \
   fprintf (stderr, \
@@ -269,7 +262,7 @@ x_reset_modifier_mapping (display)
    */
   if (mode_bit)
     {
-      char *warn = 0;
+      const char *warn = 0;
       if (mode_bit == meta_bit) warn = "Meta", meta_bit = 0;
       else if (mode_bit == hyper_bit) warn = "Hyper", hyper_bit = 0;
       else if (mode_bit == super_bit) warn = "Super", super_bit = 0;
@@ -352,8 +345,7 @@ x_key_is_modifier_p (keycode)
 
 
 static int
-keysym_obeys_caps_lock_p (sym)
-     KeySym sym;
+keysym_obeys_caps_lock_p (KeySym sym)
 {
   /* Eeeeevil hack.  Don't apply caps-lock to things that aren't alphabetic
      characters, where "alphabetic" means something more than simply A-Z.
@@ -374,12 +366,12 @@ keysym_obeys_caps_lock_p (sym)
 }
 
 
+
 static XComposeStatus *x_compose_status;
 
 static Lisp_Object
-x_to_emacs_keysym (event, simple_p)
-     XEvent *event;
-     int simple_p;	/* means don't try too hard (ASCII only) */
+x_to_emacs_keysym (XEvent *event, int simple_p)
+     /* simple_p means don't try too hard (ASCII only) */
 {
   char *name;
   KeySym keysym = 0;
@@ -391,7 +383,7 @@ x_to_emacs_keysym (event, simple_p)
   if (keysym >= XK_exclam && keysym <= XK_asciitilde)
     /* We must assume that the X keysym numbers for the ASCII graphic
        characters are the same as their ASCII codes.  */
-    return keysym;
+    return (make_number (keysym));
 
   switch (keysym) {
     /* These would be handled correctly by the default case, but by
@@ -417,7 +409,7 @@ x_to_emacs_keysym (event, simple_p)
 	return KEYSYM (buf);
       }
     /* If it's got a one-character name, that's good enough. */
-    if (!name[1]) return make_number (name[0]);
+    if (!name[1]) return (make_number (name[0]));
 
     /* If it's in the "Keyboard" character set, downcase it.
        The case of those keysyms is too totally random for us to
@@ -438,7 +430,6 @@ x_to_emacs_keysym (event, simple_p)
 }
 
 
-extern int interrupt_char;
 extern int x_allow_sendevents;
 
 #ifdef LWLIB_HAS_EXTENSIONS
@@ -535,7 +526,7 @@ x_event_to_emacs_event (x_event, emacs_event)
 	global_mouse_timestamp = x_event->xbutton.time;
 
 #ifdef LWLIB_HAS_EXTENSIONS
-      if (to_widget && !XtIsSubclass (to_widget, emacsScreenWidgetClass))
+      if (to_widget && !XtIsSubclass (to_widget, emacsScreenClass))
 	goto MAGIC;
 #endif
 
@@ -562,102 +553,104 @@ x_event_to_emacs_event (x_event, emacs_event)
 
       mouse_timestamp = global_mouse_timestamp;
 
-      switch (x_event->xany.type) {
-      case KeyPress:
+      switch (x_event->xany.type)
 	{
-	  Lisp_Object keysym;
-	  struct screen *screen = 0;
-	  KeyCode keycode = x_event->xkey.keycode;
+	case KeyPress:
+	  {
+	    Lisp_Object keysym;
+	    struct screen *screen = 0;
+	    KeyCode keycode = x_event->xkey.keycode;
 
 
-	  if (x_key_is_modifier_p (keycode)) /* it's a modifier key */
-	    goto MAGIC;
+	    if (x_key_is_modifier_p (keycode)) /* it's a modifier key */
+	      goto MAGIC;
 
 #ifdef LWLIB_HAS_EXTENSIONS
-	  if (to_widget)
-	    screen = ((EmacsScreenWidget)to_widget)->emacs_screen.screen;
+	    if (to_widget)
+	      screen = ((EmacsScreen)to_widget)->emacs_screen.screen;
 #endif
-	  if (!screen)
-	    screen = x_any_window_to_screen (x_event->xkey.window);
+	    if (!screen)
+	      screen = x_any_window_to_screen (x_event->xkey.window);
 
-	  /* This doesn't seem right to me: shouldn't this be "goto MAGIC"? */
-	  if (! screen)
-	    screen = selected_screen;
+	    /* This doesn't seem right to me: shouldn't this be "goto MAGIC"? */
+	    if (! screen)
+	      screen = selected_screen;
 
-	  /* At this point, screen->display.x->input_p may be false.
-	     That's ok, because you can get keyboard input even if you
-	     don't have focus...
-	   */
-	  XSET (emacs_event->channel, Lisp_Screen, screen);
-	  keysym = x_to_emacs_keysym (x_event, 0);
+	    /* At this point, screen->display.x->input_p may be false.
+	       That's ok, because you can get keyboard input even if you
+	       don't have focus...
+	       */
+	    XSETR (emacs_event->channel, Lisp_Screen, screen);
+	    keysym = x_to_emacs_keysym (x_event, 0);
 
-	  /* If the emacs keysym is nil, then that means that the X keysym
-	     was NoSymbol, which probably means that we're in the midst of
-	     reading a Multi_key sequence, or a "dead" key prefix.  Ignore
-	     it.
-	   */
-	  if (NILP (keysym))
-	    goto MAGIC;
+	    /* If the emacs keysym is nil, then that means that the X keysym
+	       was NoSymbol, which probably means that we're in the midst of
+	       reading a Multi_key sequence, or a "dead" key prefix.  Ignore
+	       it.
+	       */
+	    if (NILP (keysym))
+	      goto MAGIC;
 
-	  /* More caps-lock garbage: caps-lock should *only* add the shift
-	     modifier to two-case keys (that is, A-Z and related characters.)
-	     So at this point (after looking up the keysym) if the keysym
-	     isn't a dual-case alphabetic, and if the caps lock key was down
-	     but the shift key wasn't, then turn off the shift modifier.
-	     Gag barf retch.
-	   */
-	  if (! keysym_obeys_caps_lock_p (keysym)
-	      && lock_p
-	      && !shift_p)
-	    modifiers &= (~MOD_SHIFT);
+	    /* More caps-lock garbage: caps-lock should *only* add the shift
+	       modifier to two-case keys (that is, A-Z and related characters.)
+	       So at this point (after looking up the keysym) if the keysym
+	       isn't a dual-case alphabetic, and if the caps lock key was down
+	       but the shift key wasn't, then turn off the shift modifier.
+	       Gag barf retch.
+	       */
+	    /* ## type lossage: assuming equivalence of emacs and X keysyms */
+	    if (! keysym_obeys_caps_lock_p ((KeySym) XFASTINT (keysym))
+		&& lock_p
+		&& !shift_p)
+	      modifiers &= (~MOD_SHIFT);
 
-	  /* If this key contains two distinct keysyms, that is, "shift"
-	     generates a different keysym than the non-shifted key, then
-	     don't apply the shift modifier bit: it's implicit.  Otherwise,
-	     if there would be no other way to tell the difference between
-	     the shifted and unshifted version of this key, apply the shift
-	     bit.  Non-graphics, like Backspace and F1 get the shift bit in
-	     the modifiers slot.  Neither the characters "a", "A", "2",
-	     nor "@" normally have the shift bit set.  However, "F1"
-	     normally does.
-	   */
-	  if (modifiers & MOD_SHIFT)
-	    {
-	      KeySym top, bot;
-	      if (x_event->xkey.state & ModeMask)
-		bot = XLookupKeysym (&x_event->xkey, 2),
+	    /* If this key contains two distinct keysyms, that is, "shift"
+	       generates a different keysym than the non-shifted key, then
+	       don't apply the shift modifier bit: it's implicit.  Otherwise,
+	       if there would be no other way to tell the difference between
+	       the shifted and unshifted version of this key, apply the shift
+	       bit.  Non-graphics, like Backspace and F1 get the shift bit in
+	       the modifiers slot.  Neither the characters "a", "A", "2",
+	       nor "@" normally have the shift bit set.  However, "F1"
+	       normally does.
+	       */
+	    if (modifiers & MOD_SHIFT)
+	      {
+		KeySym top, bot;
+		if (x_event->xkey.state & ModeMask)
+		  bot = XLookupKeysym (&x_event->xkey, 2),
 		top = XLookupKeysym (&x_event->xkey, 3);
-	      else
-		bot = XLookupKeysym (&x_event->xkey, 0),
+		else
+		  bot = XLookupKeysym (&x_event->xkey, 0),
 		top = XLookupKeysym (&x_event->xkey, 1);
-	      if (top && bot && top != bot)
-		modifiers &= ~MOD_SHIFT;
-	    }
-	  emacs_event->event_type	   = key_press_event;
-	  emacs_event->timestamp	   = x_event->xkey.time;
-	  emacs_event->event.key.modifiers = modifiers;
-	  emacs_event->event.key.key       = keysym;
+		if (top && bot && top != bot)
+		  modifiers &= ~MOD_SHIFT;
+	      }
+	    emacs_event->event_type	   = key_press_event;
+	    emacs_event->timestamp	   = x_event->xkey.time;
+	    emacs_event->event.key.modifiers = modifiers;
+	    emacs_event->event.key.key       = keysym;
+	    break;
+	  }
+	case ButtonPress:
+	case ButtonRelease:
+	  {
+	    struct screen *screen = x_window_to_screen (x_event->xbutton.window);
+	    if (! screen)
+	      goto MAGIC;	/* not for us */
+	    XSETR (emacs_event->channel, Lisp_Screen, screen);
+	  }
+
+	  if (x_event->type == ButtonPress)
+	    emacs_event->event_type    = button_press_event;
+	  else emacs_event->event_type = button_release_event;
+	  emacs_event->timestamp		    = x_event->xbutton.time;
+	  emacs_event->event.button.modifiers = modifiers;
+	  emacs_event->event.button.button    = x_event->xbutton.button;
+	  emacs_event->event.button.x         = x_event->xbutton.x;
+	  emacs_event->event.button.y         = x_event->xbutton.y;
 	  break;
 	}
-      case ButtonPress:
-      case ButtonRelease:
-	{
-	  struct screen *screen = x_window_to_screen (x_event->xbutton.window);
-	  if (! screen)
-	    goto MAGIC; /* not for us */
-	  XSET (emacs_event->channel, Lisp_Screen, screen);
-	}
-
-	if (x_event->type == ButtonPress)
-	  emacs_event->event_type    = button_press_event;
-	else emacs_event->event_type = button_release_event;
-	emacs_event->timestamp		    = x_event->xbutton.time;
-	emacs_event->event.button.modifiers = modifiers;
-	emacs_event->event.button.button    = x_event->xbutton.button;
-	emacs_event->event.button.x         = x_event->xbutton.x;
-	emacs_event->event.button.y         = x_event->xbutton.y;
-	break;
-      }
     }
     break;
 
@@ -690,7 +683,7 @@ x_event_to_emacs_event (x_event, emacs_event)
 
       mouse_timestamp = x_event->xmotion.time;
 
-      XSET (emacs_event->channel, Lisp_Screen, screen);
+      XSETR (emacs_event->channel, Lisp_Screen, screen);
       emacs_event->event_type	  = pointer_motion_event;
       emacs_event->timestamp	  = x_event->xmotion.time;
       emacs_event->event.motion.x = x_event->xmotion.x;
@@ -708,12 +701,11 @@ x_event_to_emacs_event (x_event, emacs_event)
 	x_event->xclient.data.l[1] = last_server_timestamp;
       }
     goto MAGIC;
-    break;
 
   default:
   MAGIC:
     emacs_event->event_type = magic_event;
-    emacs_event->channel = make_number ((Lisp_Object) display); /* #### */
+    emacs_event->channel = make_number ((int) display); /* #### */
     memcpy ((char *) &emacs_event->event.magic.underlying_event,
 	    (char *) x_event,
 	    sizeof (XEvent));
@@ -721,11 +713,6 @@ x_event_to_emacs_event (x_event, emacs_event)
   }
 }
 
-
-extern void x_handle_selection_clear (XSelectionClearEvent *);
-extern void x_handle_selection_request (XSelectionRequestEvent *);
-extern void x_handle_property_notify (XPropertyEvent *);
-extern void x_handle_selection_notify (XSelectionEvent *);
 
 static void
 emacs_Xt_handle_magic_event (emacs_event)
@@ -773,17 +760,17 @@ emacs_Xt_handle_magic_event (emacs_event)
   case Expose:
     if (! (s = x_window_to_screen (event->xexpose.window)))
       goto OTHER;
-    repaint_lines (s, event->xexpose.x, event->xexpose.y,
-		   event->xexpose.width, event->xexpose.height);
+    Cdumprectangle (event->xexpose.y, event->xexpose.x,
+		    event->xexpose.height, event->xexpose.width, s);
     break;
 
   case GraphicsExpose:	/* This occurs when an XCopyArea's source area was
 			   obscured or not available. */
     if (! (s = x_window_to_screen (event->xexpose.window)))
       goto OTHER;
-    repaint_lines (s, event->xgraphicsexpose.x, event->xgraphicsexpose.y,
-		   event->xgraphicsexpose.width,
-		   event->xgraphicsexpose.height);
+    Cdumprectangle (event->xgraphicsexpose.y, event->xgraphicsexpose.x,
+		    event->xgraphicsexpose.height, event->xgraphicsexpose.width,
+		    s);
     break;
 
   case MapNotify:
@@ -793,11 +780,10 @@ emacs_Xt_handle_magic_event (emacs_event)
       Lisp_Object event = Fallocate_event ();
       XEVENT (event)->event_type = eval_event;
       XEVENT (event)->event.eval.function = Qx_MapNotify_internal;
-      XSET (XEVENT (event)->event.eval.object, Lisp_Screen, s);
+      XSETR (XEVENT (event)->event.eval.object, Lisp_Screen, s);
       enqueue_command_event (event);
     }
     goto OTHER;
-    break;
 
   case UnmapNotify:
     if (! (s = x_any_window_to_screen (event->xunmap.window)))
@@ -806,11 +792,10 @@ emacs_Xt_handle_magic_event (emacs_event)
       Lisp_Object event = Fallocate_event ();
       XEVENT (event)->event_type = eval_event;
       XEVENT (event)->event.eval.function = Qx_UnmapNotify_internal;
-      XSET (XEVENT (event)->event.eval.object, Lisp_Screen, s);
+      XSETR (XEVENT (event)->event.eval.object, Lisp_Screen, s);
       enqueue_command_event (event);
     }
     goto OTHER;
-    break;
     
   case EnterNotify:
     {
@@ -821,12 +806,11 @@ emacs_Xt_handle_magic_event (emacs_event)
 	  Lisp_Object event = Fallocate_event ();
 	  XEVENT (event)->event_type = eval_event;
 	  XEVENT (event)->event.eval.function = Qx_EnterNotify_internal;
-	  XSET (XEVENT (event)->event.eval.object, Lisp_Screen, s);
+	  XSETR (XEVENT (event)->event.eval.object, Lisp_Screen, s);
 	  enqueue_command_event (event);
 	}
       goto OTHER;
     }
-    break;
 
   case LeaveNotify:
     {
@@ -837,12 +821,11 @@ emacs_Xt_handle_magic_event (emacs_event)
 	  Lisp_Object event = Fallocate_event ();
 	  XEVENT (event)->event_type = eval_event;
 	  XEVENT (event)->event.eval.function = Qx_LeaveNotify_internal;
-	  XSET (XEVENT (event)->event.eval.object, Lisp_Screen, s);
+	  XSETR (XEVENT (event)->event.eval.object, Lisp_Screen, s);
 	  enqueue_command_event (event);
 	}
       goto OTHER;
     }
-    break;
 
 #if 0
     /*
@@ -883,7 +866,7 @@ emacs_Xt_handle_magic_event (emacs_event)
 	Lisp_Object next;
 	Lisp_Object event = Fallocate_event ();
 
-	XSET (scr, Lisp_Screen, s);
+	XSETR (scr, Lisp_Screen, s);
 	next = next_screen (scr, 0, 0);
 	/* WM_DELETE_WINDOW is a menu event, but other ClientMessages, such
 	   as WM_TAKE_FOCUS, are eval events.  That's because delete-window
@@ -897,13 +880,12 @@ emacs_Xt_handle_magic_event (emacs_event)
 	XEVENT (event)->event_type = menu_event;
 	if (EQ (next, scr) || EQ (scr, Vglobal_minibuffer_screen))
 	  {
-	    XEVENT (event)->event.eval.function =
-	      intern ("save-buffers-kill-emacs");
+	    XEVENT (event)->event.eval.function = Qsave_buffers_kill_emacs;
 	    XEVENT (event)->event.eval.object = Qnil;
 	  }
 	else
 	  {
-	    XEVENT (event)->event.eval.function = intern ("delete-screen");
+	    XEVENT (event)->event.eval.function = Qdelete_screen;
 	    XEVENT (event)->event.eval.object = scr;
 	  }
 	enqueue_command_event (event);
@@ -956,7 +938,7 @@ emacs_Xt_handle_magic_event (emacs_event)
     {
       Lisp_Object e = Fallocate_event ();
       Lisp_Object screen;
-      XSET (screen, Lisp_Screen, s);
+      XSETR (screen, Lisp_Screen, s);
       XEVENT (e)->event_type = eval_event;
       if (event->xvisibility.state == VisibilityUnobscured)
 	XEVENT (e)->event.eval.function = Qx_VisibilityNotify_internal;
@@ -966,7 +948,6 @@ emacs_Xt_handle_magic_event (emacs_event)
       enqueue_command_event (e);
     }
     goto OTHER;
-    break;
 
   default:
   OTHER:
@@ -1034,14 +1015,18 @@ emacs_Xt_focus_event_handler (x_event, s)
   if (! s)
     if (! (s = x_any_window_to_screen (x_event->xfocus.window)))
       abort ();
-  XSET (XEVENT (event)->event.eval.object, Lisp_Screen, s);
+  XSETR (XEVENT (event)->event.eval.object, Lisp_Screen, s);
   enqueue_command_event (event);
 }
 
 
 
 
-extern char *x_event_name (int);
+#if 1 /* include describe_event definition */
+#include <X11/IntrinsicP.h>	/* only describe_event() needs this */
+#include <X11/Xproto.h>		/* only describe_event() needs this */
+
+extern char *x_event_name (int event_type);
 
 static void
 describe_event_window (window)
@@ -1050,17 +1035,17 @@ describe_event_window (window)
   struct screen *s;
   Widget w;
   printf ("   window: 0x%x", (int) window);
-  if (w = XtWindowToWidget (x_current_display, window))
+  w = XtWindowToWidget (x_current_display, window);
+  if (w)
     printf (" %s", w->core.widget_class->core_class.class_name);
-  if (s = x_any_window_to_screen (window))
+  s = x_any_window_to_screen (window);
+  if (s)
     printf (" \"%s\"", XSTRING (s->name)->data);
   printf ("\n");
 }
 
-
-static void
-describe_event (event)
-     XEvent *event;
+void
+describe_event (XEvent *event)
 {
   printf ("%s\n", x_event_name (event->xany.type));
   switch (event->xany.type) {
@@ -1176,18 +1161,20 @@ describe_event (event)
 	printf ("   Modifier key");
       printf ("  keycode: 0x%x\n", event->xkey.keycode);
       keysym = x_to_emacs_keysym (event, 0);
-      if (keysym < 1024)
-	printf ("   keysym: %c\n", keysym);
+      if (FIXNUMP (keysym) && XINT (keysym) > 32 && XINT (keysym) <= 255)
+	printf ("   keysym: %c\n", XINT (keysym));
       else
 	printf ("   keysym: %s\n", XSYMBOL (keysym)->name->data);
     }
     break;
   }
+  fflush (stdout);
 }
+#endif /* include describe_event definition */
 
 
 
-static Bool synthetic_event_present_p ();
+static Bool synthetic_event_present_p (Display *dpy);
 
 static void
 Xt_wake_up (display)
@@ -1213,7 +1200,13 @@ Xt_wake_up (display)
   UNBLOCK_INPUT;
 }
 
-static Bool look_for_synthetic_event ();
+static Bool
+look_for_synthetic_event (Display *display, XEvent *event, XPointer arg)
+{
+  if (event->xany.type == 0)
+    *((Bool *) arg) = True;
+  return False;
+}
 
 static Bool
 synthetic_event_present_p (Display *dpy)
@@ -1222,20 +1215,9 @@ synthetic_event_present_p (Display *dpy)
   XEvent event;
   BLOCK_INPUT;
   XEventsQueued (dpy, QueuedAfterReading);
-  XCheckIfEvent (dpy, &event, &look_for_synthetic_event, (char *) &res);
+  XCheckIfEvent (dpy, &event, look_for_synthetic_event, (char *) &res);
   UNBLOCK_INPUT;
   return res;
-}
-
-static Bool
-look_for_synthetic_event (display, event, arg)
-     Display *display;
-     XEvent *event;
-     XtPointer arg;
-{
-  if (event->xany.type == 0)
-    *((Bool *) arg) = True;
-  return False;
 }
 
 
@@ -1253,7 +1235,7 @@ static struct timeout {
 } *pending_timeouts, *completed_timeouts;
 
 
-static void Xt_timeout_callback ();
+static void Xt_timeout_callback (XtPointer, XtIntervalId *);
 
 static void
 generate_wakeup_internal (id, milliseconds, vanilliseconds, function, object)
@@ -1262,8 +1244,8 @@ generate_wakeup_internal (id, milliseconds, vanilliseconds, function, object)
      Lisp_Object function;
      Lisp_Object object;
 {
-  struct timeout *timeout = (struct timeout *)
-    xmalloc (sizeof (struct timeout));
+  struct timeout *timeout
+    = (struct timeout *) xmalloc (sizeof (struct timeout));
   timeout->id = id;
   timeout->msecs = milliseconds;
   timeout->resignal_msecs = vanilliseconds;
@@ -1273,7 +1255,8 @@ generate_wakeup_internal (id, milliseconds, vanilliseconds, function, object)
   pending_timeouts = timeout;
   BLOCK_INPUT;
   timeout->interval_id =
-    XtAppAddTimeOut (Xt_app_con, milliseconds, Xt_timeout_callback, timeout);
+    XtAppAddTimeOut (Xt_app_con, milliseconds, Xt_timeout_callback,
+		     (XtPointer) timeout);
   UNBLOCK_INPUT;
 }
 
@@ -1290,19 +1273,21 @@ emacs_Xt_generate_wakeup (msec, resignal, function, object)
 }
 
 
+/* called by XtAppNextEvent() */
 static void
-Xt_timeout_callback (timeout)	/* called by XtAppNextEvent() */
-     struct timeout* timeout;
+Xt_timeout_callback (XtPointer closure, XtIntervalId *id)
 {
+  struct timeout *timeout = (struct timeout *) closure;
   struct timeout *t2 = pending_timeouts;
   /* Remove this one from the list of pending timeouts */
   if (t2 == timeout)
     pending_timeouts = pending_timeouts->next;
-  else {
-    while (t2->next && t2->next != timeout) t2 = t2->next;
-    if (! t2->next) abort();
-    t2->next = t2->next->next;
-  }
+  else
+    {
+      while (t2->next && t2->next != timeout) t2 = t2->next;
+      if (! t2->next) abort();
+      t2->next = t2->next->next;
+    }
   /* Add this one to the list of completed timeouts */
   timeout->next = completed_timeouts;
   completed_timeouts = timeout;
@@ -1384,15 +1369,15 @@ void
 mark_process_as_being_ready (process)
      struct Lisp_Process *process;
 {
-  if (NILP (process_fds_with_input [XFASTINT (process->infd)])) {
-    XSET (process_fds_with_input [XFASTINT (process->infd)],
-	  Lisp_Process,
-	  process);
-    /* Don't increment this if the current process is already marked
-       as having input.
-       */
-    process_events_occurred++;
-  }
+  int infd, outfd;
+  get_process_file_descriptors (process, &infd, &outfd);
+  if (NILP (process_fds_with_input[infd]))
+    {
+      XSETR (process_fds_with_input[infd], Lisp_Process, process);
+      /* Don't increment this if the current process is already marked
+       *  as having input. */
+      process_events_occurred++;
+    }
 }
 
 static void
@@ -1410,9 +1395,11 @@ static void
 emacs_Xt_select_process (process)
      struct Lisp_Process *process;
 {
+  int infd, outfd;
   BLOCK_INPUT;
-  process_fds_to_input_ids[XFASTINT (process->infd)] = 
-    XtAppAddInput (Xt_app_con, XFASTINT (process->infd),
+  get_process_file_descriptors (process, &infd, &outfd);
+  process_fds_to_input_ids[infd] = 
+    XtAppAddInput (Xt_app_con, infd,
 		   (XtPointer) (XtInputReadMask /* | XtInputExceptMask */),
 		   Xt_process_callback, (void *) process);
   UNBLOCK_INPUT;
@@ -1423,14 +1410,15 @@ static void
 emacs_Xt_unselect_process (process)
      struct Lisp_Process *process;
 {
-  int fd = XFASTINT (process->infd);
+  int infd, outfd;
   XtInputId id;
-  /* If the infd is 0, it has already been deleted, and Xt will freak
+  get_process_file_descriptors (process, &infd, &outfd);
+  /* If the infd is <= 0, it has already been deleted, and Xt will freak
      because it's calls to select() will fail. */
-  if (! fd) abort ();
-  id = process_fds_to_input_ids [fd];
+  if (infd <= 0) abort ();
+  id = process_fds_to_input_ids [infd];
   if (! id) return;
-  process_fds_to_input_ids [fd] = -1;
+  process_fds_to_input_ids [infd] = -1;
   BLOCK_INPUT;
   XtRemoveInput (id);
   UNBLOCK_INPUT;
@@ -1445,11 +1433,15 @@ Xt_process_to_emacs_event (emacs_event)
   Lisp_Object process;
   if (process_events_occurred <= 0) abort ();
   for (i = 0; i < MAX_PROC_FDS; i++)
-    if (!NILP (process = process_fds_with_input [i])) {
-      process_fds_with_input [i] = Qnil;
-      break;
-    }
-  if (NILP (process) || !process) abort ();
+    {
+      process = process_fds_with_input [i];
+      if (!NILP (process))
+	{
+	  process_fds_with_input [i] = Qnil;
+	  break;
+	}
+      }
+  if (NILP (process) || EQ (process, Qzero)) abort ();
 
   process_events_occurred--;
   emacs_event->event_type = process_event;
@@ -1474,7 +1466,7 @@ emacs_Xt_unselect_tty (file_descriptor)
 
 
 
-static void XtAppNextEvent_non_synthetic ();
+static void XtAppNextEvent_non_synthetic (Display*, XtAppContext, XEvent*);
 
 
 static void
@@ -1515,10 +1507,7 @@ emacs_Xt_next_event (emacs_event)
 
 
 static Bool
-non_synthetic_event_p (display, event, arg)
-     Display *display;
-     XEvent *event;
-     XtPointer arg;
+non_synthetic_event_p (Display *display, XEvent *event, XPointer arg)
 {
   if (event->xany.type)
     return True;
@@ -1526,10 +1515,7 @@ non_synthetic_event_p (display, event, arg)
 }
 
 static void 
-XtAppNextEvent_non_synthetic (dpy, app, x_event)
-     Display *dpy;
-     XtAppContext app;
-     XEvent *x_event;
+XtAppNextEvent_non_synthetic (Display *dpy, XtAppContext app, XEvent *x_event)
 {
   if (! XCheckIfEvent (dpy, x_event, non_synthetic_event_p, 0))
     XtAppNextEvent (app, x_event);
@@ -1540,8 +1526,8 @@ XtAppNextEvent_non_synthetic (dpy, app, x_event)
    character in a timely fashion.
  */
 
-static void x_check_for_interrupt_char ();
-static Bool look_for_key_or_mouse_event ();
+static void x_check_for_interrupt_char (Display *);
+static Bool look_for_key_or_mouse_event (Display *, XEvent *, XPointer);
 
 static int
 emacs_Xt_event_pending_p (user_p)
@@ -1580,7 +1566,7 @@ emacs_Xt_event_pending_p (user_p)
   res = 0;
   BLOCK_INPUT;
   XEventsQueued (display, QueuedAfterReading);
-  XCheckIfEvent (display, &event, &look_for_key_or_mouse_event, (char *) &res);
+  XCheckIfEvent (display, &event, look_for_key_or_mouse_event, (char *) &res);
   UNBLOCK_INPUT;
   return res;
 }
@@ -1594,10 +1580,7 @@ emacs_Xt_event_pending_p (user_p)
    a flag to 1.
  */
 static Bool
-look_for_key_or_mouse_event (display, event, arg)
-     Display *display;
-     XEvent *event;
-     XtPointer arg;
+look_for_key_or_mouse_event (Display *display, XEvent *event, XPointer arg)
 {
   switch (event->xany.type)
     {
@@ -1613,31 +1596,20 @@ look_for_key_or_mouse_event (display, event, arg)
 }
 
 
-#ifdef SIGIO
-static void
-emacs_Xt_event_sigio_handler ()
-{
-  if (x_input_blocked) return;
-  if (!x_current_display) return; /* emacs is in the process of exiting */
-  BLOCK_INPUT;
-  x_check_for_interrupt_char (x_current_display);
-  UNBLOCK_INPUT;
-}
-#endif
-
-
-static Bool interrupt_char_predicate ();
+static Bool interrupt_char_predicate (Display *, XEvent *, XPointer);
 
 /* This scans the X input queue for a KeyPress event that matches the
-   interrupt character, and sets Vquit_flag.
+   interrupt character, and sets Vquit_flag.  This is called from the
+   QUIT macro to determine whether we should quit.
 
-   In a SIGIO world, this function is called from the SIGIO handler.  In
-   a non-SIGIO world, this is called from emacs_Xt_event_pending_p (which
-   is called from input_pending_p.)
+   In a SIGIO world, this won't be caled unless a SIGIO has happened
+   since the last time we checked.
+
+   In a non-SIGIO world, this is called from emacs_Xt_event_pending_p
+   (which is called from input_pending_p.)
  */
 static void
-x_check_for_interrupt_char (display)
-     Display *display;
+x_check_for_interrupt_char (Display *display)
 {
   XEvent event;
   BLOCK_INPUT;
@@ -1659,14 +1631,18 @@ x_check_for_interrupt_char (display)
 }
 
 
+static void
+emacs_Xt_quit_p ()
+{
+  if (x_current_display) /* emacs may be exiting */
+    x_check_for_interrupt_char (x_current_display);
+}
+
 static Bool
-interrupt_char_predicate (display, event, data)
-     Display *display;
-     XEvent *event;
-     char *data;
+interrupt_char_predicate (Display *display, XEvent *event, XPointer data)
 {
   char c;
-  KeySym keysym;
+  Lisp_Object keysym;
   if (event->type != KeyPress) return 0;
   if (! x_any_window_to_screen (event->xany.window)) return 0;
   if (event->xkey.state & (MetaMask | HyperMask | SuperMask | SymbolMask))
@@ -1697,8 +1673,6 @@ interrupt_char_predicate (display, event, data)
 }
 
 
-extern struct event_stream *event_stream;
-
 void
 emacs_Xt_make_event_stream ()
 {
@@ -1710,16 +1684,20 @@ emacs_Xt_make_event_stream ()
     xmalloc (MAX_PROC_FDS * sizeof (Lisp_Object));
   process_fds_to_input_ids = (XtInputId *)
     xmalloc (MAX_PROC_FDS * sizeof (XtInputId));
-  memset (process_fds_to_input_ids, 0, MAX_PROC_FDS * sizeof (XtInputId));
   {
     int i;
-    for (i = 0; i < MAX_PROC_FDS; i++) process_fds_with_input[i] = Qnil;
+    for (i = 0; i < MAX_PROC_FDS; i++)
+    {
+      process_fds_to_input_ids[i] = 0;
+      process_fds_with_input[i] = Qnil;
+    }
   }
   process_events_occurred = 0;
 
-  x_compose_status = (XComposeStatus *) calloc (1, sizeof (XComposeStatus));
+  x_compose_status = (XComposeStatus *) xmalloc (sizeof (XComposeStatus));
+  memset (x_compose_status, 0, sizeof (XComposeStatus));
 
-  event_stream = (struct event_stream *) malloc (sizeof (struct event_stream));
+  event_stream = (struct event_stream *) xmalloc (sizeof (struct event_stream));
   event_stream->event_pending_p 	= emacs_Xt_event_pending_p;
   event_stream->next_event_cb	 	= emacs_Xt_next_event;
   event_stream->handle_magic_event_cb	= emacs_Xt_handle_magic_event;
@@ -1729,7 +1707,5 @@ emacs_Xt_make_event_stream ()
   event_stream->unselect_tty_cb 	= emacs_Xt_unselect_tty;
   event_stream->select_process_cb 	= emacs_Xt_select_process;
   event_stream->unselect_process_cb 	= emacs_Xt_unselect_process;
-#ifdef SIGIO
-  event_stream->sigio_cb		= emacs_Xt_event_sigio_handler;
-#endif
+  event_stream->quit_p_cb		= emacs_Xt_quit_p;
 }

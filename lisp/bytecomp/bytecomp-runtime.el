@@ -2,7 +2,7 @@
 
 ;; Runtime support for the new optimizing byte compiler.  
 ;; By Jamie Zawinski <jwz@lucid.com>.
-;; Last Modified: 12-jun-92.
+;; Last Modified: 16-jun-93.
 ;;
 ;; The code in this file should always be loaded, because it defines things 
 ;; like "defsubst" which should work interpreted as well.  The code in 
@@ -17,7 +17,7 @@
 ;; byte-compile-emacs18-compatibility.
 
 
-;; Copyright (C) 1985, 1986, 1987, 1992 Free Software Foundation, Inc.
+;; Copyright (C) 1985, 1986, 1987, 1992, 1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -101,16 +101,18 @@ They will only be compiled open-coded when byte-compile-optimize is true."
 
 ;; This has a special byte-hunk-handler in bytecomp.el.
 (defmacro defsubst (name arglist &rest body)
-  "Same syntax as defun, but the defined function will always be open-coded,
-so long as byte-compile-optimize is true."
+  "Define an inline function.  The syntax is just like that of `defun'."
+  (or (memq (get name 'byte-optimizer)
+	    '(nil byte-compile-inline-expand))
+      (error "`%s' is a primitive" name))
   (list 'prog1
 	(cons 'defun (cons name (cons arglist body)))
 	(list 'proclaim-inline name)))
 
 (defun make-obsolete (fn new)
-  "Make the byte-compiler warn that FUNCTION is obsolete,
-and NEW should be used instead.  If NEW is a string, then that is the
-`use instead' message."
+  "Make the byte-compiler warn that FUNCTION is obsolete.
+The warning will say that NEW should be used instead.
+If NEW is a string, that is the `use instead' message."
   (interactive "aMake function obsolete: \nxObsoletion replacement: ")
   (let ((handler (get fn 'byte-compile)))
     (if (eq 'byte-compile-obsolete handler)
@@ -134,7 +136,7 @@ and NEW should be used instead.  If NEW is a string, then that is the
 
 (put 'dont-compile 'lisp-indent-hook 0)
 (defmacro dont-compile (&rest body)
-  "Like progn, but the body will always run interpreted (not compiled).
+  "Like `progn', but the body always runs interpreted (not compiled).
 If you think you need this, you're probably making a mistake somewhere."
   (list 'eval (list 'quote (if (cdr body) (cons 'progn body) (car body)))))
 
@@ -146,15 +148,15 @@ If you think you need this, you're probably making a mistake somewhere."
 
 (put 'eval-when-compile 'lisp-indent-hook 0)
 (defmacro eval-when-compile (&rest body)
-  "Like progn, but evaluates the body at compile-time.  The result of the
-body appears to the compiler as a quoted constant."
+  "Like `progn', but evaluates the body at compile time.
+The result of the body appears to the compiler as a quoted constant."
   ;; Not necessary because we have it in b-c-initial-macro-environment
   ;; (list 'quote (eval (cons 'progn body)))
   (cons 'progn body))
 
 (put 'eval-and-compile 'lisp-indent-hook 0)
 (defmacro eval-and-compile (&rest body)
-  "Like progn, but evaluates the body at compile-time as well as at load-time."
+  "Like `progn', but evaluates the body at compile time and at load time."
   ;; Remember, it's magic.
   (cons 'progn body))
 

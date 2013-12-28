@@ -5,7 +5,7 @@ This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -31,6 +31,4 @@ struct passwd {
   char pw_dir[UAF$S_DEFDEV+UAF$S_DEFDIR+1];
   char pw_shell[UAF$S_DEFCLI+1];
 };
-#else
-#include "/usr/include/pwd.h"
 #endif /* VMS */

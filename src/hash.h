@@ -1,21 +1,23 @@
 #ifndef _HASH_H_
 #define _HASH_H_
 
-typedef struct{
- void*	key;
- void*	contents;
+typedef struct
+{
+  const void *key;
+  void	     *contents;
 } hentry;
 
-struct _C_hashtable{
- hentry*	harray;
- int zero_set;
- void *zero_entry;
- unsigned int	size; /* size of the hasharray */
- unsigned int	fullness; /* number of entries in the hashtable */
- unsigned long (*hash_function)();
- int (*test_function)();
+struct _C_hashtable
+{
+  hentry	*harray;
+  int		zero_set;
+  void		*zero_entry;
+  unsigned int	size;		/* size of the hasharray */
+  unsigned int	fullness;	/* number of entries in the hashtable */
+  unsigned long (*hash_function) (const void *);
+  int		(*test_function) (const void *, const void *);
 #ifdef emacs
- void *elisp_table;
+  Lisp_Object elisp_table;
 #endif
 };
 
@@ -26,10 +28,10 @@ typedef struct _C_hashtable *c_hashtable;
 extern c_hashtable make_hashtable (unsigned int size);
 
 extern c_hashtable make_general_hashtable 
-  (unsigned int hsize, unsigned long (*hash_function)(), 
-      int (*test_function)());
+  (unsigned int hsize, unsigned long (*hash_function) (const void *),
+   int (*test_function)(const void *, const void *));
 
-extern c_hashtable make_strings_hashtable ( /* unsigned int hsize */ );
+extern c_hashtable make_strings_hashtable (unsigned int hsize);
 
 /* clears the hash table. A freshly created hashtable is already cleared up */
 extern void clrhash (c_hashtable hash);
@@ -38,27 +40,27 @@ extern void clrhash (c_hashtable hash);
 extern void free_hashtable (c_hashtable hash);
 
 /* returns a hentry whose key is 0 if the entry does not exist in hashtable */
-extern void* gethash (void* key, c_hashtable hash, void** ret_value);
+extern const void* gethash (const void* key, c_hashtable hash, 
+                            const void** ret_value);
 
 /* key should be different from 0 */
-extern void puthash (void* key, void* cont, c_hashtable hash);
+extern void puthash (const void* key, void* contents, c_hashtable hash);
 
 /* delete the entry which key is key */
-extern void remhash (void* key, c_hashtable hash);
+extern void remhash (const void* key, c_hashtable hash);
 
-typedef void (*maphash_function) 
-(void* key, void* contents, void* arg);
+typedef void (*maphash_function) (const void* key, void* contents, 
+                                  void* arg);
 
-typedef int (*remhash_predicate) 
-(void* key, void* contents, void* arg);
+typedef int (*remhash_predicate) (const void* key, const void* contents,
+                                  void* arg);
 
-typedef void (*generic_hashtable_op) 
-(c_hashtable table, void *arg1, void *arg2, void *arg3);
+typedef void (*generic_hashtable_op) (c_hashtable table, 
+                                      void *arg1, void *arg2, void *arg3);
 
 /* calls mf with the following arguments:  key, contents, arg; for every 
    entry in the hashtable */
-extern void 
-maphash (maphash_function fn, c_hashtable hash, void* arg);
+extern void maphash (maphash_function fn, c_hashtable hash, void* arg);
 
 /* delete objects from the table which satisfy the predicate */
 extern void 

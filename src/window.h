@@ -1,5 +1,5 @@
 /* Window definitions for GNU Emacs.
-   Copyright (C) 1985-1993 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1992, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -20,11 +20,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #ifndef _EMACS_WINDOW_H_
 #define _EMACS_WINDOW_H_
 
-/* Windows are allocated as if they were vectors, but then the
-Lisp data type is changed to Lisp_Window.  They are garbage
-collected along with the vectors.
-
-All windows in use are arranged into a tree, with pointers up and down.
+/* All windows in use are arranged into a tree, with pointers up and down.
 
 Windows that are leaves of the tree are actually displayed
 and show the contents of buffers.  Windows that are not leaves
@@ -73,10 +69,16 @@ root window at any time, do XWINDOW (minibuf_window)->prev.
 
 struct window
   {
-    /* The first two fields are really the header of a vector */
-    /* The window code does not refer to them.  */
-    int size;
-    struct Lisp_Vector *vec_next;
+    struct lcrecord_header header;
+    /* ####
+     * These fields no longer all have to be Lisp_Objects
+     *  now that the record_header tells the GC to call
+     *  the special mark_window procedure, which can be
+     *  taught about which structure elements are tagged
+     *  and which aren't.
+     * For now I'm leaving them all tagged
+     */
+
     /* The screen this window is on.  */
     Lisp_Object screen;
     /* t if this window is a minibuffer window.  */
@@ -92,12 +94,12 @@ struct window
     /* The window this one is a child of. */
     Lisp_Object parent;
     /* The upper left corner coordinates of this window,
-       as integers relative to upper left corner of screen = 0, 0 */
-    Lisp_Object left;
-    Lisp_Object top;
-    /* The size of the window */
-    Lisp_Object height;
-    Lisp_Object width;
+       as integers (pixels) relative to upper left corner of screen = 0, 0 */
+    int pixleft;
+    int pixtop;
+    /* The size of the window (in pixels) */
+    int pixheight;
+    int pixwidth;
     /* The buffer displayed in this window */
     /* Of the fields vchild, hchild and buffer, only one is non-nil.  */
     Lisp_Object buffer;
@@ -108,23 +110,18 @@ struct window
        This exists so that when multiple windows show one buffer
        each one can have its own value of point.  */
     Lisp_Object pointm;
-    /* Non-nil means next redisplay must use the value of start
-       set up for it in advance.  Set by scrolling commands.  */
-    Lisp_Object force_start;
-    /* Number of columns display within the window is scrolled to the left.  */
+    /* Number of columns display within the window is scrolled to the left. */
     Lisp_Object hscroll;
     /* Number saying how recently window was selected */
     Lisp_Object use_time;
-    /* Unique number of window assigned when it was created */
-    Lisp_Object sequence_number;
-    /* No permanent meaning; used by save-window-excursion's bookkeeping */
-    Lisp_Object temslot;
     /* text.modified of displayed buffer as of last time display completed */
     Lisp_Object last_modified;
     /* Value of point at that time */
     Lisp_Object last_point;
     /* buf.face_change as of last time display completed */
     Lisp_Object last_facechange;
+    /* marker used when restoring a window configuration */
+    int config_mark;
 /* The rest are currently not used or only half used */
     /* Screen coords of point at that time */
     Lisp_Object last_point_x;
@@ -135,34 +132,62 @@ struct window
     Lisp_Object last_mark_y;
     /* Number of characters in buffer past bottom of window,
        as of last redisplay that finished. */
-    Lisp_Object window_end_pos;
+    int window_end_pos;
+    /* Vertical position (relative to window top) of that buffer position
+       of the first of those characters */
+    int window_end_vpos;	/* lines */
+    int window_end_ppos;	/* pixels */
     /* t if window_end_pos is truly valid.
        This is nil if nontrivial redisplay is preempted
        since in that case the screen image that window_end_pos
        did not get onto the screen.  */
-    Lisp_Object window_end_valid;
-    /* Vertical position (relative to window top) of that buffer position
-       of the first of those characters */
-    Lisp_Object window_end_vpos;
+    char window_end_valid;
+    /* Non-nil means next redisplay must use the value of start
+       set up for it in advance.  Set by scrolling commands.  */
+    char force_start;
     /* Non-nil means must regenerate mode line of this window */
-    Lisp_Object redo_mode_line;
+    char redo_mode_line;
     /* Non-nil means current value of `start'
        was the beginning of a line when it was chosen.  */
-    Lisp_Object start_at_line_beg;
+    char start_at_line_beg;
+    /* Has window changed in size since last redisplay? */
+    char size_change;
+
     /* Display-table to use for displaying chars in this window.
        Nil means use the buffer's own display-table.  */
     Lisp_Object display_table;
     /* Non-nil means window is marked as dedicated.  */
     Lisp_Object dedicated;
+
+    /* Display structures for this window. */
+    struct line_header *lines;
+
+    /* Display structure for modeline */
+    struct line_header *modeline;
+
+    /* # of lines in window; only meaningful if window is "full" */
+    int used_height;
   };
 
 #ifdef emacs  /* some things other than emacs want the structs */
+
+extern const struct lrecord_implementation lrecord_window[];
+
+#define XWINDOW(a) ((struct window *) XPNTR(a))
+#define CHECK_WINDOW(x, i) CHECK_RECORD ((x), lrecord_window, Qwindowp, (i))
+#define WINDOWP(x) RECORD_TYPEP ((x), lrecord_window)
 
 /* 1 if W is a minibuffer window.  */
 #define MINI_WINDOW_P(W)  (!EQ ((W)->mini_p, Qnil))
 
 /* Check only window on this screen. */
-#define ONLY_WINDOW_P(w) (NILP (w->parent))
+#define ONLY_WINDOW_P(w) (NILP ((w)->parent))
+
+#define WINDOW_LEFT(w) (XINT ((w)->left))
+#define WINDOW_TOP(w) (XINT ((w)->top))
+#define WINDOW_WIDTH(w) (XINT ((w)->width))
+#define WINDOW_HEIGHT(w) (XINT ((w)->height))
+
 
 /* This is the window in which the terminal's cursor should
    be left when nothing is being done with it.  This must
@@ -191,17 +216,16 @@ extern Lisp_Object Vwindow_system;
 /* Version number of X windows: 10, 11 or nil.  */
 extern Lisp_Object Vwindow_system_version;
 
-/* Prompt to display in front of the minibuffer contents or nil */
+/* Prompt to display in front of the minibuffer contents, or nil */
 extern Lisp_Object Vminibuf_prompt;
+extern int minibuf_prompt_width;
+extern int minibuf_prompt_pix_width;
 
 /* Message to display instead of minibuffer contents 
    This is what the functions error and message make,
    and command echoing uses it as well. It overrides the
-   Vminibuf_prompt as well as the buffer */
+   minibuf_prompt as well as the buffer */
 extern char *echo_area_glyphs;
-
-/* Depth in recursive edits */
-extern int command_loop_level;
 
 /* Depth in minibuffer invocations */
 extern int minibuf_level;
@@ -233,6 +257,15 @@ extern int windows_or_buffers_changed;
 /* Number of windows displaying the selected buffer.
    Normally this is 1, but it can be more.  */
 extern int buffer_shared;
+
+extern void redisplay_preserving_echo_area (void);
+extern void redisplay (void);
+extern Lisp_Object make_window (void);
+
+extern int window_char_left (struct window *);
+extern int window_char_top (struct window *);
+extern int window_char_width (struct window *);
+extern int window_char_height (struct window *);
 
 #endif /* emacs */
 

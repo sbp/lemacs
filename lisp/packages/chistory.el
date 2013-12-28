@@ -1,12 +1,15 @@
-;; chistory -- List command history
+;;; chistory.el --- list command history
+
 ;; Copyright (C) 1985 Free Software Foundation, Inc.
-;; Principal author K. Shane Hartman
+
+;; Author: K. Shane Hartman
+;; Maintainer: FSF
 
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -19,13 +22,21 @@
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
 
-(provide 'chistory)
+;;; Commentary:
 
 ;; This really has nothing to do with list-command-history per se, but
 ;; its a nice alternative to C-x ESC (repeat-complex-command) and
 ;; functions as a lister if given no pattern.  It's not important
 ;; enough to warrant a file of its own.
 
+;;; Code:
+
+(defvar command-history-map nil)
+
+(defvar command-history-hook nil
+  "If non-nil, its value is called on entry to `command-history-mode'.")
+
+;;;###autoload
 (defun repeat-matching-complex-command (&optional pattern)
   "Edit and re-evaluate complex command with name matching PATTERN.
 Matching occurrences are displayed, most recent first, until you
@@ -50,7 +61,7 @@ for editing and the result is evaluated."
 	  (setq what (car history))
 	(setq history (cdr history))))
     (if (not what)
-	(error "Command history exhausted.")
+	(error "Command history exhausted")
       ;; Try to remove any useless command history element for this command.
       (if (eq (car (car command-history)) 'repeat-matching-complex-command)
 	  (setq command-history (cdr command-history)))
@@ -60,7 +71,7 @@ for editing and the result is evaluated."
   '(command-history-mode
     list-command-history
     electric-command-history)
-  "*A list of symbols.  If  default-list-command-history-filter  is
+  "*A list of symbols.  If `default-list-command-history-filter' is
 given a list whose car is an element of this list, then it will return
 non-nil (indicating the list should be discarded from the history).
 Initially, all commands related to the command history are discarded.")
@@ -73,19 +84,20 @@ some element, that element is excluded from the history listing.  The
 default filter removes commands associated with the command-history.")
 
 (defun default-command-history-filter (frob)
-  "Filter commands matching  default-command-history-filter-garbage  list
+  "Filter commands matching `default-command-history-filter-garbage' list
 from the command history."
   (or (not (consp frob))
       (memq (car frob) default-command-history-filter-garbage)))
 
 (defvar list-command-history-max 32
   "*If non-nil, should be a positive number which specifies the maximum
-length of the Command History listing produced by list-command-history.")
+length of the Command History listing produced by `list-command-history'.")
 
+;;;###autoload
 (defun list-command-history ()
   "List history of commands typed to minibuffer.
-The number of commands listed is controlled by  list-command-history-max.
-Calls value of  list-command-history-filter  (if non-nil) on each history
+The number of commands listed is controlled by `list-command-history-max'.
+Calls value of `list-command-history-filter' (if non-nil) on each history
 element to judge if that element should be excluded from the list.
 
 The buffer is left in Command History mode."
@@ -108,7 +120,7 @@ The buffer is left in Command History mode."
       (set-buffer "*Command History*")
       (goto-char (point-min))
       (if (eobp)
-	  (error "No command history.")
+	  (error "No command history")
 	(Command-history-setup)))))
 
 (defun Command-history-setup (&optional majormode modename keymap)
@@ -121,14 +133,11 @@ The buffer is left in Command History mode."
   (setq major-mode (or majormode 'command-history-mode))
   (setq mode-name (or modename "Command History")))
 
-(defvar command-history-hook nil
-  "If non-nil, its value is called on entry to  command-history-mode.")
-
-(defvar command-history-map nil)
 (if command-history-map
     nil
   (setq command-history-map (make-sparse-keymap))
   (set-keymap-parent command-history-map shared-lisp-mode-map)
+  (set-keymap-name command-history-map 'command-history-map)
   (suppress-keymap command-history-map)
   (define-key command-history-map "x" 'command-history-repeat)
   (define-key command-history-map "\n" 'next-line)
@@ -145,24 +154,25 @@ The buffer for that command is the previous current buffer."
 		(beginning-of-line)
 		(read (current-buffer)))
 	    (set-buffer
-	     (cdr (buffer-list)))))))
+	     (car (cdr (buffer-list))))))))
 
+;;;###autoload
 (defun command-history-mode ()
-  "Major mode for examining commands from  command-history.
-The number of commands listed is controlled by  list-command-history-max.
-The command history is filtered by  list-command-history-filter  if non-nil.
-\\<command-history-map>Use \\[command-history-repeat] to repeat the command on the current line.
+  "Major mode for examining commands from `command-history'.
+The number of commands listed is controlled by `list-command-history-max'.
+The command history is filtered by `list-command-history-filter' if non-nil.
+Use \\<command-history-map>\\[command-history-repeat] to repeat the command on the current line.
 
 Otherwise much like Emacs-Lisp Mode except that there is no self-insertion
 and digits provide prefix arguments.  Tab does not indent.
 \\{command-history-map}
-Calls the value of  command-history-hook  if that is non-nil
-The Command History listing is recomputed each time this mode is
-invoked."
+Calls the value of `command-history-hook' if that is non-nil.
+The Command History listing is recomputed each time this mode is invoked."
   (interactive)
   (list-command-history)
   (pop-to-buffer "*Command History*")
   (run-hooks 'command-history-hook))
 
+(provide 'chistory)
 
-      
+;;; chistory.el ends here

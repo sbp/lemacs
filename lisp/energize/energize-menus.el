@@ -120,37 +120,34 @@ functions that invoke them.")
      
  (append edit
 	 '("-----"
+	   ["Set Edit Modes..."	energize-set-edit-modes		t]
 	   ["Search..."		energize-search			t]))
      
- (energize-def-menu "Navigate"
+ (energize-def-menu "Browse"
+   ["editdef"		energize-edit-definition t]
+   ("editdec"		energize-edit-declaration-dbox)
+   "-----"
    ["Next Error"	next-error			t]
    ["Previous Error"	previous-error			t]
-   "-----"
+;   "-----"
    ["visituse"		energize-next-use-start 	t]
    ["nextuse"		energize-next-use-command	t]
    "-----"   
    ("findproject"	energize-find-project)
    ("project"		energize-pop-to-project-buffer)
    ("energize"		energize-pop-to-energize-buffer)
-   ["Shell"		shell				t]
-   )
- 
- (energize-def-menu "Browse"
-   ["editdef"		energize-edit-definition t]
-   ("editdec"		energize-edit-declaration-dbox)
+   ("toolstatus"	energize-browse-toolstat)
+   "-----"
    ("lebrowser"		energize-browse-language-elt)
    ("calltreebrowser"	energize-browse-tree)
    ("classbrowser"	energize-browse-class)
+   ("includers"		energize-where-included)
    "-----"
+   ("showsystemlog"	energize-browse-system-log)
    ("errorbrowser"	energize-browse-error)
    ("clearerrorlog"	energize-clear-error-log)
    "-----"
-   ("includers"		energize-where-included)
-   "-----"
-   ("toolstatus"	energize-browse-toolstat)
-   ("showsystemlog"	energize-browse-system-log)
-   "-----"
-   ["Set Edit Modes..."	energize-set-edit-modes		t]
+   ["Shell"		shell				t]
    )
 
  (energize-def-menu "Debug"
@@ -185,6 +182,7 @@ functions that invoke them.")
    ("buildatarget"	energize-build-a-target)
    ("custombuildatarget"	energize-custom-build-a-target)
    ("purifyatarget"		energize-purify)
+   ("quantifyatarget"		energize-quantify)
    "-----"
    ("defaultcompile"	energize-default-compile-file)
    ("custombuildfile"	energize-custom-build-file)
@@ -203,13 +201,21 @@ functions that invoke them.")
    (energize-def-menu-item "writeprojectlist"	'energize-write-project-list)
    "-----"
    '("addprojectentry"
-     ["addrule"			energize-insert-rule nil]
-     ["addobjectfiletarget"	energize-insert-object-file-target nil]
-     ["addexecutabletarget"	energize-insert-executable-target nil]
-     ["addlibrarytarget"	energize-insert-library-target nil]
-     ["addcollectiontarget"	energize-insert-collection-target nil]
-     ["addfiletarget"		energize-insert-file-target nil]
-     ["addtargettarget"		energize-insert-target-target nil])
+     ["addrule"			energize-insert-rule
+				(eq major-mode 'energize-project-mode)]
+     ["addobjectfiletarget"	energize-insert-object-file-target
+				(eq major-mode 'energize-project-mode)]
+     ["addexecutabletarget"	energize-insert-executable-target
+				(eq major-mode 'energize-project-mode)]
+     ["addlibrarytarget"	energize-insert-library-target
+				(eq major-mode 'energize-project-mode)]
+     ["addcollectiontarget"	energize-insert-collection-target
+				(eq major-mode 'energize-project-mode)]
+     ["addfiletarget"		energize-insert-file-target
+				(eq major-mode 'energize-project-mode)]
+     ["addtargettarget"		energize-insert-target-target
+				(eq major-mode 'energize-project-mode)]
+     )
    (energize-def-menu-item "abbreviatetargets"	'energize-abbreviate-targets)
    (energize-def-menu-item "fulltargets"	'energize-full-targets)
    "-----"
@@ -361,90 +367,47 @@ Otherwise, just runs the normal emacs `manual-entry' command."
 	   (if (consp item) (cdr item) item)))
       (setq items (cdr items)))))
 
-
-
-;;; Sensitization of the project menus
-(defun sensitize-project-menu-hook ()
-  "For use as a value of activate-menubar-hook.
-This function activates the \"add target\" menu items in project buffers"
-  (let* ((project-p (eq major-mode 'energize-project-mode))
-	 (project-menu
-	  (cdr (car (find-menu-item current-menubar '("Project")))))
-	 (target-menu
-	  (cdr (car (find-menu-item project-menu '("addprojectentry")))))
-	 (add-rule (car (find-menu-item target-menu '("addrule"))))
-	 (add-object
-	  (car (find-menu-item target-menu '("addobjectfiletarget"))))
-	 (add-executable
-	  (car (find-menu-item target-menu '("addexecutabletarget"))))
-	 (add-library (car (find-menu-item target-menu '("addlibrarytarget"))))
-	 (add-collection
-	  (car (find-menu-item target-menu '("addcollectiontarget"))))
-	 (add-file-target
-	  (car (find-menu-item target-menu '("addfiletarget"))))
-	 (add-target
-	  (car (find-menu-item target-menu '("addtargettarget"))))
-	 (change-p
-	  (or (and add-rule (not (eq project-p (aref add-rule 2))))
-	      (and add-object (not (eq project-p (aref add-object 2))))
-	      (and add-executable (not (eq project-p (aref add-executable 2))))
-	      (and add-library (not (eq project-p (aref add-library 2))))
-	      (and add-collection (not (eq project-p (aref add-collection 2))))
-	      (and add-file-target
-		   (not (eq project-p (aref add-file-target 2))))
-	      (and add-target (not (eq project-p (aref add-target 2)))))))
-    (if add-rule (aset add-rule 2 project-p))
-    (if add-object (aset add-object 2 project-p))
-    (if add-executable (aset add-executable 2 project-p))
-    (if add-library (aset add-library 2 project-p))
-    (if add-collection (aset add-collection 2 project-p))
-    (if add-target (aset add-target 2 project-p))
-    (if add-file-target (aset add-file-target 2 project-p))
-    ;; return t to mean "no change" and nil to mean "recompute menubar"
-    (not change-p)))
-
-(add-hook 'activate-menubar-hook 'sensitize-project-menu-hook t)
-
- 
 ;;; Popup-menus
 
 (defvar energize-popup-menu)
 
 (defun energize-popup-menu (event)
   (interactive "e")
-  (let* ((buffer (window-buffer (event-window event)))
-	 (extent (if (extentp (event-glyph event))
-		     (event-glyph event)
-		   (energize-menu-extent-at (event-point event) buffer)))
-	 choices)
-    (select-window (event-window event))
-    (if (null extent)
-	(error "No extent with an Energize menu here"))
-    (energize-with-timeout
-     "Asking Energize server for menu contents..."
-     (setq choices
-	   (cdr
-	    (cdr
-	     (energize-list-menu buffer extent
-				 (x-selection-exists-p 'PRIMARY))))))
-    (if (null choices)
-	(error "No Energize menu here"))
-    (force-highlight-extent extent t)
-    (sit-for 0)
-    (setq energize-popup-menu
-	  (cons "energizePopup"
-		(mapcar
-		 (function (lambda (item)
-			     (vector
-			      (aref item 0)
-			      (list 'energize-execute-command
-				    (aref item 0)
-				    extent)
-			      (= 0 (logand 1 (aref item 3)))
-			      (aref item 4))))
-		 choices)))
-    (setq energize-popup-menu (external-editor-hack-popup energize-popup-menu))
-    (popup-menu 'energize-popup-menu)))
+  (if (popup-menu-up-p)
+      ()
+    (let* ((buffer (window-buffer (event-window event)))
+	   (extent (if (extentp (event-glyph event))
+		       (event-glyph event)
+		     (energize-menu-extent-at (event-point event) buffer)))
+	   choices)
+      (select-window (event-window event))
+      (if (null extent)
+	  (error "No extent with an Energize menu here"))
+      (energize-with-timeout
+       "Asking Energize server for menu contents..."
+       (setq choices
+	     (cdr
+	      (cdr
+	       (energize-list-menu buffer extent
+				   (x-selection-exists-p 'PRIMARY))))))
+      (if (null choices)
+	  (error "No Energize menu here"))
+      (force-highlight-extent extent t)
+      (sit-for 0)
+      (setq energize-popup-menu
+	    (cons "energizePopup"
+		  (mapcar
+		   (function (lambda (item)
+			       (vector
+				(aref item 0)
+				(list 'energize-execute-command
+				      (aref item 0)
+				      extent)
+				(= 0 (logand 1 (aref item 3)))
+				(aref item 4))))
+		   choices)))
+      (setq energize-popup-menu (external-editor-hack-popup energize-popup-menu))
+      (popup-menu 'energize-popup-menu))))
 
 
 ;;; Functions to interactively execute menu items by their names.
@@ -509,6 +472,8 @@ This function activates the \"add target\" menu items in project buffers"
   (if (not (stringp name))
       (error "Can't execute a choice, %s, that is not a string" name))
 
+  (or (connected-to-energize-p) (error "Not connected to Energize"))
+
   ;; patch the selection argument for "setbreakpoint"
   (if (and (equal name "setbreakpoint")
 	   (null selection))
@@ -572,7 +537,6 @@ This function activates the \"add target\" menu items in project buffers"
 
 (add-hook 'window-setup-hook 'setup-sparc-function-keys)
 (setup-sparc-function-keys)
-(fset 'energize-announce 'play-sound)
 
 ;;; Buffer modified the first time hook
 ;;; Should be in energize-init.el but is here to benefit from the 
@@ -584,7 +548,7 @@ This function activates the \"add target\" menu items in project buffers"
        "Asking Energize server if buffer is editable..."
        (energize-barf-if-buffer-locked))))
 
-(setq first-change-function 'energize-check-if-buffer-locked)
+(add-hook 'first-change-hook 'energize-check-if-buffer-locked)
 
 
 ;;; Here's a converter that makes emacs understand how to convert to

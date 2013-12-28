@@ -1,12 +1,15 @@
-;;Additions to shell mode for use with kermit, etc.
-;;Feb 1988, Jeff Norden - jeff@colgate.csnet
+;;; kermit.el --- additions to shell mode for use with kermit, etc.
+
 ;; Copyright (C) 1988 Free Software Foundation, Inc.
+
+;; Author: Jeff Norden <jeff@colgate.csnet>
+;; Created: 15 Feb 1988
 
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -18,7 +21,7 @@
 ;; along with GNU Emacs; see the file COPYING.  If not, write to
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
-(require 'shell)
+;;; Commentary
 
 ;; I'm not sure, but I think somebody asked about running kermit under shell
 ;; mode a while ago.  Anyway, here is some code that I find useful.  The result
@@ -69,6 +72,10 @@
 ;; Please let me know if any bugs turn up.
 ;; Feb 1988, Jeff Norden - jeff@colgate.csnet
 
+;;; Code:
+
+(require 'shell)
+
 (defvar kermit-esc-char "\C-\\" "*Kermit's escape char")
 
 (defun kermit-esc ()
@@ -93,7 +100,8 @@
 (defun kermit-send-input-cr ()
   "Like \\[comint-send-input] but end the line with carriage-return."
   (interactive)
-  (comint-send-input "\r"))
+  (comint-send-input)
+  (comint-send-string (get-buffer-process (current-buffer)) "\r"))
 
 ;; This is backwards of what makes sense, but ...
 (define-key shell-mode-map "\n" 'kermit-send-input-cr)
@@ -120,7 +128,7 @@ In this state, use LFD to send a line and end it with a carriage-return."
       (set-buffer (process-buffer proc))
       (goto-char beg)
       (insert-before-markers str)
-      (while (re-search-backware "[\r\C-a]+" beg t)
+      (while (re-search-backward "[\r\C-a]+" beg t)
 	(replace-match "")))))
 
 (defun kermit-clean-on ()
@@ -136,4 +144,4 @@ command `kermit | tr -d '\\015''."
   (interactive)
   (set-process-filter (get-buffer-process (current-buffer)) nil))
 
-
+;;; kermit.el ends here

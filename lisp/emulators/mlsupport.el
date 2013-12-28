@@ -1,11 +1,15 @@
-;; Run-time support for mocklisp code.
+;;; mlsupport.el --- run-time support for mocklisp code.
+
 ;; Copyright (C) 1985 Free Software Foundation, Inc.
+
+;; Maintainer: FSF
+;; Keywords: extensions
 
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -17,8 +21,10 @@
 ;; along with GNU Emacs; see the file COPYING.  If not, write to
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
+;;; Code:
 
-(provide 'mlsupport)
+(or (fboundp 'ml-prefix-argument-loop)
+    (error "emacs was not compiled with #define MOCKLISP_SUPPORT in config.h"))
 
 (defmacro ml-defun (&rest defs)
   (list 'ml-defun-1 (list 'quote defs)))
@@ -29,7 +35,10 @@
     (setq args (cdr args))))
 
 (defmacro declare-buffer-specific (&rest vars)
-  (cons 'progn (mapcar (function (lambda (var) (list 'make-variable-buffer-local (list 'quote var)))) vars)))
+  (cons 'progn
+	(mapcar (function (lambda (var)
+		  (list 'make-variable-buffer-local (list 'quote var)))) 
+		vars)))
 
 (defun ml-set-default (varname value)
   (set-default (intern varname) value))
@@ -37,10 +46,13 @@
 ; Lossage: must make various things default missing args to the prefix arg
 ; Alternatively, must make provide-prefix-argument do something hairy.
 
-(defun >> (val count) (lsh val (- count)))
-(defun novalue () nil)
+(defun >> (val count)
+  (lsh val (- count)))
+(defun novalue ()
+  nil)
 
-(defun ml-not (arg) (if (zerop arg) 1 0))
+(defun ml-not (arg)
+  (if (zerop arg) 1 0))
 
 (defun provide-prefix-arg (arg form)
   (funcall (car form) arg))
@@ -77,7 +89,7 @@
   (fset (intern name) defn))
 
 (defun push-back-character (char)
-  (setq unread-command-event (character-to-event char (allocate-event))))
+  (setq unread-command-event (character-to-event char)))
 
 (defun to-col (column)
   (indent-to column 0))
@@ -95,15 +107,19 @@
   (setq prefix-arg value))
 
 (defun ml-prefix-argument ()
-  (if (null current-prefix-arg) 1
-    (if (listp current-prefix-arg) (car current-prefix-arg)
-      (if (eq current-prefix-arg '-) -1
-	current-prefix-arg))))
+  (cond ((null current-prefix-arg)
+         1)
+        ((listp current-prefix-arg)
+         (car current-prefix-arg))
+        ((eq current-prefix-arg '-)
+         -1)
+	(t
+         current-prefix-arg)))
 
 (defun ml-print (varname)
   (interactive "vPrint variable: ")
   (if (boundp varname)
-    (message "%s => %s" (symbol-name varname) (symbol-value varname))
+      (message "%s => %s" (symbol-name varname) (symbol-value varname))
     (message "%s has no value" (symbol-name varname))))
 
 (defun ml-set (str val) (set (intern str) val))
@@ -124,7 +140,7 @@
   (if (/= (aref pattern 0) ?*)
       (error "Only patterns starting with * supported in auto-execute"))
   (setq auto-mode-alist (cons (cons (concat "\\." (substring pattern 1)
-					    "$")
+					    "\\'")
 				    function)
 			      auto-mode-alist)))
 
@@ -151,10 +167,12 @@
   (delete-char (ml-prefix-argument)))
 
 (defun delete-next-word ()
-  (delete-region (point) (progn (forward-word (ml-prefix-argument)) (point))))
+  (delete-region (point)
+		 (progn (forward-word (ml-prefix-argument)) (point))))
 
 (defun delete-previous-word ()
-  (delete-region (point) (progn (backward-word (ml-prefix-argument)) (point))))
+  (delete-region (point)
+		 (progn (backward-word (ml-prefix-argument)) (point))))
 
 (defun delete-previous-character ()
   (delete-backward-char (ml-prefix-argument)))
@@ -211,10 +229,14 @@
     (symbol-value symbol)))
 
 (defun define-hooked-local-abbrev (name exp hook)
-  (define-local-abbrev name exp (intern hook)))
+  (define-abbrev (or local-abbrev-table
+                     (error "Major mode has no abbrev table"))
+    (downcase name)
+    exp (intern hook)))
 
 (defun define-hooked-global-abbrev (name exp hook)
-  (define-global-abbrev name exp (intern hook)))
+  (define-abbrev global-abbrev-table (downcase name)
+    exp (intern hook)))
 
 (defun case-word-lower ()
   (ml-casify-word 'downcase-region))
@@ -305,15 +327,15 @@
   "Mocklisp compatibility variable; 1 means pass -f when calling csh.")
 
 (defun filter-region (command)
-  (let ((shell (if (/= use-users-shell 0) shell-file-name "/bin/sh"))
-	(csh (equal (file-name-nondirectory shell) "csh")))
+  (let* ((shell (if (/= use-users-shell 0) shell-file-name "/bin/sh"))
+	 (csh (equal (file-name-nondirectory shell) "csh")))
     (call-process-region (point) (mark) shell t t nil
 			 (if (and csh use-csh-option-f) "-cf" "-c")
 			 (concat "exec " command))))
 
 (defun execute-monitor-command (command)
-  (let ((shell (if (/= use-users-shell 0) shell-file-name "/bin/sh"))
-	(csh (equal (file-name-nondirectory shell) "csh")))
+  (let* ((shell (if (/= use-users-shell 0) shell-file-name "/bin/sh"))
+	 (csh (equal (file-name-nondirectory shell) "csh")))
     (call-process shell nil t t
 		  (if (and csh use-csh-option-f) "-cf" "-c")
 		  (concat "exec " command))))
@@ -334,7 +356,7 @@
       (setq count (1+ count)))))
 
 (defun ml-next-page ()
-  (previous-page (- (ml-prefix-argument))))
+  (ml-previous-page (- (ml-prefix-argument))))
 
 (defun page-next-window (&optional arg)
   (let ((count (or arg (ml-prefix-argument))))
@@ -403,3 +425,78 @@
     (if (< from 0) (setq from (+ from length)))
     (if (< to 0) (setq to (+ to length)))
     (substring string from (+ from to))))
+
+
+(defun ml-nargs ()
+  "Number of arguments to currently executing mocklisp function."
+  (if (eq mocklisp-arguments 'interactive)
+      0
+    (length mocklisp-arguments)))
+
+(defun ml-arg (n prompt)
+  "Argument number N to currently executing mocklisp function."
+  (if (eq mocklisp-arguments 'interactive)
+      (read-from-minibuffer prompt)
+    ;; Mocklisp likes to be origin 1
+    (elt mocklisp-arguments (1- n))))
+
+(defun ml-interactive ()
+  "True if currently executing mocklisp function was called interactively."
+  (eq mocklisp-arguments 'interactive))
+
+;; Now in subr.el, because too many loser call it.
+;(defun insert-string (&rest args)
+;  "Mocklisp-compatibility insert function.
+;Like the function `insert' except that any argument that is a number
+;is converted into a string by expressing it in decimal.  (Yuck!!)"
+;  (while args
+;    (let ((arg (car args)))
+;      (if (integerp arg)
+;          (insert (number-to-string arg))
+;	(insert arg))
+;      (setq args (cdr args)))))
+
+
+;;; Lose, please.  None of these should be used in non-automatically-converted
+;;; code, so issue compilation warnings in case someone is using them because
+;;; they don't know any better.
+
+(make-obsolete 'read-no-blanks-input 'read-string)
+(make-obsolete 'declare-buffer-specific 'make-variable-buffer-local)
+(make-obsolete '>> 'lsh)
+(make-obsolete 'novalue 'ignore)
+(make-obsolete 'define-keymap "use (fset 'symbol (make-keymap))")
+(make-obsolete 'local-bind-to-key 'local-set-key)
+(make-obsolete 'bind-to-key 'global-set-key)
+(make-obsolete 'to-col 'indent-to)
+(make-obsolete 'is-bound 'boundp)
+(make-obsolete 'declare-global 'defvar)
+(make-obsolete 'error-occurred 'condition-case)
+(make-obsolete 'set-auto-fill-hook "set variable auto-fill-function instead")
+(make-obsolete 'auto-execute "set variable auto-mode-alist instead")
+(make-obsolete 'move-to-comment-column "use (indent-to comment-column)")
+(make-obsolete 'erase-region 'delete-region)
+(make-obsolete 'delete-region-to-buffer "use copy-to-buffer and delete-region")
+(make-obsolete 'copy-region-to-buffer 'copy-to-buffer)
+(make-obsolete 'append-region-to-buffer 'append-to-buffer)
+(make-obsolete 'prepend-region-to-buffer 'prepend-to-buffer)
+(make-obsolete 'delete-next-character 'delete-char)
+(make-obsolete 'forward-character 'forward-char)
+(make-obsolete 'backward-character 'backward-char)
+(make-obsolete 'delete-to-kill-buffer 'kill-region)
+(make-obsolete 'narrow-region 'narrow-to-region)
+(make-obsolete 'newline-and-backup 'open-line)
+(make-obsolete 'quote-char 'quoted-insert)
+(make-obsolete 'region-to-string 'buffer-substring)
+(make-obsolete 'define-hooked-local-abbrev 'define-abbrev)
+(make-obsolete 'define-hooked-global-abbrev 'define-abbrev)
+(make-obsolete 'filter-region 'call-process-region)
+(make-obsolete 'execute-monitor-command 'call-process)
+(make-obsolete 'use-syntax-table 'set-syntax-table)
+(make-obsolete 'line-to-top-of-window 'recenter)
+(make-obsolete 'insert-string 'insert)
+
+
+(provide 'mlsupport)
+
+;;; mlsupport.el ends here

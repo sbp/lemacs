@@ -1,24 +1,61 @@
+-*- Mode: Text -*-
 
-Note: this version of ILISP has been modified to work with Lucid GNU Emacs.
 
-Version 4.12 of the EMACS to LISP interface ILISP is now available.
-If you have gotten ILISP prior to today, you should get the new
-version. 
+This is version 5.5 of ILISP.  
 
-Major changes from 4.11:
+	The fixes since 5.4 are:
 
---More robust and featureful popper and completer.
+-- Now works with lemacs 19.8 (to be released soon) in addition to all
+   the other versions of emacs around.
 
---Fixed bugs in lucid and CMU CL interfaces.
+Fixes in 5.4:
 
---Includes the new version of completion.el.
+-- Added support for cmulisp 17b.
 
---Lots of little bugs were stomped on.  Including one that caused
-errors when interrupting the inferior LISP.
+-- Fixed definition regexp in ilisp-locate-ilisp.   Thanks to Paul
+   Krause.
 
-INCOMPATIBILITIES:
+-- Hacked popper to make output lines of one line or less get
+   displayed in the message buffer, depending on the variable
+   popper-use-message-buffer. 
 
---None known.
+Fixes in 5.3:
+
+-- Fixes some problems in clisp.lisp
+
+-- Makefile-ilisp now valid for Sun's distributed `make'.
+
+-- Did the right thing regarding autoloads (yes you have to define them
+in your .emacs, and make them autoload "ilisp".)  See ilisp.emacs
+
+-- Put the run-hooks calls at the end of ilisp.el where they should be.
+
+	"Fixes" in version 5.2 of ILISP.  
+
+Cause more problems with autoloads and fixes a missing definition in the
+Makefile-ilisp in 5.1
+
+	"Fixes" in version 5.1:
+
+It removes some correct information concerning autoloads in ilisp.texi
+and ilisp.emacs that was released in 5.0
+
+----------------------------------------------------------------------
+ 
+The major changes from 4.12:
+
+--Now works with emacs-18, fsf emacs-19, and Lucid emacs-19.
+
+--Major file splitting done in an attempt to modularize ILISP.
+
+--Added 'message feature for lisp-no-popper, allows output from ILISP
+to be sent to the message window (instead of via the popper or the
+inferior lisp buffer) if it is one line long.  Useful for small
+arg-lists, etc. Now the default.  
+
+--Made the popper be off by default.  To have the popper on, set
+popper-pop-buffers and popper-buffers-to-skip to t in a
+popper-load-hook. See the sample in popper.el
 
 FEATURES:
 
@@ -72,69 +109,33 @@ through Emacs.
 
 HOW TO GET IT
 
-If you do start using the package, please send mail to ccm@cs.cmu.edu
-so that I can keep a mailing list of users.  Any comments or code are
-also welcome.
+   If you do start using the package, please send mail to
+`ilisp-request@darwin.bu.edu' so that I can keep a mailing list of
+users.
+
+   Please send bugs to `ilisp-bugs@darwin.bu.edu'
+
+   Please send questions or suggestions for discussion to
+`ilisp@darwin.bu.edu'
+
 
 FTP directions
 ==============
 
-You can anonymously ftp the source files from CMU:
+You can anonymously ftp the source files from HALDANE.BU.EDU:
 
-   * Ftp to katmandu.mt.cs.cmu.edu (128.2.250.68)
+   * Ftp to haldane.bu.edu (128.197.54.25)
 
    * login as anonymous, with user@host as password
 
    * `cd pub/ilisp'
 
-Get the files you need:
+   * `binary'
 
-   * `get ilisp.tar.Z' or
+   * `get ilisp.tar.Z'
 
-   * `mget README HISTORY *.el *.lisp *.texi *.info *.dvi *.ps'
-
-Unpack and install:
-
-  1. `uncompress ilisp.tar.Z; tar xf ilisp.tar'
-
-  2. Site information is found in ilisp/ilisp.el
+Or get whatever single files you need.
 
 
-ILISP FILES:
-
-ilisp.emacs     Sample .emacs file.
-
-symlink.el	Package for expanding symbolic links.
-
-completer.el 	Partial completion mechanism for the minibuffer.
-
-completion.el   Completion package from TMC.
-
-popper.el	Standalone module for a shrink-wrapped pop-up window.
-
-epoch-pop.el	Standalone module for pop-up window in epoch.
-
-bridge.el    	Standalone module for process to process communication.
-
-comint.el	COMmand INTerpreter module used by cmushell and ilisp.
-
-comint-ipc.el	Module to allow Emacs to send to a shell and get back results.
-
-ilisp-ext.el    Standalone extensions to lisp mode.
-
-ilisp-src.el    Ilisp source code module.
-
-ilisp-bat.el    Ilisp batch code module.
-
-ilisp.el	Actual code for the Emacs to LISP interface.
-
-ilisp.info      Info node for ILISP.
-
-ilisp.texi      Texinfo file for ILISP manuals.  
-
-ilisp.ps/dvi    Postscript and dvi versions of the manual.
-
-*.lisp		Interface files for specific LISPs.
-
-*.lcd           Package descriptors for the Lisp Code Directory.
-
+Install ilisp.info* into the appropriate emacs-info directory, or
+print out ilisp.ps to read the installation instructions.

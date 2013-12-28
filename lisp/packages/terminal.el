@@ -1,12 +1,12 @@
 ;; Terminal emulator for GNU Emacs.
-;; Copyright (C) 1986, 1987, 1988, 1989 Free Software Foundation, Inc.
+;; Copyright (C) 1986, 1987, 1988, 1989, 1993 Free Software Foundation, Inc.
 ;; Written by Richard Mlynarik, November 1986.
 
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -400,7 +400,7 @@ the terminal emulator."
   "Send the last character typed through the terminal-emulator
 without any interpretation"
   (interactive)
-  (if (eql last-input-char terminal-escape-char)
+  (if (eq last-input-char terminal-escape-char)
       (call-interactively 'te-escape)
     (and terminal-more-processing
 	 (null (cdr te-pending-output))
@@ -514,7 +514,7 @@ move to start of new line, clear to end of line."
   (cond ((not terminal-more-processing))
 	((< (setq te-more-count (1- te-more-count)) 0)
 	 (te-set-more-count t))
-	((eql te-more-count 0)
+	((eq te-more-count 0)
 	 ;; this doesn't return
 	 (te-more-break)))
   (if (eobp)
@@ -609,11 +609,11 @@ move to start of new line, clear to end of line."
 	     (n (min (- (te-get-char) ?\ ) line))
 	     (i 0))
 	(delete-region (- (point-max) (* n (1+ te-width))) (point-max))
-	(if (eql (point) (point-max)) (insert ?\n))
+	(if (eq (point) (point-max)) (insert ?\n))
 	(while (< i n)
 	  (setq i (1+ i))
 	  (insert-char ?\  te-width)
-	  (or (eql i line) (insert ?\n))))))
+	  (or (eq i line) (insert ?\n))))))
   (setq te-more-count -1))
 
 
@@ -631,7 +631,7 @@ move to start of new line, clear to end of line."
 	(while (< i n)
 	  (setq i (1+ i))
 	  (insert-char ?\  te-width)
-	  (or (eql i line) (insert ?\n))))))
+	  (or (eq i line) (insert ?\n))))))
   (setq te-more-count -1))
 
 ;; ^p ^a
@@ -752,7 +752,7 @@ move to start of new line, clear to end of line."
 	      start (car te-pending-output)
 	      string (car (cdr te-pending-output))
 	      char (aref string start))
-	(if (eql (setq start (1+ start)) (length string))
+	(if (eq (setq start (1+ start)) (length string))
 	    (progn (setq te-pending-output
 			   (cons 0 (cdr (cdr te-pending-output)))
 			 start 0
@@ -762,7 +762,7 @@ move to start of new line, clear to end of line."
 	(if (and (> char ?\037) (< char ?\377))
 	    (cond ((eolp)
 		   ;; unread char
-		   (if (eql start 0)
+		   (if (eq start 0)
 		       (setq te-pending-output
 			     (cons 0 (cons (make-string 1 char)
 					   (cdr te-pending-output))))
@@ -781,13 +781,13 @@ move to start of new line, clear to end of line."
 		     (setq char (point)) (end-of-line)
 		     (setq end (min end (+ start (- (point) char))))
 		     (goto-char char)
-		     (if (eql end matchpos) (setq matchpos nil))
+		     (if (eq end matchpos) (setq matchpos nil))
 		     (delete-region (point) (+ (point) (- end start)))
-		     (insert (if (and (eql start 0)
-				      (eql end (length string)))
+		     (insert (if (and (eq start 0)
+				      (eq end (length string)))
 				 string
 			         (substring string start end)))
-		     (if (eql end (length string))
+		     (if (eq end (length string))
 			 (setq te-pending-output
 			       (cons 0 (cdr (cdr te-pending-output))))
 		         (setcar te-pending-output end))
@@ -796,7 +796,7 @@ move to start of new line, clear to end of line."
 	  ;;  function we could trivially emulate different terminals
 	  ;; Who cares in any case?  (Apart from stupid losers using rlogin)
 	  (funcall
-	    (if (eql char ?\^p)
+	    (if (eq char ?\^p)
 	        (or (cdr (assq (te-get-char)
 			       '((?= . te-move-to-position)
 				 (?c . te-clear-rest-of-line)
@@ -847,7 +847,7 @@ move to start of new line, clear to end of line."
       (let ((start (car te-pending-output))
 	    (string (car (cdr te-pending-output))))
 	(prog1 (aref string start)
-	  (if (eql (setq start (1+ start)) (length string))
+	  (if (eq (setq start (1+ start)) (length string))
 	      (setq te-pending-output (cons 0 (cdr (cdr te-pending-output))))
 	      (setcar te-pending-output start))))
     (catch 'char
@@ -856,7 +856,7 @@ move to start of new line, clear to end of line."
 	    (progn
 	      (set-process-filter te-process
 				  (function (lambda (p s)
-                                    (or (eql (length s) 1)
+                                    (or (eq (length s) 1)
                                         (setq te-pending-output (list 1 s)))
                                     (throw 'char (aref s 0)))))
 	      (accept-process-output te-process))
@@ -1060,7 +1060,7 @@ work with `terminfo' we will try to use it."
 				s p)
 			       (prog1 (substring s p (match-end 1))
 				 (setq p (match-end 0))
-				 (if (eql p (length s)) (setq p nil)))
+				 (if (eq p (length s)) (setq p nil)))
 			       (prog1 (substring s p)
 				 (setq p nil)))
 			   l)))

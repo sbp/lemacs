@@ -187,8 +187,7 @@ is created even if the command does not output anything"
 (defun sccs-tree-walk (func &rest optargs)
   "Apply FUNC to each SCCS file under the default directory.
 If present, OPTARGS are also passed."
-  (sccs-shell-command (concat
-		       "find " default-directory " -print | grep 'SCCS/s\\.'"))
+  (sccs-shell-command (concat "/bin/ls -1 " default-directory "SCCS/s.*"))
   (set-buffer "*Shell Command Output*")
   (goto-char (point-min))
   (replace-string "SCCS/s." "")
@@ -576,7 +575,7 @@ the variable sccs-headers-wanted"
 (defun sccs-status (prefix legend)
    "List all files underneath the current directory matching a prefix type."
    (sccs-shell-command
-    (format "find . -print | grep 'SCCS/%s\\.'" prefix))
+    (concat "/bin/ls -1 SCCS/" prefix ".*"))
    (if
        (save-excursion
 	 (set-buffer "*Shell Command Output*")
@@ -641,7 +640,8 @@ omitted or nil, the comparison is done against the most recent version."
   (if (string-equal rel1 "") (setq rel1 nil))
   (if (string-equal rel2 "") (setq rel2 nil))
   (sccs-shell-command (concat
-		       "find " default-directory " -print | grep 'SCCS/s\\.'"))
+		       "/bin/ls -1 " default-directory "SCCS/s.*"
+		       ))
   (set-buffer "*Shell Command Output*")
   (goto-char (point-min))
   (replace-string "SCCS/s." "")
@@ -660,6 +660,7 @@ omitted or nil, the comparison is done against the most recent version."
 	   (save-excursion
 	     (set-buffer sccsbuf)
 	     (set-buffer-modified-p nil)
+
 	     (sccs-vdiff file rel1 rel2)
 	     (if (buffer-modified-p)
 		 (insert "\n"))

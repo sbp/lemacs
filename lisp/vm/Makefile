@@ -3,11 +3,13 @@ EMACS=../../src/xemacs
 
 .SUFFIXES: .elc .el
 
-BINS=   vm-delete.elc vm-digest.elc vm-edit.elc vm-folder.elc vm-group.elc  \
-        vm-license.elc vm-mark.elc vm-message.elc vm-misc.elc vm-motion.elc \
-        vm-page.elc vm-reply.elc vm-save.elc vm-search.elc vm-summary.elc   \
-        vm-undo.elc vm-vars.elc vm-version.elc vm-virtual.elc vm-window.elc \
-        vm-sort.elc vm-lucid.elc
+STD=   vm-delete.elc vm-digest.elc vm-edit.elc vm-folder.elc vm-group.elc  \
+       vm-license.elc vm-mark.elc vm-message.elc vm-misc.elc vm-motion.elc \
+       vm-page.elc vm-reply.elc vm-save.elc vm-search.elc vm-summary.elc   \
+       vm-undo.elc vm-vars.elc vm-version.elc vm-virtual.elc vm-window.elc
+EXTRA= vm-sort.elc vm-lucid.elc
+
+BINS= $(STD) $(EXTRA)
 
 VM:	vm.elc
 
@@ -20,6 +22,6 @@ vm.elc: $(BINS)
 	cat $(BINS) > $@
 
 vm:	vm.texinfo
-	$(EMACS) -batch -q vm.texinfo -f texinfo-format-buffer -f save-buffer
+	$(EMACS) -batch -q vm.texinfo -l texinfmt -f texinfo-format-buffer -f save-buffer
 
 all:	VM vm

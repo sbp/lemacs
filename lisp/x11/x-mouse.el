@@ -1,5 +1,5 @@
 ;; Mouse support for X window system.
-;; Copyright (C) 1985-1993 Free Software Foundation, Inc.
+;; Copyright (C) 1985, 1992, 1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -57,12 +57,25 @@ to the cut buffer"
   "Makes a selection like `mouse-track', but also copies it to the cutbuffer."
   (interactive "e")
   (mouse-track event)
-  (and primary-selection-extent
-       (save-excursion
-	 (set-buffer (extent-buffer primary-selection-extent))
-	 (x-store-cutbuffer
-	  (buffer-substring (extent-start-position primary-selection-extent)
-			    (extent-end-position primary-selection-extent))))))
+  (cond
+   ((null primary-selection-extent)
+    nil)
+   ((consp primary-selection-extent)
+    (save-excursion
+      (set-buffer (extent-buffer (car primary-selection-extent)))
+      (x-store-cutbuffer
+       (mapconcat
+	'identity
+	(extract-rectangle
+	 (extent-start-position (car primary-selection-extent))
+	 (extent-end-position (car (reverse primary-selection-extent))))
+	"\n"))))
+   (t
+    (save-excursion
+      (set-buffer (extent-buffer primary-selection-extent))
+      (x-store-cutbuffer
+       (buffer-substring (extent-start-position primary-selection-extent)
+			 (extent-end-position primary-selection-extent)))))))
 
 
 ;;; Pointer shape.
@@ -99,26 +112,58 @@ will be used.")
 (defvar x-pointer-background-color nil
   "*The background color of the mouse pointer.")
 
+(defvar x-pointer-cache nil)
+(defvar x-pointer-cache-key (make-vector 4 nil))
+
+(defun x-pointer-cache (name fg bg screen)
+  ;; both must be specified, or neither
+  (or (eq (null fg) (null bg))
+      (setq fg (or fg (pixel-name (face-foreground 'default screen)))
+	    bg (or bg (pixel-name (face-background 'default screen)))))
+  (aset x-pointer-cache-key 0 name)
+  (aset x-pointer-cache-key 1 fg)
+  (aset x-pointer-cache-key 2 bg)
+  (aset x-pointer-cache-key 3 screen)
+  (let (pointer)
+    (or (setq pointer (cdr (assoc x-pointer-cache-key x-pointer-cache)))
+	(let (tail)
+	  (setq x-pointer-cache
+		(cons (cons (copy-sequence x-pointer-cache-key)
+			    (make-cursor name fg bg screen))
+		      x-pointer-cache))
+	  (setq pointer (cdr (car x-pointer-cache)))
+	  (if (setq tail (nthcdr 10 x-pointer-cache))
+	      (setcdr tail nil))))
+    pointer))
+
 (defun x-track-pointer (event)
   (let* ((window (event-window event))
-	 (screen (if window (window-screen window) (selected-screen)))
+	 (screen (if window
+		     (window-screen window)
+		   (or (event-screen event)
+		       (selected-screen))))
 	 (buffer (and window (window-buffer window)))
 	 (point (and buffer (event-point event)))
 	 (extent (and point (extent-at point buffer 'highlight)))
+	 (glyph (event-glyph event))
 	 (var (cond ((and extent x-selection-pointer-shape)
 		     'x-selection-pointer-shape)
+		    (glyph 'x-selection-pointer-shape)
 		    (point 'x-pointer-shape)
 		    (buffer
 		     (cond (x-nontext-pointer-shape 'x-nontext-pointer-shape)
 			   (x-pointer-shape 'x-pointer-shape)))
 		    (t (cond (x-mode-pointer-shape 'x-mode-pointer-shape)
 			     (x-nontext-pointer-shape 'x-nontext-pointer-shape)
-			     (x-pointer-shape 'x-pointer-shape))))))
+			     (x-pointer-shape 'x-pointer-shape)))))
+	 pointer)
     (condition-case c
-	(if (symbol-value var)
-	    (x-set-screen-pointer screen (symbol-value var)
-				  x-pointer-foreground-color
-				  x-pointer-background-color))
+	(progn
+	  (setq pointer (x-pointer-cache (symbol-value var)
+					  x-pointer-foreground-color
+					  x-pointer-background-color
+					  screen))
+	  (x-set-screen-pointer screen pointer))
       (error
        (x-track-pointer-damage-control c var)))
     (if extent
@@ -170,7 +215,25 @@ will be used.")
 	   (error "got %S and I don't know why!" c)))
 	(t (signal (car c) (cdr c)))))
 
+
+;;; GC pointer shape
 
+(defun x-set-pointer-for-gc ()
+  (if (null x-gc-pointer-shape)
+      (setq gc-message nil)
+    ;; else
+    (condition-case error
+	(setq gc-message (x-pointer-cache x-gc-pointer-shape
+					  x-pointer-foreground-color
+					  x-pointer-background-color
+					  (selected-screen)))
+      (error
+       (beep)
+       (setq gc-message "Garbage collecting... ERROR setting GC pointer!")))))
+
+(add-hook 'pre-gc-hook 'x-set-pointer-for-gc)
+
+
 (defvar x-pointers-initialized nil)
 
 (defun x-initialize-pointer-shape (screen)

@@ -27,9 +27,17 @@
 
 (defvar vm-menu
   '("View Mail"
-    ["Next Nondeleted Message"		 vm-next-message t]
-    ["Previous Nondeleted Message"	 vm-previous-message t]
-    ("Motion ..."
+    ["Next Nondeleted Message"		vm-next-message t]
+    ["Previous Nondeleted Message"	vm-previous-message t]
+    ["Scroll Message Forward"		vm-scroll-forward t]
+    ["Scroll Message Backward"		vm-scroll-backward t]
+    ["Beginning Of Message"		vm-beginning-of-message t]
+    ["End Of Message"			vm-end-of-message t]
+    "----"
+    ["Display Summary"			vm-summarize t]
+    ["Get New Mail"			vm-get-new-mail t]
+    "----"
+    ("Motion..."
      ["Goto Last Seen Message"		vm-goto-message-last-seen t]
      ["Goto Message"			vm-goto-message	t]
      ["Move Message Backward"		vm-move-message-backward t]
@@ -39,15 +47,6 @@
      ["Previous Message"		vm-Previous-message t]
      ["Previous Unread Message"		vm-previous-unread-message t]
      )
-    "----"
-    ["Scroll Message Forward"		vm-scroll-forward t]
-    ["Scroll Message Backward"		vm-scroll-backward t]
-    ["Beginning Of Message"		vm-beginning-of-message t]
-    ["End Of Message"			vm-end-of-message t]
-    "----"
-    ["Display Summary"			vm-summarize t]
-    ["Get New Mail"			vm-get-new-mail t]
-
     ("Folders..."
      ["Save Message"			vm-save-message t]
      ["Save Message sans Headers"	vm-save-message-sans-headers t]
@@ -61,7 +60,7 @@
      ["Visit Virtual Folder"		vm-visit-virtual-folder t]
      ["Save Buffer"			vm-save-buffer t]
      ["Save Folder"			vm-save-folder t]
-     ["Write File"			vm-write-file t]
+     ["Save Folder As..."		vm-write-file t]
      )
     ("Sending Messages..."
      ["Send Mail"			vm-mail t]
@@ -74,33 +73,41 @@
      ["Retry Bounced Message"		vm-resend-bounced-message t]
      ["Continue Composing Message"	vm-continue-composing-message t]
      )
-    ("Marking Message..."
+    ("Marking Messages..."
      ["Mark Message"			vm-mark-message t]
      ["Unmark Message"			vm-unmark-message t]
-     ["Unmark All Messages"		vm-mark-all-messages t]
-     ["Clear All Marks"			vm-clear-all-marks t]
-     ;;["Next Command Uses Marks"	vm-next-command-uses-marks t]
+     ["Mark All Messages"		vm-mark-all-messages t]
+     ["Unmark All Messages"		vm-clear-all-marks t]
+     ;; this doesn't work from menu items for some reason...
+;     ["Next Command Uses Marks..."	vm-next-command-uses-marks t]
+     ["Next Command Uses Marks..."	vm-next-command-uses-marks nil]
+     )
+    ("Sorting..."
+     ["Sort by Date"			vm-sort-by-date t]
+     ["Sort by Subject"			vm-sort-by-subject t]
+     ["Sort by Author"			vm-sort-by-author t]
+     ["Sort by Author/Recipient"	vm-sort-by-author-dwim t]
+     ["Sort by Size"			vm-sort-by-lines t]
+     ["Group Messages..."		vm-group-messages t]
      )
     ("Digests..."
-     ["Send Digest"			vm-send-digest t]
-     ["Burst Digest"			vm-burst-digest t]
+     ["Send Folder as Digest"		vm-send-digest t]
+     ["Burst Message as Digest"		vm-burst-digest t]
      )
-    ("Window Configurations..."
-     ["Apply Window Configuration"	vm-apply-window-configuration t]
-     ["Delete Window Configuration"	vm-delete-window-configuration t]
-     ["Save Window Configuration"	vm-save-window-configuration t]
-     ["Window Help"			vm-window-help t]
-     )
+;    ("Window Configurations..."
+;     ["Apply Window Configuration"	vm-apply-window-configuration t]
+;     ["Delete Window Configuration"	vm-delete-window-configuration t]
+;     ["Save Window Configuration"	vm-save-window-configuration t]
+;     )
     ("Miscellaneous..."
      ["Edit Message"			vm-edit-message t]
-     ["Group Messages"			vm-group-messages t]
-     ["Expose Hidden Headers"		vm-expose-hidden-headers t]
-     ["Isearch Forward"			vm-isearch-forward t]
-     ["Discard Cached Data"		vm-discard-cached-data t]
-     ["Kill Subject"			vm-kill-subject t]
-     ["Load Rc"				vm-load-rc t]
-     ["Pipe Message To Command"		vm-pipe-message-to-command t]
-     ["Shell Command"			shell-command t]
+     ["Toggle Hidden Headers"		vm-expose-hidden-headers t]
+     ["Isearch Folder..."		vm-isearch-forward t]
+;     ["Discard Cached Data"		vm-discard-cached-data t]
+     ["Kill Subject..."			vm-kill-subject t]
+     ["Reload ~/.vm"			vm-load-rc t]
+     ["Pipe Message To Command..."	vm-pipe-message-to-command t]
+     ["Shell Command..."		shell-command t]
      ["Show Copying Restrictions"	vm-show-copying-restrictions t]
      ["Show No Warranty"		vm-show-no-warranty t]
      ("BBDB"
@@ -117,9 +124,11 @@
 
 (defun vm-menu (e)
   (interactive "e")
-  (mouse-set-point e)
-  (beginning-of-line)
-  (popup-menu vm-menu))
+  (let ((marks-p (eq last-command 'vm-next-command-uses-marks)))
+    (mouse-set-point e)
+    (beginning-of-line)
+    (popup-menu vm-menu)
+    (if marks-p (setq this-command 'vm-next-command-uses-marks))))
 
 (defun vm-mouse-select (e)
   (interactive "e")
@@ -141,7 +150,8 @@
     (setq vm-highlighted-header-regexp "^Subject: "))
 
 (defun vm-highlight-headers (message window)
-  (let ((highlight-headers-regexp vm-highlighted-header-regexp))
+  (let ((highlight-headers-regexp (or vm-highlighted-header-regexp
+				      highlight-headers-regexp)))
     (highlight-headers (marker-position (vm-start-of (car vm-message-pointer)))
 		       (vm-text-end-of (car vm-message-pointer))
 		       t)))
@@ -167,5 +177,46 @@
 (add-hook 'vm-mode-hooks 'vm-install-menubar)
 (add-hook 'vm-summary-mode-hooks 'vm-install-menubar)
 
+
+;;; `vm-mail' versus `mail'...
+
+(require 'sendmail)
+
+(defvar vm-mail-mode-menu	; derived from mail-mode-menu in sendmail.el
+  (let* ((menu (copy-sequence mail-mode-menu))
+	 (rest menu)
+	 item)
+    (while rest
+      (setq item (car rest))
+      (cond ((not (vectorp item)) nil)
+	    ((eq (aref item 1) 'mail-send-and-exit)
+	     (aset (setq item (copy-sequence item)) 1 'vm-mail-send-and-exit))
+	    ((eq (aref item 1) 'mail-send)
+	     (aset (setq item (copy-sequence item)) 1 'vm-mail-send))
+	    ((eq (aref item 1) 'mail-yank-original)
+	     (aset (setq item (copy-sequence item)) 1 'vm-yank-message)
+	     (setcdr rest (cons '["Yank Message (Other Folder)" 
+				  vm-yank-message-other-folder t]
+				(cdr rest))))
+	    )
+      (setcar rest item)
+      (setq rest (cdr rest)))
+    menu))
+
+(or (fboundp 'orig-mail-mode-menu)
+    (fset 'orig-mail-mode-menu (symbol-function 'mail-mode-menu)))
+
+(defun mail-mode-menu (event)
+  "Pop up the mail mode menu, defined by the variable `mail-mode-menu'
+or `vm-mail-mode-menu', as appropriate."
+  (interactive "e")
+  (let ((mail-mode-menu
+	 ;; complete kludge!! VM should use its own version of mail-mode-map!!
+	 (if (where-is-internal 'vm-yank-message-other-folder
+				(current-local-map) t)
+	     vm-mail-mode-menu
+	   mail-mode-menu)))
+    (orig-mail-mode-menu event)))
+      
 
 (provide 'vm-lucid)

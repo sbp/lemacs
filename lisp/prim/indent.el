@@ -1,5 +1,8 @@
-;; Indentation commands for Emacs
-;; Copyright (C) 1985-1993 Free Software Foundation, Inc.
+;;; indent.el --- indentation commands for Emacs
+
+;; Copyright (C) 1985, 1992, 1993 Free Software Foundation, Inc.
+
+;; Maintainer: FSF
 
 ;; This file is part of GNU Emacs.
 
@@ -17,11 +20,16 @@
 ;; along with GNU Emacs; see the file COPYING.  If not, write to
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
+;;; Commentary:
+
+;; Commands for making and changing indentation in text.  These are
+;; described in the Emacs manual.
+
+;;; Code:
 
 ;Now in loaddefs.el
-;(defvar indent-line-function
-;  'indent-to-left-margin
-;  "Function to indent current line.")
+;(defvar indent-line-function 'indent-to-left-margin "\
+;Function to indent current line.")
 
 (defun indent-according-to-mode ()
   "Indent line in proper way for current major mode."
@@ -76,17 +84,18 @@ Called from a program, takes three arguments, START, END and ARG."
 	    (goto-char epos)))))
 
 (defvar indent-region-function nil
-  "Function which is short cut to indent each line in region with TAB.
-A value of nil means really perform TAB on each line.")
+  "Function which is short cut to indent region using indent-according-to-mode.
+A value of nil means really run indent-according-to-mode on each line.")
 
-(defun indent-region (start end arg)
+(defun indent-region (start end column)
   "Indent each nonblank line in the region.
-With no argument, indent each line with TAB.
-\(If there is a fill prefix, make each line start with the fill prefix.)
+With no argument, indent each line using `indent-according-to-mode',
+or use `indent-region-function' to do the whole region if that's non-nil.
+If there is a fill prefix, make each line start with the fill prefix.
 With argument COLUMN, indent each line to that column.
 Called from a program, takes three args: START, END and COLUMN."
   (interactive "r\nP")
-  (if (null arg)
+  (if (null column)
       (if fill-prefix
 	  (save-excursion
 	    (goto-char end)
@@ -95,6 +104,7 @@ Called from a program, takes three args: START, END and COLUMN."
 	    (let ((regexp (regexp-quote fill-prefix)))
 	    (while (< (point) end)
 	      (or (looking-at regexp)
+                  (and (bolp) (eolp))
 		  (insert fill-prefix))
 	      (forward-line 1))))
 	(if indent-region-function
@@ -105,10 +115,11 @@ Called from a program, takes three args: START, END and COLUMN."
 	  (goto-char start)
 	  (or (bolp) (forward-line 1))
 	  (while (< (point) end)
-	    (funcall indent-line-function)
+            (or (and (bolp) (eolp))
+                (funcall indent-line-function))
 	    (forward-line 1))
 	  (move-marker end nil))))
-    (setq arg (prefix-numeric-value arg))
+    (setq column (prefix-numeric-value column))
     (save-excursion
       (goto-char end)
       (setq end (point-marker))
@@ -117,7 +128,7 @@ Called from a program, takes three args: START, END and COLUMN."
       (while (< (point) end)
 	(delete-region (point) (progn (skip-chars-forward " \t") (point)))
 	(or (eolp)
-	(indent-to arg 0))
+	(indent-to column 0))
 	(forward-line 1))
       (move-marker end nil))))
 
@@ -173,10 +184,10 @@ the column point starts at, `tab-to-tab-stop' is done instead."
 the variable `tab-stop-list' is local in that buffer.")
 
 (defun edit-tab-stops ()
-  "Edit the tab stops used by tab-to-tab-stop.
+  "Edit the tab stops used by `tab-to-tab-stop'.
 Creates a buffer *Tab Stops* containing text describing the tab stops.
 A colon indicates a column where there is a tab stop.
-You can add or remove colons and then do C-c C-c to make changes take effect."
+You can add or remove colons and then do \\<edit-tab-stops-map>\\[edit-tab-stops-note-changes] to make changes take effect."
   (interactive)
   (setq edit-tab-stops-buffer (current-buffer))
   (switch-to-buffer (get-buffer-create "*Tab Stops*"))
@@ -241,3 +252,5 @@ Use \\[edit-tab-stops] to edit them interactively."
       (setq tabs (cdr tabs)))
     (if tabs
 	(move-to-column (car tabs) t))))
+
+;;; indent.el ends here

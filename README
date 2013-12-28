@@ -7,13 +7,7 @@ The specific version is in the file lisp/version.el.
  `etc' holds various associated documentation files
     and programs that Emacs runs,
  `info' holds the Info documentation tree.
- `man' holds the source of the Emacs manual.
- `cpp' holds a C preprocessor for use instead of the installed one
-   when the installed one fails to distinguish more than 8 characters
-   in a symbol name.
- `shortnames' holds programs and data files for creating files of #define's
-   used to convert long symbol names to distinct short ones
-   for C compiles that cannot distinguish more than 8 characters.
+ `man' holds the source of the Emacs manual, and various other manuals.
 
 The file INSTALL in this directory says how to bring up
  GNU Emacs on Unix, once you have loaded the entire subtree of this

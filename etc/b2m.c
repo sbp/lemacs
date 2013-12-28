@@ -17,28 +17,34 @@
 
 #include <stdio.h>
 #include <time.h>
+#include <sys/types.h>
 
-#define NO_SHORTNAMES
 #include "../src/config.h"
 
-#ifndef USG
-#include <strings.h>
-#else
+#ifdef USG
 #include <string.h>
+#else
+#include <strings.h>
 #endif
 
-/* Why can't Sun learn to write libraries and include files? */
+/* BSD's strings.h does not declare the type of strtok.  */
 extern char *strtok ();
 
+#ifndef TRUE
 #define TRUE  (1)
+#endif
+#ifndef FALSE
 #define FALSE (0)
+#endif
 
 int header = FALSE, printing;
-long ltoday;
+time_t ltoday;
 char from[256], labels[256], data[256], *p, *today;
 
-main(argc, argv)
-char **argv;
+void
+main (argc, argv)
+     int argc;
+     char **argv;
 {
   ltoday = time(0);
   today = ctime(&ltoday);
@@ -55,8 +61,13 @@ char **argv;
     puts(data);
 
   while (gets(data)) {
+
+#if 0
+    /* What was this for?  Does somebody have something against blank
+       lines?  */
     if (!strcmp(data, ""))
       exit(0);
+#endif
 
     if (!strcmp(data, "*** EOOH ***") && !printing) {
       printing = header = TRUE;
@@ -70,7 +81,8 @@ char **argv;
       p = strtok(data, " ,\r\n\t");
       strcpy(labels, "X-Babyl-Labels: ");
 
-      while (p = strtok(NULL, " ,\r\n\t")) {
+      while ((p = strtok(NULL, " ,\r\n\t")))
+      {
 	strcat(labels, p);
 	strcat(labels, ", ");
       }

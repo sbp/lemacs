@@ -1811,7 +1811,15 @@ and does
 	      ))))))
 
 
-(defvar teco-command-keymap (make-vector 128 'teco-command-self-insert)
+(defvar teco-command-keymap
+  ;; This is what used to be (make-vector 128 'teco-command-self-insert)
+  ;; Oh well
+  (let ((map (make-keymap)) (n 127))
+    (while (>= n 0)
+      (define-key map (if (< n 32) (list 'control (+ n 32)) n)
+	'teco-command-self-insert)
+      (setq n (1- n)))
+    map)
   "Keymap used while reading teco commands.")
 
 (define-key teco-command-keymap "\^g" 'teco-command-ctrl-g)

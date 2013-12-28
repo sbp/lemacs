@@ -1,7 +1,8 @@
 /* Output like sprintf to a buffer of specified size.
    Also takes args differently: pass one pointer to an array of strings
    in addition to the format string which is separate.
-   Copyright (C) 1985, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1992, 1993 Free Software Foundation, Inc.
+   Rewritten by mly to use varargs.h.
 
 This file is part of GNU Emacs.
 
@@ -20,122 +21,238 @@ along with GNU Emacs; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 
+#include "config.h"
+
 #include <stdio.h>
 #include <ctype.h>
+#include <stdarg.h>
 
-extern void error ();
-extern int atoi ();
-extern char *strncpy ();
+#include "lisp.h"
 
-int
-doprnt (buffer, bufsize, format, format_end, nargs, args)
-     char *buffer;
-     register int bufsize;
-     char *format;
-     char *format_end;
-     int nargs;
-     char **args;
+static int
+doprnt_1 (const char *string, int len, int minlen,
+          char **pbufptr, int bufsize)
 {
-  int cnt = 0;			/* Number of arg to gobble next */
-  register char *fmt = format;	/* Pointer into format string */
-  register char *bufptr = buffer; /* Pointer into output buffer.. */
-  char tembuf[512];
-  register int tem;
-  char *string;
-  char fmtcpy[20];
-  int minlen;
+  register char *bufptr = *pbufptr;
 
-  if (format_end == 0)
-    format_end = format + strlen (format);
+  if (len < 0) len = strlen (string);
 
-  bufsize--;
-  while (fmt != format_end && bufsize > 0)	/* Loop until end of format
-						   string or buffer full */
+  if (minlen > 0)
     {
-      if (*fmt == '%')	/* Check for a '%' character */
+      while (minlen > len && bufsize > 0)
 	{
-	  fmt++;
+	  *bufptr++ = ' ';
+	  bufsize--;
+	  minlen--;
+	}
+      minlen = 0;
+    }
+  if (len > bufsize)
+    len = bufsize;
+  memcpy (bufptr, string, len);
+  bufptr += len;
+  bufsize -= len;
+  if (minlen < 0)
+    {
+      minlen = -minlen;
+      while (minlen >= len && bufsize > 0)
+	{
+	  *bufptr++ = ' ';
+	  bufsize--;
+	  minlen--;
+	}
+    }
+  *pbufptr = bufptr;
+  return (bufsize);
+}
+
+
+static int
+emacs_doprnt_1 (char *buffer, int bufsize, 
+		const char *format, int format_length,
+		int nargs, 
+		/*>>> Gag me, gag me, gag me */
+		Lisp_Object *largs, va_list vargs)
+{
+  register const char *fmt = format; /* Pointer into format string */
+  register const char *format_end;
+  char *bufptr = buffer;        /* Pointer into output buffer.. */
+  int cnt = 0;                  /* Argnum counter */
+  /* int size;  --  Field width factor; e.g., %90d */
+
+  if (format_length < 0)
+    format_length = strlen (format);
+  format_end = format + format_length;
+
+  bufsize--;                    /* space for terminating 0 */
+  while (fmt != format_end && bufsize > 0) /* Loop until end of format
+					      string or buffer full */
+    {
+      char ch = *fmt++;
+
+      if (ch != '%')		/* Check for a '%' character */
+	{
+	  *bufptr++ = ch;	/* Just some characters; Copy 'em */
+	  bufsize--;
+	}
+      else
+	{
 	  /* Copy this one %-spec into fmtcopy.  */
-	  string = fmtcpy;
-	  *string++ = '%';
-	  while (1)
+	  char fmtcpy[20];
+	  int flen;
+
+	  fmtcpy[0] = '%';
+	  for (flen = 1; ;)
 	    {
-	      *string++ = *fmt;
-	      if (! (*fmt >= '0' && *fmt <= '9') && *fmt != '-' && *fmt != ' ')
+	      ch = *fmt;
+	      fmtcpy[flen] = ch;
+	      if (fmt == format_end)
+		error ("Invalid format operation %s", fmtcpy);
+	      fmt++; flen++;
+	      if (! (ch >= '0' && ch <= '9')
+		  && ch != '-' && ch != ' ')
 		break;
-	      fmt++;
 	    }
-	  *string = 0;
-	  minlen = 0;
-	  switch (*fmt++)
+	  fmtcpy[flen] = 0;
+
+	  switch (ch)
 	    {
 	    default:
-	      error ("Invalid format operation %%%c", fmt[-1]);
+	      error ("Invalid format operation %%%c", ch);
+	      break;
 
-/*	    case 'b': */
+	      /* case 'b': */
 	    case 'd':
 	    case 'o':
 	    case 'x':
-	      if (cnt == nargs)
-		error ("Format string wants too many arguments");
-	      sprintf (tembuf, fmtcpy, args[cnt++]);
-	      /* Now copy tembuf into final output, truncating as nec.  */
-	      string = tembuf;
-	      goto doit;
+	      {
+		char tembuf[512];
+		int a;
+
+		if (cnt == nargs)
+		  error ("Format string wants too many arguments");
+              
+		if (largs)
+		  a = XINT (largs[cnt]);
+		else
+		  a = va_arg (vargs, int);
+		cnt++;
+
+		sprintf (tembuf, fmtcpy, a);
+		/* Now copy tembuf into final output, truncating as nec.  */
+		bufsize = doprnt_1 (tembuf, strlen (tembuf), 0, &bufptr,
+				    bufsize);
+		break;
+	      }
 
 	    case 'S':
-	      string[-1] = 's';
 	    case 's':
-	      if (cnt == nargs)
-		error ("Format string wants too many arguments");
-	      string = args[cnt++];
-	      if (fmtcpy[1] != 's')
-		minlen = atoi (&fmtcpy[1]);
-	      /* Copy string into final output, truncating if no room.  */
-	    doit:
-	      tem = strlen (string);
-	      if (minlen > 0)
-		{
-		  while (minlen > tem && bufsize > 0)
-		    {
-		      *bufptr++ = ' ';
-		      bufsize--;
-		      minlen--;
-		    }
-		  minlen = 0;
-		}
-	      if (tem > bufsize)
-		tem = bufsize;
-	      strncpy (bufptr, string, tem);
-	      bufptr += tem;
-	      bufsize -= tem;
-	      if (minlen < 0)
-		{
-		  while (minlen < - tem && bufsize > 0)
-		    {
-		      *bufptr++ = ' ';
-		      bufsize--;
-		      minlen++;
-		    }
-		  minlen = 0;
-		}
-	      continue;
+	      {
+		char *string;
+		int string_length;
+		int minlen = 0;
+
+		if (cnt == nargs)
+		  error ("Format string wants too many arguments");
+              
+		if (ch == 'S') fmtcpy[flen - 1] = 's'; /* printf wants this */
+
+		if (largs)
+		  {
+		    Lisp_Object a = largs[cnt];
+		    if (!STRINGP (a))
+		      {
+			/*abort ();*/
+			bufsize = doprnt_1 ("??(not a string)??", -1, 0,
+					    &bufptr, bufsize);
+			goto punt;
+		      }
+		    else
+		      {
+			string = (char *) XSTRING (a)->data;
+			string_length = XSTRING (a)->size;
+		      }
+		  }
+		else
+		  {
+		    string = va_arg (vargs, char *);
+		    string_length = -1;
+		  }
+		cnt++;
+
+		if (fmtcpy[1] != 's')
+		  minlen = atoi (&fmtcpy[1]);
+                
+		/* Copy string into final output, truncating if no room.  */
+		bufsize = doprnt_1 (string, string_length, minlen,
+				    &bufptr, bufsize);
+	      punt:
+		break;
+	      }
 
 	    case 'c':
-	      if (cnt == nargs)
-		error ("Format string wants too many arguments");
-	      *bufptr++ = (int) args[cnt++];
-	      bufsize--;
-	      continue;
+	      {
+		char a;
+
+		if (cnt == nargs)
+		  error ("Format string wants too many arguments");
+
+		if (largs)
+		  a = (char) XINT (largs[cnt]);
+		else
+		  a = va_arg (vargs, int); /* not char -- "the type used in
+					      va_arg is supposed to match the
+					      actual type **after default
+					      promotions**." */
+		cnt++;
+
+		*bufptr++ = a;
+		bufsize--;
+		break;
+	      }
 
 	    case '%':
-	      fmt--;    /* Drop thru and this % will be treated as normal */
+	      {
+		*bufptr++ = '%';
+		bufsize--;
+		break;
+	      }
 	    }
 	}
-      *bufptr++ = *fmt++;	/* Just some characters; Copy 'em */
-      bufsize--;
-    };
+    }
 
-  *bufptr = 0;		/* Make sure our string end with a '\0' */
-  return bufptr - buffer;
+  *bufptr = 0;			/* Make sure our string end with a '\0' */
+  return (bufptr - buffer);
+}
+
+/* You really don't want to know why this is necessary... */
+static int
+emacs_doprnt_2 (char *buffer, int bufsize, 
+		const char *format, int format_length,
+		int nargs, Lisp_Object *largs, ...)
+{
+  va_list vargs;
+  int val;
+  va_start (vargs, largs);
+  val = emacs_doprnt_1 (buffer, bufsize, format, format_length, nargs,
+			largs, vargs);
+  va_end (vargs);
+  return val;
+}
+
+int
+emacs_doprnt (char *buffer, int bufsize, 
+	      const char *format, int format_length,
+	      int nargs, va_list vargs)
+{
+  return emacs_doprnt_1 (buffer, bufsize, format, format_length, nargs,
+			 0, vargs);
+}
+
+int
+emacs_doprnt_lisp (char *buffer, int bufsize, 
+		   const char *format, int format_length,
+		   int nargs, Lisp_Object *largs)
+{
+  return emacs_doprnt_2 (buffer, bufsize, format, format_length, nargs, largs);
 }

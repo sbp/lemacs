@@ -1,5 +1,5 @@
 /* Definitions of marked slots in buffers
-   Copyright (C) 1990, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1990, 1992, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -20,9 +20,13 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* In the declaration of the buffer structure, this file is included
    after defining MARKED_SLOT(x) to be Lisp_Object x; i.e. just a slot
    definition.  In the garbage collector this file is included after
-   defining MARKED_SLOT(x) to be mark_object(&buffer->x). */
+   defining MARKED_SLOT(x) to be mark_object(buffer->x). */
 
-    /* Nuked: buffer number, assigned when buffer made MARKED_SLOT (number);*/
+    /* Active regions in this buffer. */
+    MARKED_SLOT (extents);
+
+    /* the name of this buffer */
+    MARKED_SLOT (name);
 
     /* the name of the file associated with this buffer */
     MARKED_SLOT (filename);
@@ -37,6 +41,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
        up (if you write to its associated file
        and it hasn't been backed up, then a
        backup will be made) */
+    /* #### This isn't really used by the C code, so could be deleted.  */
     MARKED_SLOT (backed_up);
 
     /* Length of file when last read or saved. */
@@ -89,6 +94,11 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
     /* String of length 256 mapping each char to its upper-case version.  */
     MARKED_SLOT (upcase_table);
 
+    /* Translate table for case-folding search.  */
+    MARKED_SLOT (case_canon_table);
+    /* Inverse translate (equivalence class) table for case-folding search. */
+    MARKED_SLOT (case_eqv_table);
+
     /* Non-nil means do not display continuation lines */
     MARKED_SLOT (truncate_lines);
     /* Non-nil means display ctl chars with uparrow */
@@ -96,10 +106,8 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
     /* Non-nil means do selective display;
        See doc string in syms_of_buffer (buffer.c) for details.  */
     MARKED_SLOT (selective_display);
-#ifndef old
     /* Non-nil means show ... at end of line followed by invisible lines.  */
     MARKED_SLOT (selective_display_ellipses);
-#endif
     /* Alist of (FUNCTION . STRING) for each minor mode enabled in buffer. */
     MARKED_SLOT (minor_modes);
     /* t if "self-insertion" should overwrite */
@@ -109,10 +117,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
     /* Display table to use for text in this buffer. */
     MARKED_SLOT (display_table);
-    /* Translate table for case-folding search.  */
-    MARKED_SLOT (case_canon_table);
-    /* Inverse translate (equivalence class) table for case-folding search.  */
-    MARKED_SLOT (case_eqv_table);
 
     /* Changes in the buffer are recorded here for undo.
        t means don't record anything.  */
@@ -127,3 +131,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
        of the current screen */
     MARKED_SLOT (dedicated_screen);
 
+    /* Widths of the annotation margins in characters (em's). */
+    MARKED_SLOT (left_outside_margin_width);
+    MARKED_SLOT (right_outside_margin_width);
+    MARKED_SLOT (use_left_overflow);

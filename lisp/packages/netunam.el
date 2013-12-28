@@ -1,11 +1,15 @@
-;; HP-UX RFA Commands
+;;; netunam.el --- HP-UX RFA Commands
+
 ;; Copyright (C) 1988 Free Software Foundation, Inc.
+
+;; Author: Chris Hanson <cph@zurich.ai.mit.edu>
+;; Keywords: comm
 
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -17,7 +21,11 @@
 ;; along with GNU Emacs; see the file COPYING.  If not, write to
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
-;;; Author: cph@zurich.ai.mit.edu
+;;; Commentary:
+
+;; Use the Remote File Access (RFA) facility of HP-UX from Emacs.
+
+;;; Code:
 
 (defconst rfa-node-directory "/net/"
   "Directory in which RFA network special files are stored.
@@ -148,3 +156,5 @@ NODE is the network node for the remote machine."
   (delete-char -1)
   (setq rfa-password-accumulator
 	(substring rfa-password-accumulator 0 -1)))
+
+;;; netunam.el ends here

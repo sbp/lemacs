@@ -370,16 +370,16 @@ of tex-trailer is appended to the temporary file after the region."
           (set-buffer temp-buffer)
           (erase-buffer)
           ;; make sure trailer isn't hidden by a comment
-          (insert-string "\n")
-          (if local-tex-trailer (insert-string local-tex-trailer))
+          (insert "\n")
+          (if local-tex-trailer (insert local-tex-trailer))
           (set-buffer-directory temp-buffer zap-directory)
           (write-region (point-min) (point-max) tex-out-file t nil))))
     
     (set-buffer-directory "*tex-shell*" zap-directory)
-    (send-string "tex-shell" (concat tex-shell-cd-command " "
-                                     zap-directory "\n"))
-    (send-string "tex-shell" (concat texinfo-tex-command " "
-                                     tex-out-file "\n")))
+    (process-send-string "tex-shell" (concat tex-shell-cd-command " "
+					     zap-directory "\n"))
+    (process-send-string "tex-shell" (concat texinfo-tex-command " "
+					     tex-out-file "\n")))
   (tex-recenter-output-buffer 0))
 
 (defun texinfo-tex-buffer ()
@@ -393,7 +393,7 @@ See \\[texinfo-tex-region] for more information."
 The index files are made by \\[texinfo-tex-region] or \\[texinfo-tex-buffer].
 Runs the shell command defined by texinfo-texindex-command."
   (interactive)
-  (send-string "tex-shell"
+  (process-send-string "tex-shell"
 	       (concat texinfo-texindex-command
                        " " tex-zap-file ".??" "\n"))
   (tex-recenter-output-buffer nil))
@@ -402,7 +402,7 @@ Runs the shell command defined by texinfo-texindex-command."
   "Print .dvi file made by \\[texinfo-tex-region] or \\[texinfo-tex-buffer].
 Runs the shell command defined by tex-dvi-print-command."
   (interactive)
-  (send-string "tex-shell"
+  (process-send-string "tex-shell"
 	       (concat tex-dvi-print-command
                        " " tex-zap-file ".dvi" "\n"))
   (tex-recenter-output-buffer nil))

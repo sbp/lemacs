@@ -1,5 +1,5 @@
 /* GNU Emacs case conversion functions.
-   Copyright (C) 1985, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1992, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -21,6 +21,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "config.h"
 #include "lisp.h"
 #include "buffer.h"
+#include "insdel.h"
 #include "commands.h"
 #include "syntax.h"
 
@@ -33,6 +34,7 @@ casify_object (flag, obj)
 {
   register int i, c, len;
   register int inword = flag == CASE_DOWN;
+  Lisp_Object syntax_table = current_buffer->syntax_table;
 
   while (1)
     {
@@ -42,9 +44,9 @@ casify_object (flag, obj)
 	  if (c >= 0 && c <= 0400)
 	    {
 	      if (inword)
-		XFASTINT (obj) = DOWNCASE (c);
+		obj = make_number (DOWNCASE (c));
 	      else if (!UPPERCASEP (c))
-		XFASTINT (obj) = UPCASE1 (c);
+		obj = make_number (UPCASE1 (c));
 	    }
 	  return obj;
 	}
@@ -61,7 +63,7 @@ casify_object (flag, obj)
 		c = UPCASE1 (c);
 	      XSTRING (obj)->data[i] = c;
 	      if (flag == CASE_CAPITALIZE)
-		inword = SYNTAX (c) == Sword;
+		inword = SYNTAX (syntax_table, c) == Sword;
 	    }
 	  return obj;
 	}
@@ -101,8 +103,6 @@ The argument object is not altered.")
   return casify_object (CASE_CAPITALIZE, obj);
 }
 
-extern void signal_after_change (int, int, int);
-
 /* flag is CASE_UP, CASE_DOWN or CASE_CAPITALIZE or CASE_CAPITALIZE_UP.
    b and e specify range of buffer to operate on. */
 
@@ -114,18 +114,20 @@ casify_region (flag, b, e)
   register int i;
   register int c;
   register int inword = flag == CASE_DOWN;
+  Lisp_Object syntax_table = current_buffer->syntax_table;
 
   if (EQ (b, e))
     /* Not modifying because nothing marked */
     return;
 
   validate_region (&b, &e);
-  modify_region (XFASTINT (b), XFASTINT (e));
-  record_change (XFASTINT (b), XFASTINT (e) - XFASTINT (b));
+  modify_region (current_buffer, XINT (b), XINT (e));
+  record_change (XINT (b), XINT (e) - XINT (b));
+  MODIFF++;
 
-  for (i = XFASTINT (b); i < XFASTINT (e); i++)
+  for (i = XINT (b); i < XINT (e); i++)
     {
-      c = CHAR_AT (i);
+      c = FETCH_CHAR (i);
       if (inword && flag != CASE_CAPITALIZE_UP)
 	c = DOWNCASE (c);
       else if (!UPPERCASEP (c)
@@ -133,12 +135,12 @@ casify_region (flag, b, e)
 	c = UPCASE1 (c);
       *(CHAR_ADDRESS (i)) = c;
       if ((int) flag >= (int) CASE_CAPITALIZE)
-	inword = SYNTAX (c) == Sword;
+	inword = SYNTAX (syntax_table, c) == Sword;
     }
 
-  signal_after_change (XFASTINT (b),
-		       XFASTINT (e) - XFASTINT (b), 
-		       XFASTINT (e) - XFASTINT (b));
+  signal_after_change (XINT (b),
+		       XINT (e) - XINT (b), 
+		       XINT (e) - XINT (b));
 }
 
 DEFUN ("upcase-region", Fupcase_region, Supcase_region, 2, 2, "r",
@@ -193,19 +195,16 @@ static Lisp_Object
 operate_on_word (arg)
      Lisp_Object arg;
 {
-  Lisp_Object val, end;
-  int farend;
+  int end, farend;
 
   CHECK_FIXNUM (arg, 0);
   farend = scan_words (point, XINT (arg));
   if (!farend)
     farend = XINT (arg) > 0 ? ZV : BEGV;
 
-  end = point > farend ? point : farend;
+  end = ((point > farend) ? point : farend);
   SET_PT (end);
-  XFASTINT (val) = farend;
-
-  return val;
+  return (make_number (farend));
 }
 
 DEFUN ("upcase-word", Fupcase_word, Supcase_word, 1, 1, "p",
@@ -217,7 +216,7 @@ See also `capitalize-word'.")
 {
   Lisp_Object opoint;
 
-  XFASTINT (opoint) = point;
+  opoint = make_number (point);
   casify_region (CASE_UP, opoint, operate_on_word (arg));
   return Qnil;
 }
@@ -229,7 +228,7 @@ With negative argument, convert previous words but do not move.")
      Lisp_Object arg;
 {
   Lisp_Object opoint;
-  XFASTINT (opoint) = point;
+  opoint = make_number (point);
   casify_region (CASE_DOWN, opoint, operate_on_word (arg));
   return Qnil;
 }
@@ -243,7 +242,7 @@ With negative argument, capitalize previous words but do not move.")
      Lisp_Object arg;
 {
   Lisp_Object opoint;
-  XFASTINT (opoint) = point;
+  opoint = make_number (point);
   casify_region (CASE_CAPITALIZE, opoint, operate_on_word (arg));
   return Qnil;
 }

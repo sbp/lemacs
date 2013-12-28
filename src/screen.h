@@ -23,20 +23,17 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #ifdef MULTI_SCREEN
 
 enum output_method
-{ output_termcap, output_x_window };
+{ 
+  output_dead_screen,
+  output_termcap,
+  output_x_window
+};
 
 #include "dispextern.h"
 
 struct screen
 {
-  int size;
-  struct Lisp_Vector *next;
-
-  /* glyphs as they appear on the screen */
-  struct screen_glyphs *current_glyphs;
-
-  /* glyphs we'd like to appear on the screen */
-  struct screen_glyphs *desired_glyphs;
+  struct lcrecord_header header;
 
   /* Cost of inserting 1 line on this screen */
   int *insert_line_cost;
@@ -49,9 +46,6 @@ struct screen
 
   /* Cost of deleting n lines on this screen */
   int *delete_n_lines_cost;
-
-  /* glyphs for the mode line */
-  struct screen_glyphs *temp_glyphs;
 
   /* Intended cursor position of this screen.
      Measured in characters, counting from upper left corner
@@ -114,7 +108,7 @@ struct screen
   /* A structure of auxiliary data used for displaying the contents.
      struct x_display is used for X window screens;
      it is defined in xterm.h.  */
-  union display { struct x_display *x; int nothing; } display;
+  union display { struct x_display *x; } display;
 
   /* Nonzero if last attempt at redisplay on this screen was preempted.  */
   char display_preempted;
@@ -142,6 +136,7 @@ struct screen
 
   /* Storage for messages to this screen. */
   char *message_buf;
+  int message_buf_size;
 
   /* list of faces */
   struct face**	faces;
@@ -149,20 +144,64 @@ struct screen
 
   /* the lisp data (shadowing the C data) */
   Lisp_Object face_alist;
+
+  /* Fast access to current cursor position */
+  struct window *cur_w;
+  struct line_header *cur_line; 
+  struct char_block *cur_char;
+    
+  /* Fast access to new cursor position */
+  struct window *new_cur_w;
+  struct line_header *new_cur_line;
+  struct char_block *new_cur_char;
+
+  char replot_lines;
+  int size_change_pending;
+
+  int update;
 };
 
-typedef struct screen *SCREEN_PTR;
+extern const struct lrecord_implementation lrecord_screen[];
 
 #ifdef emacs
 
+#define CHECK_SCREEN(x, i) CHECK_RECORD ((x), lrecord_screen, Qscreenp, (i))
+#define CHECK_LIVE_SCREEN(x, i) \
+  { if (!RECORD_TYPEP((x), lrecord_screen) \
+        || ! SCREEN_LIVE_P (XSCREEN (x))) \
+      x = wrong_type_argument (Qlive_screen_p, (x)); } 
+#define SCREENP(x) RECORD_TYPEP ((x), lrecord_screen)
 #define XSCREEN(p) ((struct screen *) XPNTR (p))
-#define XSETSCREEN(p, v) ((struct screen *) XSETPNTR (p, v))
 
+typedef struct screen *SCREEN_PTR;
+extern Lisp_Object Qscreenp, Qlive_screen_p;
+
+extern int screen_changed;
+ 
+#define PIXW(s) (\
+                 SCREEN_IS_X((s)) ?\
+                 (s)->display.x->pixel_width - 2*INT_BORDER(s)\
+                 : (s)->width)
+ 
+#define PIXH(s) (\
+                 SCREEN_IS_X((s)) ?\
+                 (s)->display.x->pixel_height - 2*INT_BORDER(s)\
+                 : (s)->height)
+ 
+#define INT_BORDER(s) (\
+                      SCREEN_IS_X((s)) ?\
+                      (s)->display.x->internal_border_width\
+                      : 0)
+ 
 #define WINDOW_SCREEN(w) (w)->screen
 
 #define SET_SCREEN_GARBAGED(s) (screen_garbaged = 1, s->garbaged = 1)
+#define SCREEN_LIVE_P(s) ((s)->output_method != output_dead_screen)
 #define SCREEN_IS_TERMCAP(s) ((s)->output_method == output_termcap)
 #define SCREEN_IS_X(s) ((s)->output_method == output_x_window)
+#define SCREEN_MINIBUF_ONLY_P(s) \
+  EQ (SCREEN_ROOT_WINDOW (s), SCREEN_MINIBUF_WINDOW (s))
+#define SCREEN_HAS_MINIBUF_P(s) ((s)->has_minibuffer)
 #define SCREEN_CURRENT_GLYPHS(s) (s)->current_glyphs
 #define SCREEN_DESIRED_GLYPHS(s) (s)->desired_glyphs
 #define SCREEN_TEMP_GLYPHS(s) (s)->temp_glyphs
@@ -186,21 +225,27 @@ typedef struct screen *SCREEN_PTR;
 #define SCREEN_INSERTN_COST(s) (s)->insert_n_lines_cost
 #define SCREEN_DELETEN_COST(s) (s)->delete_n_lines_cost
 #define SCREEN_MESSAGE_BUF(s) (s)->message_buf
+#define SCREEN_MESSAGE_BUF_SIZE(s) (s)->message_buf_size
 
 #define SCREEN_NORMAL_FACE(s) (*(s)->faces [0])
 #define SCREEN_MODELINE_FACE(s) (*(s)->faces [1])
 #define SCREEN_HIGHLIGHT_FACE(s) (*(s)->faces [2])
+#define SCREEN_CURSOR_FACE(s) (*(s)->faces [2])
+#define SCREEN_LEFT_MARGIN_FACE(s) (*(s)->faces [3])
+#define SCREEN_RIGHT_MARGIN_FACE(s) (*(s)->faces [4])
 
-#define CHECK_SCREEN(x, i) \
-  { if (!SCREENP ((x))) x = wrong_type_argument (Qscreenp, (x)); }
+#define SCREEN_PIXWIDTH(s) (s)->display.x->pixel_width
+#define SCREEN_PIXHEIGHT(s) (s)->display.x->pixel_height
+#define SCREEN_INT_BORDER(s) (s)->display.x->internal_border_width
+
 extern Lisp_Object Qscreenp;
 
 extern struct screen *selected_screen;
 
-extern struct screen *make_terminal_screen ();
-extern struct screen *make_screen ();
-/*extern struct screen *make_minibuffer_screen ();*/
-/*extern struct screen *make_screen_without_minibuffer ();*/
+extern struct screen *make_terminal_screen (void);
+extern struct screen *make_screen (int mini_p);
+/*extern struct screen *make_minibuffer_screen (void);*/
+/*extern struct screen *make_screen_without_minibuffer (Lisp_Object miniw);*/
 
 extern Lisp_Object Vscreen_list;
 extern Lisp_Object Vglobal_minibuffer_screen;
@@ -266,17 +311,26 @@ extern int cursX, cursY;
 
 #ifdef emacs
 
-extern SCREEN_PTR choose_minibuf_screen ();
+extern struct screen *choose_minibuf_screen (void);
 
-extern int scroll_screen_lines (SCREEN_PTR, int, int, int);
-extern int update_screen (SCREEN_PTR, int, int);
-extern int scroll_cost (SCREEN_PTR, int, int, int);
-extern void do_line_insertion_deletion_costs (SCREEN_PTR, 
-					      char *, char *,
-					      char *, char *,
-					      char *, char *,
-					      int);
-extern void get_screen_size (int *, int *);
+extern Lisp_Object next_screen (Lisp_Object s, int mini, int visible_only);
+extern Lisp_Object prev_screen (Lisp_Object s, int mini, int visible_only);
+
+extern Lisp_Object get_screen_param (struct screen *screen, 
+                                     Lisp_Object prop);
+extern void store_in_alist (Lisp_Object *alistptr, 
+                            const char *propname, 
+                            Lisp_Object val);
+extern void store_screen_param (struct screen *s, 
+                                Lisp_Object prop,
+                                Lisp_Object val);
+
+extern void change_screen_size (struct screen *screen,
+                                int newlength, int newwidth, 
+                                int pretend);
+
+extern void hold_window_change ();
+extern void unhold_window_change ();
 
 /* select_screen() and Fselect_screen() should only be called in response to
    user action, since we use the mouse_timestamp as the timestamp for a
@@ -288,6 +342,15 @@ extern void get_screen_size (int *, int *);
  */
 extern void select_screen (struct screen *);
 extern void select_screen_internal (struct screen *);
+
+#define MScreenLength	2000
+#define MScreenWidth	2000
+
+#define RW_FIXUP(s)     { register Lisp_Object pw;\
+                           while (!EQ((pw=XWINDOW((s)->root_window)->parent),\
+                                      (s)->root_window) && !NILP(pw))\
+                            (s)->root_window = pw;\
+                        }
 
 #endif /* emacs */
 

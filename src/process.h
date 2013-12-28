@@ -1,5 +1,5 @@
 /* Definitions for asynchronous process control in GNU Emacs.
-   Copyright (C) 1985-1993 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1992, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -20,80 +20,113 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #ifndef _EMACS_PROCESS_H_
 #define _EMACS_PROCESS_H_
 
-/*
- * Structure records pertinent information about open channels.
- * There is one channel associated with each process.
- */
+#ifndef subprocesses
+#undef XPROCESS
+#undef CHECK_PROCESS
+#define PROCESSP(x) 0
+#define Fprocess_status(x) Qnil
+#define Fget_process(x) Qnil
+#define Fget_buffer_process(x) Qnil
+#define kill_buffer_processes(x) 0
+#define close_process_descs() 0
+#define init_process() 0
+extern void wait_without_blocking (void);
 
-struct Lisp_Process
-  {
-    int size;
-    struct Lisp_Vector *v_next;
-    /* Descriptor by which we read from this process */
-    Lisp_Object infd;
-    /* Descriptor by which we write to this process */
-    Lisp_Object outfd;
-    /* Descriptor for the tty which this process is using.
-       nil if we didn't record it (on some systems, there's no need).  */
-    Lisp_Object subtty;
-    /* Name of this process */
-    Lisp_Object name;
-    /* List of command arguments that this process was run with */
-    Lisp_Object command;
-    /* (funcall FILTER PROC STRING)  (if FILTER is non-nil)
-       to dispose of a bunch of chars from the process all at once */
-    Lisp_Object filter;
-#ifdef ENERGIZE
-    /* if this flag is not NIL, then filter will do the read on the
-       channel, rather than having a call to make_string */
-    Lisp_Object filter_does_read;
-#endif
-    /* (funcall SENTINEL PROCESS) when process state changes */
-    Lisp_Object sentinel;
-    /* Buffer that output is going to */
-    Lisp_Object buffer;
-    /* Number of this process */
-    Lisp_Object pid;
-    /* Non-nil if this is really a command channel */
-    Lisp_Object command_channel_p;
-    /* Non-nil if this is really a child process */
-    Lisp_Object childp;
-    /* Marker set to end of last buffer-inserted output from this process */
-    Lisp_Object mark;
-    /* Non-nil means kill silently if Emacs is exited.  */
-    Lisp_Object kill_without_query;
-    /* Record the process status in the raw form in which it comes from `wait'.
-       This is to avoid consing in a signal handler.  */
-    Lisp_Object raw_status_low;
-    Lisp_Object raw_status_high;
-    /* Symbol indicating status of process.
-       This may be a symbol: run, open, or closed.
-       Or it may be a list, whose car is stop, exit or signal
-       and whose cdr is a pair (EXIT_CODE . COREDUMP_FLAG)
-       or (SIGNAL_NUMBER . COREDUMP_FLAG).  */
-    Lisp_Object status;
-    /* Non-nil if communicating through a pty.  */
-    Lisp_Object pty_flag;
-    /* Event-count of last event in which this process changed status.  */
-    Lisp_Object tick;
-    /* Event-count of last such event reported.  */
-    Lisp_Object update_tick;
-};
+#else /* subprocesses */
+
+/* Only process.c needs to know about the guts of this */
+struct Lisp_Process;
+extern const struct lrecord_implementation lrecord_process[];
+#define XPROCESS(a) ((struct Lisp_Process *) XPNTR(a))
+#define CHECK_PROCESS(x, i) CHECK_RECORD ((x), lrecord_process, Qprocessp, (i))
+#define PROCESSP(x) RECORD_TYPEP ((x), lrecord_process)
 
 #ifdef emacs
+
+extern Lisp_Object Qprocessp;
+
+extern Lisp_Object Fget_process (Lisp_Object name);
+extern Lisp_Object Fget_buffer_process (Lisp_Object name);
+extern Lisp_Object Fprocessp (Lisp_Object object);
+extern Lisp_Object Fprocess_status (Lisp_Object process);
+extern Lisp_Object Fkill_process (Lisp_Object process, 
+                                  Lisp_Object current_group);
+extern Lisp_Object Fdelete_process (Lisp_Object process);
+extern Lisp_Object Fopen_network_stream (Lisp_Object name,
+					 Lisp_Object buffer,
+					 Lisp_Object host,
+					 Lisp_Object service);
+extern Lisp_Object Fprocess_kill_without_query (Lisp_Object, Lisp_Object);
+
+extern void kill_buffer_processes (Lisp_Object buffer);
+extern void close_process_descs (void);
+
+extern void set_process_filter (Lisp_Object proc,
+				Lisp_Object filter, int filter_does_read);
 
 #define ChannelMask(n) (1<<(n))
 
 /* True iff we are about to fork off a synchronous process or if we
    are waiting for it.  */
-/* extern int synch_process_alive; */
+extern int synch_process_alive;
 
 /* Nonzero => this is a string explaining death of synchronous subprocess.  */
-extern char *synch_process_death;
+extern const char *synch_process_death;
 
 /* If synch_process_death is zero,
    this is exit code of synchronous subprocess.  */
 extern int synch_process_retcode;
+
+
+extern void update_process_status (/* Lisp_Object process,
+                                      Lisp_Object status_symbol,
+                                      int exit_code, int core_dumped */
+                                   );
+
+extern void get_process_file_descriptors (struct Lisp_Process *p,
+					  int *infd, int *outfd);
+
+#ifdef HAVE_SOCKETS
+extern int network_connection_p (/* Lisp_Object process */);
+#else
+#define network_connection_p(x) 0
+#endif
+
+extern Lisp_Object Qrun, Qexit, Qopen, Qclosed;
+
+/* Report all recent events of a change in process status
+   (either run the sentinel or output a message).
+   This is done while Emacs is waiting for keyboard input.  */
+extern void status_notify ();
+
+extern void deactivate_process (Lisp_Object proc);
+
+#ifdef VMS
+extern void create_process (Lisp_Object process, char **new_argv,
+                            const char *current_dir);
+#endif
+
+extern void child_setup (int in, int out, int err, 
+                         char **new_argv, char **env,
+                         int set_pgrp, 
+                         const char *current_dir);
+
+extern int read_process_output (Lisp_Object proc, int channel);
+
+
+#endif /* subprocesses */
+
+/* The name of the file open to get a null file, or a data sink.
+   VMS, MS-DOS, and OS/2 redefine this.  */
+#ifndef NULL_DEVICE
+#define NULL_DEVICE "/dev/null"
+#endif
+
+/* A string listing the possible suffixes used for executable files,
+   separated by colons.  VMS, MS-DOS, and OS/2 redefine this.  */
+#ifndef EXEC_SUFFIXES
+#define EXEC_SUFFIXES ""
+#endif
 
 #endif /* emacs */
 

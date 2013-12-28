@@ -1,7 +1,17 @@
 ;;; -*-Emacs-Lisp-*-
+;;;
+;;;
 ;;;%Header
+;;;
+;;; Rcs_Info: comint-ipc.el,v 1.20 1993/09/03 02:05:07 ivan Rel $
+;;;
 ;;; IPC extensions for comint
 ;;; Copyright (C) 1990 Chris McConnell, ccm@cs.cmu.edu.
+;;;
+;;; Send mail to ilisp-bug@darwin.bu.edu if you have problems.
+;;;
+;;; Send mail to ilisp-request@darwin.bu.edu if you want to be on the
+;;; ilisp mailing list.
 
 ;;; This file is part of GNU Emacs.
 
@@ -157,20 +167,6 @@ is put in the send stream.")
   "Set to T if we are aborting commands.")
 
 ;;;%Utils
-;;; Hook stuff--this should really be a part of emacs-lisp anyway
-(defun add-hook (hook function)
-  "Arguments are HOOK and FUNCTION. Add FUNCTION to HOOK's list.
-FUNCTION is not added if it's already on the list."
-  (set hook
-       (if (boundp hook)
-	   (let ((value (symbol-value hook)))
-	     (if (and value (or (not (consp value)) (eq (car value) 'lambda)))
-		 (setq value (cons value nil)))
-	     (if (not (comint-mem function value))
-		 (setq value (append value (list function))))
-	     value)
-	   (list function))))
-
 ;;;
 (defun comint-remove-whitespace (string)
   "Remove leading and trailing whitespace in STRING."

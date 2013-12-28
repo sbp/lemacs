@@ -98,7 +98,9 @@ it will behave just like normal shell and gdb-mode buffers.")
 		    (>= (window-point window)
 			(save-excursion
 			  (set-buffer (window-buffer window))
-			  (comint-mark))))
+			  ;;(comint-mark)
+			  (energize-user-input-buffer-mark)
+			  )))
 		)
 	   ;; Debugger and Error Log buffers generally get scrolled to
 	   ;; the bottom when displayed.

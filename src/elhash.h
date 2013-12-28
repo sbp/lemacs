@@ -11,8 +11,25 @@ extern Lisp_Object Fputhash (Lisp_Object obj, Lisp_Object val,
 extern Lisp_Object Fremhash (Lisp_Object obj, Lisp_Object table);
 extern Lisp_Object Fhashtable_fullness (Lisp_Object table);
 
-extern void elisp_maphash (void (*fn) (void* key, void* contents, void* arg),
+extern Lisp_Object make_lisp_hashtable (int size,
+	 int (*test_function) (const void*,const void*),
+	 unsigned long (*hash_function) (const void*));
+
+extern Lisp_Object make_weak_hashtable (int size,
+	 int (*test_function) (const void*,const void*),
+	 unsigned long (*hash_function) (const void*));
+
+extern void elisp_maphash (void (*fn) (const void *key, void *contents,
+				       void *extra_arg),
                            Lisp_Object table, 
-                           void *closure);
+                           void *extra_arg);
+
+extern void elisp_map_remhash (int (*fn) (const void *key,
+					  const void *contents,
+					  void *extra_arg),
+                           Lisp_Object table, 
+                           void *extra_arg);
+
+extern void prune_weak_hashtables (int (*obj_marked_p) (Lisp_Object));
 
 #endif /* _EMACS_ELHASH_H_ */

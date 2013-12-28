@@ -1,7 +1,10 @@
-;; X -specific face frobnication.
-;; Copyright (C) 1992-1993 Free Software Foundation, Inc.
+;;; x-faces.el --- X-specific face frobnication.
 
-;; This file is part of GNU Emacs.
+;;; Copyright (C) 1992, 1993 Free Software Foundation, Inc.
+
+;; Author: Jamie Zawinski <jwz@lucid.com>
+
+;;;This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -45,8 +48,11 @@
 
 (defconst x-font-regexp nil)
 (defconst x-font-regexp-head nil)
+(defconst x-font-regexp-head-2 nil)
 (defconst x-font-regexp-weight nil)
 (defconst x-font-regexp-slant nil)
+(defconst x-font-regexp-pixel nil)
+(defconst x-font-regexp-point nil)
 
 ;;; Regexps matching font names in "Host Portable Character Representation."
 ;;;
@@ -62,30 +68,51 @@
 ;     (swidth		"\\(\\*\\|normal\\|semicondensed\\|\\)")	; 3
       (swidth		"\\([^-]*\\)")					; 3
 ;     (adstyle		"\\(\\*\\|sans\\|\\)")				; 4
-      (adstyle		"[^-]*")					; 4
-      (pixelsize	"[0-9]+")
-      (pointsize	"[0-9][0-9]+")
-      (resx		"[0-9][0-9]+")
-      (resy		"[0-9][0-9]+")
+      (adstyle		"\\([^-]*\\)")					; 4
+      (pixelsize	"\\(\\*\\|[0-9]+\\)")				; 5
+      (pointsize	"\\(\\*\\|0\\|[0-9][0-9]+\\)")			; 6
+      (resx		"\\(\\*\\|[0-9][0-9]+\\)")			; 7
+      (resy		"\\(\\*\\|[0-9][0-9]+\\)")			; 8
       (spacing		"[cmp?*]")
-      (avgwidth		"[0-9]+")
+      (avgwidth		"\\(\\*\\|[0-9]+\\)")				; 9
       (registry		"[^-]+")
-      (encoding		"[^-]+")
+;      (encoding	".+")		; note that encoding may contain "-"...
+      (encoding	"[^-]+")		; false!
       )
   (setq x-font-regexp
-	(concat "\\`\\*?[-?*]"
-		foundry - family - weight\? - slant\? - swidth - adstyle -
-		pixelsize - pointsize - resx - resy - spacing - registry -
-		encoding "[-?*]\\*?\\'"
-		))
+	(purecopy 
+	 (concat "\\`\\*?[-?*]"
+		 foundry - family - weight\? - slant\? - swidth - adstyle -
+		 pixelsize - pointsize - resx - resy - spacing - avgwidth -
+		 registry - encoding "\\'"
+		 )))
   (setq x-font-regexp-head
-	(concat "\\`[-?*]" foundry - family - weight\? - slant\?
-		"\\([-*?]\\|\\'\\)"))
-  (setq x-font-regexp-slant (concat - slant -))
-  (setq x-font-regexp-weight (concat - weight -))
-  nil)	    
+	(purecopy
+          (concat "\\`[-?*]" foundry - family - weight\? - slant\?
+		  "\\([-*?]\\|\\'\\)")))
+  (setq x-font-regexp-head-2
+	(purecopy
+          (concat "\\`[-?*]" foundry - family - weight\? - slant\?
+		  - swidth - adstyle - pixelsize - pointsize
+		  "\\([-*?]\\|\\'\\)")))
+  (setq x-font-regexp-slant (purecopy (concat - slant -)))
+  (setq x-font-regexp-weight (purecopy (concat - weight -)))
+  ;; if we can't match any of the more specific regexps (unfortunate) then
+  ;; look for digits; assume 2+ digits is 10ths of points, and 1-2 digits
+  ;; is pixels.  Bogus as hell.
+  (setq x-font-regexp-pixel (purecopy "[-?*]\\([0-9][0-9]?\\)[-?*]"))
+  (setq x-font-regexp-point (purecopy "[-?*]\\([0-9][0-9]+\\)[-?*]"))
+  )
+
+
+(defun try-font (font &optional screen)
+  "Like `make-font', but returns nil if the font can't be loaded."
+  (condition-case nil
+      (make-font font screen)
+    (error nil)))
 
 (defun x-frob-font-weight (font which)
+  (if (fontp font) (setq font (font-name font)))
   (if (or (string-match x-font-regexp font)
 	  (string-match x-font-regexp-head font)
 	  (string-match x-font-regexp-weight font))
@@ -94,6 +121,7 @@
     nil))
 
 (defun x-frob-font-slant (font which)
+  (if (fontp font) (setq font (font-name font)))
   (cond ((or (string-match x-font-regexp font)
 	     (string-match x-font-regexp-head font))
 	 (concat (substring font 0 (match-beginning 2)) which
@@ -103,37 +131,146 @@
 		 (substring font (match-end 1))))
 	(t nil)))
 
+(defun x-make-font-bold (font &optional screen)
+  "Given an X font specification, this attempts to make a `bold' font.
+If it fails, it returns nil."
+  (try-font (x-frob-font-weight font "bold") screen))
 
-(defun x-make-font-bold (font)
-  "Given an X font specification, this attempts to make a `bold' version
-of it.  If it fails, it returns nil."
-  (x-frob-font-weight font "bold"))
+(defun x-make-font-demibold (font &optional screen)
+  "Given an X font specification, this attempts to make a `demibold' font.
+If it fails, it returns nil."
+  (try-font (x-frob-font-weight font "demibold") screen))
 
-(defun x-make-font-demibold (font)
-  "Given an X font specification, this attempts to make a `demibold' version
-of it.  If it fails, it returns nil."
-  (x-frob-font-weight font "demibold"))
+(defun x-make-font-unbold (font &optional screen)
+  "Given an X font specification, this attempts to make a non-bold font.
+If it fails, it returns nil."
+  (try-font (x-frob-font-weight font "medium") screen))
 
-(defun x-make-font-unbold (font)
-  "Given an X font specification, this attempts to make a non-bold version
-of it.  If it fails, it returns nil."
-  (x-frob-font-weight font "medium"))
+(defun x-make-font-italic (font &optional screen)
+  "Given an X font specification, this attempts to make an `italic' font.
+If it fails, it returns nil."
+  (try-font (x-frob-font-slant font "i") screen))
 
-(defun x-make-font-italic (font)
-  "Given an X font specification, this attempts to make an `italic' version
-of it.  If it fails, it returns nil."
-  (x-frob-font-slant font "i"))
+(defun x-make-font-oblique (font &optional screen) ; you say tomayto...
+  "Given an X font specification, this attempts to make an `italic' font.
+If it fails, it returns nil."
+  (try-font (x-frob-font-slant font "o") screen))
 
-(defun x-make-font-oblique (font) ; you say tomayto...
-  "Given an X font specification, this attempts to make an `italic' version
-of it.  If it fails, it returns nil."
-  (x-frob-font-slant font "o"))
+(defun x-make-font-unitalic (font &optional screen)
+  "Given an X font specification, this attempts to make a non-italic font.
+If it fails, it returns nil."
+  (try-font (x-frob-font-slant font "r") screen))
 
-(defun x-make-font-unitalic (font)
-  "Given an X font specification, this attempts to make a non-italic version
-of it.  If it fails, it returns nil."
-  (x-frob-font-slant font "r"))
 
+(defun x-font-size (font)
+  "Returns the nominal size of the given font.
+This is done by parsing its name, so it's likely to lose.
+X fonts can be specified (by the user) in either pixels or 10ths of points,
+ and this returns the first one it finds, so you have to decide which units
+ the returned value is measured in yourself..."
+  (if (fontp font) (setq font (font-name font)))
+  (cond ((or (string-match x-font-regexp font)
+	     (string-match x-font-regexp-head-2 font))
+	 (string-to-int (substring font (match-beginning 6) (match-end 6))))
+	((or (string-match x-font-regexp-pixel font)
+	     (string-match x-font-regexp-point font))
+	 (string-to-int (substring font (match-beginning 1) (match-end 1))))
+	(t nil)))
+
+(defun x-available-font-sizes (font &optional screen)
+  (if (fontp font) (setq font (font-name font)))
+  (cond ((string-match x-font-regexp font)
+	 ;; turn pixelsize, pointsize, and avgwidth into wildcards
+	 (setq font
+	       (concat (substring font 0 (match-beginning 5)) "*"
+		       (substring font (match-end 5) (match-beginning 6)) "*"
+		       (substring font (match-end 6) (match-beginning 9)) "*"
+		       (substring font (match-end 9) (match-end 0)))))
+	((string-match x-font-regexp-head-2 font)
+	 ;; turn pixelsize and pointsize into wildcards
+	 (setq font
+	       (concat (substring font 0 (match-beginning 5)) "*"
+		       (substring font (match-end 5) (match-beginning 6)) "*"
+		       (substring font (match-end 6) (match-end 0)))))
+	((string-match  "[-?*]\\([0-9]+\\)[-?*]" font)
+	 ;; Turn the first integer we match into a wildcard.
+	 ;; This is pretty dubious...
+	 (setq font
+	       (concat (substring font 0 (match-beginning 1)) "*"
+		       (substring font (match-end 1) (match-end 0))))))
+  (sort
+   (delq nil
+	 (mapcar (function
+		  (lambda (name)
+		    (and (string-match x-font-regexp name)
+			 (list
+			  (string-to-int (substring name (match-beginning 5)
+						    (match-end 5)))
+			  (string-to-int (substring name (match-beginning 6)
+						    (match-end 6)))
+			  name))))
+		 (x-list-fonts font screen)))
+   (function (lambda (x y) (if (= (nth 1 x) (nth 1 y))
+			       (< (nth 0 x) (nth 0 y))
+			       (< (nth 1 x) (nth 1 y)))))))
+
+(defun x-frob-font-size (font up-p screen)
+  (if (stringp font) (setq font (make-font font screen)))
+  (setq font (font-truename font))
+  (let ((available (x-available-font-sizes font screen)))
+    (cond
+     ((null available) nil)
+     ((or (= 0 (nth 0 (car available)))
+	  (= 0 (nth 1 (car available))))
+      ;; R5 scalable fonts: change size by 1 point.
+      ;; If they're scalable the first font will have pixel or point = 0.
+      ;; Sometimes one is 0 and the other isn't (if it's a bitmap font that
+      ;; can be scaled), sometimes both are (if it's a true outline font.)
+      (let ((name (nth 2 (car available)))
+	    old-size)
+	(or (string-match x-font-regexp font) (error "can't parse %S" font))
+	(or (string-match x-font-regexp name) (error "can't parse %S" name))
+	(setq old-size (string-to-int
+			(substring font (match-beginning 6) (match-end 6))))
+	;; turn pixelsize into a wildcard, and make pointsize be +/- 10,
+	;; which is +/- 1 point.  All other fields stay the same as they
+	;; were in the "template" font returned by x-available-font-sizes.
+	(concat (substring name 0 (match-beginning 5)) "*"
+		(substring name (match-end 5) (match-beginning 6))
+		(int-to-string (+ old-size (if up-p 10 -10)))
+		(substring name (match-end 6) (match-end 0)))))
+     (t
+      ;; non-scalable fonts: take the next available size.
+      (let ((rest available)
+	    (last nil)
+	    result)
+	(while rest
+	  (cond ((and (not up-p) (equal font (nth 2 (car rest))))
+		 (setq result last
+		       rest nil))
+		((and up-p (equal font (nth 2 last)))
+		 (setq result (car rest)
+		       rest nil)))
+	  (setq last (car rest))
+	  (setq rest (cdr rest)))
+	(nth 2 result))))))
+
+
+(defun x-find-smaller-font (font &optional screen)
+  "Loads a new, slightly smaller version of the given font (or font name).
+Returns the font if it succeeds, nil otherwise.
+If scalable fonts are available, this returns a font which is 1 point smaller.
+Otherwise, it returns the next smaller version of this font that is defined."
+  (let ((name (x-frob-font-size font nil screen)))
+    (if name (make-font name screen))))
+
+(defun x-find-larger-font (font &optional screen)
+  "Loads a new, slightly larger version of the given font (or font name).
+Returns the font if it succeeds, nil otherwise.
+If scalable fonts are available, this returns a font which is 1 point larger.
+Otherwise, it returns the next larger version of this font that is defined."
+  (let ((name (x-frob-font-size font t screen)))
+    (if name (make-font name screen))))
 
 ;;; non-X-specific interface
 
@@ -152,13 +289,12 @@ Returns nil on failure."
       (setq face (get-face face screen))
       (let ((font (or (face-font face screen)
 		      (face-font face t)
-		      (face-font 'default screen)))
-	    f2)
-	(or (and (setq f2 (x-make-font-bold font))
-		 (try-face-font face f2))
-	    (and (setq f2 (x-make-font-demibold font))
-		 (try-face-font face f2)))))
-    (not (equal ofont (or (face-font face) ofont)))))
+		      (face-font 'default screen))))
+	(and (setq font (or (x-make-font-bold font screen)
+			    (x-make-font-demibold font screen)))
+	     (set-face-font face font screen))))
+    (not (equal (font-name ofont)
+		(font-name (or (face-font face) ofont))))))
 
 (defun make-face-italic (face &optional screen)
   "Make the font of the given face be italic, if possible.  
@@ -175,13 +311,12 @@ Returns nil on failure."
       (setq face (get-face face screen))
       (let ((font (or (face-font face screen)
 		      (face-font face t)
-		      (face-font 'default screen)))
-	    f2)
-	(or (and (setq f2 (x-make-font-italic font))
-		 (try-face-font face f2))
-	    (and (setq f2 (x-make-font-oblique font))
-		 (try-face-font face f2)))))
-    (not (equal ofont (or (face-font face) ofont)))))
+		      (face-font 'default screen))))
+	(and (setq font (or (x-make-font-italic font screen)
+			    (x-make-font-oblique font screen)))
+	     (set-face-font face font screen))))
+    (not (equal (font-name ofont)
+		(font-name (or (face-font face) ofont))))))
 
 (defun make-face-bold-italic (face &optional screen)
   "Make the font of the given face be bold and italic, if possible.  
@@ -200,27 +335,31 @@ Returns nil on failure."
 		      (face-font face t)
 		      (face-font 'default screen)))
 	    f2 f3)
-	(or (and (setq f2 (x-make-font-italic font))
-		 (not (equal font f2))
-		 (setq f3 (x-make-font-bold f2))
-		 (not (equal f2 f3))
-		 (try-face-font face f3))
-	    (and (setq f2 (x-make-font-oblique font))
-		 (not (equal font f2))
-		 (setq f3 (x-make-font-bold f2))
-		 (not (equal f2 f3))
-		 (try-face-font face f3))
-	    (and (setq f2 (x-make-font-italic font))
-		 (not (equal font f2))
-		 (setq f3 (x-make-font-demibold f2))
-		 (not (equal f2 f3))
-		 (try-face-font face f3))
-	    (and (setq f2 (x-make-font-oblique font))
-		 (not (equal font f2))
-		 (setq f3 (x-make-font-demibold f2))
-		 (not (equal f2 f3))
-		 (try-face-font face f3)))))
-    (not (equal ofont (or (face-font face screen) ofont)))))
+	(setq font
+	      ;; This is haired up to avoid loading the "intermediate" fonts.
+	      (or (and (setq f2 (x-frob-font-slant font "i"))
+		       (not (equal font f2))
+		       (setq f3 (x-frob-font-weight f2 "bold"))
+		       (not (equal f2 f3))
+		       (try-font f3 screen))
+		  (and (setq f2 (x-frob-font-slant font "o"))
+		       (not (equal font f2))
+		       (setq f3 (x-frob-font-weight f2 "bold"))
+		       (not (equal f2 f3))
+		       (try-font f3 screen))
+		  (and (setq f2 (x-frob-font-slant font "i"))
+		       (not (equal font f2))
+		       (setq f3 (x-frob-font-weight f2 "demibold"))
+		       (not (equal f2 f3))
+		       (try-font f3 screen))
+		  (and (setq f2 (x-frob-font-slant font "o"))
+		       (not (equal font f2))
+		       (setq f3 (x-frob-font-weight f2 "demibold"))
+		       (not (equal f2 f3))
+		       (try-font f3 screen))))
+	(if font (set-face-font face font screen))))
+    (not (equal (font-name ofont)
+		(font-name (or (face-font face) ofont))))))
 
 (defun make-face-unbold (face &optional screen)
   "Make the font of the given face be non-bold, if possible.  
@@ -238,9 +377,11 @@ Returns nil on failure."
       (let ((font (x-make-font-unbold
 		   (or (face-font face screen)
 		       (face-font face t)
-		       (face-font 'default screen)))))
-	(if font (try-face-font face font))))
-    (not (equal ofont (or (face-font face screen) ofont)))))
+		       (face-font 'default screen))
+		   screen)))
+	(if font (set-face-font face font screen))))
+    (not (equal (font-name ofont)
+		(font-name (or (face-font face screen) ofont))))))
 
 (defun make-face-unitalic (face &optional screen)
   "Make the font of the given face be non-italic, if possible.  
@@ -258,10 +399,87 @@ Returns nil on failure."
       (let ((font (x-make-font-unitalic
 		   (or (face-font face screen)
 		       (face-font face t)
-		       (face-font 'default screen)))))
-	(if font (try-face-font face font))))
-    (not (equal ofont (or (face-font face screen) ofont)))))
+		       (face-font 'default screen))
+		   screen)))
+	(if font (set-face-font face font screen))))
+    (not (equal (font-name ofont)
+		(font-name (or (face-font face screen) ofont))))))
 
+(defun make-face-smaller (face &optional screen)
+  "Make the font of the given face be smaller, if possible.  
+Returns nil on failure."
+  (interactive (list (read-face-name "Shrink which face: ")))
+  (let ((ofont (or (face-font face screen)
+		   (face-font face t)
+		   (face-font 'default screen))))
+    (if (null screen)
+	(let ((screens (screen-list)))
+	  (while screens
+	    (make-face-smaller face (car screens))
+	    (setq screens (cdr screens))))
+      (setq face (get-face face screen))
+      (let ((font (x-find-smaller-font
+		   (or (face-font face screen)
+		       (face-font face t)
+		       (face-font 'default screen))
+		   screen)))
+	(if font (set-face-font face font screen))))
+    (not (equal (font-truename ofont)
+		(font-truename (or (face-font face screen) ofont))))))
+
+(defun make-face-larger (face &optional screen)
+  "Make the font of the given face be larger, if possible.  
+Returns nil on failure."
+  (interactive (list (read-face-name "Enlarge which face: ")))
+  (let ((ofont (or (face-font face screen)
+		   (face-font face t)
+		   (face-font 'default screen))))
+    (if (null screen)
+	(let ((screens (screen-list)))
+	  (while screens
+	    (make-face-larger face (car screens))
+	    (setq screens (cdr screens))))
+      (setq face (get-face face screen))
+      (let ((font (x-find-larger-font
+		   (or (face-font face screen)
+		       (face-font face t)
+		       (face-font 'default screen))
+		   screen)))
+	(if font (set-face-font face font screen))))
+    (not (equal (font-truename ofont)
+		(font-truename (or (face-font face screen) ofont))))))
+
+;;; Some random other X utils that probably should be in another file.
+
+(defun x-grayscale-display-p (&optional screen)
+  ;; is it more appropriate to check whether there are more than two colors
+  ;; with (> (x-display-planes) 1) or (> (x-display-color-cells) 2) ?
+  (and (> (x-display-planes screen) 1)
+       (memq (x-display-visual-class screen) '(StaticGray GrayScale))))
+
+;(defun x-color-display-p (&optional screen)
+;  "Returns t if the X display of the given screen supports color."
+;  (> (x-display-planes screen) 1))
+
+(defun x-color-display-p (&optional screen)
+  "Returns t if the X display of the given screen supports color."
+  (and (> (x-display-planes screen) 1)
+       (memq (x-display-visual-class screen)
+	     '(StaticColor PseudoColor TrueColor DirectColor))))
+
+;; If compiled with support for XPM files, add an `xpm' feature to make this
+;; easy for use code to test for.
+
+(if (boundp 'xpm-color-symbols)
+    (provide 'xpm))
+
+;; Define some logical color names to be used when reading the pixmap files.
+(if (featurep 'xpm)
+    (setq xpm-color-symbols
+	  (list
+	   (purecopy '("foreground" (face-foreground 'default)))
+	   (purecopy '("background" (face-background 'default)))
+	   )))
 
 ;;; internal routines
 
@@ -308,7 +526,7 @@ Returns nil on failure."
 		    (and set-anyway (face-background-pixmap face))))
 	   (ulp (or (x-get-resource (concat name ".attributeUnderline")
 				    "Face.AttributeUnderline" 'boolean screen)
-		    (and set-anyway (face-underline-p face))))
+		    (and set-anyway (list (face-underline-p face)))))
 	   )
       ;;
       ;; If this is the default face, then any unspecified parameters should
@@ -338,7 +556,7 @@ Returns nil on failure."
 	      (set-face-background-pixmap face bgp screen)
 	    (error (message "pixmap %s not found for face %s" bgp name))))
       (if (or ulp set-anyway)
-	  (set-face-underline-p face ulp screen))
+	  (set-face-underline-p face (car ulp) screen))
       )))
   face)
 
@@ -367,17 +585,16 @@ Returns nil on failure."
      ;; top level, instead of "*xtDefaultFont:", that is, applicable to
      ;; every application.  `x-get-resource' can't handle that right now.
      ;;
-     (try-face-font default "-*-courier-medium-r-*-*-*-120-*-*-*-*-iso8859-*"
-		    screen)
-     (try-face-font default "-*-courier-*-r-*-*-*-120-*-*-*-*-iso8859-*"
-		    screen)
-     (try-face-font default "-*-*-medium-r-*-*-*-120-*-*-m-*-iso8859-*" screen)
-     (try-face-font default "-*-*-medium-r-*-*-*-120-*-*-c-*-iso8859-*" screen)
-     (try-face-font default "-*-*-*-r-*-*-*-120-*-*-m-*-iso8859-*" screen)
-     (try-face-font default "-*-*-*-r-*-*-*-120-*-*-c-*-iso8859-*" screen)
-     (try-face-font default "-*-*-*-r-*-*-*-120-*-*-*-*-iso8859-*" screen)
-     ;; if we get to here we're screwed, and faces.c will fatal()...
-     )
+     (set-face-font default
+      (or (try-font "-*-courier-medium-r-*-*-*-120-*-*-*-*-iso8859-*" screen)
+	  (try-font "-*-courier-*-r-*-*-*-120-*-*-*-*-iso8859-*" screen)
+	  (try-font "-*-*-medium-r-*-*-*-120-*-*-m-*-iso8859-*" screen)
+	  (try-font "-*-*-medium-r-*-*-*-120-*-*-c-*-iso8859-*" screen)
+	  (try-font "-*-*-*-r-*-*-*-120-*-*-m-*-iso8859-*" screen)
+	  (try-font "-*-*-*-r-*-*-*-120-*-*-c-*-iso8859-*" screen)
+	  (try-font "-*-*-*-r-*-*-*-120-*-*-*-*-iso8859-*" screen)
+	  ;; if we get to here we're screwed, and faces.c will fatal()...
+	  )))
     ;;
     ;; If the "default" face didn't have both colors specified, then pick
     ;; some, taking into account the "reverseVideo" resource, as well as
@@ -386,8 +603,8 @@ Returns nil on failure."
     (let ((fg (face-foreground default screen))
 	  (bg (face-background default screen)))
       (if (not (and fg bg))
-	  (if (or (and fg (equal (downcase fg) "white"))
-		  (and bg (equal (downcase bg) "black"))
+	  (if (or (and fg (equal (downcase (pixel-name fg)) "white"))
+		  (and bg (equal (downcase (pixel-name bg)) "black"))
 		  (car (x-get-resource "reverseVideo" "ReverseVideo"
 				       'boolean screen)))
 	      (progn
@@ -415,7 +632,7 @@ Returns nil on failure."
 		 invocation-name
 		 (if (string-match "\\`[aeiouAEIOU]" face) "an" "a")
 		 face
-		 (face-font 'default))
+		 (face-font-name 'default))
 	 (function external-debugging-output)))
 
 (defun x-initialize-other-random-faces (screen)

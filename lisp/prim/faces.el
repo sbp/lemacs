@@ -1,5 +1,5 @@
 ;; Lisp interface to the c "face" structure.
-;; Copyright (C) 1992-1993 Free Software Foundation, Inc.
+;; Copyright (C) 1992, 1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -68,11 +68,11 @@ If NAME is already a face, it is simply returned."
   (aref (get-face face) 2))
 
 (defsubst face-font (face &optional screen)
-  "Returns the font name of the given face, or nil if it is unspecified."
+  "Returns the font of the given face, or nil if it is unspecified."
   (aref (get-face face screen) 3))
 
 (defsubst face-foreground (face &optional screen)
-  "Returns the foreground color name of the given face, or nil if unspecified."
+  "Returns the foreground color of the given face, or nil if unspecified."
   (aref (get-face face screen) 4))
 
 (defsubst face-background (face &optional screen)
@@ -80,16 +80,31 @@ If NAME is already a face, it is simply returned."
   (aref (get-face face screen) 5))
 
 (defsubst face-background-pixmap (face &optional screen)
- "Returns the background pixmap name of the given face, or nil if unspecified."
+ "Returns the background pixmap of the given face, or nil if unspecified."
  (aref (get-face face screen) 6))
 
 (defsubst face-underline-p (face &optional screen)
  "Returns whether the given face is underlined."
  (aref (get-face face screen) 7))
 
+(defun face-font-name (face &optional screen)
+  "Returns the font name of the given face, or nil if it is unspecified."
+  (let ((f (face-font face screen)))
+    (and f (font-name f))))
 
 (defun set-face-1 (face name value index screen)
+  ;; If the argument to the set-face- functions was a string, do the
+  ;; obvious conversion.
+  (if (stringp value)
+      (let ((screen (if (eq screen 't) nil screen)))
+	(cond
+	 ((eq name 'font) (setq value (make-font value screen)))
+	 ((eq name 'foreground) (setq value (make-pixel value screen)))
+	 ((eq name 'background) (setq value (make-pixel value screen)))
+	 ((eq name 'background-pixmap) (setq value (make-pixmap value screen)))
+	 )))
   (let ((inhibit-quit t))
+    ;; If screen is nil, do it to all screens.
     (if (null screen)
 	(let ((screens (screen-list)))
 	  (while screens
@@ -100,7 +115,15 @@ If NAME is already a face, it is simply returned."
 	  value)
       (or (eq screen t)
 	  (set-face-attribute-internal (face-id face) name value screen))
-      (aset (get-face face screen) index value))))
+      (aset (get-face face screen) index value))
+    ;; If the default, non-screen face doesn't have a value for this attribute
+    ;; yet, use this one.  This is kind of a kludge, and I'm not sure it's the
+    ;; right thing, but otherwise new screens tend not to get any attributes
+    ;; set on them in, for example, Info and Webster.
+    (or (aref (get-face face t) index)
+	(aset (get-face face t) index value))
+    )
+  value)
 
 
 (defun read-face-name (prompt)
@@ -123,7 +146,10 @@ If NAME is already a face, it is simply returned."
 		    (y-or-n-p (concat "Should face " (symbol-name face)
 				      " be " bool "? "))
 		  (read-string (concat prompt " " (symbol-name face) " to: ")
-			       default))))
+		   (cond ((fontp default) (font-name default))
+			 ((pixelp default) (pixel-name default))
+			 ((pixmapp default) (pixmap-file-name default))
+			 (t default))))))
     (list face (if (equal value "") nil value))))
 
 
@@ -285,13 +311,6 @@ foreground of the default face."
   face)
 
 
-(defun try-face-font (face font &optional screen)
-  "Like set-face-font, but returns nil on failure instead of an error."
-  (condition-case ()
-      (set-face-font face font screen)
-    (error nil)))
-
-
 (defun set-default-font (font)
   "Sets the font used for normal text and the modeline to FONT in all screens.
 For finer-grained control, use set-face-font."
@@ -299,6 +318,11 @@ For finer-grained control, use set-face-font."
 				  (face-font 'default (selected-screen)))))
   (set-face-font 'default font)
   (set-face-font 'modeline font))
+
+(defun try-face-font (face font &optional screen)
+  "Like set-face-font, but returns nil on failure instead of an error."
+  (if (stringp font) (setq font (try-font font screen)))
+  (set-face-font face font screen))
 
 
 ;;; This is called from make-screen (well, x-create-screen) just before
@@ -340,26 +364,34 @@ For finer-grained control, use set-face-font."
 	  (set-face-background modeline (face-foreground default screen)
 			       screen)))
 
-    ;; now make sure the modeline face is fully qualified.
-    (if (and (not (face-font modeline screen)) (face-font default screen))
-	(set-face-font modeline (face-font default screen) screen))
-    (if (and (not (face-background modeline screen))
-	     (face-background default screen))
-	(set-face-background modeline (face-background default screen) screen))
-    (if (and (not (face-foreground modeline screen))
-	     (face-foreground default screen))
-	(set-face-foreground modeline (face-foreground default screen) screen))
+    ;; Now make sure the modeline, left, and right faces are fully qualified.
+    ;; The C code requires this.
+    (let ((rest '(modeline left-margin right-margin))
+	  face)
+      (while rest
+	(setq face (get-face (car rest) screen))
+	(if (and (not (face-font face screen)) (face-font default screen))
+	    (set-face-font face (face-font default screen) screen))
+	(if (and (not (face-background face screen))
+		 (face-background default screen))
+	    (set-face-background face (face-background default screen) screen))
+	(if (and (not (face-foreground face screen))
+		 (face-foreground default screen))
+	    (set-face-foreground face (face-foreground default screen) screen))
+	(setq rest (cdr rest))))
     ))
 
 
-;;; Make the builtin faces; the C code knows these as faces 0, 1, and 2,
-;;; respectively, so they must be the first three faces made.
+;;; Make the builtin faces; the C code knows these as faces 0 through 4
+;;; respectively, so they must be the first five faces made.
 
 (if (find-face 'default)
     nil
   (make-face 'default)
   (make-face 'modeline)
   (make-face 'highlight)
+  (make-face 'left-margin)
+  (make-face 'right-margin)
   ;;
   ;; These aren't really special in any way, but they're nice to have around.
   ;; The X-specific code is clever at them.

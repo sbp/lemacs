@@ -27,8 +27,17 @@ extern int immediate_quit;	    /* Nonzero means ^G can quit instantly */
 
 extern Lisp_Object Vexecuting_macro;
 
-/* Nonzero if input is coming from the keyboard */
+extern Lisp_Object Qpre_command_hook, Qpost_command_hook;
 
+extern Lisp_Object recent_keys_ring;
+extern int recent_keys_ring_index;
+  
+extern Lisp_Object Qpre_command_hook, Qpost_command_hook;
+
+extern Lisp_Object recent_keys_ring;
+extern int recent_keys_ring_index;
+
+/* Nonzero if input is coming from the keyboard */
 #define INTERACTIVE (NILP (Vexecuting_macro) && !noninteractive)
 
 /* Set this nonzero to force reconsideration of mode line. */
@@ -38,7 +47,15 @@ extern int redraw_mode_line;
    so put cursor on minibuffer after the prompt.  */
 extern int cursor_in_echo_area;
 
-extern Lisp_Object call_command_loop (Lisp_Object dummy);
+extern Lisp_Object Fcommand_execute (Lisp_Object cmd, Lisp_Object record);
+extern Lisp_Object Fcommand_loop_1 (void);
+extern Lisp_Object call_command_loop (Lisp_Object catch_errors);
+/* #ifndef LISP_COMMAND_LOOP */
+extern Lisp_Object Vtop_level;
+/* #else */
+extern Lisp_Object Vcommand_loop;
+/* #endif */
+extern DOESNT_RETURN initial_command_loop (Lisp_Object);
 
 extern Lisp_Object Vkeyboard_translate_table;
 extern Lisp_Object Vthis_command;

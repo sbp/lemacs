@@ -1,5 +1,5 @@
 /* Calculate what line insertion or deletion to do, and do it,
-   Copyright (C) 1985, 1986, 1990, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1990, 1992, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -18,11 +18,15 @@ along with GNU Emacs; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 
+#ifdef SCROLLING_ENABLED
+
 #include "config.h"
 #include "termchar.h"
 #include "lisp.h"
 #include "dispextern.h"
 #include "screen.h"
+
+#include "dispmisc.h"
 
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define min(a, b) ((a) < (b) ? (a) : (b))
@@ -83,11 +87,11 @@ static void
 calculate_scrolling (screen, matrix, window_size, lines_below,
 		     draw_cost, old_hash, new_hash,
 		     free_at_end)
-     SCREEN_PTR screen;
+     struct screen *screen;
+     int lines_below;
      /* matrix is of size window_size + 1 on each side.  */
      struct matrix_elt *matrix;
      int window_size;
-     int lines_below;
      int *draw_cost;
      int *old_hash;
      int *new_hash;
@@ -226,14 +230,9 @@ calculate_scrolling (screen, matrix, window_size, lines_below,
  according to the costs in the matrix.
  Updates the contents of the screen to record what was done. */
 
-extern void set_terminal_window (int);
-extern void ins_del_lines (int, int);
-extern int per_line_cost (char *);
-extern int string_cost (char *);
-
 static void
 do_scrolling (screen, matrix, window_size, unchanged_at_top)
-     SCREEN_PTR screen;
+     struct screen *screen;
      struct matrix_elt *matrix;
      int window_size;
      int unchanged_at_top;
@@ -256,17 +255,17 @@ do_scrolling (screen, matrix, window_size, unchanged_at_top)
   temp_screen = SCREEN_TEMP_GLYPHS (screen);
 
   memcpy (temp_screen->glyphs, current_screen->glyphs,
-	 current_screen->height * sizeof (GLYPH *));
+          current_screen->height * sizeof (GLYPH *));
   memcpy (temp_screen->used, current_screen->used,
-	 current_screen->height * sizeof (int));
+          current_screen->height * sizeof (int));
 #if 0
   memcpy (temp_screen->highlight, current_screen->highlight, 
-	 current_screen->height * sizeof (char));
+          current_screen->height * sizeof (char));
 #endif
   memset (temp_screen->enable, 0, temp_screen->height * sizeof (char));
   
   memcpy (temp_screen->bufp, current_screen->bufp,
-	  current_screen->height * sizeof (int));
+          current_screen->height * sizeof (int));
   memcpy (temp_screen->nruns, current_screen->nruns, 
 	 current_screen->height * sizeof (int));
   memcpy (temp_screen->face_list, current_screen->face_list,
@@ -373,7 +372,7 @@ do_scrolling (screen, matrix, window_size, unchanged_at_top)
 void
 scrolling_1 (screen, window_size, unchanged_at_top, unchanged_at_bottom,
 	     draw_cost, old_hash, new_hash, free_at_end)
-     SCREEN_PTR screen;
+     struct screen *screen;
      int window_size, unchanged_at_top, unchanged_at_bottom;
      int *draw_cost;
      int *old_hash;
@@ -457,7 +456,7 @@ scrolling_max_lines_saved (start, end, oldhash, newhash, cost)
 
 int
 scroll_cost (screen, from, to, amount)
-     SCREEN_PTR screen;
+     struct screen *screen;
      int from, to, amount;
 {
   /* Compute how many lines, at bottom of screen,
@@ -496,7 +495,7 @@ scroll_cost (screen, from, to, amount)
 
 static void
 line_ins_del (screen, ov1, pf1, ovn, pfn, ov, mf)
-     SCREEN_PTR screen;
+     struct screen *screen;
      int ov1, ovn;
      int pf1, pfn;
      register int *ov, *mf;
@@ -520,9 +519,9 @@ ins_del_costs (screen,
 	       one_line_string, multi_string,
 	       setup_string, cleanup_string,
 	       costvec, ncostvec, coefficient)
-     SCREEN_PTR screen;
-     char *one_line_string, *multi_string;
-     char *setup_string, *cleanup_string;
+     struct screen *screen;
+     const char *one_line_string, *multi_string;
+     const char *setup_string, *cleanup_string;
      int *costvec, *ncostvec;
      int coefficient;
 {
@@ -580,10 +579,10 @@ do_line_insertion_deletion_costs (screen,
 				  ins_line_string, multi_ins_string,
 				  del_line_string, multi_del_string,
 				  setup_string, cleanup_string, coefficient)
-     SCREEN_PTR screen;
-     char *ins_line_string, *multi_ins_string;
-     char *del_line_string, *multi_del_string;
-     char *setup_string, *cleanup_string;
+     struct screen *screen;
+     const char *ins_line_string, *multi_ins_string;
+     const char *del_line_string, *multi_del_string;
+     const char *setup_string, *cleanup_string;
      int coefficient;
 {
   if (SCREEN_INSERT_COST (screen) != 0)
@@ -626,7 +625,7 @@ do_line_insertion_deletion_costs (screen,
 }
 
 void
-free_line_insertion_deletion_costs (SCREEN_PTR screen)
+free_line_insertion_deletion_costs (struct screen *screen)
 {
   if (SCREEN_INSERT_COST (screen))
     xfree (SCREEN_INSERT_COST (screen));
@@ -637,3 +636,5 @@ free_line_insertion_deletion_costs (SCREEN_PTR screen)
   if (SCREEN_DELETE_COST (screen))
     xfree (SCREEN_DELETE_COST (screen));
 }
+
+#endif /* SCROLLING_ENABLED */

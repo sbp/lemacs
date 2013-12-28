@@ -16,7 +16,7 @@
 ;;; Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 ;; data that is always shared with virtual folders
-(defmacro vm-virtual-data-of (message) (list 'aref message 0))
+(defmacro vm-location-data-of (message) (list 'aref message 0))
 ;; where message begins (From_ line)
 (defmacro vm-start-of (message) (list 'aref (list 'aref message 0) 0))
 ;; where visible headers start
@@ -30,16 +30,6 @@
 				       (aref (aref message 0) 2))))
 ;; where message ends
 (defmacro vm-end-of (message) (list 'aref (list 'aref message 0) 3))
-;; if message is being edited, this is the buffer being used.
-(defmacro vm-edit-buffer-of (message) (list 'aref (list 'aref message 0) 4))
-;; message type; if nil, then default to folder type
-(defmacro vm-message-type-of (message) (list 'aref (list 'aref message 0) 5))
-;; link to real message
-(defmacro vm-real-message-of (message) (list 'symbol-value (list 'aref (list 'aref message 0) 6)))
-;; list of virtual messages referencing the above real message
-(defmacro vm-virtual-messages-of (message) (list 'aref (list 'aref message 0) 7))
-;; list to previous message in the message list
-(defmacro vm-reverse-link-of (message) (list 'symbol-value (list 'aref (list 'aref message 0) 8)))
 ;; soft data vector
 (defmacro vm-softdata-of (message) (list 'aref message 1))
 (defmacro vm-number-of (message) (list 'aref (list 'aref message 1) 0))
@@ -94,20 +84,26 @@
 (defmacro vm-to-names-of (message) (list 'aref (list 'aref message 3) 14))
 ;; numeric month sent
 (defmacro vm-month-number-of (message) (list 'aref (list 'aref message 3) 15))
+;; extra data shared by virtual messages if vm-virtual-mirror is non-nil
+(defmacro vm-mirror-data-of (message) (list 'aref message 4))
+;; if message is being edited, this is the buffer being used.
+(defmacro vm-edit-buffer-of (message) (list 'aref (list 'aref message 4) 0))
+;; list of virtual messages referencing the above real message
+(defmacro vm-virtual-messages-of (message) (list 'aref (list 'aref message 4) 1))
 ;; modificaiton flag for this message
-(defmacro vm-modflag-of (message) (list 'aref message 4))
+(defmacro vm-modflag-of (message) (list 'aref message 5))
+;; link to real message
+(defmacro vm-real-message-of (message) (list 'symbol-value (list 'aref message 6)))
+;; list to previous message in the message list
+(defmacro vm-reverse-link-of (message) (list 'symbol-value (list 'aref message 7)))
+;; message type; if nil, then default to folder type
+(defmacro vm-message-type-of (message) (list 'aref message 8))
 
-(defmacro vm-set-virtual-data-of (message vdata) (list 'aset message 0 vdata))
+(defmacro vm-set-location-data-of (message vdata) (list 'aset message 0 vdata))
 (defmacro vm-set-start-of (message start) (list 'aset (list 'aref message 0) 0 start))
 (defmacro vm-set-vheaders-of (message vh) (list 'aset (list 'aref message 0) 1 vh))
 (defmacro vm-set-text-of (message text) (list 'aset (list 'aref message 0) 2 text))
 (defmacro vm-set-end-of (message end) (list 'aset (list 'aref message 0) 3 end))
-(defmacro vm-set-edit-buffer-of (message buf) (list 'aset (list 'aref message 0) 4 buf))
-(defmacro vm-set-message-type-of (message type) (list 'aset (list 'aref message 0) 5 type))
-(defmacro vm-set-real-message-sym-of (message sym) (list 'aset (list 'aref message 0) 6 sym))
-(defmacro vm-set-virtual-messages-of (message list) (list 'aset (list 'aref message 0) 7 list))
-(defmacro vm-set-reverse-link-sym-of (message sym) (list 'aset (list 'aref message 0) 8 sym))
-(defmacro vm-set-reverse-link-of (message link) (list 'set (list 'aref (list 'aref message 0) 8) link))
 (defmacro vm-set-softdata-of (message data) (list 'aset message 1 data))
 (defmacro vm-set-number-of (message n) (list 'aset (list 'aref message 1) 0 n))
 (defmacro vm-set-mark-of (message val) (list 'aset (list 'aref message 1) 1 val))
@@ -150,7 +146,17 @@
   (list 'aset (list 'aref message 3) 14 recips))
 (defmacro vm-set-month-number-of (message val)
   (list 'aset (list 'aref message 3) 15 val))
-(defmacro vm-set-modflag-of (message val) (list 'aset message 4 val))
+(defmacro vm-set-mirror-data-of (message data)
+  (list 'aset message 4 data))
+(defmacro vm-set-edit-buffer-of (message buf)
+  (list 'aset (list 'aref message 4) 0 buf))
+(defmacro vm-set-virtual-messages-of (message list)
+  (list 'aset (list 'aref message 4) 1 list))
+(defmacro vm-set-modflag-of (message val) (list 'aset message 5 val))
+(defmacro vm-set-real-message-sym-of (message sym) (list 'aset message 6 sym))
+(defmacro vm-set-reverse-link-of (message link) (list 'set (list 'aref message 7) link))
+(defmacro vm-set-reverse-link-sym-of (message sym) (list 'aset message 7 sym))
+(defmacro vm-set-message-type-of (message type) (list 'aset message 8 type))
 
 (defun vm-text-end-of (message)
   (- (vm-end-of message)
@@ -158,9 +164,11 @@
 	   (t 1))))
 
 (defun vm-make-message ()
-  (let ((v (make-vector 5 nil)) sym)
+  (let ((v (make-vector 9 nil)) sym)
     (vm-set-softdata-of v (make-vector vm-softdata-vector-length nil))
-    (vm-set-virtual-data-of v (make-vector vm-virtual-data-vector-length nil))
+    (vm-set-location-data-of
+     v (make-vector vm-location-data-vector-length nil))
+    (vm-set-mirror-data-of v (make-vector vm-mirror-data-vector-length nil))
     ;; We use an uninterned symbol here as a level of indirection
     ;; from a purely self-referential structure.  This is
     ;; necessary so that Emacs debugger can be used on this

@@ -1,9 +1,29 @@
 This file describes various problems that have been encountered
 in compiling, installing and running GNU Emacs.
 
-* Linking says that the functions insque and remque are undefined.
+* `Pid xxx killed due to text modification or page I/O error'
 
-Change oldXMenu/Makefile by adding insque.o to the variable OBJS.
+On HP/UX, you can get that error when the Emacs executable is on an NFS
+file system.  HP/UX responds this way if it tries to swap in a page and
+does not get a response from the server within a timeout whose default
+value is just ten seconds.
+
+If this happens to you, extend the timeout period.
+
+* `expand-file-name' fails to work on any but the machine you dumped Emacs on.
+
+On Ultrix, if you use any of the functions which look up information
+in the passwd database before dumping Emacs (say, by using
+expand-file-name in site-init.el), then those functions will not work
+in the dumped Emacs on any host but the one Emacs was dumped on.
+
+The solution?  Don't use expand-file-name in site-init.el, or in
+anything it loads.  Yuck - some solution.
+
+I'm not sure why this happens; if you can find out exactly what is
+going on, and perhaps find a fix or a workaround, please let us know.
+Perhaps the YP functions cache some information, the cache is included
+in the dumped Emacs, and is then inaccurate on any other host.
 
 * Emacs fails to understand most Internet host names, even though
 the names work properly with other programs on the same system.
@@ -136,6 +156,19 @@ It has been claimed that this is caused by a bug in certain very old (1990?)
 versions of the twm window manager.  It doesn't happen with recent vintages,
 or with other window managers.
 
+* Emacs ignores the "help" key when running OLWM.
+
+OLWM grabs the help key, and retransmits it to the appropriate client using
+XSendEvent.  Allowing emacs to react to synthetic events is a security hole,
+so this is turned off by default.  You can enable it by setting the variable
+x-allow-sendevents to t.  You can also cause fix this by telling OLWM to not
+grab the help key, with the null binding "OpenWindows.KeyboardCommand.Help:".
+
+* Something awful happens when I type M-ESC, instead of `eval-expression'.
+
+MWM intercepts this and several other keys.  Turn this off by adding this to
+your resources: "mwm*keyBindings: NoKeyBindings".
+
 * Emacs starts in a directory other than the one that is current in the shell.
 
 If the PWD environment variable exists, Emacs uses this variable as
@@ -159,8 +192,8 @@ with a floating point option other than the default.
 It's not terribly hard to make this work with small changes in
 crt0.c together with linking with Fcrt1.o, Wcrt1.o or Mcrt1.o.
 However, the easiest approach is to build Xlib with the default
-floating point option: to decide at run time what hardware is
-available.
+floating point option: -fsoft to decide at run time what hardware 
+is available.
 
 * Keyboard input gets confused after a beep when using a DECserver
   as a concentrator.
@@ -261,10 +294,6 @@ I have also seen character \177 changed into \377.  I do not know
 what transfer means caused this problem.  Various network
 file transfer programs are suspected of clobbering the high bit.
 
-The only verified ways to transfer GNU Emacs are `tar', kermit (in
-binary mode on Unix), and rcp or internet ftp between two Unix systems,
-or chaosnet cftp using raw mode.
-
 If you have a copy of Emacs that has been damaged in its
 nonprinting characters, you can fix them:
 
@@ -305,7 +334,7 @@ This could be caused by
    the space required.
 
 If the need for more space is legitimate, change the definition
-of PURESIZE in config.h.
+of PURESIZE in puresize.h.
 
 But in some of the cases listed above, this problem is a consequence
 of something else that is wrong.  Be sure to check and fix the real
@@ -750,23 +779,6 @@ causes it.
 	    else
 	    {
 
-* ld complains because `alloca' is not defined on your system.
-
-Alloca is a library function in 4.2bsd, which is used very heavily by
-GNU Emacs.  Use of malloc instead is very difficult, as you would have
-to arrange for the storage to be freed, and do so even in the case of
-a longjmp happening inside a subroutine.  Many subroutines in Emacs
-can do longjmp.
-
-If your system does not support alloca, try defining the symbol
-C_ALLOCA in the m-...h file for that machine.  This will enable the use
-in Emacs of a portable simulation for alloca.  But you will find that
-Emacs's performance and memory use improve if you write a true
-alloca in assembler language.
-
-alloca (N) should return the address of an N-byte block of memory
-added dynamically to the current stack frame.
-
 * Vax C compiler bugs affecting Emacs.
 
 You may get one of these problems compiling Emacs:
@@ -837,9 +849,9 @@ of machine defines NO_UNION_TYPE.  That is the recommended setting now.
 
 * C compilers lose on returning unions
 
-I hear that some C compilers cannot handle returning
-a union type.  Most of the functions in GNU Emacs return
-type Lisp_Object, which is currently defined as a union.
+I hear that some C compilers cannot handle returning a union type.
+Most of the functions in GNU Emacs return type Lisp_Object, which is
+defined as a union on some rare architectures.
 
 This problem will not happen if the m-...h file for your type
 of machine defines NO_UNION_TYPE.  That is the recommended setting now.

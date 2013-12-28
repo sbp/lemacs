@@ -12,10 +12,12 @@ doall:
 #This is used in making a distribution.
 #Do not use it on development directories!
 distclean:
-	-rm -f paths.h config.h emacs-* xemacs temacs cemacs puremacs puremacs.hardlink puremacs.linkinfo xmakefile core *~ \#* *.o
+	-rm -f paths.h config.h emacs-* xemacs temacs cemacs pure_cemacs pure_cemacs.* xmakefile core *~ \#* *.o
+	-cd lwlib && $(MAKE) clean
 
 clean:
-	-rm -f xemacs temacs cemacs puremacs xmakefile core \#* *.o
+	-rm -f xemacs temacs cemacs pure_cemacs pure_cemacs.* xmakefile core \#* *.o
+	-cd lwlib && $(MAKE) clean
 
 xemacs: xmakefile doxemacs
 
@@ -26,11 +28,6 @@ temacs: xmakefile dotemacs
 
 dotemacs:
 	$(MAKE) $(MAKEOVERRIDES) -f xmakefile ${MFLAGS} temacs
-
-puremacs: xmakefile dopuremacs
-
-dopuremacs:
-	$(MAKE) $(MAKEOVERRIDES) -f xmakefile ${MFLAGS} puremacs
 
 release: xmakefile dorelease
 

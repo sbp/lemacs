@@ -191,14 +191,20 @@ The defaults for these variables are the global values of
 
 (defvar compilation-mode-map
   (let ((map (make-sparse-keymap)))
+    (set-keymap-name map 'compilation-mode-map)
     (define-key map "\C-c\C-c" 'compile-goto-error)
+    (define-key map 'button2 'compile-mouse-goto-error)
     map)
   "Keymap for compilation log buffers.")
+
+(defvar compilation-mode-hook nil
+  "Function or functions run on entry to compilation-mode.")
 
 (defun compilation-mode ()
   "Major mode for compilation log buffers.
 \\<compilation-mode-map>To visit the source for a line-numbered error,
-move point to the error message line and type \\[compile-goto-error]."
+move point to the error message line and type \\[compile-goto-error],
+or click on the line with \\[compile-mouse-goto-error]."
   (interactive)
   (fundamental-mode)
   (use-local-map compilation-mode-map)
@@ -212,7 +218,11 @@ move point to the error message line and type \\[compile-goto-error]."
   (setq major-mode 'compilation-mode)
   (setq mode-name "Compilation")
   ;; Make log buffer's mode line show process state
-  (setq mode-line-process '(": %s")))
+  (setq mode-line-process '(": %s"))
+  ;; Highlight lines.
+  (require 'mode-motion)
+  (setq mode-motion-hook 'mode-motion-highlight-line)
+  (run-hooks 'compilation-mode-hook))
 
 ;; Called when compilation process changes state.
 
@@ -305,6 +315,15 @@ other kinds of prefix arguments are ignored."
   (or (one-window-p)
       (other-window -1))
   (next-error 1))
+
+(defun compile-mouse-goto-error (event)
+  "Visit the source for the error under the mouse.
+Use this command in a compilation log buffer."
+  (interactive "e")
+  (mouse-set-point event)
+  (beginning-of-line)
+  (if (not (looking-at "^[^:\n ]+:[0-9]+:")) (error ""))
+  (compile-goto-error))
 
 (defun next-error (&optional argp)
   "Visit next compilation error message and corresponding source code.

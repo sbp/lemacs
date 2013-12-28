@@ -1,5 +1,5 @@
 /* Code to do an unexec for Sun O/S 4.1 for a temacs linked -Bdynamic.
-   Copyright (C) 1992 Free Software Foundation, Inc.
+   Copyright (C) 1992, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -18,6 +18,7 @@ along with GNU Emacs; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
 Created 29-Oct-92 by Harlan Sexton
+Tweaked 06-Aug-93 by Dean Michaels to work with sun3.
  */
 
 /********************** Included .h Files **************************/
@@ -32,6 +33,7 @@ Created 29-Oct-92 by Harlan Sexton
 # define sun 1
 #endif
 
+#include <stdarg.h>
 #include <sys/param.h>
 #include <sys/mman.h>
 #include <sys/file.h>
@@ -57,7 +59,9 @@ Created 29-Oct-92 by Harlan Sexton
 
 #define MASK_DOWN(x,p_of_two) (((unsigned long) (x)) & (~((p_of_two) - 1)))
 
+#ifndef mc68020
 #define relocation_info reloc_info_sparc     
+#endif
 
 /********************** Typedefs and Structs ***********************/
 
@@ -72,8 +76,7 @@ struct translation_struct
 
 /********************** Function Prototypes/Declarations ***********/
 
-static void unexec_error (char *m, int use_errno, 
-                          char *a1, char *a2, char *a3);
+static void unexec_error (const char *m, int use_errno, ...);
 static int unexec_open (char *filename, int flag, int mode);
 static caddr_t unexec_mmap (int fd, size_t len, int prot, int flags);
 static long unexec_seek (int fd, long position);
@@ -109,13 +112,18 @@ static unsigned long sbrk_of_0_at_unexec;
 /*******************************************************************/
 
 static void
-unexec_error (char *m, int use_errno, char *a1, char *a2, char *a3)
+unexec_error (const char *fmt, int use_errno, ...)
 {
-  char *err_msg = SYS_ERR;
+  const char *err_msg = SYS_ERR;
+  va_list args;
 
   fprintf (stderr, "unexec - ");
-  fprintf (stderr, m, a1, a2, a3);
-  if (use_errno) fprintf (stderr, ": %s", err_msg);
+  va_start (args, use_errno);
+  vfprintf (stderr, fmt, args);
+  va_end (args);
+
+  if (use_errno)
+    fprintf (stderr, ": %s", err_msg);
   fprintf (stderr, "\n");
   exit (1);
   return;
@@ -132,8 +140,7 @@ unexec_open (char *filename, int flag, int mode)
 
   if (fd < 0)
     unexec_error ("Failure opening file %s", 1, (void *) filename, 0, 0);
-  else
-    return fd;
+  return fd;
 }
 
 static caddr_t
@@ -147,8 +154,7 @@ unexec_mmap (int fd, size_t len, int prot, int flags)
 
   if (return_val == (caddr_t) -1)
     unexec_error ("Failure mmap'ing file", 1, 0, 0, 0);
-  else
-    return return_val;
+  return return_val;
 }
 
 
@@ -235,8 +241,8 @@ unexec_pad (int fd, int bytes)
       char buf[1024];
       int remaining = bytes;
 
-      bzero (buf, sizeof(buf));
-  
+      memset (buf, 0, sizeof (buf));
+
       while (remaining > 0)
         {
           int this_write = (remaining > sizeof(buf))?sizeof(buf):remaining;
@@ -271,7 +277,7 @@ unexec_addr_to_offset (long addr, struct translation_struct *ts)
   if ((addr < ts->txtaddr) || (addr >= ts->bssaddr))
     unexec_error ("bad address 0x%x to addr_to_offset()", 
                   0, (char *) addr, 0, 0);
-  else if (addr >= ts->dataddr)
+  if (addr >= ts->dataddr)
     return ((long) ((addr - ts->dataddr) + ts->datoff));
   else 
     return ((long) ((addr - ts->txtaddr) + ts->txtoff));
@@ -281,7 +287,6 @@ unexec_addr_to_offset (long addr, struct translation_struct *ts)
 /*
  * "LD.SO" DATA AND SYMBOL TABLE OPERATIONS 
  */
-
 
 static void
 copy_relocation_site (struct relocation_info *ri, 
@@ -293,8 +298,22 @@ copy_relocation_site (struct relocation_info *ri,
   caddr_t from = from_base_addr + offset;
   caddr_t to = to_base_addr + offset;
      
+#ifdef mc68020
+#define r_type r_length
+#endif /* mc68020 */
   switch (ri->r_type)
     {
+#ifdef mc68020
+    case 0:
+      *((char *) to) = *((char *) from);
+      break;
+    case 1:
+      *((short *) to) = *((short *) from);
+      break;
+    case 2:
+      *((long *) to) = *((long *) from);
+      break;
+#else /* !mc68020 */
     case RELOC_8:
     case RELOC_DISP8:
       *((char *) to) = *((char *) from);
@@ -327,7 +346,7 @@ copy_relocation_site (struct relocation_info *ri,
         *target = *source;
       }
       break;
-
+#endif /* !mc68020 */
     default:
       unexec_error ("unknown reloc type %d seen during unexec()",
                     0, (char *) ri->r_type, 0, 0);
@@ -335,7 +354,6 @@ copy_relocation_site (struct relocation_info *ri,
     }
   return;
 }
-
 
 static void
 reset_symtab (struct nlist *start, struct nlist *end, char *strtab,
@@ -605,8 +623,11 @@ run_time_remap (char *dummy)
       unsigned long current_sbrk = (unsigned long) sbrk (0);
 
       if (sbrk_of_0_at_unexec < current_sbrk)
-        fprintf (stderr, "Absurd new brk addr = 0x%x (current = 0x%x)\n", 
-                 sbrk_of_0_at_unexec, current_sbrk);
+	{
+	  if (sbrk_of_0_at_unexec != 0)
+	    fprintf (stderr, "Absurd new brk addr = 0x%x (current = 0x%x)\n", 
+		     sbrk_of_0_at_unexec, current_sbrk);
+	}
       else
         {
           errno = 0;
@@ -626,3 +647,4 @@ run_time_remap (char *dummy)
              
   return 0;
 }
+

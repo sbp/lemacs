@@ -1,6 +1,20 @@
 ILISP HISTORY
 
-92/04/23 Version 4.12 modified to work with Lucid GNU Emacs by jwz.
+Sat Jun 26 14:22:01 1993  Version 5.0 Released
+
+Changes:
+
+Major work separating ilisp.el and ilisp-ext.el into many sub-files.
+
+Got ILISP to work with fsf-18, fsf-19, and lemacs-19.
+
+Added LISP-DONT-CACHE-PACKAGE lets users tell ILISP to search for the
+most recent IN-PACKAGE on each eval/compile in a lisp buffer.
+
+Modified lisp-display-output so that output will be displayed in the
+message window if LISP-NO-POPPER is 'MESSAGE.
+
+
 
 92/03/17 Version 4.12 released
 

@@ -20,7 +20,7 @@
 
 ;; The following line is modified automatically
 ;; by loading inc-version.el, each time a new Emacs is dumped.
-(defconst emacs-version "19.6" "\
+(defconst emacs-version "19.8" "\
 Version numbers of this version of Emacs.")
 
 (setq emacs-version (purecopy (concat emacs-version " Lucid")))
@@ -39,7 +39,8 @@ Return string describing the version of Emacs that is running."
 	    emacs-version
 	    (substring emacs-build-time 0
 		       (string-match " *[0-9]*:" emacs-build-time))
-	    (substring emacs-build-time (string-match "[0-9]*$" emacs-build-time))
+	    (substring emacs-build-time
+                       (string-match "[0-9]*$" emacs-build-time))
 	    emacs-build-system system-type)))
 
 ;;Local variables:

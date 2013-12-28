@@ -4,19 +4,14 @@
 #endif
 #endif
 
+#if 0
 #ifdef __hpux
 #include <sys/types.h>
 static size_t getpagesize() { return( 4096 ); }
 #define HAVE_GETPAGESIZE
 #endif
+#endif
   
-#ifdef HAVE_SYSCONF
-#include <sys/unistd.h>
-
-#define getpagesize() sysconf(_SC_PAGESIZE)
-
-#else /* not HAVE_SYSCONF */
-
 #ifndef HAVE_GETPAGESIZE
 
 #include <sys/param.h>
@@ -30,10 +25,13 @@ static size_t getpagesize() { return( 4096 ); }
 #define CLSIZE 1
 #endif /* no CLSIZE */
 #else /* no NBPG */
+#if defined (sparc) && defined (USG)
+#define getpagesize() PAGESIZE
+#else /* not Solaris 2 */
 #define getpagesize() NBPC
+#endif /* not Solaris 2 */
 #endif /* no NBPG */
 #endif /* no EXEC_PAGESIZE */
 
 #endif /* not HAVE_GETPAGESIZE */
 
-#endif /* not HAVE_SYSCONF */

@@ -1,11 +1,14 @@
-;; Text mode, and its ideosyncratic commands.
-;; Copyright (C) 1985 Free Software Foundation, Inc.
+;;; text-mode.el --- text mode, and its idiosyncratic commands.
+
+;; Copyright (C) 1985, 1992, 1993 Free Software Foundation, Inc.
+
+;; Maintainer: FSF
 
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -17,6 +20,13 @@
 ;; along with GNU Emacs; see the file COPYING.  If not, write to
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
+
+;;; Commentary:
+
+;; This package provides the fundamental text mode documented in the
+;; Emacs user's manual.
+
+;;; Code:
 
 (defvar text-mode-syntax-table nil
   "Syntax table used while in text mode.")
@@ -40,6 +50,7 @@ inherit all the commands defined in this map.")
 (if text-mode-map
     ()
   (setq text-mode-map (make-sparse-keymap))
+  (set-keymap-name text-mode-map 'text-mode-map)
   (define-key text-mode-map "\t" 'tab-to-tab-stop)
   (define-key text-mode-map "\es" 'center-line)
   (define-key text-mode-map "\eS" 'center-paragraph))
@@ -53,7 +64,7 @@ inherit all the commands defined in this map.")
 
 (defun text-mode ()
   "Major mode for editing text intended for humans to read.  Special commands:\\{text-mode-map}
-Turning on text-mode calls the value of the variable `text-mode-hook',
+Turning on Text mode calls the value of the variable `text-mode-hook',
 if that value is non-nil."
   (interactive)
   (kill-all-local-variables)
@@ -70,13 +81,18 @@ All the commands defined in Text mode are inherited unless overridden.")
 
 (if indented-text-mode-map
     ()
-  (setq indented-text-mode-map (copy-keymap text-mode-map))
+  ;; Make different definition for TAB before the one in text-mode-map, but
+  ;; share the rest.
+  (setq indented-text-mode-map (make-sparse-keymap))
+  (set-keymap-name indented-text-mode-map 'indented-text-mode-map)
+  (set-keymap-parent indented-text-mode-map text-mode-map)
   (define-key indented-text-mode-map "\t" 'indent-relative))
 
 (defun indented-text-mode ()
-  "Major mode for editing indented text intended for humans to read.\\{indented-text-mode-map}
-Turning on indented-text-mode calls the value of the variable `text-mode-hook',
-if that value is non-nil."
+  "Major mode for editing indented text intended for humans to read.
+\\{indented-text-mode-map}
+Turning on `indented-text-mode' calls the value of the variable
+`text-mode-hook', if that value is non-nil."
   (interactive)
   (kill-all-local-variables)
   (use-local-map text-mode-map)
@@ -90,21 +106,9 @@ if that value is non-nil."
   (setq major-mode 'indented-text-mode)
   (run-hooks 'text-mode-hook))
 
-(defun change-log-mode ()
-  "Major mode for editing ChangeLog files.  See M-x add-change-log-entry.
-Almost the same as Indented Text mode, but prevents numeric backups
-and sets `left-margin' to 8 and `fill-column' to 74."
-  (interactive)
-  (indented-text-mode)
-  (setq left-margin 8)
-  (setq fill-column 74)
-  (make-local-variable 'version-control)
-  (setq version-control 'never)
-  (run-hooks 'change-log-mode-hook))
-
 (defun center-paragraph ()
   "Center each nonblank line in the paragraph at or after point.
-See center-line for more info."
+See `center-line' for more info."
   (interactive)
   (save-excursion
     (forward-paragraph)
@@ -115,7 +119,7 @@ See center-line for more info."
 
 (defun center-region (from to)
   "Center each nonblank line starting in the region.
-See center-line for more info."
+See `center-line' for more info."
   (interactive "r")
   (if (> from to)
       (let ((tem to))
@@ -145,3 +149,5 @@ the distance between the end of the text and `fill-column'."
       (indent-to 
 	(+ left-margin 
 	   (/ (- fill-column left-margin line-length) 2))))))
+
+;;; text-mode.el ends here

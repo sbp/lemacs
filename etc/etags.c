@@ -1,21 +1,21 @@
 /* Tags file maker to go with GNU Emacs
-   Copyright (C) 1984, 1987, 1988, 1989, 1992 Free Software Foundation, Inc. and Ken Arnold
+   Copyright (C) 1984, 1987, 1988, 1989, 1993 Free Software Foundation, Inc. and Ken Arnold
 
-This file is part of GNU Emacs.
+This file is not considered part of GNU Emacs.
 
-GNU Emacs is free software; you can redistribute it and/or modify
+This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2, or (at your option)
-any later version.
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
 
-GNU Emacs is distributed in the hope that it will be useful,
+This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU Emacs; see the file COPYING.  If not, write to
-the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+along with this program; if not, write to the Free Software
+Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /*
  * Authors:
@@ -26,23 +26,28 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
  *	Sam Kendall added C++.
  */
 
+#include "../src/config.h"
+
+#if __STDC__
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#endif
+
 #include <stdio.h>
 #include <ctype.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#define NO_SHORTNAMES
-#include "../src/config.h"
+#include "getopt.h"
 
 extern char *malloc (), *realloc ();
 extern char *getenv ();
-extern char *index (), *rindex ();
 extern char *strcpy (), *strncpy ();
 extern int strcmp ();
 
-#if defined(hpux) || defined(USG5_4)
-#define notdef
-#endif
+char *etags_index (), *etags_rindex ();
+char *savenstr ();
 
 /* Define the symbol ETAGS to make the program "etags",
  which makes emacs-style tag tables by default.
@@ -79,8 +84,6 @@ extern int strcmp ();
  *
  *	long GET_CHARNO (pos)
  *				returns absolute char number.
- *	long GET_COOKIE (pos)
- *				returns ftell () cookie.
  *	void SET_FILEPOS (pos, fp, charno)
  *	    FILE *fp; long charno;
  *				sets `pos' from the current file
@@ -98,44 +101,28 @@ extern int strcmp ();
  *
  * Implementation notes: the `+ 0' is to enforce rvalue-ness.
  */
-#ifdef VMS
-typedef struct
-{
-  long cookie;
-  long charno;
-} FILEPOS;
-
-#define GET_CHARNO(pos)	((pos).charno + 0)
-#define GET_COOKIE(pos)	((pos).cookie + 0)
-#define SET_FILEPOS(pos, fp, cno) \
-    ((void) ((pos).cookie = ftell (fp), (pos).charno = (cno)))
-#else
 #ifndef DEBUG
- /* UNIX real implementation */
+ /* real implementation */
 typedef long FILEPOS;
 #define GET_CHARNO(pos)	((pos) + 0)
-#define GET_COOKIE(pos)	GET_CHARNO (pos)
 #define SET_FILEPOS(pos, fp, cno)	((void) ((pos) = (cno)))
 #else
- /* UNIX debugging implementation */
+ /* debugging implementation */
 typedef struct
 {
   long charno;
 } FILEPOS;
 
 #define GET_CHARNO(pos)	((pos).charno + 0)
-#define GET_COOKIE(pos)	GET_CHARNO (pos)
 #define SET_FILEPOS(pos, fp, cno)					\
     ((void) ((pos).charno = (cno),					\
 	     (cno) != ftell (fp) ? (error ("SET_FILEPOS inconsistency"), 0) \
 	     			 : 0))
 #endif
-#endif
 
 #define streq(s, t)	(strcmp (s, t) == 0)
 #define strneq(s, t, n)	(strncmp (s, t, n) == 0)
-#define	reg	register
-#define	logical	char
+#define	logical		int
 
 #define	TRUE	1
 #define	FALSE	0
@@ -144,7 +131,6 @@ typedef struct
 #define	begtoken(arg)	(_btk[arg])	/* T if char can start token	*/
 #define	intoken(arg)	(_itk[arg])	/* T if char can be in token	*/
 #define	endtoken(arg)	(_etk[arg])	/* T if char ends tokens	*/
-#define	isgood(arg)	(_gd[arg])	/* T if char can be after ')'	*/
 
 #define	max(I1,I2)	((I1) > (I2) ? (I1) : (I2))
 
@@ -164,10 +150,9 @@ struct nd_st
 long ftell ();
 typedef struct nd_st NODE;
 
-logical gotone,			/* found a func already on line	*/
- /* boolean "func" (see init)	*/
-  header_file,			/* TRUE if .h file, FALSE o.w.  */
-  _wht[0177], _etk[0177], _itk[0177], _btk[0177], _gd[0177];
+logical header_file;            /* TRUE if .h file, FALSE o.w.  */
+/* boolean "functions" (see init)	*/
+logical _wht[0177], _etk[0177], _itk[0177], _btk[0177];
 
 
 char *concat ();
@@ -341,81 +326,20 @@ typedef struct
 {
   char *p;
   int len;
-  FILEPOS linestart;
   LINENO lineno;
   logical rewritten;
 } TOKEN;
-
 
- /* typedefs are recognized using a simple finite automaton.
-  * tydef is its state variable.
-  */
-typedef enum
-{
-  none, begin, middle, end
-} TYST;
-
-TYST tydef = none;
-
-
- /* struct tags for C++ are recognized using another simple
-  * finite automaton.  `structdef' is its state variable.
-  * This machinery is only invoked for C++; otherwise structdef
-  * should remain snone.  However, this machinery can easily be
-  * adapted to find structure tags in normal C code.
-  */
-typedef enum
-{
-  snone,			/* nothing seen yet */
-  skeyseen,			/* struct-like keyword seen */
-  stagseen,			/* struct-like tag seen */
-  scolonseen,			/* colon seen after struct-like tag */
-  sinbody			/* in a class body: recognize member func defs */
-} STRUCTST;
-STRUCTST structdef = snone;
-/*
- * When structdef is stagseen, scolonseen, or sinbody, structtag is the
- * struct tag, and structkey is the preceding struct-like keyword.
+/* C extensions.
  */
-char structtag[512];
-Stab_entry *structkey;
-
-/*
- * Yet another little state machine to deal with preprocessor lines.
- */
-typedef enum
-{
-  dnone,			/* nothing seen */
-  dsharpseen,			/* '#' seen as first char on line */
-  ddefineseen,			/* '#' and 'define' seen */
-  dignorerest			/* ignore rest of line */
-} DEFINEST;
-DEFINEST definedef;
-
-/*
- * LEVEL_OK_FOR_FUNCDEF allows C++ function definition within class body.
- * Currently tydef and structdef stuff (typedefs and struct definitions) are
- * only noticed when level==0, but that may change.
- *
- * Note that this macro may only be evaluated inside C_entries().  It is
- * for self-documentation only.
- */
-#define LEVEL_OK_FOR_FUNCDEF()					\
-	(level==0 || c_ext && level==1 && structdef==sinbody)
-
-/* C extensions.  Currently all listed extensions are C++ dialects, so
- * `c_ext' is used as an abbreviation for `c_ext&C_PLPL'.  If a non-C++
- * dialect is added, this must change.
- */
-#define C_PLPL	0x1		/* C++ */
-#define C_STAR	0x3		/* C* */
+#define C_PLPL	0x00001		/* C++ */
+#define C_STAR	0x00003		/* C* */
+#define YACC	0x10000		/* yacc file */
 
 char searchar = '/';		/* use /.../ searches 		*/
 
 LINENO lineno;			/* line number of current line */
 long charno;			/* current character number */
-FILEPOS linepos;		/* start of line (C only) */
-FILEPOS prev_linepos;		/* start of previous line (C only) */
 
 long linecharno;		/* charno of start of line; not used by C, but
 				 * by every other language.
@@ -424,12 +348,12 @@ long linecharno;		/* charno of start of line; not used by C, but
 char *curfile,			/* current input file name		*/
  *outfile,			/* output file				*/
  *white = " \f\t\n",		/* white chars				*/
- *endtk = " \t\n\"'#()[]{}=-+%*/&|^~!<>;,.:?",	/* token ending chars			*/
- *begtk = "ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz$",	/* token starting chars			*/
- *intk = "ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz$0123456789",	/* valid in-token chars			*/
- *notgd = ",;";			/* non-valid after-function chars	*/
+ *endtk = " \t\n\"'#()[]{}=-+%*/&|^~!<>;,.:?",	/* token ending chars   */
+				/* token starting chars			*/
+ *begtk = "ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz$",
+				  /* valid in-token chars		*/
+ *intk = "ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz$0123456789";
 
-int file_num;			/* current file number			*/
 int append_to_tagfile;		/* -a: append to tags */
 int emacs_tags_format;		/* emacs style output (no -e option any more) */
 /* The following three default to 1 for etags, but to 0 for ctags.  */
@@ -447,11 +371,30 @@ int no_warnings;		/* -w: suppress warnings */
 int cxref_style;		/* -x: create cxref style output */
 int cplusplus;			/* .[hc] means C++, not C */
 int noindentypedefs;		/* -S: ignore indentation in C */
-int files_are_tag_tables;	/* -i: treat all spec'd files as */
-				/* included sub-tag-tables.  */
 
 /* Name this program was invoked with.  */
 char *progname;
+
+struct option longopts[] = {
+  { "append",			no_argument,	   NULL, 'a' },
+  { "backward-search",		no_argument,	   NULL, 'B' }, 
+  { "c++",			no_argument,	   NULL, 'C' },
+  { "cxref",			no_argument,	   NULL, 'x' },
+  { "defines",			no_argument,	   NULL, 'd' },
+  { "forward-search",		no_argument,	   NULL, 'F' }, 
+  { "help",			no_argument,	   NULL, 'H' },
+  { "ignore-indentation",	no_argument,	   NULL, 'S' },
+  { "include",			required_argument, NULL, 'i' },
+  { "no-defines",		no_argument,	   NULL, 'D' },
+  { "no-warn",			no_argument,	   NULL, 'w' },
+  { "output",			required_argument, NULL, 'o' },
+  { "typedefs",			no_argument,	   NULL, 't' },
+  { "typedefs-and-c++",		no_argument,	   NULL, 'T' },
+  { "update",			no_argument,	   NULL, 'u' }, 
+  { "version",			no_argument,	   NULL, 'V' },
+  { "vgrind",			no_argument,	   NULL, 'v' }, 
+  { 0 }
+};
 
 FILE *inf,			/* ioptr for current input file		*/
  *outf;				/* ioptr for tags file			*/
@@ -471,10 +414,119 @@ struct linebuffer
 };
 
 struct linebuffer lb;		/* the current line */
-struct linebuffer lb1;		/* sometimes, a previous line in which a token lies */
 struct linebuffer filename_lb;	/* used to read in filenames */
-
+struct
+{
+  FILEPOS linepos;
+  struct linebuffer lb;		/* used by C_entries instead of lb */
+} lbs[2];
 
+
+void
+print_version ()
+{
+#ifdef CTAGS
+  printf ("CTAGS ");
+#ifdef ETAGS
+  printf ("and ");
+#endif
+#endif
+#ifdef ETAGS
+  printf ("ETAGS ");
+#endif
+  printf ("for Emacs version 19.0.\n");
+
+  exit (0);
+}
+
+void
+print_help ()
+{
+  printf ("These are the options accepted by %s.  You may use unambiguous\n\
+abbreviations for the long option names.\n\n", progname);
+
+  puts ("-a, --append\n\
+        Append tag entries to existing tags file.");
+  puts ("-C, --c++\n\
+        Treat files with `.c' and `.h' extensions as C++ code, not C\n\
+        code.  Files with `.C', `.H', `.cxx', `.hxx', or `.cc'\n\
+        extensions are always assumed to be C++ code.");
+  fputs ("-d, --defines\n\
+        Create tag entries for #defines, too.", stdout);
+
+#ifdef ETAGS
+  fputs ("  This is the default\n\
+        behavior.", stdout);
+#endif
+
+  fputs ("\n\
+-D, --no-defines\n\
+        Don't create tag entries for #defines.", stdout);
+
+#ifdef CTAGS
+  fputs ("  This is the default\n\
+        behavior.", stdout);
+#endif
+
+  puts ("\n\
+-o FILE, --output=FILE\n\
+        Write the tags to FILE.\n\
+-S, --ignore-indentation\n\
+        Don't rely on indentation quite as much as normal.  Currently,\n\
+        this means not to assume that a closing brace in the first\n\
+        column is the final brace of a function or structure\n\
+        definition.");
+  puts ("-t, --typedefs\n\
+        Generate tag entries for typedefs.  This is the default\n\
+        behavior.");
+  puts ("-T, --typedefs-and-c++\n\
+        Generate tag entries for typedefs, struct/enum/union tags, and\n\
+        C++ member functions.");
+
+#ifdef ETAGS
+  puts ("-i FILE, --include=FILE\n\
+        Include a note in tag file indicating that, when searching for\n\
+        a tag, one should also consult the tags file FILE after\n\
+        checking the current file.");
+#endif
+
+#ifdef CTAGS
+  puts ("-B, --backward-search\n\
+        Write the search commands for the tag entries using '?', the\n\
+        backward-search command.");
+  puts ("-F, --forward-search\n\
+        Write the search commands for the tag entries using '/', the\n\
+        forward-search command.");
+  puts ("-u, --update\n\
+        Update the tag entries for the given files, leaving tag\n\
+        entries for other files in place.  Currently, this is\n\
+        implemented by deleting the existing entries for the given\n\
+        files and then rewriting the new entries at the end of the\n\
+        tags file.  It is often faster to simply rebuild the entire\n\
+        tag file than to use this.");
+  puts ("-v, --vgrind\n\
+        Generates an index of items intended for human consumption,\n\
+        similar to the output of vgrind.  The index is sorted, and\n\
+        gives the page number of each item.");
+  puts ("-x, --cxref\n\
+        Like --vgrind, but in the style of cxref, rather than vgrind.\n\
+        The output uses line numbers instead of page numbers, but\n\
+        beyond that the differences are cosmetic; try both to see\n\
+        which you like.");
+  puts ("-w, --no-warn\n\
+        Suppress warning messages about entries defined in multiple\n\
+        files.");
+#endif
+
+  puts ("-V, --version\n\
+        Print the version of the program.\n\
+-H, --help\n\
+        Print this help message.");
+
+  exit (0);
+}
+
+
 void
 main (argc, argv)
      int argc;
@@ -482,7 +534,8 @@ main (argc, argv)
 {
   char cmd[100];
   int i;
-  int outfflag = 0;
+  unsigned int nincluded_files = 0;
+  char **included_files = xnew (argc, char *);
   char *this_file;
 #ifdef VMS
   char got_err;
@@ -506,107 +559,111 @@ main (argc, argv)
   if (emacs_tags_format)
     typedefs = typedefs_and_cplusplus = constantypedefs = 1;
 
-  for (; argc > 1 && argv[1][0] == '-' && argv[1][1] != '\0'; argc--, argv++)
+  for (;;)
     {
-      for (i = 1; argv[1][i]; i++)
-	{
-	  switch (argv[1][i])
-	    {
-	      /* Common options. */
-	    case 'a':
-	      append_to_tagfile++;
-	      break;
-	    case 'C':
-	      cplusplus = 1;
-	      break;
-	    case 'd':
-	      constantypedefs = 1;
-	      break;
-	    case 'D':
-	      constantypedefs = 0;
-	      break;
-	    case 'o':
-	      if (outfflag)
-		{
-		  fprintf (stderr,
-			   "%s: -o flag may only be given once\n", progname);
-		  goto usage;
-		}
-	      outfflag++, argc--;
-	      argv++;
-	      if (argc <= 1 || argv[1][0] == '\0')
-		{
-		  fprintf (stderr,
-			   "%s: -o flag must be followed by a filename\n",
-			   progname);
-		  goto usage;
-		}
-	      outfile = argv[1];
-	      goto next_arg;
-	    case 'S':
-	      noindentypedefs++;
-	      break;
-	    case 't':
-	      typedefs++;
-	      break;
-	    case 'T':
-	      typedefs++;
-	      typedefs_and_cplusplus++;
-	      break;
+      int opt;
+      opt = getopt_long (argc, argv, "aCdDo:f:StTi:BFuvxwVH", longopts, 0);
 
-	      /* Etags options */
-	    case 'i':
-	      files_are_tag_tables++;
-	      if (!emacs_tags_format)
-		goto usage;
-	      break;
+      if (opt == EOF)
+	break;
 
-	      /* Ctags options. */
-	    case 'B':
-	      searchar = '?';
-	      if (emacs_tags_format)
-		goto usage;
-	      break;
-	    case 'F':
-	      searchar = '/';
-	      if (emacs_tags_format)
-		goto usage;
-	      break;
-	    case 'u':
-	      update++;
-	      if (emacs_tags_format)
-		goto usage;
-	      break;
-	    case 'v':
-	      vgrind_style++;
-	      /*FALLTHRU*/
-	    case 'x':
-	      cxref_style++;
-	      if (emacs_tags_format)
-		goto usage;
-	      break;
-	    case 'w':
-	      no_warnings++;
-	      if (emacs_tags_format)
-		goto usage;
-	      break;
+      switch (opt)
+        {
+	case '\0':
+	  /* If getopt returns '\0', then it has already processed a
+	     long-named option.  We should do nothing.  */
+	  break;
 
-	    default:
-	      goto usage;
-	    }
-	}
-    next_arg:;
+          /* Common options. */
+        case 'a':
+          append_to_tagfile++;
+          break;
+        case 'C':
+          cplusplus = 1;
+          break;
+        case 'd':
+          constantypedefs = 1;
+          break;
+        case 'D':
+          constantypedefs = 0;
+          break;
+	case 'f':
+        case 'o':
+          if (outfile)
+          {
+            fprintf (stderr,
+                     "%s: -%c flag may only be given once\n", progname, opt);
+            goto usage;
+          }
+	  outfile = optarg;
+	  break;
+        case 'S':
+          noindentypedefs++;
+          break;
+        case 't':
+          typedefs++;
+          break;
+        case 'T':
+          typedefs++;
+          typedefs_and_cplusplus++;
+          break;
+	case 'V':
+	  print_version ();
+	  break;
+	case 'H':
+	  print_help ();
+	  break;
+
+          /* Etags options */
+        case 'i':
+	  if (!emacs_tags_format)
+	    goto usage;
+	  included_files[nincluded_files++] = optarg;
+	  break;
+
+          /* Ctags options. */
+        case 'B':
+          searchar = '?';
+          if (emacs_tags_format)
+            goto usage;
+          break;
+        case 'F':
+          searchar = '/';
+          if (emacs_tags_format)
+            goto usage;
+          break;
+        case 'u':
+          update++;
+          if (emacs_tags_format)
+            goto usage;
+          break;
+        case 'v':
+          vgrind_style++;
+          /*FALLTHRU*/
+        case 'x':
+          cxref_style++;
+          if (emacs_tags_format)
+            goto usage;
+          break;
+        case 'w':
+          no_warnings++;
+          if (emacs_tags_format)
+            goto usage;
+          break;
+
+        default:
+          goto usage;
+        }
     }
 
-  if (argc <= 1)
+
+  if (optind == argc && nincluded_files == 0)
     {
+      fprintf (stderr, "%s: No input files specified.\n", progname);
+
     usage:
-      fprintf (stderr, "Usage:\n");
-#ifndef CTAGS
-      fprintf (stderr, "\tetags [-aDiS] [-o tagsfile] file ...\n");
-#else
-      fprintf (stderr, "\tctags [-aBdeFTStuwvx] [-o tagsfile] file ...\n");
-#endif
+      fprintf (stderr, "%s: Try `%s --help' for a complete list of options.\n",
+	       progname, progname);
       exit (BAD);
     }
 
@@ -618,7 +675,8 @@ main (argc, argv)
   init ();			/* set up boolean "functions"		*/
 
   initbuffer (&lb);
-  initbuffer (&lb1);
+  initbuffer (&lbs[0].lb);
+  initbuffer (&lbs[1].lb);
   initbuffer (&filename_lb);
   /*
    * loop through files finding functions
@@ -636,10 +694,10 @@ main (argc, argv)
 	}
     }
 
-  file_num = 1;
 #ifdef VMS
-  for (argc--, argv++;
-       (this_file = gfnames (&argc, &argv, &got_err)) != NULL; file_num++)
+  argc -= optind;
+  argv += optind;
+  while (gfnames (&argc, &argv, &got_err) != NULL)
     {
       if (got_err)
 	{
@@ -651,12 +709,12 @@ main (argc, argv)
 	  this_file = massage_name (this_file);
 #if 0
 	}
-    }				/* solely to balance out the ifdef'd parens above */
+    }			/* solely to balance out the ifdef'd parens above */
 #endif
 #else
-  for (; file_num < argc; file_num++)
+  for (; optind < argc; optind++)
     {
-      this_file = argv[file_num];
+      this_file = argv[optind];
       if (1)
 	{
 #endif
@@ -678,6 +736,9 @@ main (argc, argv)
 
   if (emacs_tags_format)
     {
+      while (nincluded_files-- > 0)
+	fprintf (outf, "\f\n%s,include\n", *included_files++);
+
       (void) fclose (outf);
       exit (0);
     }
@@ -687,9 +748,11 @@ main (argc, argv)
       put_entries (head);
       exit (GOOD);
     }
-  if (update)			/* update cannot be set under VMS */
+  if (update)
     {
-      for (i = 1; i < argc; i++)
+      /* update cannot be set under VMS, so we may assume that argc
+	 and argv have not been munged.  */
+      for (i = optind; i < argc; i++)
 	{
 	  sprintf (cmd,
 		   "mv %s OTAGS;fgrep -v '\t%s\t' OTAGS >%s;rm OTAGS",
@@ -725,7 +788,11 @@ process_file (file)
   struct stat stat_buf;
 
   stat (file, &stat_buf);
-  if (!(stat_buf.st_mode & S_IFREG) || !(stat_buf.st_mode & S_IFLNK))
+  if (!(stat_buf.st_mode & S_IFREG) 
+#ifdef S_IFLNK
+      || !(stat_buf.st_mode & S_IFLNK)
+#endif
+      )
     {
       fprintf (stderr, "Skipping %s: it is not a regular file.\n", file);
       return;
@@ -736,23 +803,13 @@ process_file (file)
       fprintf (stderr, "Skipping inclusion of %s in self.\n", file);
       return;
     }
-  if (files_are_tag_tables)
-    {
-      fprintf (outf, "\f\n%s,include\n", file);
-      return;
-    }
   if (emacs_tags_format)
     {
-      char *cp = rindex (file, '/');
+      char *cp = etags_rindex (file, '/');
       if (cp)
 	++cp;
       else
 	cp = file;
-      if (streq (cp, outfile))	/*file == "TAGS"*/
-	{
-	  fprintf (outf, "\f\n%s,include\n", file);
-	  return;
-	}
     }
   find_entries (file);
   if (emacs_tags_format)
@@ -766,8 +823,8 @@ process_file (file)
 }
 
 /*
- * This routine sets up the boolean psuedo-functions which work
- * by seting boolean flags dependent upon the corresponding character
+ * This routine sets up the boolean pseudo-functions which work
+ * by setting boolean flags dependent upon the corresponding character
  * Every char which is NOT in that string is not a white char.  Therefore,
  * all of the array "_wht" is set to FALSE, and then the elements
  * subscripted by the chars in "white" are set to TRUE.  Thus "_wht"
@@ -776,14 +833,11 @@ process_file (file)
 void
 init ()
 {
-  reg char *sp;
-  reg int i;
+  register char *sp;
+  register int i;
 
   for (i = 0; i < 0177; i++)
-    {
-      _wht[i] = _etk[i] = _itk[i] = _btk[i] = FALSE;
-      _gd[i] = TRUE;
-    }
+    _wht[i] = _etk[i] = _itk[i] = _btk[i] = FALSE;
   for (sp = white; *sp; sp++)
     _wht[*sp] = TRUE;
   for (sp = endtk; *sp; sp++)
@@ -792,13 +846,24 @@ init ()
     _itk[*sp] = TRUE;
   for (sp = begtk; *sp; sp++)
     _btk[*sp] = TRUE;
-  for (sp = notgd; *sp; sp++)
-    _gd[*sp] = FALSE;
   _wht[0] = _wht['\n'];
   _etk[0] = _etk['\n'];
   _btk[0] = _btk['\n'];
   _itk[0] = _itk['\n'];
-  _gd[0] = _gd['\n'];
+}
+
+/* Nonzero if string STR is composed of digits.  */
+
+int
+string_numeric_p (str)
+     char *str;
+{
+  while (*str)
+    {
+      if (*str < '0' || *str > '9')
+	return 0;
+    }
+  return 1;
 }
 
 /*
@@ -819,7 +884,7 @@ find_entries (file)
       return;
     }
   curfile = savestr (file);
-  cp = rindex (file, '.');
+  cp = etags_rindex (file, '.');
 
   header_file = (cp && (streq (cp + 1, "h")));
 
@@ -850,15 +915,20 @@ find_entries (file)
 	     || streq (cp + 1, "SM")
 	     || streq (cp + 1, "SCM")
   /* The `SCM' or `scm' prefix with a version number */
-	     || (cp[-1] == 'm' && cp[-2] == 'c' && cp[-3] == 's')
-	     || (cp[-1] == 'M' && cp[-2] == 'C' && cp[-3] == 'S')))
+	     || (cp[-1] == 'm' && cp[-2] == 'c' && cp[-3] == 's'
+		 && string_numeric_p (cp + 1))
+	     || (cp[-1] == 'M' && cp[-2] == 'C' && cp[-3] == 'S'
+		 && string_numeric_p (cp + 1))))
     {
       Scheme_funcs (inf);
       fclose (inf);
       return;
     }
-  /* Assume that ".s" or ".a" is assembly code. -wolfgang.  */
-  if (cp && (cp[1] == 's' || cp[1] == 'a') && cp[2] == '\0')
+  /* Assume that ".s" or ".a" is assembly code. -wolfgang.  
+     Or even ".sa". */
+  if (cp && (streq (cp + 1, "s")
+	     || streq (cp + 1, "a")
+	     || streq (cp + 1, "sa")))
     {
       Asm_funcs (inf);
       fclose (inf);
@@ -875,13 +945,20 @@ find_entries (file)
       goto close_and_return;
     }
   /* .cs or .hs: a C* file */
-  if (cp && (cp[1] == 'c' || cp[1] == 'h') && cp[2] == 's' && cp[3] == '\0')
+  if (cp && (streq (cp + 1, "cs")
+	     || streq (cp + 1, "hs")))
     {
       C_entries (C_STAR);
       goto close_and_return;
     }
+  /* .y: a yacc file */
+  if (cp && (streq (cp + 1, "y")))
+    {
+      C_entries (YACC);
+      goto close_and_return;
+    }
   /* .pl implies prolog source code */
-  if (cp && !strcmp (cp + 1, "pl"))
+  if (cp && streq (cp + 1, "pl"))
     {
       prolog_funcs (inf);
       goto close_and_return;
@@ -893,9 +970,16 @@ find_entries (file)
       PAS_funcs (inf);
       goto close_and_return;
     }
+  /* If .f or .for, assume it is fortran or nothing.  */
+  if (cp && (streq (cp + 1, "f")
+	     || streq (cp + 1, "for")))
+    {
+      PF_funcs (inf);
+      goto close_and_return;
+    }
   /* if not a .c or .h or .y file, try fortran */
-  else if (cp && ((cp[1] != 'c' && cp[1] != 'h' && cp[1] != 'y')
-		  || (cp[1] != 0 && cp[2] != 0)))
+  if (cp && ((cp[1] != 'c' && cp[1] != 'h' && cp[1] != 'y')
+             || (cp[1] != 0 && cp[2] != 0)))
     {
       if (PF_funcs (inf) != 0)
 	goto close_and_return;
@@ -906,6 +990,7 @@ find_entries (file)
 close_and_return:
   (void) fclose (inf);
 }
+
 
 /* Record a tag. */
 /* Should take a TOKEN* instead!! */
@@ -944,9 +1029,9 @@ pfnote (name, is_func, rewritten, linestart, linelen, lno, cno)
   /* If ctags mode, change name "main" to M<thisfilename>. */
   if (!emacs_tags_format && !cxref_style && streq (name, "main"))
     {
-      fp = rindex (curfile, '/');
+      fp = etags_rindex (curfile, '/');
       name = concat ("M", fp == 0 ? curfile : fp + 1, "");
-      fp = rindex (name, '.');
+      fp = etags_rindex (name, '.');
       if (fp && fp[1] != '\0' && fp[2] == '\0')
 	*fp = 0;
       rewritten = TRUE;
@@ -1006,13 +1091,16 @@ free_tree (node)
  *	add_node is the only function allowed to add nodes, so it can
  *	maintain state.
  */
+/* Must avoid static vars within functions since some systems
+   #define static as nothing.  */
+static NODE *last_node = NULL;
+
 void
 add_node (node, cur_node_p)
      NODE *node, **cur_node_p;
 {
   register int dif;
   register NODE *cur_node = *cur_node_p;
-  static NODE *last_node = NULL;/* careful */
 
   if (cur_node == NULL)
     {
@@ -1075,9 +1163,9 @@ add_node (node, cur_node_p)
 
 void
 put_entries (node)
-     reg NODE *node;
+     register NODE *node;
 {
-  reg char *sp;
+  register char *sp;
 
   if (node == NULL)
     return;
@@ -1092,7 +1180,8 @@ put_entries (node)
       if (node->rewritten)
 	{
 	  fprintf (outf, "%s\177%s\001%d,%d\n",
-		   node->name, node->pat, node->lno, node->cno);
+		   node->pat, node->name,
+                   node->lno, node->cno);
 	}
       else
 	{
@@ -1128,7 +1217,7 @@ put_entries (node)
     fprintf (stdout, "%s %s %d\n",
 	     node->name, node->file, (node->lno + 63) / 64);
   else
-    fprintf (stdout, "%-16s%4d %-16s %s\n",
+    fprintf (stdout, "%-16s %3d %-16s %s\n",
 	     node->name, node->lno, node->file, node->pat);
 
   /* Output subentries that follow this one */
@@ -1156,9 +1245,9 @@ number_len (num)
  */
 int
 total_size_of_entries (node)
-     reg NODE *node;
+     register NODE *node;
 {
-  reg int total;
+  register int total;
 
   if (node == NULL)
     return 0;
@@ -1189,8 +1278,8 @@ Stab *C_stab, *C_PLPL_stab, *C_STAR_stab;
  * SYNOPSIS
  *	Stab *get_C_stab (int c_ext);
  */
-#define get_C_stab(c_ext) ((c_ext&C_STAR) ? C_STAR_stab :		\
-			   c_ext ? C_PLPL_stab :			\
+#define get_C_stab(c_ext) ((c_ext & C_STAR) ? C_STAR_stab :		\
+			   (c_ext & C_PLPL) ? C_PLPL_stab :		\
 			   C_stab)
 
 void
@@ -1228,6 +1317,10 @@ C_create_stab (c_ext)
   add_keyword (stab, "double", st_C_typespec);
   add_keyword (stab, "signed", st_C_typespec);
   add_keyword (stab, "unsigned", st_C_typespec);
+  add_keyword (stab, "auto", st_C_typespec);
+  add_keyword (stab, "void", st_C_typespec);
+  add_keyword (stab, "extern", st_C_typespec);
+  add_keyword (stab, "static", st_C_typespec);
   add_keyword (stab, "const", st_C_typespec);
   add_keyword (stab, "volatile", st_C_typespec);
 
@@ -1243,88 +1336,186 @@ C_create_stabs ()
 }
 
 /*
+ *	etags.c 4.2 1993/03/22 12:13:40 pot Exp
+  * C functions are recognized using a simple finite automaton.
+  * funcdef is its state variable.
+  */
+typedef enum
+{
+  fnone, ftagseen, finlist, flistseen
+} FUNCST;
+FUNCST funcdef;
+
+
+ /* typedefs are recognized using a simple finite automaton.
+  * typeddef is its state variable.
+  */
+typedef enum
+{
+  tnone, ttypedseen, tinbody, tend
+} TYPEDST;
+TYPEDST typdef;
+
+
+ /* struct tags for C++ are recognized using another simple
+  * finite automaton.  `structdef' is its state variable.
+  * This machinery is only invoked for C++; otherwise structdef
+  * should remain snone.  However, this machinery can easily be
+  * adapted to find structure tags in normal C code.
+  */
+typedef enum
+{
+  snone,			/* nothing seen yet */
+  skeyseen,			/* struct-like keyword seen */
+  stagseen,			/* struct-like tag seen */
+  scolonseen,			/* colon seen after struct-like tag */
+  sinbody			/* in struct body: recognize member func defs*/
+} STRUCTST;
+STRUCTST structdef;
+/*
+ * When structdef is stagseen, scolonseen, or sinbody, structtag is the
+ * struct tag, and structkey is the preceding struct-like keyword.
+ */
+char structtag[BUFSIZ];
+Stab_entry *structkey;
+
+/*
+ * Yet another little state machine to deal with preprocessor lines.
+ */
+typedef enum
+{
+  dnone,			/* nothing seen */
+  dsharpseen,			/* '#' seen as first char on line */
+  ddefineseen,			/* '#' and 'define' seen */
+  dignorerest			/* ignore rest of line */
+} DEFINEST;
+DEFINEST definedef;
+
+/*
+ * Set this to TRUE, and the next token considered is called a function.
+ * Used only for GNUmacs's function-defining macros.
+ */
+logical next_token_is_func;
+
+/*
+ * TRUE in the rules part of a yacc file, FALSE outside (parse as C).
+ */
+logical yacc_rules;
+
+/*
  * C_entries ()
- *	This routine finds functions and typedefs in C syntax and adds them
+ *	This routine finds functions, typedefs, #define's and
+ * 	struct/union/enum definitions in C syntax and adds them
  *	to the list.
  */
 
+#define curlb (lbs[curndx].lb)
+#define othlb (lbs[1-curndx].lb)
+#define newlb (lbs[newndx].lb)
+#define curlinepos (lbs[curndx].linepos)
+#define othlinepos (lbs[1-curndx].linepos)
+#define newlinepos (lbs[newndx].linepos)
+
 #define CNL_SAVE_DEFINEDEF						\
-{									\
-  prev_linepos = linepos;						\
-  SET_FILEPOS (linepos, inf, charno);					\
+do {									\
+  SET_FILEPOS (curlinepos, inf, charno);				\
   lineno++;								\
-  charno += readline (&lb, inf);					\
-  lp = lb.buffer;							\
-}
+  charno += readline (&curlb, inf);					\
+  lp = curlb.buffer;							\
+  quotednl = FALSE;							\
+  newndx = curndx;							\
+} while (FALSE)
 
 #define CNL								\
-{									\
+do {									\
   CNL_SAVE_DEFINEDEF;							\
   definedef = dnone;							\
-}
+} while (FALSE)
+
+#define MAKE_TAG_FROM_NEW_LB(isfun)  pfnote (tokb, isfun, tok.rewritten, \
+  newlb.buffer, tokoff + toklen + 1, tok.lineno, GET_CHARNO (newlinepos))
+#define MAKE_TAG_FROM_OTH_LB(isfun)  pfnote (tokb, isfun, tok.rewritten, \
+  othlb.buffer, tokoff + toklen + 1, tok.lineno, GET_CHARNO (othlinepos))
+
 
 void
 C_entries (c_ext)
      int c_ext;			/* extension of C? */
 {
-  register int c;		/* latest char read; '\0' for end of line */
-  register int tokoff;		/* offset in line of beginning of latest token */
-  register int toklen;		/* length of latest token */
+  register char c;		/* latest char read; '\0' for end of line */
   register char *lp;		/* pointer one beyond the character `c' */
-  logical incomm, inquote, inchar, midtoken;
-  int level;			/* current curly brace level */
-  char tokb[BUFSIZ];
+  int curndx, newndx;		/* indices for current and new lb */
+  TOKEN tok;			/* latest token read for funcdef & structdef */
+  char tokb[BUFSIZ];		/* latest token name for funcdef & structdef */
+  register int tokoff;		/* offset in line of start of latest token */
+  register int toklen;		/* length of latest token */
+  int cblev;			/* current curly brace level */
+  logical incomm, inquote, inchar, quotednl, midtoken;
+  logical cplpl;
 
+  curndx = newndx = 0;
   lineno = 0;
   charno = 0;
-  lp = lb.buffer;
+  lp = curlb.buffer;
   *lp = 0;
 
-  definedef = dnone;
-  gotone = midtoken = inquote = inchar = incomm = FALSE;
-  level = 0;
+  definedef = dnone; funcdef = fnone; typdef= tnone; structdef= snone;
+  next_token_is_func = yacc_rules = FALSE;
+  midtoken = inquote = inchar = incomm = quotednl = FALSE;
+  cblev = 0;
+  cplpl = c_ext & C_PLPL;
 
   C_create_stabs ();
 
   while (!feof (inf))
     {
       c = *lp++;
-      if (c == 0)
-	{
-	  CNL;
-	  gotone = FALSE;
-	}
       if (c == '\\')
 	{
-	  c = *lp++;
-	  if (c == 0)
+	  /* If we're at the end of the line, the next character is a
+	     '\0'; don't skip it, because it's the thing that tells us
+	     to read the next line.  */
+	  if (*lp == '\0')
 	    {
-	      CNL_SAVE_DEFINEDEF;
+	      quotednl = TRUE;
+	      continue;
 	    }
+	  lp++;
 	  c = ' ';
 	}
       else if (incomm)
 	{
-	  if (c == '*')
+	  switch (c)
 	    {
-	      while ((c = *lp++) == '*')
-		continue;
-	      if (c == 0)
+	    case '*':
+	      if (*lp == '/')
 		{
-		  CNL;
+		  c = *lp++;
+		  incomm = FALSE;
 		}
-	      if (c == '/')
-		incomm = FALSE;
+	      break;
+	    case '\0':
+	      /* Newlines inside comments do not end macro definitions in
+		 traditional cpp. */
+	      CNL_SAVE_DEFINEDEF;
+	      break;
 	    }
+	  continue;
 	}
       else if (inquote)
 	{
-	  /*
-	  * Too dumb to know about \" not being magic, but
-	  * they usually occur in pairs anyway.
-	  */
-	  if (c == '"')
-	    inquote = FALSE;
+	  switch (c)
+	    {
+	    case '"':
+	      inquote = FALSE;
+	      break;
+	    case '\0':
+	      /* Newlines inside strings, do not end macro definitions
+		 in traditional cpp, even though compilers don't
+		 usually accept them. */
+	      CNL_SAVE_DEFINEDEF;
+	      break;
+	    }
 	  continue;
 	}
       else if (inchar)
@@ -1333,7 +1524,7 @@ C_entries (c_ext)
 	    inchar = FALSE;
 	  continue;
 	}
-      else
+      else 
 	switch (c)
 	  {
 	  case '"':
@@ -1347,75 +1538,45 @@ C_entries (c_ext)
 	      {
 		lp++;
 		incomm = TRUE;
+		continue;
 	      }
-	    else if (c_ext && *lp == '/')
+	    else if (cplpl && *lp == '/')
 	      {
-		CNL;		/* C++ comment: skip rest of line */
-	      }
-	    continue;
-	  case '#':
-	    if (lp == lb.buffer + 1 && definedef == dnone)
-	      definedef = dsharpseen;
-	    continue;
-
-	    /*
-	     * The next two are to help the strucdef state machine.
-	     * They break when they are finished, so they don't interfere
-	     * with anything else that is going on.
-	     */
-	  case ':':
-	    if (structdef == stagseen)
-	      structdef = scolonseen;
-	    break;
-	    /* Not a struct definition when semicolon seen in non-sinbody context. */
-	  case ';':
-	    if (structdef != snone && structdef != sinbody)
-	      {
-		structdef = snone;
-		(void) strcpy (structtag, "<error 1>");
-	      }
-	    break;
-
-	  case '{':
-	    if (tydef == begin)
-	      {
-		tydef = middle;
-	      }
-	    switch (structdef)
-	      {
-	      case skeyseen:	/* unnamed struct */
-		structtag[0] = '\0';
-		/* FALLTHRU */
-	      case stagseen:
-	      case scolonseen:	/* named struct */
-		structdef = sinbody;
+		c = 0;
 		break;
 	      }
-	    level++;
 	    continue;
-	  case '}':
-	    if (!noindentypedefs && lp == lb.buffer + 1)
-	      level = 0;	/* reset level if first column */
-	    else if (level > 0)
-	      level--;
-	    if (level == 0 && tydef == middle)
+	  case '%':
+	    if ((c_ext & YACC) && *lp == '%')
 	      {
-		tydef = end;
-	      }
-	    if (level == 0)
-	      {
-		structdef = snone;
-		(void) strcpy (structtag, "<error 2>");
-	      }
+		/* entering or exiting rules section in yacc file */
+		lp++;
+		definedef = dnone; funcdef = fnone;
+		typdef= tnone; structdef= snone;
+		next_token_is_func = FALSE;
+		midtoken = inquote = inchar = incomm = quotednl = FALSE;
+		cblev = 0;
+		yacc_rules = !yacc_rules;
+		continue;
+ 	      }
+	  case '#':
+	    if (lp == newlb.buffer + 1 && definedef == dnone)
+	      definedef = dsharpseen;
 	    continue;
-	  }
-      if (LEVEL_OK_FOR_FUNCDEF () && !inquote && !incomm && gotone == FALSE)
+	  } /* switch (c) */
+
+
+      /* Consider token only if some complicated conditions are satisfied. */
+      if (((cblev == 0 && structdef != scolonseen)
+	   || (cblev == 1 && cplpl && structdef == sinbody))
+	  && definedef != dignorerest
+	  && funcdef != finlist)
 	{
 	  if (midtoken)
 	    {
 	      if (endtoken (c))
 		{
-		  if (c_ext && c == ':' && *lp == ':' && intoken (*(lp + 1)))
+		  if (cplpl && c == ':' && *lp == ':' && intoken (*(lp + 1)))
 		    {
 		      /*
 		       * This handles :: in the middle, but not at beginning
@@ -1426,66 +1587,22 @@ C_entries (c_ext)
 		    }
 		  else
 		    {
-		      /*
-		       * We've just finished lexing an identifier.
-		       * Note that if `c' is '\0', `lb' is the NEXT
-		       * line, `lp' points to the beginning of it, and
-		       * old pointers into `lb.buffer' may no longer be
-		       * valid, since `lb.buffer' may have been
-		       * reallocated.  In this case (which corresponds
-		       * to an identifier followed immediately by a
-		       * newline), we re-read the line into lb1.
-		       *
-		       * This would be faster if the previous line's
-		       * buffer were always saved.
-		       */
 		      logical is_func;
-		      char *tok_linebuf;
-		      TOKEN tok;
-		      logical bingo, tok_at_end_of_line;
-		      char *lp_tmp;	/* addressable */
 
-		      if (c == '\0')
-			{
-			  getline (GET_COOKIE (prev_linepos));
-			  tok_linebuf = lb1.buffer;
-			  tok_at_end_of_line = TRUE;
-			  tok.linestart = prev_linepos;
-			  tok.lineno = lineno - 1;
-			}
-		      else
-			{
-			  tok_linebuf = lb.buffer;
-			  tok_at_end_of_line = FALSE;
-			  tok.linestart = linepos;
-			  tok.lineno = lineno;
-			}
-		      tok.p = tok_linebuf + tokoff;
+		      tok.lineno = lineno;
+		      tok.p = newlb.buffer + tokoff;
 		      tok.len = toklen;
 		      tok.rewritten = FALSE;
-		      lp_tmp = lp;
-		      bingo = consider_token (c, &lp_tmp, &tok,
-					      &is_func, c_ext, level);
-		      lp = lp_tmp;
-		      if (bingo)
+		      if (yacc_rules
+			  || consider_token (c, lp, &tok,
+					     c_ext, cblev, &is_func))
 			{
-			  if (GET_CHARNO (tok.linestart) != GET_CHARNO (linepos)
-			      && !tok_at_end_of_line)
-			    {
-			      /*
-			       * Resynchronize tok.p to point into the right
-			       * linebuffer.
-			       */
-			      getline (GET_COOKIE (tok.linestart));
-			      if (!tok.rewritten)
-				tok.p = lb1.buffer + (tok.p - tok_linebuf);
-			      tok_linebuf = lb1.buffer;
-			    }
-			  if (structdef == sinbody && definedef == dnone && is_func)
+			  if (structdef == sinbody
+			      && definedef == dnone && is_func)
 			    {	/* function defined in C++ class body */
 			      sprintf (tokb, "%s::%.*s",
-				       structtag[0] == '\0' ? "_anonymous_"
-				       : structtag,
+				       ((structtag[0] == '\0')
+					? "_anonymous_" : structtag),
 				       tok.len, tok.p);
 			      tok.rewritten = TRUE;
 			    }
@@ -1493,36 +1610,157 @@ C_entries (c_ext)
 			    {
 			      sprintf (tokb, "%.*s", tok.len, tok.p);
 			    }
-			  pfnote (tokb, is_func, tok.rewritten, tok_linebuf,
-			     tokoff + toklen + (tok_at_end_of_line ? 0 : 1),
-				  tok.lineno, GET_CHARNO (tok.linestart));
-			  gotone = is_func;	/* function */
+
+			  if (funcdef == ftagseen
+			      || structdef == stagseen
+			      || typdef == tend)
+			    {
+			      if (newndx == curndx)
+				curndx = 1 - curndx; /* switch line buffers */
+			    }
+			  else
+			    MAKE_TAG_FROM_NEW_LB (is_func);
 			}
 		      midtoken = FALSE;
 		    }
-		}
+		} /* if (endtoken (c)) */
 	      else if (intoken (c))
-		toklen++;
-	    }
+		{
+		  toklen++;
+		  continue;
+		}
+	    } /* if (midtoken) */
 	  else if (begtoken (c))
 	    {
-	      tokoff = lp - 1 - lb.buffer;
-	      toklen = 1;
-	      midtoken = TRUE;
+	      switch (funcdef)
+		{
+		case flistseen:
+		  MAKE_TAG_FROM_OTH_LB (TRUE);
+		  /* FALLTHRU */
+		case ftagseen:
+		  funcdef = fnone;
+		  break;
+                default:
+                  break;
+		}
+	      if (structdef == stagseen)
+		structdef = snone;
+	      if (!yacc_rules || lp == newlb.buffer + 1)
+		{
+		  tokoff = lp - 1 - newlb.buffer;
+		  toklen = 1;
+		  midtoken = TRUE;
+		}
+	      continue;
 	    }
-	}
-      if (c == ';' && tydef == end)	/* clean with typedefs */
-	tydef = none;
-    }
+	} /* if must look at token */
+
+
+      /* Detect end of line, colon, comma, semicolon and various braces
+	 after having handled the last token on the line.*/
+      switch (c)
+	{
+	case ':':
+	  if (structdef == stagseen)
+	    structdef = scolonseen;
+	  else if (yacc_rules && funcdef == ftagseen)
+	    {
+	      MAKE_TAG_FROM_OTH_LB (FALSE);
+	      funcdef = fnone;
+	    }
+	  break;
+	case ';':
+	  if (cblev == 0 && typdef == tend)
+	    {
+	      typdef = tnone;
+	      MAKE_TAG_FROM_OTH_LB (FALSE);
+	    }
+	  funcdef = fnone;
+	  /* FALLTHRU */
+	case ',':
+	  /* FALLTHRU */
+	case '[':
+	  if (funcdef != finlist)
+	    funcdef = fnone;
+	  if (structdef == stagseen)
+	    structdef = snone;
+	  break;
+	case '(':
+	  switch (funcdef)
+	    {
+	    case ftagseen:
+	      funcdef = finlist;
+	      break;
+	    case finlist:
+	    case flistseen:
+	      funcdef = fnone;
+	      break;
+            default:
+              break;
+	    }
+	  break;
+	case ')':
+	  if (funcdef == finlist)
+	    funcdef = flistseen;
+	  break;
+	case '{':
+	  if (typdef == ttypedseen)
+	    typdef = tinbody;
+	  switch (structdef)
+	    {
+	    case skeyseen:	/* unnamed struct */
+	      structtag[0] = '\0';
+	      structdef = sinbody;
+	      break;
+	    case stagseen:
+	    case scolonseen:	/* named struct */
+	      structdef = sinbody;
+	      MAKE_TAG_FROM_OTH_LB (FALSE);
+	      break;
+            default:
+              break;
+	    }
+	  cblev++;
+	  /* FALLTHRU */
+	case '*':
+	  if (funcdef == flistseen)
+	    {
+	      MAKE_TAG_FROM_OTH_LB (TRUE);
+	      funcdef = fnone;
+	    }
+	  break;
+	case '}':
+	  if (!noindentypedefs && lp == newlb.buffer + 1)
+	    cblev = 0;	/* reset curly brace level if first column */
+	  else if (cblev > 0)
+	    cblev--;
+	  if (cblev == 0)
+	    {
+	      if (typdef == tinbody)
+		typdef = tend;
+	      structdef = snone;
+	      (void) strcpy (structtag, "<error 2>");
+	    }
+	  break;
+	case '\0':
+	  /* If a macro spans multiple lines don't reset its state. */
+	  if (quotednl)
+	    CNL_SAVE_DEFINEDEF;
+	  else
+	    CNL;
+	  break;
+	} /* switch (c) */
+
+    } /* while not eof */
 }
 
 /*
  * consider_token ()
  *	checks to see if the current token is at the start of a
- *	function, or corresponds to a typedef.  It updates the input
- *	line pointer *LPP so that the '(' will be in it when it returns.
+ *	function, or corresponds to a typedef, or is a struct/union/enum
+ *	tag.
  *
- *	*IS_FUNC gets TRUE iff the token is a function.
+ *	*IS_FUNC gets TRUE iff the token is a function or macro with args.
  *	C_EXT is which language we are looking at.
  *
  *	In the future we will need some way to adjust where the end of
@@ -1531,35 +1769,30 @@ C_entries (c_ext)
  *	whatever follows `operator'.
  *
  * Globals
- *	structdef	IN OUT
- *	definedef	IN OUT
- *	tydef		IN OUT
+ *	funcdef			IN OUT
+ *	structdef		IN OUT
+ *	definedef		IN OUT
+ *	typdef			IN OUT
+ *	next_token_is_func	IN OUT
  */
 
 logical
-consider_token (c, lpp, tokp, is_func, c_ext, level)
-     reg char c;		/* IN: first char after the token */
-     char **lpp;		/* IN OUT: *lpp points to 2nd char after the token */
-     reg TOKEN *tokp;		/* IN */
+consider_token (c, lp, tokp, c_ext, cblev, is_func)
+     register char c;		/* IN: first char after the token */
+     register char *lp;		/* IN: lp points to 2nd char after the token */
+     register TOKEN *tokp;	/* IN: token pointer */
+     int c_ext;			/* IN: C extensions mask */
+     int cblev;			/* IN: curly brace level */
      logical *is_func;		/* OUT */
-     int c_ext;			/* IN */
-     int level;			/* IN */
 {
-  reg char *lp = *lpp;
-  /*
-   * next_token_is_func
-   *	set this to TRUE, and the next token considered is called a function.
-   */
-  static logical next_token_is_func;
-  logical firsttok;		/* TRUE if have seen first token in ()'s */
+  /*logical firsttok;		/ * TRUE if have seen first token in ()'s */
   Stab_entry *tokse = stab_find (get_C_stab (c_ext), tokp->p, tokp->len);
   enum sym_type toktype = stab_type (tokse);
 
-  *is_func = TRUE;		/* a function */
+  *is_func = FALSE;		/* not a function */
 
   /*
-   * Advance the definedef state machine.  We set `gotone' for good measure;
-   * it's redundant.
+   * Advance the definedef state machine.
    */
   switch (definedef)
     {
@@ -1570,236 +1803,157 @@ consider_token (c, lpp, tokp, is_func, c_ext, level)
       if (toktype == st_C_define)
 	{
 	  definedef = ddefineseen;
-	  gotone = FALSE;
 	}
       else
 	{
 	  definedef = dignorerest;
-	  gotone = TRUE;
 	}
-      goto badone;
+      return (FALSE);
     case ddefineseen:
       /*
        * Make a tag for any macro.
-       * This will flub up if there is a newline immediately following
-       * the macro name.
        */
-      *is_func = (c == '(');
       definedef = dignorerest;
-      gotone = TRUE;
+      *is_func = (c == '(');
       if (!*is_func && !constantypedefs)
-	goto badone;
-      goto goodone;
+	return (FALSE);
+      else
+	return (TRUE);
     case dignorerest:
-      goto badone;
+      return (FALSE);
     default:
       error ("internal error: definedef value");
     }
 
   /*
-   * Skip whitespace and comments after the token.  This loop should
-   * also skip C++ comments.
+   * Now typedefs
    */
-  while (1)
+  switch (typdef)
     {
-      /* At whitespace => skip it.  */
-      if (iswhite (c))
+    case tnone:
+      if (toktype == st_C_typedef)
 	{
-	  c = *lp++;
-	}
-      /* At a comment => skip to end of comment.  */
-      else if (c == '/' && *lp == '*')
-	{
-	  /* If we find a comment, skip it.  */
-	  while (!(c == '*' && *lp == '/'))
-	    {
-	      c = *lp++;
-	      if (c == 0)
-		{
-		  if (feof (inf))
-		    break;
-		  CNL;
-		}
-	    }
-	  if (c == '*' && *lp == '/')
-	    {
-	      lp++;		/* lp now points past the '/' */
-	      c = *lp++;	/* c is now the --whatever-- after the '/' */
-	    }
-	}
-      else
-	break;
-
-      /* If we arrived at eof or eol, decide which one it is.
-	 If it's eol, advance to the next line.  */
-
-      if (c == 0)
-	{
-	  if (feof (inf))
-	    break;
-	  CNL;
-	}
-    }
-
-  /*
-   * If you have custom token types, or when configuration files can
-   * define custom token types, this switch will be larger.
-   */
-  switch (toktype)
-    {
-    case st_C_typedef:
-      if (typedefs)
-	{
-	  tydef = begin;
-	  goto badone;
+	  if (typedefs)
+	    typdef = ttypedseen;
+	  return (FALSE);
 	}
       break;
-    case st_C_typespec:
-      if (tydef == begin || tydef == end)
+    case ttypedseen:
+      switch (toktype)
 	{
-	  tydef = end;
-	  goto badone;
+	case st_none:
+	case st_C_typespec:
+	  typdef = tend;
+	  break;
+	case st_C_struct:
+	case st_C_enum:
+	  break;
+        default:
+          break;
 	}
+      /* Do not return here, so the structdef stuff has a chance. */
+      break;
+    case tend:
+      switch (toktype)
+	{
+	case st_C_typespec:
+	case st_C_struct:
+	case st_C_enum:
+	  return (FALSE);
+        default:
+          break;
+	}
+      return (TRUE);
+    default:
       break;
     }
 
   /*
-   * This structdef business is currently only invoked when level==0.
-   * It should be recursively invoked whatever the level, and a stack of
-   * states kept, to allow for definitions of structs within structs.
+   * This structdef business is currently only invoked when cblev==0.
+   * It should be recursively invoked whatever the curly brace level,
+   * and a stack of states kept, to allow for definitions of structs
+   * within structs.
    *
    * This structdef business is NOT invoked when we are ctags and the
    * file is plain C.  This is because a struct tag may have the same
    * name as another tag, and this loses with ctags.
    *
-   * This if statement deals with the tydef state machine as follows: if
-   * tydef==begin and token is struct/union/class/enum, goto badone.
-   * All the other code here is for the structdef state machine.
+   * This if statement deals with the typdef state machine as 
+   * follows: if typdef==ttypedseen and token is struct/union/class/enum,
+   * return (FALSE).  All the other code here is for the structdef 
+   * state machine.
    */
   switch (toktype)
     {
     case st_C_struct:
     case st_C_enum:
-      if (tydef == begin || (typedefs_and_cplusplus && level == 0 && structdef == snone))
+      if (typdef == ttypedseen
+	  || (typedefs_and_cplusplus && cblev == 0 && structdef == snone))
 	{
 	  structdef = skeyseen;
 	  structkey = tokse;
 	}
-      goto badone;
+      return (FALSE);
+    default:
+      break;
     }
-
   if (structdef == skeyseen)
     {
-      /* If next char is '{' or (for C++) ':', found a structure tag. */
-      if (c == '{' || (c_ext && c == ':'))
+      if (stab_type (structkey) == st_C_struct)
 	{
-	  /*
-	   * We should do this slightly differently for straight C:
-	   * instead of defining `tag', as we now do, we should define
-	   * `struct tag'.  (Do this only if the find-tag defaulting is
-	   * done on a sophisticated per-mode basis, so that if the user
-	   * says meta-. anywhere in `struct foo', the default comes out
-	   * `struct foo', not `struct' or `foo'.)  This will require
-	   * remembering which keyword (struct/union/class/enum) we saw, as a
-	   * Stab_entry* -- this will also make it possible to merge the
-	   * skeyseen and senumseen states, if we want.
-	   */
-	  if (stab_type (structkey) == st_C_struct)
-	    {
-	      (void) strncpy (structtag, tokp->p, tokp->len);
-	      structtag[tokp->len] = '\0';	/* for struct/union/class */
-	      structdef = stagseen;
-	    }
-	  else
-	    {
-	      structtag[0] = '\0';	/* for enum */
-	    }
-	  *is_func = FALSE;	/* not a function */
-	  goto goodone;
+	  (void) strncpy (structtag, tokp->p, tokp->len);
+	  structtag[tokp->len] = '\0';	/* for struct/union/class */
 	}
       else
 	{
-	  /* Not a definition: reset structdef */
-	  structdef = snone;
-	  (void) strcpy (structtag, "<error 3>");
+	  structtag[0] = '\0';	/* for enum (why is it treated differently?) */
 	}
-      /* Now what?  And how does/should this stuff interact with tydef?? */
-      /* Also maybe reset lp to *lpp for benefit of the function finding code. */
+      structdef = stagseen;
+      return (TRUE);
     }
-  if (tydef == begin)
+
+  /* Avoid entering funcdef stuff if typdef is going on. */
+  if (typdef != tnone)
     {
-      tydef = end;
-      goto badone;
+      definedef = dnone;
+      return (FALSE);
     }
-  if (tydef == end)
-    {
-      *is_func = 0;
-      goto goodone;
-    }
+
   /* Detect GNUmacs's function-defining macros. */
-  if (definedef == dnone && strneq (tokp->p, "DEF", 3))
+  if (definedef == dnone)
     {
-      next_token_is_func = TRUE;
-      goto badone;
+      if (strneq (tokp->p, "DEF", 3)
+	  || strneq (tokp->p, "ENTRY", 5)
+	  || strneq (tokp->p, "SYSCALL", 7)
+	  || strneq (tokp->p, "PSEUDO", 6))
+	{
+	  next_token_is_func = TRUE;
+	  return (FALSE);
+	}
+      if (strneq (tokp->p, "EXFUN", 5))
+	{
+	  next_token_is_func = FALSE;
+	  return (FALSE);
+	}
     }
   if (next_token_is_func)
     {
       next_token_is_func = FALSE;
-      goto goodone;
+      *is_func = TRUE;
+      return (TRUE);
     }
-  if (c != '(')
-    goto badone;
-  firsttok = FALSE;
-  while ((c = *lp++) != ')')
+
+  /* A function? */
+  switch (toktype)
     {
-      if (c == 0)
-	{
-	  if (feof (inf))
-	    break;
-	  CNL;
-	}
-      /*
-	* This line used to confuse ctags:
-	*	int	(*oldhup)();
-	* This fixes it. A nonwhite char before the first
-	* token, other than a / (in case of a comment in there)
-	* makes this not a declaration.
-	*/
-      if (begtoken (c) || c == '/')
-	firsttok++;
-      else if (!iswhite (c) && !firsttok)
-	goto badone;
+    case st_C_typespec:
+      funcdef = fnone;		/* should be useless */
+      return (FALSE);
+    default:
+      funcdef = ftagseen;
+      *is_func = TRUE;
+      return (TRUE);
     }
-  while (iswhite (c = *lp++))
-    {
-      if (c == 0)
-	{
-	  if (feof (inf))
-	    break;
-	  CNL;
-	}
-    }
-  if (!isgood (c))
-    goto badone;
-
-goodone:
-  *lpp = lp - 1;
-  return TRUE;
-
-badone:
-  *lpp = lp - 1;
-  return FALSE;
-}
-
-void
-getline (atcookie)
-     long atcookie;
-{
-  long saveftell = ftell (inf);
-
-  (void) fseek (inf, atcookie, 0);
-  (void) readline (&lb1, inf);
-  (void) fseek (inf, saveftell, 0);
 }
 
 /* Fortran parsing */
@@ -1872,6 +2026,10 @@ PF_funcs (fi)
 	  if (tail ("subroutine"))
 	    getit ();
 	  continue;
+	case 'e':
+	  if (tail ("entry"))
+	    getit ();
+	  continue;
 	case 'p':
 	  if (tail ("program"))
 	    {
@@ -1931,7 +2089,10 @@ getit ()
 
   while (isspace (*dbp))
     dbp++;
-  if (*dbp == 0 || (!isalpha (*dbp)) && (*dbp != '_') && (*dbp != '$'))
+  if (*dbp == 0
+      || (!isalpha (*dbp)
+	  && *dbp != '_'
+	  && *dbp != '$'))
     return;
   for (cp = dbp + 1; *cp && (isalpha (*cp) || isdigit (*cp)
 			     || (*cp == '_') || (*cp == '$')); cp++)
@@ -2379,34 +2540,26 @@ TEX_funcs (fi)
     TEX_toktab = TEX_decode_env ("TEXTAGS", TEX_defenv);
 
   while (!feof (fi))
-    {
+    {				/* Scan each line in file */
       lineno++;
       linecharno = charno;
       charno += readline (&lb, fi);
       dbp = lb.buffer;
       lasthit = dbp;
 
-      while (!feof (fi))
-	{			/* Scan each line in file */
-	  lineno++;
-	  linecharno = charno;
-	  charno += readline (&lb, fi);
-	  dbp = lb.buffer;
-	  lasthit = dbp;
-	  while (dbp = index (dbp, TEX_esc))	/* Look at each escape in line */
-	    {
-	      register int i;
+      while ((dbp = etags_index (dbp, TEX_esc))) /* Look at each escape in line */
+	{
+	  register int i;
 
-	      if (!*(++dbp))
-		break;
-	      linecharno += dbp - lasthit;
-	      lasthit = dbp;
-	      i = TEX_Token (lasthit);
-	      if (0 <= i)
-		{
-		  TEX_getit (lasthit, TEX_toktab[i].len);
-		  break;	/* We only save a line once */
-		}
+	  if (!*(++dbp))
+	    break;
+	  linecharno += dbp - lasthit;
+	  lasthit = dbp;
+	  i = TEX_Token (lasthit);
+	  if (0 <= i)
+	    {
+	      TEX_getit (lasthit, TEX_toktab[i].len);
+	      break;		/* We only save a line once */
 	    }
 	}
     }
@@ -2414,6 +2567,7 @@ TEX_funcs (fi)
 
 #define TEX_LESC '\\'
 #define TEX_SESC '!'
+#define TEX_cmt  '%'
 
 /* Figure out whether TeX's escapechar is '\\' or '!' and set grouping */
 /* chars accordingly. */
@@ -2425,8 +2579,14 @@ TEX_mode (f)
   int c;
 
   while ((c = getc (f)) != EOF)
-    if (c == TEX_LESC || c == TEX_SESC)
-      break;
+    {
+      /* Skip to next line if we hit the TeX comment char. */
+      if (c == TEX_cmt)
+	while (c != '\n')
+	  c = getc (f);
+      else if (c == TEX_LESC || c == TEX_SESC )
+	break;
+    }
 
   if (c == TEX_LESC)
     {
@@ -2452,7 +2612,6 @@ TEX_decode_env (evarname, defenv)
      char *defenv;
 {
   register char *env, *p;
-  extern char *savenstr (), *index ();
 
   struct TEX_tabent *tab;
   int size, i;
@@ -2466,15 +2625,16 @@ TEX_decode_env (evarname, defenv)
 
   /* Allocate a token table */
   for (size = 1, p = env; p;)
-    if ((p = index (p, ':')) && *(++p))
+    if ((p = etags_index (p, ':')) && *(++p))
       size++;
-  tab = xnew (size, struct TEX_tabent);
+  /* Add 1 to leave room for null terminator.  */
+  tab = xnew (size + 1, struct TEX_tabent);
 
   /* Unpack environment string into token table. Be careful about */
   /* zero-length strings (leading ':', "::" and trailing ':') */
   for (i = 0; *env;)
     {
-      p = index (env, ':');
+      p = etags_index (env, ':');
       if (!p)			/* End of environment string. */
 	p = env + strlen (env);
       if (p - env > 0)
@@ -2623,35 +2783,6 @@ prolog_funcs (fi)
     }
 }
 
-void
-skip_comment (plb, fi, plineno, plinecharno)
-     struct linebuffer *plb;
-     FILE *fi;
-     int *plineno;		/* result */
-     long *plinecharno;		/* result */
-{
-  while (!substr ("*/", plb->buffer))
-    {
-      (*plineno)++;
-      *plinecharno += readline (plb, fi) + 1;
-    }				/* 1 for newline. */
-}
-
-/* Return TRUE if 'sub' exists somewhere in 's'. */
-
-int
-substr (sub, s)
-     char *sub;
-     char *s;
-{
-  while (*s && (s = index (s, *sub)))
-    if (prestr (sub, s))
-      return (TRUE);
-    else
-      s++;
-  return (FALSE);
-}
-
 /* Return TRUE if 'pre' is prefix of string 's'. */
 
 int
@@ -2666,6 +2797,36 @@ prestr (pre, s)
   else
     return (FALSE);
 }
+
+/* Return TRUE if 'sub' exists somewhere in 's'. */
+
+int
+substr (sub, s)
+     char *sub;
+     char *s;
+{
+  while (*s && (s = etags_index (s, *sub)))
+    if (prestr (sub, s))
+      return (TRUE);
+    else
+      s++;
+  return (FALSE);
+}
+
+void
+skip_comment (plb, fi, plineno, plinecharno)
+     struct linebuffer *plb;
+     FILE *fi;
+     int *plineno;		/* result */
+     long *plinecharno;		/* result */
+{
+  while (!substr ("*/", plb->buffer))
+    {
+      (*plineno)++;
+      *plinecharno += readline (plb, fi) + 1;
+    }				/* 1 for newline. */
+}
+
 
 /* Initialize a linebuffer for use */
 
@@ -2692,7 +2853,7 @@ readline (linebuffer, stream)
   register char *pend;
   int newline;			/* 1 if ended with newline, 0 if ended with EOF */
 
-  pend = p + linebuffer->size;	/* Separate to avoind 386/IX compiler bug.  */
+  pend = p + linebuffer->size;	/* Separate to avoid 386/IX compiler bug.  */
 
   while (1)
     {
@@ -2737,7 +2898,6 @@ savenstr (cp, len)
   return dp;
 }
 
-#ifdef notdef
 /*
  * Return the ptr in sp at which the character c last
  * appears; NULL if not found
@@ -2746,7 +2906,7 @@ savenstr (cp, len)
  */
 
 char *
-rindex (sp, c)
+etags_rindex (sp, c)
      register char *sp, c;
 {
   register char *r;
@@ -2768,7 +2928,7 @@ rindex (sp, c)
  */
 
 char *
-index (sp, c)
+etags_index (sp, c)
      register char *sp, c;
 {
   do
@@ -2778,8 +2938,6 @@ index (sp, c)
   } while (*sp++);
   return (NULL);
 }
-
-#endif /* notdef */
 
 /* Print error message and exit.  */
 

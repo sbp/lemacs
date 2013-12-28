@@ -14,9 +14,10 @@
 ;;; If you always want partial minibuffer completion
 (require 'completer)
 
-;;; If want always want TMC completion
-(load "completion")
-(initialize-completions)
+;;; If want TMC completion then you will have to Ftp it yourself from think.com
+;;; It's become to flaky for me to deal with. -- Ivan
+;;;(load "completion")
+;;;(initialize-completions)
 
 ;;; If you want to redefine popper keys
 (setq popper-load-hook
@@ -31,9 +32,13 @@
     (require 'epoch-pop)
     (require 'popper))
 
-;;; Autoload based on your LISP.  You only really need the one you use.
-;;; If called with a prefix, you will be prompted for a buffer and program.
 (autoload 'run-ilisp "ilisp" "Select a new inferior LISP." t)
+;;; Autoload based on your LISP.  You only really need the one you use.
+;;; If called with a prefix, you will be prompted for a buffer and
+;;; program.
+;;; 
+;;; [Back to the old way now -- Ivan Mon Jun 28 23:30:51 1993]
+;;;
 (autoload 'clisp     "ilisp" "Inferior generic Common LISP." t)
 (autoload 'allegro   "ilisp" "Inferior Allegro Common LISP." t)
 (autoload 'lucid     "ilisp" "Inferior Lucid Common LISP." t)
@@ -50,6 +55,11 @@
 (setq lucid-program "/usr/misc/.lucid/bin/lisp")
 (setq cmulisp-program "/usr/misc/.cmucl/bin/lisp")
 
+;;; If you run cmu-cl then set this to where your source files are.
+(setq cmulisp-local-source-directory 
+      "/usr/local/utils/CMU-CL/")
+
+
 ;;; This makes reading a lisp file load in ilisp.
 (set-default 'auto-mode-alist
 	     (append '(("\\.lisp$" . lisp-mode)) auto-mode-alist))
@@ -58,14 +68,21 @@
 ;;; Sample load hook
 (setq ilisp-load-hook 
       '(lambda ()
-	;; Change default key prefix to C-c
-	(setq ilisp-prefix "\C-c")
-	;; Sample initialization hook.  Set the inferior LISP directory to
-	;; the directory of the buffer that spawned it on the first prompt.
-	(add-hook ilisp-hook
-	 (function (lambda ()
-	   (default-directory-lisp ilisp-last-buffer))))))
+	 ;; Change default key prefix to C-c
+	 (setq ilisp-prefix "\C-c")
+	 ;; Sample initialization hook.  Set the inferior LISP directory to
+	 ;; the directory of the buffer that spawned it on the first prompt.
+	 (setq ilisp-init-hook
+	       '(lambda ()
+		  (default-directory-lisp ilisp-last-buffer)))))
 
-;;; Setup to always show output in the Inferior LISP buffer.
-;(setq lisp-no-popper t
-;      comint-always-scroll t)
+
+
+;;; To be honest, I'd suggest everyone disable the popper, bug or no bug.
+;;; If you like it great. If you want to disembowel the thing, here's how:
+(setq lisp-no-popper t)
+(setq popper-load-hook 
+      '(lambda ()
+	(setq popper-pop-buffers nil)
+	(setq popper-buffers-to-skip nil)))
+

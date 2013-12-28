@@ -1,5 +1,5 @@
 /* Execution of byte code produced by bytecomp.el.
-   Copyright (C) 1992 Free Software Foundation, Inc.
+   Copyright (C) 1992, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -37,10 +37,6 @@ by Hallvard:
 #include "buffer.h"
 #include "syntax.h"
 
-#ifndef FETCH_CHAR
-# define FETCH_CHAR CHAR_AT
-#endif
-
 /*
  * define BYTE_CODE_SAFE to enable some minor sanity checking (useful for 
  * debugging the byte compiler...)
@@ -73,10 +69,6 @@ int byte_metering_on;
         METER_2 (last_code, this_code)++;			\
     }								\
 }
-
-#else /* no BYTE_CODE_METER */
-
-#define METER_CODE(last_code, this_code)
 
 #endif /* no BYTE_CODE_METER */
 
@@ -262,7 +254,7 @@ If the third argument is incorrect, Emacs may crash.")
      Lisp_Object bytestr, vector, maxdepth;
 {
   struct gcpro gcpro1, gcpro2, gcpro3;
-  int count = specpdl_ptr - specpdl;
+  int speccount = specpdl_depth ();
 #ifdef BYTE_CODE_METER
   int this_op = 0;
   int prev_op;
@@ -275,7 +267,7 @@ If the third argument is incorrect, Emacs may crash.")
   register Lisp_Object v1, v2;
   register Lisp_Object *vectorp = XVECTOR (vector)->contents;
 #ifdef BYTE_CODE_SAFE
-  register int const_length = XVECTOR (vector)->size;
+  register int const_length = vector_length (XVECTOR (vector));
 #endif
   /* Cached address of beginning of string, valid if BYTESTR data not relocated.  */
   unsigned char *strbeg;
@@ -284,16 +276,16 @@ If the third argument is incorrect, Emacs may crash.")
   CHECK_STRING (bytestr, 0);
   if (!VECTORP (vector))
     vector = wrong_type_argument (Qvectorp, vector);
-  CHECK_FIXNUM (maxdepth, 2);
+  CHECK_NATNUM (maxdepth, 2);
 
-  stackp = (Lisp_Object *) alloca (XFASTINT (maxdepth) * sizeof (Lisp_Object));
-  memset (stackp, 0, XFASTINT (maxdepth) * sizeof (Lisp_Object));
+  stackp = (Lisp_Object *) alloca (XINT (maxdepth) * sizeof (Lisp_Object));
+  memset (stackp, 0, XINT (maxdepth) * sizeof (Lisp_Object));
   GCPRO3 (bytestr, vector, *stackp);
-  gcpro3.nvars = XFASTINT (maxdepth);
+  gcpro3.nvars = XINT (maxdepth);
 
   --stackp;
   stack = stackp;
-  stacke = stackp + XFASTINT (maxdepth);
+  stacke = stackp + XINT (maxdepth);
 
   /* Initialize the pc-pointer by fetching from the string.  */
   detagged_string = XSTRING (bytestr);
@@ -344,25 +336,8 @@ If the third argument is incorrect, Emacs may crash.")
 	  else
 	    {
 	      v2 = XSYMBOL (v1)->value;
-#ifdef SWITCH_ENUM_BUG
-	      switch ((int) XTYPE (v2))
-#else
-	      switch (XTYPE (v2))
-#endif
-		{
-		case Lisp_Symbol:
-		  if (!EQ (v2, Qunbound))
-		    break;
-		case Lisp_Intfwd:
-		case Lisp_Boolfwd:
-		case Lisp_Objfwd:
-		case Lisp_Buffer_Local_Value:
-		case Lisp_Some_Buffer_Local_Value:
-		case Lisp_Buffer_Objfwd:
-		case Lisp_Void:
-		  v2 = Fsymbol_value (v1);
-		default:;
-		}
+	      if (SYMBOL_VALUE_MAGIC_P (v2))
+                v2 = Fsymbol_value (v1);
 	    }
 	  PUSH (v2);
 	  break;
@@ -414,8 +389,9 @@ If the third argument is incorrect, Emacs may crash.")
 	  if (byte_metering_on && SYMBOLP (TOP))
 	    {
 	      v1 = TOP;
-	      v2 = Fget (v1, Qbyte_code_meter);
-	      if (FIXNUMP (v2))
+	      v2 = Fget (v1, Qbyte_code_meter, Qnil);
+	      if (FIXNUMP (v2)
+                  && XINT (v2) != ((1<<VALBITS)-1))
 		{
 		  XSETINT (v2, XINT (v2) + 1);
 		  Fput (v1, Qbyte_code_meter, v2);
@@ -437,13 +413,13 @@ If the third argument is incorrect, Emacs may crash.")
 	case Bunbind+4: case Bunbind+5:
 	  op -= Bunbind;
 	dounbind:
-	  unbind_to (specpdl_depth - op, Qnil);
+	  unbind_to (specpdl_depth () - op, Qnil);
 	  break;
 
 	case Bunbind_all:
 	  /* To unbind back to the beginning of this frame.  Not used yet,
 	     but will be needed for tail-recursion elimination. */
-	  unbind_to (count, Qnil);
+	  unbind_to (speccount, Qnil);
 	  break;
 
 	case Bgoto:
@@ -555,8 +531,14 @@ If the third argument is incorrect, Emacs may crash.")
 	  break;
 
 	case Bsave_window_excursion:
-	  TOP = Fsave_window_excursion (TOP);
-	  break;
+          {
+            int count = specpdl_depth ();
+            record_unwind_protect (Fset_window_configuration,
+                                   Fcurrent_window_configuration (Qnil));
+            TOP = Fprogn (TOP);
+            unbind_to (count, Qnil);
+            break;
+          }
 
 	case Bsave_restriction:
 	  record_unwind_protect (save_restriction_restore, save_restriction_save ());
@@ -564,13 +546,11 @@ If the third argument is incorrect, Emacs may crash.")
 
 	case Bcatch:
 	  v1 = POP;
-	  TOP = internal_catch (TOP, Feval, v1);
+	  TOP = internal_catch (TOP, Feval, v1, 0);
 	  break;
 
 	case Bunwind_protect:
-	  record_unwind_protect (0, POP);
-          /* record_unwind_protect does this for us.
-	  (specpdl_ptr - 1)->symbol = Qnil; */
+	  record_unwind_protect (Fprogn, POP);
 	  break;
 
 	case Bcondition_case:
@@ -588,15 +568,15 @@ If the third argument is incorrect, Emacs may crash.")
 	  v1 = POP;
 	  temp_output_buffer_show (TOP, Qnil);
 	  TOP = v1;
-          /* >>>> GAG ME!! */
+          /* GAG ME!! */
 	  /* pop binding of standard-output */
-	  unbind_to (specpdl_depth - 1, Qnil);
+	  unbind_to (specpdl_depth() - 1, Qnil);
 	  break;
 
 	case Bnth:
 	  v1 = POP;
 	  v2 = TOP;
-	nth_entry:
+	/* nth_entry: */
 	  CHECK_FIXNUM (v2, 0);
 	  op = XINT (v2);
 	  immediate_quit = 1;
@@ -616,15 +596,15 @@ If the third argument is incorrect, Emacs may crash.")
 	  goto docar;
 
 	case Bsymbolp:
-	  TOP = SYMBOLP (TOP) ? Qt : Qnil;
+	  TOP = ((SYMBOLP (TOP)) ? Qt : Qnil);
 	  break;
 
 	case Bconsp:
-	  TOP = CONSP (TOP) ? Qt : Qnil;
+	  TOP = ((CONSP (TOP)) ? Qt : Qnil);
 	  break;
 
 	case Bstringp:
-	  TOP = STRINGP (TOP) ? Qt : Qnil;
+	  TOP = ((STRINGP (TOP)) ? Qt : Qnil);
 	  break;
 
 	case Blistp:
@@ -633,7 +613,7 @@ If the third argument is incorrect, Emacs may crash.")
 
 	case Beq:
 	  v1 = POP;
-	  TOP = EQ (v1, TOP) ? Qt : Qnil;
+	  TOP = ((EQ (v1, TOP)) ? Qt : Qnil);
 	  break;
 
 	case Bmemq:
@@ -724,7 +704,7 @@ If the third argument is incorrect, Emacs may crash.")
 
 	case Bget:
 	  v1 = POP;
-	  TOP = Fget (TOP, v1);
+	  TOP = Fget (TOP, v1, Qnil);
 	  break;
 
 	case Bsubstring:
@@ -849,7 +829,7 @@ If the third argument is incorrect, Emacs may crash.")
 	  break;
 
 	case Bpoint:
-	  XFASTINT (v1) = point;
+	  v1 = make_number (point);
 	  PUSH (v1);
 	  break;
 
@@ -868,12 +848,12 @@ If the third argument is incorrect, Emacs may crash.")
 	  break;
 
 	case Bpoint_max:
-	  XFASTINT (v1) = ZV;
+	  v1 = make_number (ZV);
 	  PUSH (v1);
 	  break;
 
 	case Bpoint_min:
-	  XFASTINT (v1) = BEGV;
+	  v1 = make_number (BEGV);
 	  PUSH (v1);
 	  break;
 
@@ -882,17 +862,17 @@ If the third argument is incorrect, Emacs may crash.")
 	  break;
 
 	case Bfollowing_char:
-	  XFASTINT (v1) = PT == ZV ? 0 : FETCH_CHAR (point);
+	  v1 = ((PT == ZV) ? Qzero : make_number (FETCH_CHAR (point)));
 	  PUSH (v1);
 	  break;
 
 	case Bpreceding_char:
-	  XFASTINT (v1) = point <= BEGV ? 0 : FETCH_CHAR (point - 1);
+	  v1 = ((point <= BEGV) ? Qzero : make_number (FETCH_CHAR (point-1)));
 	  PUSH (v1);
 	  break;
 
 	case Bcurrent_column:
-	  XFASTINT (v1) = current_column ();
+	  v1 = make_number (current_column ());
 	  PUSH (v1);
 	  break;
 
@@ -957,7 +937,9 @@ If the third argument is incorrect, Emacs may crash.")
 
 	case Bchar_syntax:
 	  CHECK_FIXNUM (TOP, 0);
-	  XFASTINT (TOP) = syntax_code_spec[(int) SYNTAX (0xFF & XINT (TOP))];
+	  TOP = make_number (syntax_code_spec
+                              [(int) SYNTAX (current_buffer->syntax_table,
+                                             (0xFF & XINT (TOP)))]);
 	  break;
 
 	case Bbuffer_substring:
@@ -1026,14 +1008,6 @@ If the third argument is incorrect, Emacs may crash.")
 	  break;
 
 	case Belt:
-	  if (CONSP (TOP))
-	    {
-	      /* Exchange args and then do nth.  */
-	      v2 = POP;
-	      v1 = TOP;
-              /* >>>> BUG!!! Should err on index out-of-range! */
-	      goto nth_entry;
-	    }
 	  v1 = POP;
 	  TOP = Felt (TOP, v1);
 	  break;
@@ -1084,15 +1058,11 @@ If the third argument is incorrect, Emacs may crash.")
 	  break;
 
 	case Bnumberp:
-	  TOP = (FIXNUMP (TOP)
-#ifdef LISP_FLOAT_TYPE
-		 || FLOATP (TOP)
-#endif
-		 ? Qt : Qnil);
+	  TOP = ((NUMBERP (TOP)) ? Qt : Qnil);
 	  break;
 
 	case Bintegerp:
-	  TOP = FIXNUMP (TOP) ? Qt : Qnil;
+	  TOP = ((FIXNUMP (TOP)) ? Qt : Qnil);
 	  break;
 
 #ifdef BYTE_CODE_SAFE
@@ -1123,7 +1093,7 @@ If the third argument is incorrect, Emacs may crash.")
  exit:
   UNGCPRO;
   /* Binds and unbinds are supposed to be compiled balanced.  */
-  if (specpdl_depth != count)
+  if (specpdl_depth() != speccount)
 #ifdef BYTE_CODE_SAFE
     error ("binding stack not balanced (serious byte compiler bug)");
 #else
@@ -1135,26 +1105,33 @@ If the third argument is incorrect, Emacs may crash.")
 void
 syms_of_bytecode ()
 {
-  Qbytecode = intern ("byte-code");
-  staticpro (&Qbytecode);
+  defsymbol (&Qbytecode, "byte-code");
 
   defsubr (&Sbyte_code);
 
 #ifdef BYTE_CODE_METER
 
   DEFVAR_LISP ("byte-code-meter", &Vbyte_code_meter,
-   "A vector of vectors which holds a histogram of byte-code usage.");
-  DEFVAR_BOOL ("byte-metering-on", &byte_metering_on, "");
+   "A vector of vectors which holds a histogram of byte-code usage.\n\
+(aref (aref byte-code-meter 0) CODE) indicates how many times the byte\n\
+opcode CODE has been executed.\n\
+(aref (aref byte-code-meter CODE1) CODE2), where CODE1 is not 0,\n\
+indicates how many times the byte opcodes CODE1 and CODE2 have been\n\
+executed in succession.");
+  DEFVAR_BOOL ("byte-metering-on", &byte_metering_on, 
+   "If non-nil, keep profiling information on byte code usage.\n\
+The variable byte-code-meter indicates how often each byte opcode is used.\n\
+If a symbol has a property named `byte-code-meter' whose value is an\n\
+integer, it is incremented each time that symbol's function is called.");
 
   byte_metering_on = 0;
-  Vbyte_code_meter = Fmake_vector (make_number (256), make_number (0));
-  Qbyte_code_meter = intern ("byte-code-meter");
-  staticpro (&Qbyte_code_meter);
+  Vbyte_code_meter = make_vector (256, Qzero);
+  defsymbol (&Qbyte_code_meter, "byte-code-meter");
   {
     int i = 256;
     while (i--)
       XVECTOR (Vbyte_code_meter)->contents[i] =
-	Fmake_vector (make_number (256), make_number (0));
+	make_vector (256, Qzero);
   }
 #endif
 }

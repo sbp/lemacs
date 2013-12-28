@@ -69,7 +69,7 @@
 	     (if (and (null (string-match "^[\t\f\n\r ]+$" s))
 		      (not (string= s "")))
 		 (setq list (cons s list)))
-	     list )
+	     (nreverse list)) ; jwz: fixed order
 	(and work-buffer (kill-buffer work-buffer)))))))
 
 (defmacro vm-marker (pos &optional buffer)
@@ -268,3 +268,13 @@
 	((vectorp object) (apply 'vector (mapcar 'vm-copy object)))
 	((stringp object) (copy-sequence object))
 	(t object)))
+
+; buffer-flush-undo renamed in FSF v19
+(or (fboundp 'buffer-disable-undo)
+    (fset 'buffer-disable-undo 'buffer-flush-undo))
+
+(defun vm-lucid-emacs-p ()
+  (string-match "Lucid" emacs-version))
+
+(defun vm-fsf-emacs-19-p ()
+  (and (string-match "^19" emacs-version) (not (vm-lucid-emacs-p))))

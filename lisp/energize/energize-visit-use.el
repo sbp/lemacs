@@ -194,7 +194,23 @@ the next file")
 	  (error "no uses")
 	(energize-next-use-set-marks extent (current-buffer))
 	(setq energize-next-use-name
-	      (energize-next-use-get-name (buffer-name)))))
+              (save-excursion
+                (let ((s (energize-next-use-get-name (buffer-name))))
+                  (if (let ((l (length s)))
+                        (while (not
+                                (and (> l 0)
+                                     (progn
+                                       (beginning-of-buffer)
+                                       (search-forward
+                                        (substring s 0 l) nil t))))
+                          (setq l (- l 1)))
+                        (> l 0))
+                      (let (pos)
+                        (backward-sexp)
+                        (setq pos (point))
+                        (forward-sexp)
+                        (buffer-substring pos (point)))
+                    s))))))
     (energize-next-use-show-both)))
 
 (defun energize-next-use-end-pos ()

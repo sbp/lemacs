@@ -300,7 +300,7 @@ DEFUN ("spawn-subprocess", Fspawn_subprocess, Sspawn_subprocess, 1, 3, 0,
   while (ptr)
     {
       struct process_list *next = ptr->next;
-      if (ptr->name == XFASTINT (name)) 
+      if (ptr->name == XINT (name))
 	{
 	  if (ptr->process_active)
 	    return Qt;
@@ -324,7 +324,7 @@ DEFUN ("spawn-subprocess", Fspawn_subprocess, Sspawn_subprocess, 1, 3, 0,
     ptr = xmalloc (sizeof (struct process_list));
   if (! create_mbx (&output_mbx_dsc, output_mbx_name, &ptr->mbx_chan, 2))
     {
-      free (ptr);
+      xfree (ptr);
       return Qnil;
     }
   if (NILP (input_handler))
@@ -337,11 +337,11 @@ DEFUN ("spawn-subprocess", Fspawn_subprocess, Sspawn_subprocess, 1, 3, 0,
   if (! (status & 1))
     {
       sys$dassgn (ptr->mbx_chan);
-      free (ptr);
+      xfree (ptr);
       error ("Unable to spawn subprocess");
       return Qnil;
     }
-  ptr->name = XFASTINT (name);
+  ptr->name = XINT (name);
   ptr->next = process_list;
   ptr->process_active = 1;
   process_list = ptr;
@@ -369,7 +369,7 @@ DEFUN ("send-command-to-subprocess",
   CHECK_FIXNUM (name, 0);
   CHECK_STRING (command, 1);
   for (ptr = process_list; ptr; ptr = ptr->next)
-    if (XFASTINT (name) == ptr->name)
+    if (XINT (name) == ptr->name)
       {
 	write_to_mbx (ptr, XSTRING (command)->data,
 		      XSTRING (command)->size);
@@ -387,7 +387,7 @@ DEFUN ("stop-subprocess", Fstop_subprocess, Sstop_subprocess, 1, 1,
 
   CHECK_FIXNUM (name, 0);
   for (ptr = process_list; ptr; ptr = ptr->next)
-    if (XFASTINT (name) == ptr->name)
+    if (XINT (name) == ptr->name)
       {
 	ptr->exit_handler = Qnil;
 	if (sys$delprc (&ptr->process_id, 0) & 1)
@@ -475,7 +475,7 @@ process_exit ()
 	    Feval (Fcons (ptr->exit_handler, Fcons (make_number (ptr->name),
 						    Qnil)));
 	  sys$dassgn (ptr->mbx_chan);
-	  free (ptr);
+	  xfree (ptr);
 	}
       else
 	prev = ptr;
@@ -593,7 +593,7 @@ or nil depending upon whether the privilege is already enabled.")
     {
       ptr = &priv_list[i];
       if (prvlen == strlen (ptr->name) &&
-	  bcmp (prvname, ptr->name, prvlen) == 0)
+	  memcmp (prvname, ptr->name, prvlen) == 0)
 	{
 	  if (ptr->mask >= 32)
 	    prvmask[1] = 1 << (ptr->mask % 32);
@@ -661,7 +661,7 @@ These are the possibilities for the first arg (upper or lower case ok):\n\
     {
       ptr = &vms_object[i];
       if (typelen == strlen (ptr->name)
-	  && bcmp (typename, ptr->name, typelen) == 0)
+	  && memcpy (typename, ptr->name, typelen) == 0)
 	return (* ptr->objfn)(arg1, arg2);
     }
   error ("Unknown object type %s", typename);
@@ -681,7 +681,7 @@ translate_id (pid, owner)
 
   if (NILP (pid)
       || STRINGP (pid) && XSTRING (pid)->size == 0
-      || FIXNUMP (pid) && XFASTINT (pid) == 0)
+      || EQ (pid, Qzero))
     {
       code = owner ? JPI$_OWNER : JPI$_PID;
       status = lib$getjpi (&code, 0, 0, &id);
@@ -692,7 +692,7 @@ translate_id (pid, owner)
       return (id);
     }
   if (FIXNUMP (pid))
-    return (XFASTINT (pid));
+    return (XINT (pid));
   CHECK_STRING (pid, 0);
   pid = Fupcase (pid);
   size = XSTRING (pid)->size;
@@ -954,7 +954,7 @@ syms_of_vmsfns ()
   defsubr (&Svms_system_info);
   defsubr (&Sshrink_to_icon);
 #endif /* VMS4_4 */
-  Qdefault_subproc_input_handler = intern ("default-subprocess-input-handler");
-  staticpro (&Qdefault_subproc_input_handler);
+  defsymbol (&Qdefault_subproc_input_handler,
+	     "default-subprocess-input-handler");
 }
 #endif /* VMS */

@@ -1,5 +1,5 @@
 /* Event allocation and memory management.
-   Copyright (C) 1991, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1991, 1992, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -29,151 +29,165 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    The event chain here is cut loose before GC, so these will be freed
    eventually.
  */
-static struct Lisp_Event *event_free_list;
+static struct Lisp_Event *event_resource;
 
 
-/* Events are allocated similarly to strings.  All events are embedded in
-   a linked list of event-block structures which are each 1k long; after the
-   mark pass of the garbage collector, all event-block structures which 
-   contain no marked events are freed.  If even one marked event remains,
-   it is not freed, and the unmarked events are chained onto event_free_list.
-   New events are added to the end of the last-allocated event block.  When
-   it fills up, a new event-block is allocated and added to the end.
+/* >>> Ad-hoc hack.  Should be part of define_lrecord_implementation */
+void
+clear_event_resource (void)
+{
+  event_resource = 0;
+}
 
-   In the case where there are no more pointers to a sequence of events which
-   are adjascent to the end of the most recently allocated event-block, we
-   decrement the fill pointer of that block, so that the space is reused
-   immediately.
- */
 
-#define EVENT_BLOCK_SIZE \
-  ((1020 - sizeof (struct event_block *)) / sizeof (struct Lisp_Event))
-
-struct event_block {
-  struct Lisp_Event events [EVENT_BLOCK_SIZE];
-  struct event_block *next;
-};
-
-static struct event_block *event_blocks;
+static Lisp_Object mark_event (Lisp_Object, void (*) (Lisp_Object));
+extern void print_event (Lisp_Object, Lisp_Object, int);
+static int sizeof_event (void *h) { return (sizeof (struct Lisp_Event)); }
+static int event_equal (Lisp_Object, Lisp_Object, int);
+DEFINE_LRECORD_IMPLEMENTATION (lrecord_event,
+                               mark_event, print_event, 
+                               0, sizeof_event, event_equal);
 
 /* Make sure we lose quickly if we try to use this event */
 static void
-deinitialize_event (event)
-     struct Lisp_Event *event;
+deinitialize_event (struct Lisp_Event *event)
 {
   int i;
 
   for (i = 0; i < ((sizeof (struct Lisp_Event)) / sizeof (int)); i++)
     ((int *) event) [i] = 0xdeadbeef;
   event->event_type = dead_event;
+  event->lheader.implementation = lrecord_event;
+  event_next (event) = 0;
 }
 
-static void
-get_more_events ()
+static Lisp_Object
+mark_event (Lisp_Object obj, void (*markobj) (Lisp_Object))
 {
-  int i;
-  struct event_block *new  = (struct event_block *)
-    xmalloc (sizeof (struct event_block));
+  struct Lisp_Event *event = XEVENT (obj);
 
-  /* Deinitialize events and put them on the free list */
-  for (i = 0; i < EVENT_BLOCK_SIZE; i++)
+  switch (event->event_type)
     {
-      deinitialize_event (&new->events[i]);
-      new->events[i].next = event_free_list;
-      event_free_list = &new->events[i];
+    case key_press_event:
+      ((markobj) (event->event.key.key));
+      break;
+    case process_event:
+      ((markobj) (event->event.process.process));
+      break;
+    case timeout_event:
+      ((markobj) (event->event.timeout.function));
+      ((markobj) (event->event.timeout.object));
+      break;
+    case eval_event:
+    case menu_event:
+      ((markobj) (event->event.eval.function));
+      ((markobj) (event->event.eval.object));
+      break;
+    case button_press_event:
+    case button_release_event:
+    case pointer_motion_event:
+    case magic_event:
+    case empty_event:
+    case dead_event:
+      break;
+    default:
+      abort ();
     }
-  new->next = event_blocks;
-  event_blocks = new;
+  event = event_next (event);
+  if (!event)
+    return (Qnil);
+  XSETR (obj, Lisp_Event, event);
+  return (obj);
 }
-
-
-void
-free_unmarked_events ()			/* called from gc_sweep() */
+  
+static int
+event_equal (Lisp_Object o1, Lisp_Object o2, int depth)
 {
-  struct event_block *prev = 0;
-  struct event_block *current = event_blocks;
-  while (current)
+  if (XEVENT (o1)->event_type != XEVENT (o2)->event_type) return 0;
+  if (!EQ (XEVENT (o1)->channel, XEVENT (o2)->channel)) return 0;
+/*  if (XEVENT (o1)->timestamp != XEVENT (o2)->timestamp) return 0; */
+  switch (XEVENT (o1)->event_type)
     {
-      int i;
-      int survivors = 0;
-      /* Save the old free list in case we free the entire block */
-      struct Lisp_Event *old_free_list = event_free_list;
-      
-      for (i = 0; i < EVENT_BLOCK_SIZE; i++)
-	{
-	  if (XMARKBIT ((int) (current->events [i].event_type)))
-	    {
-	      XUNMARK (current->events [i].event_type);
-	      survivors = 1;
-	    }
-	  else
-	    {
-	      deinitialize_event (&current->events[i]);
-	      current->events[i].next = event_free_list;
-	      event_free_list = &current->events[i];
-	    }
-	}
-      if (! survivors)
-	{
-	  struct event_block *tmp = current;
-	  current = current->next;
-	  if (prev)
-	    prev->next = current;
-	  /* Restore the free list before we started this block */
-	  event_free_list = old_free_list;
-	  if (tmp == event_blocks)
-	    event_blocks = current;
-	  xfree (tmp);
-	} else {
-	  prev = current;
-	  current = current->next;
-	}
-    }
-}
-
-void
-prepare_to_gc_events ()		/* called by Fgarbage_collect() */
-{
-  /* Flush the list of deallocated events.  No pointers to these should
-     still exist, but even if they do, they will be marked normally.
-   */
-#if 0
-  /* There's actually no need to go down the list and clear the next slots */
-  struct Lisp_Event *prev = 0, *event = event_free_list;
-  while (event) {
-    if (prev)
-      prev->next = 0;
-    prev = event;
-    event = event->next;
+    case process_event:
+      return (EQ (XEVENT (o1)->event.process.process,
+		  XEVENT (o2)->event.process.process));
     
-  }
-#endif
-  /* All we need to do is set the free list to 0 */
-  event_free_list = 0;
+    case timeout_event:
+      if (NILP (Fequal (XEVENT (o1)->event.timeout.function,
+			XEVENT (o2)->event.timeout.function)))
+	return 0;
+      if (NILP (Fequal (XEVENT (o1)->event.timeout.object,
+			XEVENT (o2)->event.timeout.object)))
+	return 0;
+      return 1;
+    
+    case key_press_event:
+      return ((EQ (XEVENT (o1)->event.key.key, XEVENT (o2)->event.key.key)
+               && (XEVENT (o1)->event.key.modifiers
+                   == XEVENT (o2)->event.key.modifiers)));
+
+    case button_press_event:
+    case button_release_event:
+      return (((XEVENT (o1)->event.button.button
+                == XEVENT (o2)->event.button.button)
+               && (XEVENT (o1)->event.button.modifiers
+                   == XEVENT (o2)->event.button.modifiers)));
+
+    case pointer_motion_event:
+      return ((XEVENT (o1)->event.motion.x == XEVENT (o2)->event.motion.x
+               && XEVENT (o1)->event.motion.y == XEVENT (o2)->event.motion.y));
+
+    case menu_event:
+    case eval_event:
+      if (NILP (Fequal (XEVENT (o1)->event.eval.function,
+			XEVENT (o2)->event.eval.function)))
+	return 0;
+      if (NILP (Fequal (XEVENT (o1)->event.eval.object,
+			XEVENT (o2)->event.eval.object)))
+	return 0;
+      return 1;
+    case magic_event:
+      return (!memcmp ((char*) &(XEVENT (o1)->event.magic),
+                       (char*) &(XEVENT (o2)->event.magic),
+                       sizeof (struct magic_data)));
+
+    case empty_event:      /* Empty and deallocated events are equal. */
+    case dead_event:
+      return 1;
+
+    default:
+      error ("unknown event type");
+      return 0;                 /* not reached; warning suppression */
+    }
 }
 
-
+
 DEFUN ("allocate-event", Fallocate_event, Sallocate_event, 0, 0, 0,
   "Returns an empty event structure.\n\
 WARNING, the event object returned may be a reused one; see the function\n\
 `deallocate-event'.")
     ()
 {
+  struct Lisp_Event *e;
   Lisp_Object event;
-  if (! event_free_list)
-    get_more_events ();
-  XSET (event, Lisp_Event, (struct Lisp_Event *) event_free_list);
-  event_free_list = event_free_list->next;
-  XEVENT (event)->event_type = empty_event;
-  XEVENT (event)->next = 0;
-  XEVENT (event)->timestamp = 0;
-  XEVENT (event)->channel = Qnil;
+  if (event_resource)
+  {
+    e = event_resource;
+    event_resource = event_next (e);
+    XSETR (event, Lisp_Event, e);
+  }
+  else
+  {
+    event = make_event ();
+    e = XEVENT (event);
+  }
+  deinitialize_event (e);
+  e->event_type = empty_event;
+  set_event_next (e, 0);
+  e->timestamp = 0;
+  e->channel = Qnil;
   return event;
 }
-
-extern Lisp_Object Vlast_command_event;
-extern Lisp_Object Vlast_input_event, Vunread_command_event;
-extern Lisp_Object Vthis_command_keys, Vrecent_keys_ring;
 
 DEFUN ("deallocate-event", Fdeallocate_event, Sdeallocate_event, 1, 1, 0,
   "Allow the given event structure to be reused.  You MUST NOT use this \n\
@@ -184,23 +198,29 @@ explicitly deallocate events when you are sure that that is safe.")
     (event)
     Lisp_Object event;
 {
+  struct Lisp_Event *e;
   CHECK_EVENT (event, 0);
-  if (XEVENT (event)->event_type == dead_event)
+
+  e = XEVENT (event);
+  if (e->event_type == dead_event)
     error ("this event is already deallocated!");
 
-  if (XEVENT (event)->event_type < first_event_type
-      || XEVENT (event)->event_type > last_event_type)
-    abort();
+  if (e->event_type < first_event_type || e->event_type > last_event_type)
+    abort ();
 
 #if 0
-  if (EQ (event, Vlast_command_event))
-    abort ();
-  if (EQ (event, Vlast_input_event))
-    abort ();
-  if (EQ (event, Vunread_command_event))
-    abort ();
-  {
+  {  
     int i;
+    extern Lisp_Object Vlast_command_event;
+    extern Lisp_Object Vlast_input_event, Vunread_command_event;
+    extern Lisp_Object Vthis_command_keys, Vrecent_keys_ring;
+
+    if (EQ (event, Vlast_command_event))
+      abort ();
+    if (EQ (event, Vlast_input_event))
+      abort ();
+    if (EQ (event, Vunread_command_event))
+      abort ();
     for (i = 0; i < XVECTOR (Vthis_command_keys)->size; i++)
       if (EQ (event, XVECTOR (Vthis_command_keys)->contents [i]))
 	abort ();
@@ -208,13 +228,15 @@ explicitly deallocate events when you are sure that that is safe.")
       if (EQ (event, XVECTOR (Vrecent_keys_ring)->contents [i]))
 	abort ();
   }
-#endif
+#endif /* 0 */
 
-  if (XEVENT (event) == event_free_list)
+  if (e == event_resource)
     abort ();
-  deinitialize_event (XEVENT (event));
-  XEVENT (event)->next = event_free_list;
-  event_free_list = XEVENT (event);
+  deinitialize_event (e);
+#ifndef ALLOC_NO_POOLS
+  set_event_next (e, event_resource);
+  event_resource = e;
+#endif
   return Qnil;
 }
 
@@ -227,36 +249,46 @@ be made as with `allocate-event.'  See also the function `deallocate-event'.")
      (event1, event2)
      Lisp_Object event1, event2;
 {
-  struct Lisp_Event *save_next;
+  struct Lisp_Event *e1, *e2;
+
   CHECK_EVENT (event1, 0);
   if (NILP (event2))
     event2 = Fallocate_event ();
   else CHECK_EVENT (event2, 0);
   if (EQ (event1, event2))
-    return Fsignal (Qerror, Fcons (build_string ("those events are eq."),
-				   Fcons (event1, Qnil)));
-  if ((XEVENT (event1)->event_type < first_event_type)
-      || (XEVENT (event1)->event_type > last_event_type)
-      || (XEVENT (event2)->event_type < first_event_type)
-      || (XEVENT (event2)->event_type > last_event_type))
-    abort ();
-  if ((XEVENT (event1)->event_type == dead_event) ||
-      (XEVENT (event2)->event_type == dead_event))
     return Fsignal (Qerror,
-		    Fcons (build_string
+                    list3 (build_string
+                           ("copy-event called with `eq' events"),
+                           event1, event2));
+  e1 = XEVENT (event1);
+  e2 = XEVENT (event2);
+
+  if ((e1->event_type < first_event_type)
+      || (e1->event_type > last_event_type)
+      || (e2->event_type < first_event_type)
+      || (e2->event_type > last_event_type))
+    abort ();
+  if ((e1->event_type == dead_event) ||
+      (e2->event_type == dead_event))
+    return Fsignal (Qerror,
+		    list3 (build_string
 			   ("copy-event called with a deallocated event!"),
-			   Fcons (event1, Fcons (event2, Qnil))));
-  save_next = XEVENT (event2)->next;
-  *XEVENT (event2) = *XEVENT (event1);
-  XEVENT (event2)->next = save_next;
-  return event2;
+			   event1,
+                           event2));
+  {
+    struct Lisp_Event *save_next = event_next (e2);
+
+    *e2 = *e1;
+    set_event_next (e2, save_next);
+    return (event2);
+  }
 }
 
 
 void
 syms_of_event_alloc ()
 {
-  event_free_list = 0;
+  event_resource = 0;
   defsubr (&Sallocate_event);
   defsubr (&Sdeallocate_event);
   defsubr (&Scopy_event);

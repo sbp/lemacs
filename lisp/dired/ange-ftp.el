@@ -7,6 +7,7 @@
 ;; Author:       Andy Norman, ange@hplb.hpl.hp.com
 ;; Created:      Thu Oct 12 14:00:05 1989
 ;; Modified:     Fri Aug 14 17:03:57 1992 (Ange) ange@anorman
+;; Modified for Lucid Emacs by jwz
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -644,6 +645,16 @@
 ;;; 1: See ange-ftp-ls
 ;;;
 
+;;; Lemacs changes from 4.20
+;;;
+;;; - added gzip support
+;;; - added "lazy" messages
+;;; - fixed completion list in the root dir (nil vs (nil))
+;;; - use (message nil) to repaint minibuf instead of that awful kludge
+;;; - call compute-buffer-file-truename to set truenames properly for
+;;;   when find-file-compare-truenames is set
+;;; - make-directory takes a second optional argument
+
 ;;; -----------------------------------------------------------
 ;;; Hall of fame:
 ;;; -----------------------------------------------------------
@@ -771,9 +782,9 @@ If nil then prompt the user for a password.")
 process uses the \'dir\' command to get directory information.")
 
 (defvar ange-ftp-binary-file-name-regexp
-  (concat "\\.Z$\\|\\.lzh$\\|\\.arc$\\|\\.zip$\\|\\.zoo$\\|\\.tar$\\|"
+  (concat "\\.g?z$\\|\\.Z$\\|\\.lzh$\\|\\.arc$\\|\\.zip$\\|\\.zoo$\\|\\.tar$\\|"
 	  "\\.dvi$\\|\\.ps$\\|\\.elc$\\|TAGS$\\|\\.gif$\\|"
-	  "\\.EXE\\(;[0-9]+\\)?$\\|\\.Z-part-..$")
+	  "\\.EXE\\(;[0-9]+\\)?$\\|\\.g?z-part-..$\\|\\.Z-part-..$")
   "*If a file matches this regexp then it is transferred in binary mode.")
 
 (defvar ange-ftp-gateway-host nil
@@ -924,7 +935,7 @@ SIZE, if supplied, should be a prime number."
 ;;;; Internal variables.
 ;;;; ------------------------------------------------------------
 
-(defconst ange-ftp-version "Revision: 4.20")
+(defconst ange-ftp-version "Revision: 4.20.Lucid")
 
 (defvar ange-ftp-data-buffer-name " *ftp data*"
   "Buffer name to hold directory listing data received from ftp process.")
@@ -987,6 +998,19 @@ window."
     (if (>= (length msg) max)
 	(setq msg (concat "> " (substring msg (- 3 max)))))
     (message "%s" msg)))
+
+(defvar ange-ftp-lazy-message-time 0)
+(defun ange-ftp-lazy-message (fmt &rest args)
+  "Output the given message, but truncate to the size of the minibuffer
+window, and don't print the message if we've printed another message
+less than one second ago."
+  (if (= ange-ftp-lazy-message-time
+	 (setq ange-ftp-lazy-message-time (nth 1 (current-time))))
+      nil
+    (apply 'ange-ftp-message fmt args)))
+
+(or (fboundp 'current-time) (fset 'ange-ftp-lazy-message 'ange-ftp-message))
+
 
 (defun ange-ftp-abbreviate-filename (file &optional new)
   "Abbreviate the given filename relative to the default-directory.  If the
@@ -1290,7 +1314,9 @@ completion is done in the root directory."
 		   (setq res (cons (list (concat host ":"))
 				   res))))
        ange-ftp-user-hashtable)
-      (or res (list nil)))))
+;;      (or res (list nil))
+      res
+      )))
 
 ;;;; ------------------------------------------------------------
 ;;;; Remote pathname syntax support.
@@ -1487,13 +1513,14 @@ associated buffer."
 			     ange-ftp-hash-mark-count)
 			  -6)))
        (if (zerop ange-ftp-xfer-size)
-	   (ange-ftp-message "%s...%dk" ange-ftp-process-msg kbytes)
+	   (ange-ftp-lazy-message "%s...%dk" ange-ftp-process-msg kbytes)
 	 (let ((percent (/ (* 100 kbytes) ange-ftp-xfer-size)))
 	   ;; cut out the redisplay of identical %-age messages.
 	   (if (not (eq percent ange-ftp-last-percent))
 	       (progn
 		 (setq ange-ftp-last-percent percent)
-		 (ange-ftp-message "%s...%d%%" ange-ftp-process-msg percent)))))))
+		 (ange-ftp-lazy-message "%s...%d%%"
+					ange-ftp-process-msg percent)))))))
   str)
 
 (defun ange-ftp-call-cont (cont result line)
@@ -2957,6 +2984,8 @@ ftp transfers."
 		      (ange-ftp-real-write-region start end temp nil visit)
 		    ;; cleanup forms
 		    (setq buffer-file-name filename)
+		    (if (fboundp 'compute-buffer-file-truename)
+			(compute-buffer-file-truename))
 		    (set-buffer-modified-p mod-p)))
 		(if binary
 		    (ange-ftp-set-binary-mode host user))
@@ -2983,6 +3012,8 @@ ftp transfers."
 	      (progn
 		(ange-ftp-set-buffer-mode)
 		(setq buffer-file-name filename)
+		(if (fboundp 'compute-buffer-file-truename)
+		    (compute-buffer-file-truename))
 		(set-buffer-modified-p nil)))
 	  (ange-ftp-message "Wrote %s" abbr)
 	  (ange-ftp-add-file-entry filename))
@@ -2996,7 +3027,10 @@ ftp transfers."
     (if parsed
 	(progn
 	  (if visit
-	      (setq buffer-file-name filename))
+	      (progn
+		(setq buffer-file-name filename)
+		(if (fboundp 'compute-buffer-file-truename)
+		    (compute-buffer-file-truename))))
 	  (if (or (file-exists-p filename)
 		  (progn
 		    (setq ange-ftp-ls-cache-file nil)
@@ -3041,7 +3075,10 @@ ftp transfers."
 		      (ange-ftp-set-ascii-mode host user))
 		  (ange-ftp-del-tmp-name temp))
 		(if visit
-		    (setq buffer-file-name filename))
+		    (progn
+		      (setq buffer-file-name filename)
+		      (if (fboundp 'compute-buffer-file-truename)
+			  (compute-buffer-file-truename))))
 		(list filename size))
 	    (signal 'file-error
 		    (list 
@@ -3752,9 +3789,12 @@ in OS TYPE.")
   "Association list of \( TYPE \. FUNC \) pairs, where FUNC converts a
 filename to the filename of the associated compressed file.")
 
+;;; this overwrites dired's `dired-compress-make-compressed-filename'
 (defun ange-ftp-dired-compress-make-compressed-filename (name &optional reverse)
   "Converts a filename to the filename of the associated compressed
-file. With an optional reverse argument, the reverse conversion is done."
+file. With an optional reverse argument, the reverse conversion is done.
+
+Modified to work with gzip (GNU zip) files."
   (let ((parsed (ange-ftp-ftp-path name))
 	conversion-func)
     (if (and parsed
@@ -3763,10 +3803,22 @@ file. With an optional reverse argument, the reverse conversion is done."
 			      ange-ftp-dired-compress-make-compressed-filename-alist))))
 	(funcall conversion-func name reverse)
       (if reverse
-	  (if (string-match "\\.Z$" name)
-	      (substring name 0 (match-beginning 0))
-	    name)
-	(concat name ".Z")))))
+
+          ;; uncompress...
+          ;; return `nil' if no match found -- better than nothing
+          (let (case-fold-search ; case-sensitive search
+                (string
+                 (concat "\\.\\(g?z\\|" (regexp-quote dired-gzip-file-extension)
+                         "$\\|Z\\)$")))
+            
+            (and (string-match string name)
+                 (substring name 0 (match-beginning 0))))
+
+        ;; add appropriate extension
+        ;; note: it could be that `gz' is not the proper extension for gzip
+        (concat name
+                (if dired-use-gzip-instead-of-compress
+                    dired-gzip-file-extension ".Z"))))))
 
 (defun ange-ftp-dired-clean-directory (keep)
   "Documented as original."
@@ -3929,9 +3981,11 @@ file. With an optional reverse argument, the reverse conversion is done."
 	  (comint::background command)
 	(shell-command command)))))
 
-(defun ange-ftp-make-directory (dir)
+(defun ange-ftp-make-directory (dir &optional parents)
   "Documented as original."
-  (interactive (list (expand-file-name (read-file-name "Make directory: "))))
+  (interactive (list (let ((current-prefix-arg current-prefix-arg))
+		       (read-directory-name "Create directory: "))
+		     current-prefix-arg))
   (if (file-exists-p dir)
       (error "Cannot make directory %s: file already exists" dir)
     (let ((parsed (ange-ftp-ftp-path dir)))
@@ -3960,7 +4014,7 @@ file. With an optional reverse argument, the reverse conversion is done."
 					dir
 					(cdr result))))
 	    (ange-ftp-add-file-entry dir t))
-	(ange-ftp-real-make-directory dir)))))
+	(ange-ftp-real-make-directory dir parents)))))
 
 (defun ange-ftp-remove-directory (dir)
   "Documented as original."

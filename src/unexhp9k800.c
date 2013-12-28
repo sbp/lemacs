@@ -37,13 +37,26 @@
   sigsetreturn(_sigreturn);
 */
 
+#include "config.h"
 #include <stdio.h>
 #include <fcntl.h>
 #include <errno.h>
 
 #include <a.out.h>
 
-#define NBPG 2048
+/*
+ * Dynamically loaded executable-aware ``unexec'' borrows heavily from
+ * Oliver Laumann's ELK interpreter. 
+
+ * Dipankar Gupta (dg@hplb.hpl.hp.com)
+ */
+
+#ifdef HPUX_USE_SHLIBS
+#include <dl.h>			/* User-space dynamic loader entry points */
+void Save_Shared_Data();
+int run_time_remap();
+#endif
+
 #define roundup(x,n) ( ( (x)+(n-1) ) & ~(n-1) )  /* n is power of 2 */
 #define min(x,y)  ( ((x)<(y))?(x):(y) )
 
@@ -70,21 +83,24 @@ unexec(new_name, old_name, new_end_of_text, dummy1, dummy2)
      intact.  NOT implemented.  */
   
   /* Open the input and output a.out files */
-  old = open(old_name, O_RDONLY);
+  old = open (old_name, O_RDONLY);
   if (old < 0)
     { perror(old_name); exit(1); }
-  new = open(new_name, O_CREAT|O_RDWR|O_TRUNC, 0777);
+  new = open (new_name, O_CREAT|O_RDWR|O_TRUNC, 0777);
   if (new < 0)
     { perror(new_name); exit(1); }
   
   /* Read the old headers */
   read_header(old, &hdr, &auxhdr);
   
+#ifdef HPUX_USE_SHLIBS
+  Save_Shared_Data();
+#endif
   /* Decide how large the new and old data areas are */
   old_size = auxhdr.exec_dsize;
   /* I suspect these two statements are separate
      to avoid a compiler bug in hpux version 8.  */
-  i = sbrk (0);
+  i = (long) sbrk (0);
   new_size = i - auxhdr.exec_dmem;
   
   /* Copy the old file to the new, up to the data space */
@@ -105,8 +121,8 @@ unexec(new_name, old_name, new_end_of_text, dummy1, dummy2)
   write_header(new, &hdr, &auxhdr);
   
   /* Close the binary file */
-  close(old);
-  close(new);
+  close (old);
+  close (new);
   return 0;
 }
 
@@ -119,7 +135,7 @@ save_data_space(file, hdr, auxhdr, size)
      int size;
 {
   /* Write the entire data space out to the file */
-  if (write(file, auxhdr->exec_dmem, size) != size)
+  if (write(file, (void *)auxhdr->exec_dmem, size) != size)
     { perror("Can't save new data space"); exit(1); }
   
   /* Update the header to reflect the new data size */
@@ -247,7 +263,7 @@ copy_file(old, new, size)
      int size;
 {
   int len;
-  int buffer[8196];  /* word aligned will be faster */
+  int buffer[8192];  /* word aligned will be faster */
   
   for (; size > 0; size -= len)
     {
@@ -295,3 +311,20 @@ display_header(hdr, auxhdr)
 	 hdr->unloadable_sp_location, hdr->unloadable_sp_size);
 }
 #endif /* DEBUG */
+
+#ifdef HPUX_USE_SHLIBS
+
+void *Brk_On_Dump = 0;		/* Brk value to restore... */
+
+void Save_Shared_Data () {
+  Brk_On_Dump = sbrk( 0 );
+}
+      
+void Restore_Shared_Data () {
+  brk ( Brk_On_Dump );
+}
+
+int run_time_remap (int d) {
+  Restore_Shared_Data();
+}
+#endif /* HPUX_USE_SHLIBS */

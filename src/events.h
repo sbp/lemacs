@@ -1,6 +1,6 @@
 /* Definitions for the new event model;
    created 16-jul-91 by Jamie Zawinski
-   Copyright (C) 1991-1993 Free Software Foundation, Inc.
+   Copyright (C) 1991, 1992, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -96,10 +96,11 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 			Possibly we should implement these in terms of 
 			select_process_cb.
 
- sigio_cb		A handler function for SIGIO interrupts, if on a 
-			system which generates them.  event_streams should
-			should be designed to not *require* SIGIO, but can
-			take advantage of it if it's present.
+ quitp_cb		A handler function called from the `QUIT' macro which
+			should check whether the interrupt character has been
+			typed.  On systems with SIGIO, this will not be called
+			unless the `sigio_happened' flag is true (it is set
+			from the SIGIO handler.)
 
  Emacs has its own event structures, which are distinct from the event
  structures used by X or any other window system.  It is the job of the
@@ -188,14 +189,19 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include <signal.h>
 
 /* Get FIONREAD, if it is available.  */
-#ifdef USG
+#ifdef HAVE_TERMIO
 # include <termio.h>
 # include <fcntl.h>
-#else /* not USG */
-# ifndef VMS
-#  include <sys/ioctl.h>
-# endif /* not VMS */
-#endif /* not USG */
+#else /* not HAVE_TERMIO */
+# ifdef HAVE_TERMIOS
+#  include <termios.h>
+#  include <fcntl.h>
+# else /* not HAVE_TERMIOS */
+#  ifndef VMS
+#   include <sys/ioctl.h>
+#  endif /* VMS */
+# endif /* not TERMIOS */
+#endif /* not TERMIO */
 
 /* UNIPLUS systems may have FIONREAD.  */
 #ifdef UNIPLUS
@@ -217,6 +223,9 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #endif
 
 
+struct Lisp_Event;
+struct Lisp_Process;
+
 struct event_stream {
   int  (*event_pending_p)	(int);
   void (*next_event_cb)		(struct Lisp_Event *);
@@ -228,11 +237,11 @@ struct event_stream {
   void (*unselect_tty_cb)	(int);
   void (*select_process_cb)	(struct Lisp_Process *);
   void (*unselect_process_cb)	(struct Lisp_Process *);
-#ifdef SIGIO
-  void (*sigio_cb)		(void);
-#endif
+  void (*quit_p_cb)		(void);
 };
 
+
+extern struct event_stream *event_stream;
 
 typedef enum emacs_event_type {
   empty_event,
@@ -253,7 +262,7 @@ typedef enum emacs_event_type {
 
 
 struct key_data {
-  int               key;
+  Lisp_Object       key;
   unsigned char     modifiers;
 };
 
@@ -299,36 +308,36 @@ struct magic_data {
 };
 
 struct Lisp_Event {
+  /* header->next (aka event_next ()) is used as follows:
+     - For dead events, this is the next dead one.
+     - For events on the command_event_queue, the next one on the queue.
+     - Otherwise it's 0.
+   */
+  struct lrecord_header lheader;
+  struct Lisp_Event	*next;
   emacs_event_type	event_type;
   Lisp_Object		channel;
   unsigned int		timestamp;
-  union {
-    struct key_data	key;
-    struct button_data	button;
-    struct motion_data	motion;
-    struct process_data	process;
-    struct timeout_data	timeout;
-    struct eval_data	eval;   /* menu_event uses this too */
-    struct magic_data	magic;
-  } event;
-  struct Lisp_Event	*next;	/* - For dead events, this is the next dead
-				     one.
-				   - For events on the command_event_queue,
-				     this is the next one on the queue.
-				   - Otherwise it's 0.
-				 */
+  union
+    {
+      struct key_data     key;
+      struct button_data  button;
+      struct motion_data  motion;
+      struct process_data process;
+      struct timeout_data timeout;
+      struct eval_data    eval;		/* menu_event uses this too */
+      struct magic_data   magic;
+    } event;
 };
 
-/* This structure is basically a typeahead queue: things like wait-reading-
-   process-output will delay the execution of keyboard and mouse events by
-   pushing them here.  I'd like this to be private to event-stream.c, but
-   alloc.c needs to know about it in order to mark it for GC.
- */
-struct command_event_queue {
-  struct Lisp_Event *head, *tail;
-};
+extern const struct lrecord_implementation lrecord_event[];
 
-extern struct command_event_queue *command_event_queue;
+#define XEVENT(a) ((struct Lisp_Event *) XPNTR(a))
+#define CHECK_EVENT(x, i) CHECK_RECORD ((x), lrecord_event, Qeventp, (i))
+#define EVENTP(x) RECORD_TYPEP ((x), lrecord_event)
+#define event_next(a) ((a)->next)
+#define set_event_next(a, n) do { ((a)->next = (n)); } while (0)
+
 
 
 /* The modifiers emacs knows about; these appear in key and button events.
@@ -349,7 +358,8 @@ extern struct command_event_queue *command_event_queue;
 /* Maybe this should be trickier */
 #define KEYSYM(x) (intern (x))
 
-int event_to_character (struct Lisp_Event *, int);
+extern void format_event_object (char *buf, struct Lisp_Event *e, int brief);
+extern void character_to_event (unsigned int c, struct Lisp_Event *event);
 #endif /* emacs */
 
 #endif /* _EMACS_EVENTS_H_ */

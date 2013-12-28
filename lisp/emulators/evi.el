@@ -15,12 +15,12 @@
 ;; INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
 ;; AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
 
-;; Evi 0.99.6m - Emulate Vi
+;; Evi 0.99.6n - Emulate Vi
 ;; LCD Archive Entry:
 ;; evi|Jeffrey R. Lewis|jlewis@cse.ogi.edu
 ;; |Emulate Vi - an even better vi emulator
-;; |2-16-93|0.99.6m|~/modes/evi.el.Z
-(defvar evi-version "Evi 0.99.6m, 2-16-93")
+;; |2-18-93|0.99.6n|~/modes/evi.el.Z
+(defvar evi-version "Evi 0.99.6n, 2-18-93")
 
 ;; Here follows Evi 0.9, an even better vi emulator aimed at those who either
 ;; are well accustomed to vi, or who just simply happen to like its style of
@@ -29,74 +29,69 @@
 ;; supplied by the emacs environment, without simply becoming emacs with vi'ish
 ;; key bindings.
 
-(defvar evi-mode-hook nil
-  "*Function or functions called upon entry to evi-mode.")
+(provide 'evi)
 
 (defmacro evi-defbuffervar (name default-value documentation)
   (list 'progn (list 'defvar name nil documentation)
 	       (list 'make-variable-buffer-local (list 'quote name))
 	       (list 'set-default (list 'quote name) default-value)))
 
-(defmacro evi-version-case (&rest cases)
-  (let ((return nil))
-    (while cases
-      (if (string-match (car (car cases)) (emacs-version))
-	  (setq return
-		(if (cdr (cdr (car cases)))
-		    (cons 'progn (cdr (car cases)))
-		  (car (cdr (car cases))))
-		cases nil)
-	(setq cases (cdr cases))))
-    return))
+(defvar evi-emacs-version
+  (let ((version (emacs-version)))
+	(cond ((string-match "Emacs 18\\|Epoch 4" version)
+	        'emacs18)
+	      ((string-match "Emacs 19.*Lucid" version)
+	        'lucid19))))
 
-(evi-version-case
-  ("Emacs 18\\|Epoch 4"
-    (defun evi-fill-keymap (keymap def)
-      (fillarray keymap def))
+(if (eq evi-emacs-version 'emacs18)
+    (progn
+      (defun evi-fill-keymap (keymap def)
+	(fillarray keymap def))
 
-    (defun evi-keymap-bindings (map)
-      (evi-keymap-bindings2 map ""))
+      (defun evi-keymap-bindings (map)
+	(evi-keymap-bindings2 map ""))
 
-    (defun evi-keymap-bindings2 (map prefix)
-      (let ((bindings (cdr map))
-	    (mappings nil))
-	(while bindings
-	  (let* ((binding (car bindings))
-		 (keys (concat prefix (char-to-string (car binding)))))
-	    (if (keymapp (cdr binding))
-		(setq mappings
-		  (nconc (evi-keymap-bindings2 (cdr binding) keys) mappings))
-	      (setq mappings (cons (cons keys (cdr binding)) mappings))))
-	  (setq bindings (cdr bindings)))
-	mappings))
-    )
-  ("Emacs 19.*Lucid"
-    (defun evi-fill-keymap (keymap def)
-      (let ((i 128))
-	(while (<= 0 (setq i (1- i)))
-	  (define-key keymap (make-string 1 i) def))
-	keymap))
-
-    (defun evi-keymap-bindings (map)
-      (let ((mappings nil))
-	(evi-keymap-bindings2 map "")
-	mappings))
-
-    (defun evi-keymap-bindings2 (map prefix)
-      (map-keymap
-        (function
-	  (lambda (key def)
-	    (let* ((keys (concat prefix (single-key-description key))))
-	      (if (keymapp def)
+      (defun evi-keymap-bindings2 (map prefix)
+	(let ((bindings (cdr map))
+	      (mappings nil))
+	  (while bindings
+	    (let* ((binding (car bindings))
+		   (keys (concat prefix (char-to-string (car binding)))))
+	      (if (keymapp (cdr binding))
 		  (setq mappings
-			(nconc (evi-keymap-bindings2 def keys) mappings))
-	      (setq mappings
-		(cons (cons keys def) mappings)))))) map))
-    ))
+		    (nconc (evi-keymap-bindings2 (cdr binding) keys) mappings))
+		(setq mappings (cons (cons keys (cdr binding)) mappings))))
+	    (setq bindings (cdr bindings)))
+	  mappings)))
+
+  (defun evi-fill-keymap (keymap def)
+    (let ((i 128))
+      (while (<= 0 (setq i (1- i)))
+	(define-key keymap (make-string 1 i) def))
+      keymap))
+
+  (defun evi-keymap-bindings (map)
+    (let ((mappings nil))
+      (evi-keymap-bindings2 map "")
+      mappings))
+
+  (defun evi-keymap-bindings2 (map prefix)
+    (map-keymap
+     (function
+       (lambda (key def)
+	 (let* ((keys (concat prefix (single-key-description key))))
+	   (if (keymapp def)
+	       (setq mappings
+		     (nconc (evi-keymap-bindings2 def keys) mappings))
+	     (setq mappings
+		   (cons (cons keys def) mappings)))))) map)))
 
 (defvar evi-initialized nil)
 
 (defvar evi-interactive t)
+
+(defvar evi-mode-hook nil
+  "*Function or functions called upon entry to evi-mode.")
 
 (evi-defbuffervar evi-enabled nil
   "If t, currently emulating vi in this buffer.")
@@ -449,22 +444,20 @@ in insert mode.")
   "*If t, timeout is actually *not* implemented.  If nil, <ESC><ESC> becomes
 <ESC>, and arrows keys are mapped to h, j, k and l.")
 
-(evi-version-case
-  ("Emacs 19.*Lucid"
-    (defun evi-timeout (value)
-      ; I presume in v19 we can handle this properly (but hasn't been done yet)
-      ))
-  ("."
+(if (eq evi-emacs-version 'emacs18)
     (defun evi-timeout (value)
       (if value
-	(evi-define-key '(vi) "\e" nil)
+	  (evi-define-key '(vi) "\e" nil)
 	(progn (evi-define-key '(vi) "\e" esc-map)
 	       (define-key function-keymap "l" 'evi-backward-char)
 	       (define-key function-keymap "r" 'evi-forward-char)
 	       (define-key function-keymap "u" 'evi-previous-line)
 	       (define-key function-keymap "d" 'evi-next-line)
 	       ;; ZZ should save \e\e binding and use that in :set timeout
-	       (evi-define-key '(vi) "\e\e" nil))))))
+	       (evi-define-key '(vi) "\e\e" nil))))
+  (defun evi-timeout (value)
+    ;; I presume in v19 we can handle this properly (but hasn't been done yet)
+    ))
 
 (defconst evi-timeout-length 500
   "*Not implemented.")
@@ -504,6 +497,8 @@ in insert mode.")
      ((0 . ((nil . "!") (nil . offset) (t . file))) . ex-edit-other-window))
     (("Buffer" . 1) .
      ((0 . ((nil . "!") (t . buffer))) . ex-change-buffer-other-window))
+    (("Kill" . 1) .
+     ((0 . ((nil . "!") (t . buffer))) . ex-kill-buffer-delete-windows))
     (("Write" . 1) . ((0 . ((nil . "!"))) . ex-write-all-buffers))
     (("Next" . 1) . ((0 . ((nil . "!") (t . files))) . ex-next-other-window))
     (("set" . 2) . ((0 . ((nil . settings))) . ex-set))
@@ -763,9 +758,8 @@ in insert mode.")
 (evi-define-key '(vi)			"R" 'evi-replace)
 (evi-define-macro '(vi)			"S" "&c#c")
 (evi-define-key '(vi motion)		"T" 'evi-find-char-backwards-after)
-(evi-version-case
-  ("Emacs 18\.5[789]\\|Epoch 4\\|Emacs 19.*Lucid"
-    (evi-define-key '(vi)		"U" 'evi-undo-line)))
+(if (boundp 'buffer-undo-list)
+    (evi-define-key '(vi)		"U" 'evi-undo-line))
 ;					"V"
 (evi-define-key '(vi motion)		"W" 'evi-forward-Word)
 (evi-define-macro '(vi)			"X" "&d#h")
@@ -854,41 +848,42 @@ in insert mode.")
 
 (evi-define-key '(shell) "\C-m" 'shell-send-input)
 
-(evi-version-case
- ("Emacs 19.*Lucid"
-  ; must find out how/if this interacts with the definition of ESC
-  ; ZZ - both vi and top-level in a map list is redundant - something's afoot
-  (let ((maps '(vi motion top-level)))
-    (evi-define-key maps 'down	  'evi-next-line)
-    (evi-define-key maps 'up	  'evi-previous-line)
-    (evi-define-key maps 'left	  'evi-backward-char)
-    (evi-define-key maps 'right	  'evi-forward-char)
+(if (eq evi-emacs-version 'lucid19)
+    (progn
+      ;; must find out how/if this interacts with the definition of ESC
+      ;; ZZ - both vi and top-level in a map list is redundant -
+      ;; something's afoot
+      (let ((maps '(vi motion top-level)))
+	(evi-define-key maps 'down	  'evi-next-line)
+	(evi-define-key maps 'up	  'evi-previous-line)
+	(evi-define-key maps 'left	  'evi-backward-char)
+	(evi-define-key maps 'right	  'evi-forward-char)
+	
+	(evi-define-key maps 'button1 'evi-mouse-track)
+	(evi-define-key maps 'button2 'evi-x-set-point-and-insert-selection)
+	(evi-define-key maps '(control button1) 'evi-mouse-track-insert)
+	(evi-define-key maps '(control button2) 'evi-x-mouse-kill))
 
-    (evi-define-key maps 'button1 'evi-mouse-track)
-    (evi-define-key maps 'button2 'evi-x-set-point-and-insert-selection)
-    (evi-define-key maps '(control button1) 'evi-mouse-track-insert)
-    (evi-define-key maps '(control button2) 'evi-x-mouse-kill))
+      (defun evi-mouse-track (event)
+	(interactive "e")
+	(mouse-track event)
+	(evi-fixup-cursor 'vertical))
 
-  (defun evi-mouse-track (event)
-    (interactive "e")
-    (mouse-track event)
-    (evi-fixup-cursor 'vertical))
+      (defun evi-mouse-track-insert (event)
+	(interactive "e")
+	(mouse-track-insert event)
+	(evi-fixup-cursor 'vertical))
 
-  (defun evi-mouse-track-insert (event)
-    (interactive "e")
-    (mouse-track-insert event)
-    (evi-fixup-cursor 'vertical))
+      (defun evi-x-mouse-kill (event)
+	(interactive "e")
+	(x-mouse-kill event)
+	(evi-fixup-cursor 'vertical))
 
-  (defun evi-x-mouse-kill (event)
-    (interactive "e")
-    (x-mouse-kill event)
-    (evi-fixup-cursor 'vertical))
-
-  (defun evi-x-set-point-and-insert-selection (event)
-    (interactive "e")
-    (x-set-point-and-insert-selection event)
-    (evi-fixup-cursor 'vertical))
-  ))
+      (defun evi-x-set-point-and-insert-selection (event)
+	(interactive "e")
+	(x-set-point-and-insert-selection event)
+	(evi-fixup-cursor 'vertical))
+      ))
 
 ;; Command macros
 
@@ -944,8 +939,11 @@ in insert mode.")
     (save-window-excursion
       ; this seems unduly complicated...
       (set-buffer (window-buffer (minibuffer-window)))
+      (set-window-buffer (minibuffer-window) (current-buffer))
       (select-window (minibuffer-window))
       (erase-buffer)
+      (if (eq evi-emacs-version 'lucid19)
+	  (message nil))
       (insert prompt)
       (setq evi-insert-point (point))
       (if initial
@@ -1264,9 +1262,8 @@ in insert mode.")
 	  (evi-initialize))
       (setq evi-emacs-local-map (current-local-map))
       (evi-install-in-mode-line 'evi-mode-string)
-      (evi-version-case
-       ("Lucid"
-	(set (make-local-variable 'interrupt-char) ?\C-c)))
+      (if (eq evi-emacs-version 'lucid19)
+	  (set (make-local-variable 'interrupt-char) ?\C-c))
       (if evi-meta-prefix-char
 	(set (make-local-variable 'meta-prefix-char) evi-meta-prefix-char))))
   (let ((was-enabled evi-enabled))
@@ -1288,9 +1285,8 @@ in insert mode.")
   (evi-deinstall-from-mode-line 'evi-number-string)
   (use-local-map evi-emacs-local-map)
   (kill-local-variable 'meta-prefix-char)
-  (evi-version-case
-   ("Lucid"
-    (kill-local-variable 'interrupt-char)))
+  (if (eq evi-emacs-version 'lucid19)
+      (kill-local-variable 'interrupt-char))
   (evi-refresh-mode-line))
 
 ;; Minibuffer
@@ -1635,12 +1631,11 @@ Kills indentation on current line if the line is otherwise empty."
 
 (defun evi-replace-one-char (char)
   (delete-region (point) (1+ (point)))
-  (evi-version-case
-    ("Emacs 18\.5[789]\\|Epoch 4\\|Emacs 19.*Lucid"
+  (if (boundp 'buffer-undo-list)
       (if (and evi-overstruck-char (= (point) evi-replace-max))
 	(progn (aset (car (car buffer-undo-list))
 		     0 evi-overstruck-char)
-	       (setq evi-overstruck-char nil)))))
+	       (setq evi-overstruck-char nil))))
   ; ZZ unpleasantly hardcoded?
   (if (or (= char ?\n) (= char ?\r))
     (evi-newline)
@@ -1714,15 +1709,14 @@ than insert point."
 	     (goto-char evi-mark)
 	     (delete-region (1- evi-mark) evi-mark)
 	     (insert ?$)
-	     (evi-version-case
-	       ("Emacs 18\.5[789]\\|Epoch 4\\|Emacs 19.*Lucid"
+	     (if (boundp 'buffer-undo-list)
 		 ;; this is a bit of song and dance to get the cursor to
 		 ;; end up in the right place after an undo.  the problem
 		 ;; is these two previous statements, which are the first
 		 ;; things changed, and thus where the cursor will be left
 		 ;; after an undo.  first step: erase the fact that we put
 		 ;; the dollar sign there in the first place.
-		 (setq buffer-undo-list (cdr (cdr buffer-undo-list)))))
+		 (setq buffer-undo-list (cdr (cdr buffer-undo-list))))
 	     (goto-char here))
 	   (setq evi-mode 'change)
 	   (evi-replace-mode evi-mark)))
@@ -1734,12 +1728,11 @@ than insert point."
     (let ((overstrike-offset (1- (- evi-replace-max (point)))))
       (delete-region (point) (marker-position evi-replace-max))
       (set-marker evi-replace-max nil)
-      (evi-version-case
-	("Emacs 18\.5[789]\\|Epoch 4\\|Emacs 19.*Lucid"
+      (if (boundp 'buffer-undo-list)
 	  ;; second step: rewrite the undo record with the
 	  ;; original overstruck character
 	  (aset (car (car buffer-undo-list))
-		overstrike-offset evi-overstruck-char))))))
+		overstrike-offset evi-overstruck-char)))))
 
 (defun evi-delete (&optional count)
   "Delete operator."
@@ -2623,39 +2616,32 @@ in the opposite direction."
   (evi-undo-one-change)
   (evi-fixup-cursor 'vertical))
 
-(evi-version-case
-  ("Emacs 18\.5[789]\\|Epoch 4\\|Emacs 19.*Lucid"
-    (defun evi-undo-line ()
-      "Undo all changes to this line."
-      (interactive)
-      (evi-undo-start)
-      (evi-undo-one-line)
-      (evi-fixup-cursor 'vertical))))
+(defun evi-undo-line ()
+  "Undo all changes to this line."
+  (interactive)
+  (evi-undo-start)
+  (evi-undo-one-line)
+  (evi-fixup-cursor 'vertical))
 
 (defun evi-undo-start ()
   (undo-start)
-  (evi-version-case
-    ("Emacs 18\.5[789]\\|Epoch 4\\|Emacs 19.*Lucid"
+  (if (boundp 'buffer-undo-list)
       ; if the first record is a boundary, skip it
       (while (and pending-undo-list (null (car pending-undo-list)))
-	(setq pending-undo-list (cdr pending-undo-list))))
-    ("Emacs"
-      (undo-more 1))))
+	(setq pending-undo-list (cdr pending-undo-list)))
+    (undo-more 1)))
 
 (defun evi-undo-more ()
   "Continue undoing previous changes."
   (interactive)
-  (evi-version-case
-    ("Emacs 18\.5[789]\\|Epoch 4\\|Emacs 19.*Lucid"
+  (if (boundp 'buffer-undo-list)
       (if (boundp 'pending-undo-list)
-	(progn (message "undo more!")
-	       (evi-undo-one-change)
-	       (evi-fixup-cursor 'vertical))
-	(evi-error "No previous undo to continue")))
-    ("Emacs"
-	(message "undo more!")
-	(evi-undo-one-change)
-	(evi-fixup-cursor 'vertical))))
+	  (progn (message "undo more!")
+		 (evi-undo-one-change))
+	(evi-error "No previous undo to continue"))
+    (message "undo more!")
+    (evi-undo-one-change))
+  (evi-fixup-cursor 'vertical))
 
 (defun evi-undo-one-change ()
   (let ((modified (buffer-modified-p)))
@@ -2666,8 +2652,7 @@ in the opposite direction."
 
 (defvar evi-last-undo-line-mark nil)
 
-(evi-version-case
-  ("Emacs 18\.5[789]\\|Epoch 4\\|Emacs 19.*Lucid"
+(if (boundp 'buffer-undo-list)
     ; undo records are:
     ;   (t . ...) which marks a file save
     ;   ("string" . pos) which undoes a delete
@@ -2731,7 +2716,7 @@ in the opposite direction."
 	    (and modified (not (buffer-modified-p))
 		 (delete-auto-save-file-if-necessary)))
 	  (evi-error "No undo for this line")))
-      (evi-reset-goal-column))))
+      (evi-reset-goal-column)))
 
 ;; Marks
 
@@ -2895,7 +2880,15 @@ in the opposite direction."
 	(setq max-len (- (/ (window-width) 2) 2)))
     (if list
 	(evi-insert-list-pretty list (or max-len (- (window-width) 2))))
-    (display-buffer buffer t)))
+    (if (eq evi-emacs-version 'lucid19)
+	(let ((reset-minibuf nil))
+	  (if (eq (minibuffer-window) (selected-window))
+	      (progn (select-window (previous-window))
+		     (setq reset-minibuf t)))
+	  (display-buffer buffer t)
+	  (if reset-minibuf
+	      (select-window (minibuffer-window))))
+      (display-buffer buffer t))))
 
 (defun evi-insert-list-pretty (list max-len)
   (let* ((len (length list))
@@ -3677,12 +3670,25 @@ in the opposite direction."
   (ex-recurse '(evi-customize)))
 
 (defun ex-kill-buffer (exclam buffer-name)
-  (and (not exclam) (buffer-file-name) (buffer-modified-p)
+  (ex-kill-buffer-internal exclam buffer-name nil))
+
+(defun ex-kill-buffer-delete-windows (exclam buffer-name)
+  (ex-kill-buffer-internal exclam buffer-name t))
+
+(defun ex-kill-buffer-internal (exclam buffer windows-too)
+  (setq buffer (get-buffer (or buffer (current-buffer))))
+  (and (not exclam) (buffer-file-name buffer) (buffer-modified-p buffer)
        (evi-error
 	 "No write since last change (use :kill! to override)"))
+  (set-buffer buffer)
   (set-buffer-modified-p nil)
   (delete-auto-save-file-if-necessary)
-  (kill-buffer (or buffer-name (current-buffer)))
+  (if windows-too
+      (condition-case nil
+	  (delete-windows-on buffer)
+	;; ignore error about trying to delete only window on only screen
+	(error nil)))
+  (kill-buffer buffer)
   (setq ex-user-buffer (current-buffer)))
 
 (defun ex-map (exclam key definition)
@@ -3809,13 +3815,13 @@ in the opposite direction."
 ; there's a bug in insert-file-contents that doesn't record an undo save
 ; boundary when it's appropriate (ZZ)
 (defun evi-insert-file (filename)
-  (evi-version-case
-    ("Emacs 18\.5[789]\\|Epoch 4\\|Emacs 19.*Lucid"
-      ; the insert will record a save record if appropriate
-      (insert ?@)
-      (delete-region (1- (point)) (point))
-      ; now just erase the existence of the insert and delete
-      (setq buffer-undo-list (cdr (cdr buffer-undo-list)))))
+  (if (boundp 'buffer-undo-list)
+      (progn
+	;; the insert will record a save record if appropriate
+	(insert ?@)
+	(delete-region (1- (point)) (point))
+	;; now just erase the existence of the insert and delete
+	(setq buffer-undo-list (cdr (cdr buffer-undo-list)))))
   (insert-file-contents filename))
 
 (defun ex-recover (exclam file-name)
@@ -4207,5 +4213,3 @@ in the opposite direction."
   (if exclam
       (ex-kill-buffer t nil)))
 
-
-(provide 'evi)

@@ -1,6 +1,6 @@
 This directory contains some mu-law encoded SunOS 4.1 sound files.  
 
-If you're running Lucid GNU Emacs on the console of a SparcStation, you
-can use these sounds to replace the default beep.  See the documentation
-of the `sound-alist' variable, and the functions `load-default-sounds' 
-and `load-sound-file' from ../lisp/sound.el.
+If you're running Lucid GNU Emacs on the console of a SparcStation or SGI
+machine, you can use these sounds to replace the default beep.  See the
+documentation of the `sound-alist' variable, and the functions
+`load-default-sounds' and `load-sound-file' from ../lisp/sound.el.

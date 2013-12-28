@@ -1,11 +1,15 @@
-;; Insert or remove underlining (done by overstriking) in Emacs.
-;; Copyright (C) 1985 Free Software Foundation, Inc.
+;;; underline.el --- insert/remove underlining (done by overstriking) in Emacs.
+
+;; Copyright (C) 1985, 1993 Free Software Foundation, Inc.
+
+;; Maintainer: FSF
+;; Keywords: wp
 
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -17,30 +21,91 @@
 ;; along with GNU Emacs; see the file COPYING.  If not, write to
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
+;;; Commentary:
 
+;; This package deals with the primitive form of underlining
+;; consisting of prefixing each character with "_\^h".  The entry
+;; point `underline-region' performs such underlining on a region.
+;; The entry point `ununderline-region' removes it.
+
+;;; Code:
+
+;;;###autoload
 (defun underline-region (start end)
   "Underline all nonblank characters in the region.
 Works by overstriking underscores.
 Called from program, takes two arguments START and END
 which specify the range to operate on."
-  (interactive "r")
+  (interactive "*r")
   (save-excursion
-   (let ((end1 (make-marker)))
-     (move-marker end1 (max start end))
-     (goto-char (min start end))
-     (while (< (point) end1)
-       (or (looking-at "[_\^@- ]")
-	   (insert "_"))
-       (forward-char 1)))))
+    (let ((end1 (make-marker)))
+      (move-marker end1 (max start end))
+      (goto-char (min start end))
+      (while (< (point) end1)
+	(or (looking-at "[_\^@- ]")
+	    (insert "_"))
+	(forward-char 1)))))
 
+;;;###autoload
 (defun ununderline-region (start end)
   "Remove all underlining (overstruck underscores) in the region.
 Called from program, takes two arguments START and END
 which specify the range to operate on."
-  (interactive "r")
+  (interactive "*r")
   (save-excursion
-   (let ((end1 (make-marker)))
-     (move-marker end1 (max start end))
-     (goto-char (min start end))
-     (while (re-search-forward "_\\|_" end1 t)
-       (delete-char -2)))))
+    (let ((end1 (make-marker)))
+      (move-marker end1 (max start end))
+      (goto-char (min start end))
+      (while (re-search-forward "_\\|_" end1 t)
+	(delete-char -2)))))
+
+;;;###autoload
+(defun unoverstrike-region (start end)
+  "Remove all overstriking (character-backspace-character) in the region.
+Called from program, takes two arguments START and END which specify the
+range to operate on."
+  (interactive "*r")
+  (save-excursion
+    (let ((end1 (make-marker)))
+      (move-marker end1 (max start end))
+      (goto-char (min start end))
+      (while (re-search-forward "\\(.\\)\\1" end1 t)
+	(delete-char -2)))))
+
+;;;###autoload
+(defun overstrike-region (start end)
+  "Overstrike (character-backspace-character) all nonblank characters in
+the region. Called from program, takes two arguments START and END which
+specify the range to operate on."
+  (interactive "*r")
+  (save-excursion
+    (let ((end1 (make-marker)))
+      (move-marker end1 (max start end))
+      (goto-char (min start end))
+      (while (< (point) end1)
+	(or (looking-at "[_\^@- ]")
+	    (insert (char-after (point)) 8))
+	(forward-char 1)))))
+
+;;;###autoload
+(defun ununderline-and-unoverstrike-region (start end)
+  "Remove underlining and overstriking in the region.  Called from a program,
+takes two arguments START and END which specify the range to operate on."
+  (interactive "*r")
+  (save-excursion
+    ;; This is a piece of nuke-nroff-bs from standard `man.el'.
+    (goto-char (point-min))
+    (while (search-forward "\b" (max start end) t)
+      (let* ((preceding (char-after (- (point) 2)))
+	     (following (following-char)))
+	(cond ((= preceding following)
+	       ;; x\bx
+	       (delete-char -2))
+	      ((= preceding ?\_)
+	       ;; _\b
+	       (delete-char -2))
+	      ((= following ?\_)
+	       ;; \b_
+	       (delete-region (1- (point)) (1+ (point)))))))))
+
+;;; underline.el ends here

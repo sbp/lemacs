@@ -4,7 +4,7 @@
 ;;; Description:	simple editing of tar files from GNU emacs
 ;;; Author:		Jamie Zawinski <jwz@lucid.com>
 ;;; Created:		4 Apr 1990
-;;; Version:		1.27, 6 Mar 93
+;;; Version:		1.30, 6 Mar 93
 
 ;;; Copyright (C) 1990-1993 Free Software Foundation, Inc.
 ;;;
@@ -51,6 +51,9 @@
 
 ;;;    ***************   TO DO   *************** 
 ;;;
+;;; o  There should be a command to extract the whole current buffer into files
+;;;    on disk (right now you have to do the subfiles one at a time.)
+;;;
 ;;; o  chmod should understand "a+x,og-w".
 ;;;
 ;;; o  It's not possible to add a NEW file to a tar archive; not that 
@@ -62,7 +65,7 @@
 ;;;
 ;;; o  I'd like a command that searches for a string/regexp in every subfile
 ;;;    of an archive, where <esc> would leave you in a subfile-edit buffer.
-;;;    (Like the Meta-R command of the Zmacs mail reader.)
+;;;    (Like M-s in VM and M-r in the Zmacs mail reader.)
 ;;;
 ;;; o  Sometimes (but not always) reverting the tar-file buffer does not 
 ;;;    re-grind the listing, and you are staring at the binary tar data.
@@ -75,6 +78,11 @@
 ;;; o  Block files, sparse files, continuation files, and the various header
 ;;;    types aren't editable.  Actually I don't know that they work at all.
 ;;;    If you know that they work, or know that they don't, please let me know.
+;;;
+;;; o  Tar files inside of tar files don't work.
+;;;
+;;; o  When using crypt-mode, you can't save a compressed or encrypted subfile
+;;;    of a tar file back into the tar file: it is saved uncompressed.
 
 (defvar tar-anal-blocksize 20
   "*The blocksize of tar files written by Emacs, or nil, meaning don't care.
@@ -85,7 +93,8 @@ matter much.  The only noticeable difference is that if a tar file does not
 have a blocksize of 20, the tar program will issue a warning; all this really
 controls is how many null padding bytes go on the end of the tar file.")
 
-(defvar tar-update-datestamp (fboundp 'current-time-seconds)
+(defvar tar-update-datestamp (or (fboundp 'current-time)
+				 (fboundp 'current-time-seconds))
   "*Whether tar-mode should play fast and loose with sub-file datestamps;
 if this is true, then editing and saving a tar file entry back into its
 tar file will update its datestamp.  If false, the datestamp is unchanged.
@@ -96,11 +105,7 @@ the file never exists on disk.
 
 This does not work in Emacs 18, because there's no way to get the current 
 time as an integer - if this var is true, then editing a file sets its date
-to midnight, Jan 1 1970 GMT, which happens to be what 0 encodes.
-
-I have written some C code to fix this deficiency which is included in 
-Lucid Emacs, and may be included in FSF's version 19.  Tar-mode will take
-advantage of this code if it is present.")
+to midnight, Jan 1 1970 GMT, which happens to be what 0 encodes.")
 
 (defvar tar-view-kill-buffer t
   "*Whether to kill the buffer when view-mode exits.  The standard view-mode
@@ -325,7 +330,8 @@ write-date, checksum, link-type, and link-name)."
   string)
 
 
-(defconst tar-can-print-dates (fboundp 'current-time-seconds)
+(defconst tar-can-print-dates (or (fboundp 'current-time)
+				  (fboundp 'current-time-seconds))
   "true if this emacs has been built with time-printing support")
 
 (defun summarize-tar-header-block (tar-hblock &optional mod-p)
@@ -661,11 +667,12 @@ directory listing."
 		(set-buffer buffer)
 		(insert-buffer-substring tar-buffer start end)
 		(goto-char 0)
-		(set-visited-file-name name) ; give it a name to decide mode.
-;;		(normal-mode)  ; pick a mode.
-		(after-find-file nil nil)  ; pick a mode; works with crypt.el
-		(set-visited-file-name nil)  ; nuke the name - not meaningful.
-		
+		(let ((lock-directory nil)) ; disable locking
+		  (set-visited-file-name name) ; give it a name to decide mode.
+;;		  (normal-mode)  ; pick a mode.
+		  (after-find-file nil nil)  ; pick a mode; works with crypt.el
+		  (set-visited-file-name nil) ; nuke the name - not meaningful.
+		  )
 		(make-local-variable 'superior-tar-buffer)
 		(make-local-variable 'superior-tar-descriptor)
 		(make-local-variable 'mode-line-buffer-identification)
@@ -1029,10 +1036,12 @@ to make your changes permanent."
   (if (not (and (boundp 'superior-tar-descriptor) superior-tar-descriptor))
       (error "this buffer doesn't have an index into its superior tar file!"))
 
-  ;; Notice when crypt.el has uncompressed while reading the file, and signal
-  ;; an error if the user tries to save back into the parent file (because
-  ;; it won't work - the .Z subfile it writes won't really be compressed.)
+  ;; Notice when crypt.el has uncompressed while reading the subfile, and
+  ;; signal an error if the user tries to save back into the parent file
+  ;; (because it won't work - the .Z subfile it writes won't really be
+  ;; compressed.)
   ;;
+  ;; These are for the old crypt.el
   (if (and (boundp 'buffer-save-encrypted) buffer-save-encrypted)
       (error "Don't know how to encrypt back into a tar file."))
   (if (and (boundp 'buffer-save-compacted) buffer-save-compacted)
@@ -1041,6 +1050,18 @@ to make your changes permanent."
       (error "Don't know how to compress back into a tar file."))
   (if (and (boundp 'buffer-save-gzipped) buffer-save-gzipped)
       (error "Don't know how to gzip back into a tar file."))
+
+  ;; These are for the new crypt++.el
+  (if (and (boundp 'crypt-buffer-save-encrypted) crypt-buffer-save-encrypted)
+      (error "Don't know how to encrypt back into a tar file."))
+  (if (and (boundp 'crypt-buffer-save-compact) crypt-buffer-save-compact)
+      (error "Don't know how to compact back into a tar file."))
+  (if (and (boundp 'crypt-buffer-save-compress) crypt-buffer-save-compress)
+      (error "Don't know how to compress back into a tar file."))
+  (if (and (boundp 'crypt-buffer-save-gzip) crypt-buffer-save-gzip)
+      (error "Don't know how to gzip back into a tar file."))
+  (if (and (boundp 'crypt-buffer-save-freeze) crypt-buffer-save-freeze)
+      (error "Don't know how to freeze back into a tar file."))
 
   (save-excursion
   (let ((subfile (current-buffer))
@@ -1091,20 +1112,27 @@ to make your changes permanent."
 		  nil
 		(goto-char (+ header-start tar-time-offset))
 		(delete-region (point) (+ (point) 12))
-		(if tar-can-print-dates
-		    (let* ((now (current-time-seconds)) ; not defined in v18
-			 (top (car now))
-			 (bot (cdr now)))
+		(let (now top bot)
+		  (cond ((fboundp 'current-time)
+			 (setq now (current-time))
+			 (setcdr now (car (cdr now))))
+			((fboundp 'current-time-seconds)
+			 (setq now (current-time-seconds))))
+		  (setq top (car now)
+			bot (cdr now))
+		  (cond
+		   (now
 		    (tar-setf (tar-header-date tokens) now)
 		    ;; hair to print two 16-bit numbers as one octal number.
 		    (setq bot (logior (ash (logand top 3) 16) bot))
 		    (setq top (ash top -2))
 		    (insert (format "%5o" top))
 		    (insert (format "%06o " bot)))
-		  ;; otherwise, set it to the epoch.
-		  (insert (format "%11o " 0))
-		  (tar-setf (tar-header-date tokens) (cons 0 0))
-		  ))
+		   (t
+		    ;; otherwise, set it to the epoch.
+		    (insert (format "%11o " 0))
+		    (tar-setf (tar-header-date tokens) (cons 0 0))
+		    ))))
 	      ;;
 	      ;; compute a new checksum and insert it.
 	      (let ((chk (checksum-tar-header-block
@@ -1178,11 +1206,26 @@ Leaves the region wide."
   ;; buffer.  Many thanks to Piet van Oostrum for this code, which causes
   ;; correct interaction with crypt.el (and probably anything like it.)
   ;;
+  ;; Kludge: in Lucid Emacs, write-file-hooks is bound to nil before the
+  ;; write-file-hooks are run, to prevent them from being run recursively
+  ;; (this is more of a danger in v19-vintage emacses, which have both
+  ;; write-file-hooks and write-contents-hooks.)  So, we need to reference
+  ;; an internal variable of basic-save-buffer to get the list of hooks
+  ;; remaining to be run.
+  ;;
   (and (eq major-mode 'tar-mode)
        (and (boundp 'tar-header-offset) tar-header-offset)
-       (let ((hooks (cdr (memq 'maybe-write-tar-file write-file-hooks)))
-	     header-string
-	     done)
+       (let* ((hooks (cond ((string-match "Lucid" emacs-version)
+			    ;; Internal to basic-save-buffer in lemacs.
+			    (symbol-value 'hooks))
+			   ((string-lessp "19" emacs-version)
+			    ;; I think this is what we need to do in fsfmacs.
+			    (append write-contents-hooks write-file-hooks))
+			   (t
+			    write-file-hooks)))
+	      (remaining-hooks (cdr (memq 'maybe-write-tar-file hooks)))
+	      header-string
+	      done)
 	 (save-excursion
 	  (save-restriction
 	   (widen)
@@ -1191,9 +1234,9 @@ Leaves the region wide."
 	   (delete-region 1 tar-header-offset)
 	   (unwind-protect
 	       (progn
-		 (while (and hooks
-			     (not (setq done (funcall (car hooks)))))
-		   (setq hooks (cdr hooks)))
+		 (while (and remaining-hooks
+			     (not (setq done (funcall (car remaining-hooks)))))
+		   (setq remaining-hooks (cdr remaining-hooks)))
 		 (cond ((not done)
 			(write-region 1 (1+ (buffer-size))
 				     buffer-file-name nil t)
@@ -1223,8 +1266,12 @@ Leaves the region wide."
 ;    (setq write-file-hooks
 ;	  (cons 'maybe-write-tar-file write-file-hooks)))
 
-(add-hook 'write-file-hooks 'maybe-write-tar-file)
-(add-hook 'after-write-file-hooks 'tar-subfile-after-write-file-hook)
+(add-hook 'write-file-hooks 'maybe-write-tar-file); ####write-contents-hooks??
+(cond ((boundp 'after-save-hook)
+       (add-hook 'after-save-hook 'tar-subfile-after-write-file-hook))
+      ((boundp 'after-write-file-hooks)
+       (add-hook 'after-write-file-hooks 'tar-subfile-after-write-file-hook))
+      (t (error "neither after-save-hook nor after-write-file-hooks?")))
 
 
 ;;; This is a hack.  For files ending in .tar, we want -*- lines to be

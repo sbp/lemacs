@@ -1,12 +1,16 @@
-;; Mim (MDL in MDL) mode.
+;;; mim-mode.el --- Mim (MDL in MDL) mode.
+
 ;; Copyright (C) 1985 Free Software Foundation, Inc.
-;; Principal author K. Shane Hartman
+
+;; Author: K. Shane Hartman
+;; Maintainer: FSF
+;; Keywords: languages
 
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -19,7 +23,7 @@
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
 
-(provide 'mim-mode)
+;;; Code:
 
 (autoload 'fast-syntax-check-mim "mim-syntax"
 	  "Checks Mim syntax quickly.
@@ -84,6 +88,7 @@ are bound.")
   "*User function run after mim mode initialization.  Usage:
 \(setq mim-mode-hook '(lambda () ... your init forms ...)).")
 
+(defvar mim-mode-abbrev-table)
 (define-abbrev-table 'mim-mode-abbrev-table nil)
 
 (defconst indent-mim-function 'indent-mim-function
@@ -95,7 +100,7 @@ value of mim-body-indent as offset from start of form.
 \(put 'FOO 'indent-mim-function <cons>\) where <cons> is a list or pointted list
 of integers, means indent each form in <FOO ...> by the amount specified
 in <cons>.  When <cons> is exhausted, indent remaining forms by
-mim-body-indent unless <cons> is a pointted list, in which case the last
+`mim-body-indent' unless <cons> is a dotted list, in which case the last
 cdr is used.  Confused? Here is an example:
 \(put 'FROBIT 'indent-mim-function '\(4 2 . 1\)\)
 <FROBIT
@@ -111,7 +116,7 @@ Finally, the property can be a function name (read the code).")
 
 (defvar mim-body-indent 2
   "*Amount to indent in special forms which have DEFINE property on
-indent-mim-function.")
+`indent-mim-function'.")
 
 (defvar indent-mim-arglist t
   "*nil means indent arglists like ordinary lists.
@@ -145,33 +150,15 @@ moving down a level of structure.")
 non-whitespace character in column 0 to be a toplevel object, otherwise
 only open paren syntax characters will be considered.")
 
-(fset 'mdl-mode 'mim-mode)
+(define-function 'mdl-mode 'mim-mode)
 
 (defun mim-mode ()
   "Major mode for editing Mim (MDL in MDL) code.
 Commands:
-    If value of mim-mode-hysterical-bindings is non-nil, then following
+    If value of `mim-mode-hysterical-bindings' is non-nil, then following
 commands are assigned to escape keys as well (e.g. M-f = M-C-f).
 The default action is bind the escape keys.
-  Tab        Indents the current line as MDL code.
-  Delete     Converts tabs to spaces as it moves back.
-  M-C-f      Move forward over next mim object.
-  M-C-b      Move backward over previous mim object.
-  M-C-p      Move to beginning of previous toplevel mim object.
-  M-C-n      Move to the beginning of the next toplevel mim object.
-  M-C-a      Move to the top of surrounding toplevel mim form.
-  M-C-e      Move to the end of surrounding toplevel mim form.
-  M-C-u      Move up a level of mim structure backwards.
-  M-C-d      Move down a level of mim structure forwards.
-  M-C-t      Transpose mim objects on either side of point.
-  M-C-k      Kill next mim object.
-  M-C-h      Place mark at end of next mim object.
-  M-C-o      Insert a newline before current line and indent.
-  M-Delete   Kill previous mim object.
-  M-^        Join current line to previous line.
-  M-\\        Delete whitespace around point.
-  M-;        Move to existing comment or insert empty comment if none.
-  M-Tab      Indent following mim object and all contained lines.
+\\{mim-mode-map}
 Other Commands:
   Use \\[describe-function] to obtain documentation.
   replace-in-mim-object  find-mim-definition  fast-syntax-check-mim
@@ -240,8 +227,8 @@ Entry to this mode calls the value of mim-mode-hook if non-nil."
   (setq comment-end "\"")
   (make-local-variable 'comment-column)
   (setq comment-column 40)
-  (make-local-variable 'comment-indent-hook)
-  (setq comment-indent-hook 'indent-mim-comment)
+  (make-local-variable 'comment-indent-function)
+  (setq comment-indent-function 'indent-mim-comment)
   ;; tell generic indenter how to indent.
   (make-local-variable 'indent-line-function)
   (setq indent-line-function 'indent-mim-line)
@@ -292,7 +279,7 @@ With ARG, move forward that many objects."
 (defun forward-mim-objects (arg &optional skip-bracket-p)
   ;; Move over arg objects ignoring ADECLs and trailers.  If
   ;; skip-bracket-p is non-nil, then move over one bracket on error.
-  (let ((direction (sign arg)))
+  (let ((direction (mim-sign arg)))
     (condition-case conditions
 	(while (/= arg 0)
 	  (forward-sexp direction)
@@ -334,7 +321,7 @@ With ARG, kill that many objects."
 With ARG raise that many following lines.
 A negative ARG will raise current line and previous lines."
   (interactive "*p")
-  (let* ((increment (sign (or arg (setq arg 1))))
+  (let* ((increment (mim-sign (or arg (setq arg 1))))
 	 (direction (if (> arg 0) 1 0)))
     (save-excursion
       (while (/= arg 0)
@@ -351,13 +338,14 @@ With ARG, move down that many levels forwards (backwards, ARG < 0)."
   ;; another wierdo - going down `inside' an ADECL or ATOM trailer
   ;; depends on the value of mim-down-parens-only.  if nil, treat
   ;; ADECLs and trailers as structured objects.
-  (let ((direction (sign (or arg (setq arg 1)))))
+  (let ((direction (mim-sign (or arg (setq arg 1)))))
     (if (and (= (abs arg) 1) (not mim-down-parens-only))
 	(goto-char
 	  (save-excursion
 	    (skip-mim-whitespace direction)
 	    (if (> direction 0) (re-search-forward "\\s'*"))
-	    (or (and (let ((c (next-char direction)))
+	    (or (and (let ((c (if (>= direction 0)
+                                  (following-char) (preceding-char))))
 		       (or (= (char-syntax c) ?_)
 			   (= (char-syntax c) ?w)))
 		     (progn (forward-sexp direction)
@@ -379,7 +367,7 @@ With ARG, move down that many levels backwards (forwards, ARG < 0)."
   "Move up a level of Mim structure forwards
 With ARG, move up that many levels forwards (backwards, ARG < 0)."
   (interactive "p")
-  (let ((direction (sign (or arg (setq arg 1)))))
+  (let ((direction (mim-sign (or arg (setq arg 1)))))
     (while (/= arg 0)
       (goto-char (or (scan-lists (point) direction 1) (buffer-end arg)))
       (setq arg (- arg direction)))
@@ -410,7 +398,7 @@ A negative ARG will transpose backwards."
 With ARG, do it that many times.  Stops at last toplevel form seen if buffer
 end is reached."
   (interactive "p")
-  (let ((direction (sign (or arg (setq arg 1)))))
+  (let ((direction (mim-sign (or arg (setq arg 1)))))
     (if (not move) (setq move t))
     (if (< direction 0) (goto-char (1+ (point))))
     (while (and (/= arg 0) (re-search-backward "^<" nil move direction))
@@ -438,7 +426,7 @@ With ARG, do it that many times.  Stops at last object seen if buffer end
 is reached."
   (interactive "p")
   (let ((search-string (if mim-stop-for-slop "^\\S " "^\\s("))
-	(direction (sign (or arg (setq arg 1)))))
+	(direction (mim-sign (or arg (setq arg 1)))))
     (if (> direction 0)
 	(goto-char (1+ (point))))		; no error if end of buffer
     (while (and (/= arg 0)
@@ -652,7 +640,7 @@ is reached."
 	      (goto-char current-indent)
 	      (if (consp method)
 		  ;; list or pointted list of explicit indentations
-		  (indent-mim-offset state indent-point)
+		  (indent-mim-offset function state indent-point)
 		(if (and (symbolp method) (fboundp method))
 		    ;; luser function - s/he better know what's going on.
 		    ;; should take state and indent-point as arguments - for
@@ -666,7 +654,7 @@ is reached."
 		    ;; of a special function.
 		    (funcall method state indent-point)))))))))
 
-(defun indent-mim-offset (state indent-point)
+(defun indent-mim-offset (function state indent-point)
   ;; offset forms explicitly according to list of indentations.
   (let ((mim-body-indent mim-body-indent)
 	(indentations (get function 'indent-mim-function))
@@ -846,14 +834,10 @@ You need type only enough of the name to be unambiguous."
     (or (= (preceding-char) ?:)
 	(looking-at "!-"))))
 		  
-(defun sign (n)
+(defun mim-sign (n)
   "Returns -1 if N < 0, else 1."
   (if (>= n 0) 1 -1))
 
-(defun abs (n)
-  "Returns the absolute value of N."
-  (if (>= n 0) n (- n)))
+(provide 'mim-mode)
 
-(defun next-char (direction)
-  "Returns preceding-char if DIRECTION < 0, otherwise following-char."
-  (if (>= direction 0) (following-char) (preceding-char)))
+;;; mim-mode.el ends here

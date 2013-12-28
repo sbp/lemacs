@@ -99,8 +99,8 @@ Keymap for characters following C-c.")
 (define-key global-map "\C-x1" 'delete-other-windows)
 (define-key global-map "\C-x2" 'split-window-vertically)
 (define-key global-map "\C-x5" 'split-window-horizontally)
-(define-key global-map "\C-x6" 'window-config-to-register)
-(define-key global-map "\C-x7" 'register-to-window-config)
+(define-key global-map "\C-x6" 'window-configuration-to-register)
+;(define-key global-map "\C-x7" 'jump-to-register);ie register-to-window-config
 (define-key global-map "\C-x}" 'enlarge-window-horizontally)
 (define-key global-map "\C-x{" 'shrink-window-horizontally)
 
@@ -219,6 +219,8 @@ Keymap for characters following C-c.")
 (define-key global-map "\C-x\C-p" 'mark-page)
 (define-key global-map "\C-xl" 'count-lines-page)
 
+(put 'erase-buffer 'disabled t)         ;from buffer.c
+
 (put 'narrow-to-page 'disabled t)
 (put 'narrow-to-region 'disabled t)
 (define-key global-map "\C-xp" 'narrow-to-page)
@@ -246,6 +248,7 @@ Keymap for characters following C-c.")
 (define-key global-map "\M-=" 'count-lines-region)
 (define-key global-map "\C-x=" 'what-cursor-position)
 (define-key global-map "\M-\e" 'eval-expression)
+(put 'eval-expression 'disabled t)
 (define-key global-map "\C-x\e" 'repeat-complex-command)
 (define-key global-map "\C-xu" 'advertised-undo)
 (define-key global-map "\C-_" 'undo)
@@ -268,6 +271,9 @@ Keymap for characters following C-c.")
 (define-key global-map "\C-n" 'next-line)
 (define-key global-map "\C-p" 'previous-line)
 (define-key global-map "\C-x\C-n" 'set-goal-column)
+;;; Many people have said they rarely use this feature, and often type
+;;; it by accident.  Maybe it shouldn't even be on a key.
+(put 'set-goal-column 'disabled t)
 
 (define-key global-map "\C-t" 'transpose-chars)
 (define-key global-map "\M-t" 'transpose-words)

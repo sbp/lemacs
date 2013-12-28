@@ -143,7 +143,11 @@
     (delete-region (point) (progn (search-forward "\n\n") (point)))
     (if vm-included-text-attribution-format
 	(insert (vm-sprintf 'vm-included-text-attribution-format message)))
-    (let ((zmacs-regions nil))
+    ; turn off zmacs-regions for Lucid Emacs 19
+    ; and get around transient-mark-mode in FSF Emacs 19
+    ; all this so that (mark) does what it did in v18, sheesh.
+    (let ((zmacs-regions nil)
+	  (mark-even-if-active t))
       (while (and (re-search-forward "^" nil t) (< (point) (mark)))
 	(replace-match vm-included-text-prefix t t)))))
 
@@ -185,8 +189,8 @@ Don't call this function from a program."
 (defun vm-yank-message (message &optional prefix)
   "Yank message number N into the current buffer at point.
 When called interactively N is always read from the minibuffer.  When
-called non-interactively the first argument is expected to be a message
-struct.
+called non-interactively the first argument is expected to be a
+message struct.
 
 This command is meant to be used in VM created Mail mode buffers; the
 yanked message comes from the mail buffer containing the message you
@@ -194,12 +198,16 @@ are replying to, forwarding, or invoked VM's mail command from.
 
 All message headers are yanked along with the text.  Point is left
 before the inserted text, the mark after.  Any hook functions bound to
-mail-yank-hooks are run, aftert inserting the text and setting point
-and mark.
+`mail-citation-hook' are run, after inserting the text and setting
+point and mark.
 
-Prefix arg means to ignore mail-yank-hooks, don't set the mark, prepend the
-value of vm-included-text-prefix to every yanked line, and don't yank any
-headers other than those specified in vm-visible-headers/vm-invisible-headers."
+Prefix arg means to ignore `mail-citation-hook', don't set the mark,
+prepend the value of `vm-included-text-prefix' to every yanked line,
+and don't yank any headers other than those specified in
+`vm-visible-headers'/`vm-invisible-headers'.  For backwards
+compatibility, if `mail-citation-hook' is set to nil,
+`mail-yank-hooks' is run instead.  If that is also nil, a default
+action is taken."
   (interactive
    (list
    ;; What we really want for the first argument is a message struct,
@@ -250,9 +258,10 @@ headers other than those specified in vm-visible-headers/vm-invisible-headers."
 	;; Delete UNIX From or MMDF ^A^A^A^A line
 	(delete-region (point) (progn (forward-line) (point)))
 	(push-mark end)
-	(if mail-yank-hooks
-	    (run-hooks 'mail-yank-hooks)
-	  (vm-mail-yank-default message))))))
+	(cond
+	 (mail-citation-hook (run-hooks 'mail-citation-hook))
+	 (mail-yank-hooks    (run-hooks 'mail-yank-hooks))
+	 (t (vm-mail-yank-default message)))))))
 
 (defun vm-mail-send-and-exit (arg)
   "Just like mail-send-and-exit except that VM flags the appropriate message(s)
@@ -297,6 +306,8 @@ as having been replied to, if appropriate."
 	  (let (recipients)
 	    (cond ((not (zerop (length (setq recipients (mail-fetch-field "To"))))))
 		  ((not (zerop (length (setq recipients (mail-fetch-field "Cc"))))))
+		  ((not (zerop (length (setq recipients (mail-fetch-field "Bcc"))))))
+		  ; can't happen?!?
 		  (t (setq recipients "the horse with no name")))
 	    (setq prefix (format "sent mail to %s" recipients))))
 	(setq name prefix n 1)

@@ -1,8 +1,13 @@
-;;; upd-copyr.el --- update the copyright notice in a GNU Emacs elisp file
+;;; upd-copyr.el --- update the copyright notice in a GNU Emacs Lisp file
 
-;;; Copyright (C) 1991-1993 Free Software Foundation, Inc.
-;;; Written by Roland McGrath; hacked on by Jamie Zawinski.
-;;;
+;;; Copyright (C) 1991, 1992, 1993 Free Software Foundation, Inc.
+
+;; Author: Roland McGrath <roland@gnu.ai.mit.edu>
+;; hacked on by Jamie Zawinski.
+;; Keywords: maint
+
+;;; This file is part of GNU Emacs.
+
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
 ;;; the Free Software Foundation; either version 2, or (at your option)
@@ -18,6 +23,8 @@
 ;;; the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA
 ;;; 02139, USA.
 
+;;; Code:
+
 (defconst current-year (substring (current-time-string) -4)
   "String representing the current year.")
 
@@ -27,6 +34,10 @@
 ;;;###autoload
 (defvar replace-copying-with nil
   "*If non-nil, replace copying notices with this file.")
+
+(defvar inhibit-update-copyright nil
+  "If nil, ask the user whether or not to update the copyright notice.
+If the user has said no, we set this to t locally.")
 
 ;;;###autoload
 (defun update-copyright (&optional replace ask-upd ask-year)
@@ -38,7 +49,7 @@ If `replace-copying-with' is set, the copying permissions following the
 copyright are replaced as well.
 
 If optional third argument ASK is non-nil, the user is prompted for whether
-or not to update the copyright.  If optional third argument ASK-YEAR is
+or not to update the copyright.  If optional fourth argument ASK-YEAR is
 non-nil, the user is prompted for whether or not to replace the year rather
 than adding to it."
   (interactive "*P")
@@ -46,20 +57,24 @@ than adding to it."
     (save-restriction
       (widen)
       (goto-char (point-min))
-      (if (search-forward current-year nil t)
+      ;; Handle abbreviated year lists like "1800, 01, 02, 03".
+      (if (re-search-forward (concat (substring current-year 0 2)
+				     "\\([0-9][0-9]\\(,\\s \\)+\\)*"
+				     (substring current-year 2))
+			     nil t)
 	  (or ask-upd
 	      (message "Copyright notice already includes %s." current-year))
 	(goto-char (point-min))
-	(if (and (or (not ask-upd)
+	(if (and (not inhibit-update-copyright)
+		 (or (not ask-upd)
 		     ;; If implicit, narrow it down to things that
 		     ;; look like GPL notices.
 		     (prog1
 			 (search-forward "is free software" nil t)
 		       (goto-char (point-min))))
-		 (and (re-search-forward
-		       "[Cc]opyright[^0-9]*\\(\\([-, \t]*\\([0-9]+\\)\\)\\)+.*Free Software Foundation"
-		       nil t)
-		      (goto-char (match-end 1)))
+		 (re-search-forward
+		  "[Cc]opyright[^0-9]*\\(\\([-, \t]*\\([0-9]+\\)\\)\\)+"
+		  nil t)
 		 (or (not ask-upd)
 		     (save-window-excursion
 		       (pop-to-buffer (current-buffer))
@@ -67,22 +82,44 @@ than adding to it."
 			 ;; Show the user the copyright.
 			 (goto-char (point-min))
 			 (sit-for 0)
-			 (y-or-n-p "Update copyright? ")))))
-	    (let ((s (match-beginning 1))
-		  (e (match-end 1)))
-	      (goto-char s)
-	      (cond ((looking-at "[0-9][0-9][0-9][0-9]-")
-		     (goto-char e)
-		     (delete-region (match-end 0) e))
-		    ((looking-at "\\([0-9][0-9][0-9][0-9]\\), *")
-		     (goto-char (match-end 1))
-		     (delete-region (match-end 1) e)
-		     (insert "-"))
-		    (t
-		     (goto-char e)
-		     (insert "-")))
+			 (or (y-or-n-p "Update copyright? ")
+			     (progn
+			       (set (make-local-variable
+				     'inhibit-update-copyright) t)
+			       nil))))))
+	    (progn
+	      (setq replace
+		    (or replace
+			(and ask-year
+			     (save-window-excursion
+			       (pop-to-buffer (current-buffer))
+			       (save-excursion
+				 ;; Show the user the copyright.
+				 (goto-char (point-min))
+;;lemacs change
+;				 (sit-for 0)
+;				 (y-or-n-p "Replace copyright year? ")
+				 nil
+				 )))))
+	      (if replace
+		  (delete-region (match-beginning 1) (match-end 1))
+		(insert ", ")
+                ;; lemacs addition
+		(save-excursion
+		  (goto-char (match-beginning 1))
+		  (if (looking-at "[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]")
+		      (progn (forward-char 4)
+			     (delete-char 1)
+			     (insert ", "))))
+		)
 	      (insert current-year)
-	      (message "Copyright updated to %s." current-year)
+              ;; lemacs addition
+	      (if (save-excursion
+		    (end-of-line)
+		    (>= (current-column) fill-column))
+		  (insert "\n;;;"))
+	      (message "Copyright updated to %s%s."
+		       (if replace "" "include ") current-year)
 	      (if replace-copying-with
 		  (let ((case-fold-search t)
 			beg)
@@ -114,9 +151,12 @@ Put point there and hit \\[exit-recursive-edit]."))
 		    (progn
 		      (goto-char (match-beginning 1))
 		      (delete-region (point) (match-end 1))
-		      (insert current-gpl-version)))))
-	  (or ask-upd
-	      (error "This buffer contains no copyright notice!")))))))
+		      (insert current-gpl-version))))
+	      (or ask-upd
+		  (error "This buffer contains no copyright notice!"))
+	      ;; show the newly-munged copyright.
+	      (sit-for 1)
+	      ))))))
 
 ;;;###autoload
 (defun ask-to-update-copyright ()

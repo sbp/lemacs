@@ -24,6 +24,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include <X11/StringDefs.h>
 #include <X11/IntrinsicP.h>
+#include <X11/ObjectP.h>
 #include <X11/CoreP.h>
 #include <X11/CompositeP.h>
 
@@ -696,7 +697,7 @@ make_dialog (char* name, Widget parent, Boolean pop_up_p,
   Widget icon;
   Widget icon_separator;
   Widget message;
-  Widget value;
+  Widget value = 0;
   Widget separator;
   Widget button = 0;
   Widget children [16];		/* for the final XtManageChildren */
@@ -1054,7 +1055,7 @@ xm_create_dialog (widget_instance* instance)
   Widget 	parent = instance->parent;
   Widget	widget;
   Boolean 	pop_up_p = instance->pop_up_p;
-  char*		shell_name;
+  char*		shell_name = 0;
   char* 	icon_name;
   Boolean	text_input_slot = False;
   Boolean	radio_box = False;
@@ -1132,8 +1133,8 @@ make_menubar (widget_instance* instance)
 static void
 remove_grabs (Widget shell, XtPointer closure, XtPointer call_data)
 {
-  Widget menu = (Widget)closure;
-  XmRemoveFromPostFromList (menu, XtParent (XtParent (menu)));
+  XmRowColumnWidget menu = (XmRowColumnWidget) closure;
+  XmRemoveFromPostFromList (menu, XtParent (XtParent ((Widget) menu)));
 }
 
 static Widget
@@ -1358,7 +1359,6 @@ void
 xm_pop_instance (widget_instance* instance, Boolean up)
 {
   Widget widget = instance->widget;
-  Widget widget_to_manage;
 
   if (XtClass (widget) == xmDialogShellWidgetClass)
     {

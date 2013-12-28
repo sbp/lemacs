@@ -1,11 +1,18 @@
-;; Dynamic abbreviation package for GNU Emacs.
+;;; dabbrev.el --- dynamic abbreviation package for GNU Emacs.
+
 ;; Copyright (C) 1985, 1986 Free Software Foundation, Inc.
+
+;; Last-Modified: 16 Mar 1992
+;; Copyright (C) 1985, 1986 Free Software Foundation, Inc.
+
+;; Maintainer: FSF
+;; Keywords: abbrev
 
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -17,6 +24,7 @@
 ;; along with GNU Emacs; see the file COPYING.  If not, write to
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
+;;; Commentary:
 
 ; DABBREVS - "Dynamic abbreviations" hack, originally written by Don Morrison
 ; for Twenex Emacs.  Converted to mlisp by Russ Fish.  Supports the table
@@ -24,40 +32,40 @@
 ; size limit variable.  Bugs fixed from the Twenex version are flagged by
 ; comments starting with ;;; .
 ; 
-; converted to elisp by Spencer Thomas.
+; converted to Emacs Lisp by Spencer Thomas.
 ; Thoroughly cleaned up by Richard Stallman.
 ;  
 ; If anyone feels like hacking at it, Bob Keller (Keller@Utah-20) first
 ; suggested the beast, and has some good ideas for its improvement, but
-; doesn?tknow TECO (the lucky devil...).  One thing that should definitely
+; doesn't know TECO (the lucky devil...).  One thing that should definitely
 ; be done is adding the ability to search some other buffer(s) if you can?t
 ; find the expansion you want in the current one.
+
+;;; Code:
 
 ;; (defun dabbrevs-help ()
 ;;   "Give help about dabbrevs."
 ;;   (interactive)
 ;;   (&info "emacs" "dabbrevs")	; Select the specific info node.
 ;; )
-(provide 'dabbrevs)
-
 (defvar dabbrevs-limit nil
-  "*Limits region searched by dabbrevs-expand to that many chars away (local).")
+  "*Limits region searched by `dabbrevs-expand' to this many chars away.")
 (make-variable-buffer-local 'dabbrevs-limit)
 
 (defvar dabbrevs-backward-only nil
-  "*If non-NIL, dabbrevs-expand only looks backwards.")
+  "*If non-NIL, `dabbrevs-expand' only looks backwards.")
 
 ; State vars for dabbrevs-re-expand.
 (defvar last-dabbrevs-table nil
-  "Table of expansions seen so far. (local)")
+  "Table of expansions seen so far (local)")
 (make-variable-buffer-local 'last-dabbrevs-table)
 
 (defvar last-dabbrevs-abbreviation ""
-  "Last string we tried to expand.  Buffer-local.")
+  "Last string we tried to expand (local).")
 (make-variable-buffer-local 'last-dabbrevs-abbreviation)
 
 (defvar last-dabbrevs-direction 0
-  "Direction of last dabbrevs search. (local)")
+  "Direction of last dabbrevs search (local)")
 (make-variable-buffer-local 'last-dabbrevs-direction)
 
 (defvar last-dabbrevs-abbrev-location nil
@@ -72,6 +80,7 @@
   "Location the last expansion was found. (local)")
 (make-variable-buffer-local 'last-dabbrevs-expansion-location)
 
+;;;###autoload
 (defun dabbrev-expand (arg)
   "Expand previous word \"dynamically\".
 Expands to the most recent, preceding word for which this is a prefix.
@@ -83,9 +92,9 @@ that you had typed.  This takes place if the substituted word, as found,
 is all lower case, or if it is at the beginning of a sentence and only
 its first letter was upper case.
 
-A positive prefix argument, N, says to take the Nth backward DISTINCT
+A positive prefix arg N says to take the Nth backward DISTINCT
 possibility.  A negative argument says search forward.  The variable
-dabbrev-backward-only may be used to limit the direction of search to
+`dabbrev-backward-only' may be used to limit the direction of search to
 backward if set non-nil.
 
 If the cursor has not moved from the end of the previous expansion and
@@ -165,10 +174,24 @@ with the next possible expansion not yet tried."
       ;; Make case of replacement conform to case of abbreviation
       ;; provided (1) that kind of thing is enabled in this buffer
       ;; and (2) the replacement itself is all lower case.
-      (replace-match expansion
-		     (not (and do-case
-			       (string= expansion (downcase expansion))))
-		     'literal)
+      ;; First put back the original abbreviation with its original
+      ;; case pattern.
+      (save-excursion
+	(replace-match abbrev t 'literal))
+      (search-forward abbrev)
+      (let ((do-case (and do-case
+			  (string= (substring expansion 1)
+				   (downcase (substring expansion 1))))))
+	;; First put back the original abbreviation with its original
+	;; case pattern.
+	(save-excursion
+	  (replace-match abbrev t 'literal))
+;;; This used to be necessary, but no longer, 
+;;; because now point is preserved correctly above.
+;;;	(search-forward abbrev)
+	(replace-match (if do-case (downcase expansion) expansion)
+		       (not do-case)
+		       'literal))
       ;; Save state for re-expand.
       (setq last-dabbrevs-abbreviation abbrev)
       (setq last-dabbrevs-expansion expansion)
@@ -239,3 +262,7 @@ with the next possible expansion not yet tried."
 		     (= (point) beg))
 		   (setq result (downcase result))))))
       result)))
+
+(provide 'dabbrev)
+
+;;; dabbrev.el ends here

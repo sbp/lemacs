@@ -1,6 +1,6 @@
-;;; Id: pcl-cvs.el,v 1.52.2.3 1992/09/23 20:04:29 ceder Exp 
-;;; pcl-cvs.el -- A Front-end to CVS 1.3 or later.  Release 1.03.1.
-;;; Copyright (C) 1991, 1992  Per Cederqvist
+;;; @(#) Id: pcl-cvs.el,v 1.93 1993/05/31 22:44:00 ceder Exp 
+;;; pcl-cvs.el -- A Front-end to CVS 1.3 or later.  Release 1.05.
+;;; Copyright (C) 1991, 1992, 1993  Per Cederqvist
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -21,6 +21,9 @@
 ;;;; There is an TeXinfo file that describes this package.  The GNU
 ;;;; General Public License is included in that file.  You should read
 ;;;; it to get the most from this package.
+
+;;;; Send bug reports and improvements to ceder@lysator.liu.se or
+;;;; ceder@signum.se.  Talk some about Signum Support here. +++FIXME
 
 ;;; Don't try to use this with CVS 1.2 or earlier. It won't work. Get
 ;;; CVS 1.3. This package works together with RCS 5.6 and probably 5.5
@@ -56,6 +59,11 @@
 ;;;	     END OF THINGS TO CHECK WHEN INSTALLING
 ;;; --------------------------------------------------------
 
+(defvar cvs-cvsroot nil
+  "*Specifies where the (current) cvs master repository is.
+Overrides the $CVSROOT variable by sending \" -d dir\" to all cvs commands.
+This switch is useful if you have multiple CVS repositories.")
+
 (defvar cvs-stdout-file nil
   "Name of the file that holds the output that CVS sends to stdout.
 This variable is buffer local.")
@@ -70,10 +78,16 @@ This variable is buffer local.")
   "*Non-nil if input buffers should be cleared before asking for new info.")
 
 (defvar cvs-auto-remove-handled nil
-  "*Non-nil if cvs-remove-handled should be called automatically.
+  "*Non-nil if cvs-mode-remove-handled should be called automatically.
 If this is set to any non-nil value entries that does not need to be
-checked in will be removed from the *cvs* buffer after every cvs-commit
+checked in will be removed from the *cvs* buffer after every cvs-mode-commit
 command.")
+
+(defvar cvs-sort-ignore-file t
+  "*Non-nil if cvs-mode-ignore should sort the .cvsignore automatically.")
+
+(defvar cvs-auto-revert-after-commit t
+  "*Non-nil if committed buffers should be automatically reverted.")
 
 (defconst cvs-cursor-column 14
   "Column to position cursor in in cvs-mode.
@@ -92,18 +106,18 @@ Column 0 is left-most column.")
   "Name of buffer in which the user is prompted for a log message when
 committing files.")
 
+(defvar cvs-commit-buffer-require-final-newline t
+  "*t says silently put a newline at the end of commit log messages.
+Non-nil but not t says ask user whether to add a newline in each such case.
+nil means don't add newlines.")
+
 (defvar cvs-temp-buffer-name "*cvs-tmp*"
   "*Name of the cvs temporary buffer.
 Output from cvs is placed here by synchronous commands.")
 
-(defvar cvs-cvs-diff-flags nil
-  "*List of strings to use as flags to pass to ``cvs diff''.
-Do not confuse with cvs-diff-flags. Used by cvs-diff-cvs.
-Set this to '(\"-u\") to get a Unidiff format, or '(\"-c\") to get context diffs.")
-
 (defvar cvs-diff-ignore-marks nil
-  "*Non-nil if cvs-diff and cvs-diff-backup should ignore any marked files.
-Normally they run diff on the files that are marked (with cvs-mark),
+  "*Non-nil if cvs-diff and cvs-mode-diff-backup should ignore any marked files.
+Normally they run diff on the files that are marked (with cvs-mode-mark),
 or the file under the cursor if no files are marked.  If this variable
 is set to a non-nil value they will always run diff on the file on the
 current line.")
@@ -115,8 +129,9 @@ current line.")
   "*List of strings to pass to ``cvs log''.")
 
 (defvar cvs-diff-flags nil
-  "*List of strings to use as flags to pass to ``diff''.
-Do not confuse with cvs-cvs-diff-flags.  Used by cvs-diff-backup.")
+  "*List of strings to use as flags to pass to ``diff'' and ``cvs diff''.
+Used by cvs-mode-diff-cvs and cvs-mode-diff-backup.
+Set this to '(\"-u\") to get a Unidiff format, or '(\"-c\") to get context diffs.")
 
 (defvar cvs-update-prog-output-skip-regexp "$"
   "*A regexp that matches the end of the output from all cvs update programs.
@@ -126,6 +141,9 @@ terminate with a line that this regexp matches.  It is enough that
 some part of the line is matched.
 
 The default (a single $) fits programs without output.")
+
+;; The variables below are used internally by pcl-cvs. You should
+;; never change them.
 
 (defvar cvs-buffers-to-delete nil
   "List of temporary buffers that should be discarded as soon as possible.
@@ -139,13 +157,13 @@ Due to a bug in emacs 18.57 the sentinel can't discard them reliably.")
 (defvar cvs-inhibit-copyright-message nil
   "*Non-nil means don't display a Copyright message in the ``*cvs*'' buffer.")
 
-(defconst pcl-cvs-version "1.03.1"
+(defconst pcl-cvs-version "1.05"
   "A string denoting the current release version of pcl-cvs.")
 
-(defvar cvs-startup-message
+(defconst cvs-startup-message
   (if cvs-inhibit-copyright-message
-      "PCL-CVS release 1.03.1"
-    "PCL-CVS release 1.03.1.  Copyright (C) 1992 Per Cederqvist
+      "PCL-CVS release 1.05"
+    "PCL-CVS release 1.05.  Copyright (C) 1992, 1993 Per Cederqvist
 Pcl-cvs comes with absolutely no warranty; for details consult the manual.
 This is free software, and you are welcome to redistribute it under certain
 conditions; again, consult the TeXinfo manual for details.")
@@ -154,6 +172,12 @@ conditions; again, consult the TeXinfo manual for details.")
 (defvar cvs-update-running nil
   "This is set to nil when no process is running, and to
 the process when a cvs update process is running.")
+
+(defvar cvs-cookie-handle nil
+  "Handle for the cookie structure that is displayed in the *cvs* buffer.")
+
+(defvar cvs-mode-commit nil
+  "Used internally by pcl-cvs.")
 
 ;;; The cvs data structure:
 ;;;
@@ -177,6 +201,7 @@ the process when a cvs update process is running.")
 ;;;			   CONFLICT   - conflict when merging
 ;;;			   REM-CONFLICT-removed in repository, changed locally.
 ;;;			   MOD-CONFLICT-removed locally, changed in repository.
+;;;                        REM-EXIST  -removed locally, but still exists.
 ;;;			   DIRCHANGE  - A change of directory.
 ;;;			   UNKNOWN    - An unknown file.
 ;;;			   MOVE-AWAY  - A file that is in the way.
@@ -188,7 +213,8 @@ the process when a cvs update process is running.")
 ;;;  dir		 Directory the file resides in. Should not end with
 ;;;			 slash.
 ;;;  file-name		 The file name.
-;;;  backup-file	 Name of the backup file if MERGED or CONFLICT.
+;;;  base-revision       The revision that the working file was based on.
+;;;                      Onlyy valid for MERGED and CONFLICT files.
 ;;;  cvs-diff-buffer	 A buffer that contains a 'cvs diff file'.
 ;;;  backup-diff-buffer	 A buffer that contains a 'diff file backup-file'.
 ;;;  full-log		 The output from cvs, unparsed.
@@ -223,6 +249,7 @@ A fileinfo has the following fields:
 			REM-CONFLICT-removed in repository, but altered
 				     locally.
 			MOD-CONFLICT-removed locally, changed in repository.
+                        REM-EXIST  - removed locally, but still exists.
 			DIRCHANGE  - A change of directory.
 			UNKNOWN	   - An unknown file.
 			MOVE-AWAY  - A file that is in the way.
@@ -257,7 +284,7 @@ A fileinfo has the following fields:
 (defun cvs-fileinfo->type (cvs-fileinfo)
   "Get type from CVS-FILEINFO.
 Type is one of UPDATED, MODIFIED, ADDED, REMOVED, CVS-REMOVED, MERGED,
-CONFLICT, REM-CONFLICT, MOD-CONFLICT, DIRCHANGE, UNKNOWN, MOVE-AWAY,
+CONFLICT, REM-CONFLICT, MOD-CONFLICT, REM-EXIST, DIRCHANGE, UNKNOWN, MOVE-AWAY,
 REPOS-MISSING or MESSAGE."
   (elt (cdr cvs-fileinfo) 2))
 
@@ -270,8 +297,8 @@ The directory name does not end with a slash. "
   "Get file-name from CVS-FILEINFO."
   (elt (cdr cvs-fileinfo) 4))
 
-(defun cvs-fileinfo->backup-file (cvs-fileinfo)
-  "Get backup-file from CVS-FILEINFO."
+(defun cvs-fileinfo->base-revision (cvs-fileinfo)
+  "Get the base revision from CVS-FILEINFO."
   (elt (cdr cvs-fileinfo) 5))
 
 (defun cvs-fileinfo->cvs-diff-buffer (cvs-fileinfo)
@@ -313,8 +340,8 @@ The directory should now end with a slash."
   "Set file-name in CVS-FILEINFO to NEWVAL."
   (aset (cdr cvs-fileinfo) 4 newval))
 
-(defun cvs-set-fileinfo->backup-file (cvs-fileinfo newval)
-  "Set backup-file in CVS-FILEINFO to NEWVAL."
+(defun cvs-set-fileinfo->base-revision (cvs-fileinfo newval)
+  "Set base-revision in CVS-FILEINFO to NEWVAL."
   (aset (cdr cvs-fileinfo) 5 newval))
 
 (defun cvs-set-fileinfo->cvs-diff-buffer (cvs-fileinfo newval)
@@ -348,10 +375,12 @@ The directory should now end with a slash."
 The selected window will not be changed.  The temporary buffer will
 be erased and writable."
 
-  (display-buffer (get-buffer-create cvs-temp-buffer-name))
-  (set-buffer cvs-temp-buffer-name)
-  (setq buffer-read-only nil)
-  (erase-buffer))
+  (let ((dir default-directory))
+    (display-buffer (get-buffer-create cvs-temp-buffer-name))
+    (set-buffer cvs-temp-buffer-name)
+    (setq buffer-read-only nil)
+    (setq default-directory dir)
+    (erase-buffer)))
 
 ; Too complicated to handle all the cases that are generated.
 ; Maybe later.
@@ -404,7 +433,7 @@ passed to PREDICATE."
       (setq list (cdr list)))
     (cdr head)))
 
-(defun cvs-update-no-prompt ()
+(defun cvs-mode-update-no-prompt ()
   "Run cvs update in current directory."
   (interactive)
   (cvs-do-update default-directory nil nil))
@@ -421,9 +450,8 @@ Both LOCAL and DONT-CHANGE-DISC may be non-nil simultaneously.
   (if (not (file-exists-p cvs-program))
       (error "%s: file not found (check setting of cvs-program)"
 	     cvs-program))
-  (if (not (getenv "CVSROOT"))
-      (error "You must set the CVSROOT environment variable \
-before starting emacs."))
+  (if (not (or (getenv "CVSROOT") cvs-cvsroot))
+      (error "Both cvs-cvsroot and environment variable CVSROOT unset."))
   (let* ((this-dir (file-name-as-directory (expand-file-name directory)))
 	 (update-buffer (generate-new-buffer
 			 (concat (file-name-nondirectory
@@ -449,12 +477,13 @@ before starting emacs."))
 		 (eq (process-status cvs-update-running) 'stop)))
 	(error "Can't run two `cvs update' simultaneously."))
 
-    ;; Generate "-n update -l".
-    (setq args (concat (if dont-change-disc " -n ")
+    ;; Generate "-d /master -n update -l".
+    (setq args (concat (if cvs-cvsroot (concat " -d " cvs-cvsroot))
+		       (if dont-change-disc " -n ")
 		       " update "
 		       (if local " -l ")))
 
-    ;; Set up the buffer that receives the output from "cvs update".
+    ;; Set up the buffer that receives the stderr output from "cvs update".
     (set-buffer update-buffer)
     (setq default-directory this-dir)
     (make-local-variable 'cvs-stdout-file)
@@ -473,20 +502,39 @@ before starting emacs."))
     (set-process-filter cvs-update-running 'cvs-update-filter)
     (set-marker (process-mark cvs-update-running) (point-min))
 
-    (cookie-create
-     cvs-buffer-name 'cvs-pp
-     cvs-startup-message	;Se comment above cvs-startup-message.
-     "---------- End -----")
+    (save-excursion
+      (set-buffer (get-buffer-create cvs-buffer-name))
+      (setq buffer-read-only nil)
+      (erase-buffer)
+      (cvs-mode))
+      
+    (setq cvs-cookie-handle
+	  (collection-create
+	   cvs-buffer-name 'cvs-pp
+	   cvs-startup-message		;Se comment above cvs-startup-message.
+	   "---------- End -----"))
 
     (cookie-enter-first
-     cvs-buffer-name
+     cvs-cookie-handle
      (cvs-create-fileinfo
       'MESSAGE nil nil (concat "\n    Running `cvs " args "' in " this-dir
 			       "...\n")))
 
+    (save-excursion
+      (set-buffer cvs-buffer-name)
+      (setq mode-line-process
+	    (concat ": "
+		    (symbol-name (process-status cvs-update-running))))
+      (set-buffer-modified-p (buffer-modified-p))	; Update the mode line.
+      (setq buffer-read-only t))
+
     ;; Work around a bug in emacs 18.57 and earlier.
     (setq cvs-buffers-to-delete
-	  (cvs-delete-unused-temporary-buffers cvs-buffers-to-delete))))
+	  (cvs-delete-unused-temporary-buffers cvs-buffers-to-delete)))
+
+  ;; The following line is said to improve display updates on some
+  ;; emacses. It shouldn't be needed, but it does no harm.
+  (sit-for 0))
 
 
 (defun cvs-delete-unused-temporary-buffers (list)
@@ -510,26 +558,30 @@ Return a list of all buffers that still is alive."
 
 To get the *cvs* buffer you should use ``\\[cvs-update]''.
 
-Full documentation is in the TeXinfo file.  These are the most useful commands:
+Full documentation is in the Texinfo file.  These are the most useful commands:
 
-\\[cookie-previous-cookie] Move up.                    \\[cookie-next-cookie] Move down.
-\\[cvs-commit]   Commit file.                \\[cvs-update-no-prompt]   Reupdate directory.
-\\[cvs-mark]   Mark file/dir.              \\[cvs-unmark]   Unmark file/dir.
-\\[cvs-mark-all-files]   Mark all files.             \\[cvs-unmark-all-files]   Unmark all files.
-\\[cvs-find-file]   Edit file/run Dired.        \\[cvs-find-file-other-window]   Find file or run Dired in other window.
-\\[cvs-remove-handled]   Remove processed entries.   \\[cvs-add-change-log-entry-other-window]   Write ChangeLog in other window.
-\\[cvs-add]   Add to repository.          \\[cvs-remove-file]   Remove file.
-\\[cvs-diff-cvs]   Diff between base revision. \\[cvs-diff-backup]   Diff backup file.
-\\[cvs-acknowledge] Delete line from buffer.    \\[cvs-ignore]   Add file to the .cvsignore file.
-\\[cvs-log]   Run ``cvs log''.            \\[cvs-status]   Run ``cvs status''.
+\\[cvs-mode-previous-line] Move up.                    \\[cvs-mode-next-line] Move down.
+\\[cvs-mode-commit]   Commit file.                \\[cvs-mode-update-no-prompt]   Reupdate directory.
+\\[cvs-mode-mark]   Mark file/dir.              \\[cvs-mode-unmark]   Unmark file/dir.
+\\[cvs-mode-mark-all-files]   Mark all files.             \\[cvs-mode-unmark-all-files]   Unmark all files.
+\\[cvs-mode-find-file]   Edit file/run Dired.        \\[cvs-mode-find-file-other-window]   Find file or run Dired in other window.
+\\[cvs-mode-remove-handled]   Remove processed entries.   \\[cvs-mode-add-change-log-entry-other-window]   Write ChangeLog in other window.
+\\[cvs-mode-add]   Add to repository.          \\[cvs-mode-remove-file]   Remove file.
+\\[cvs-mode-diff-cvs]   Diff between base revision. \\[cvs-mode-diff-backup]   Diff backup file.
+\\[cvs-mode-emerge]   Run emerge on base revision/backup file.
+\\[cvs-mode-acknowledge] Delete line from buffer.    \\[cvs-mode-ignore]   Add file to the .cvsignore file.
+\\[cvs-mode-log]   Run ``cvs log''.            \\[cvs-mode-status]   Run ``cvs status''.
+\\[cvs-mode-undo-local-changes]  Revert the last checked in version - discard your changes to the file.
 
 Entry to this mode runs cvs-mode-hook.
-This description is updated for release 1.03.1 of pcl-cvs.
+This description is updated for release 1.05 of pcl-cvs.
+
 All bindings:
 \\{cvs-mode-map}"
   (interactive)
   (setq major-mode 'cvs-mode)
   (setq mode-name "CVS")
+  (setq mode-line-process nil)
   (buffer-flush-undo (current-buffer))
   (make-local-variable 'goal-column)
   (setq goal-column cvs-cursor-column)
@@ -589,9 +641,9 @@ lock file. If so, it inserts a message cookie in the *cvs* buffer."
      	    (insert string)
      	    (set-marker (process-mark proc) (point))
 	    ;; Delete any old lock message
-	    (if (tin-nth cvs-buffer-name 1)
-		(tin-delete cvs-buffer-name
-			    (tin-nth cvs-buffer-name 1)))
+	    (if (tin-nth cvs-cookie-handle 1)
+		(tin-delete cvs-cookie-handle
+			    (tin-nth cvs-cookie-handle 1)))
 	    ;; Check if CVS is waiting for a lock.
 	    (beginning-of-line 0)	;Move to beginning of last
 					;complete line.
@@ -602,7 +654,7 @@ for \\(.*\\)lock in \\(.*\\)$")
 	      (setq cvs-lock-file (buffer-substring (match-beginning 2)
 						    (match-end 2)))
 	      (cookie-enter-last
-	       cvs-buffer-name
+	       cvs-cookie-handle
 	       (cvs-create-fileinfo
 		'MESSAGE nil nil
 		(concat "\tWaiting for "
@@ -729,7 +781,7 @@ ERR-BUF should be 'STDOUT or 'STDERR."
     (insert "<\n")
     (insert "Sent to " (symbol-name err-buf) " at pos " (format "%d\n" pos))
     (insert "Emacs-version: " (emacs-version) "\n")
-    (insert "Pcl-cvs $" "Id:" "$" ": " "Id: pcl-cvs.el,v 1.52.2.3 1992/09/23 20:04:29 ceder Exp \n")
+    (insert "Pcl-cvs $" "Id:" "$" ": " "Id: pcl-cvs.el,v 1.93 1993/05/31 22:44:00 ceder Exp \n")
     (insert "\n")
     (insert (format "--- Contents of stdout buffer (%d chars) ---\n"
 		    (length stdout)))
@@ -757,42 +809,38 @@ Signals an error if unexpected output was detected in the buffer."
   (let* ((head (cons 'dummy nil))
 	 (tail (cvs-parse-stderr stdout-buffer stderr-buffer
 				 head default-directory))
-	 (buf (get-buffer cvs-buffer-name))
 	 (root-dir default-directory))
     (cvs-parse-stdout stdout-buffer stderr-buffer tail root-dir)
     (setq head (sort (cdr head) (function cvs-compare-fileinfos)))
 
-    (cookie-create
-     buf 'cvs-pp cvs-startup-message	;Se comment above cvs-startup-message.
-     "---------- End -----")
-
-    (cookie-enter-cookies buf head)
-    (cvs-remove-stdout-shadows buf)
-    (cvs-remove-empty-directories buf)
-    (set-buffer buf)
+    (collection-clear cvs-cookie-handle)
+    (collection-append-cookies cvs-cookie-handle head)
+    (cvs-remove-stdout-shadows)
+    (cvs-remove-empty-directories)
+    (set-buffer cvs-buffer-name)
     (cvs-mode)
-    (setq cookie-last-tin (tin-nth buf 0))
     (goto-char (point-min))
-    (cookie-previous-cookie buf (point-min) 1)
+    (tin-goto-previous cvs-cookie-handle (point-min) 1)
     (setq default-directory root-dir)))
 
-(defun cvs-remove-stdout-shadows (buffer)
-  "Remove entries in the *cvs* BUFFER that comes from both stdout and stderr.
+(defun cvs-remove-stdout-shadows ()
+  "Remove entries in the *cvs* buffer that comes from both stdout and stderr.
 If there is two entries for a single file the second one should be
 deleted. (Remember that sort uses a stable sort algorithm, so one can
 be sure that the stderr entry is always first)."
-  (tin-filter buffer
+  (collection-filter-tins cvs-cookie-handle
 	      (function
 	       (lambda (tin)
-		 (not (cvs-shadow-entry-p (current-buffer) tin))))))
+		 (not (cvs-shadow-entry-p tin))))))
 
-(defun cvs-shadow-entry-p (cvs-buf tin)
+(defun cvs-shadow-entry-p (tin)
   "Return non-nil if TIN is a shadow entry.
-Args: CVS-BUF TIN.
+Args: TIN.
 A TIN is a shadow entry if the previous tin contains the same file."
-  (let* ((previous-tin (tin-previous cvs-buf tin))
-	 (curr (cookie-cookie cvs-buf tin))
-	 (prev (and previous-tin (cookie-cookie cvs-buf previous-tin))))
+  (let* ((previous-tin (tin-previous cvs-cookie-handle tin))
+	 (curr (tin-cookie cvs-cookie-handle tin))
+	 (prev (and previous-tin
+		    (tin-cookie cvs-cookie-handle previous-tin))))
     (and
      prev curr
      (string= (cvs-fileinfo->file-name prev) (cvs-fileinfo->file-name curr))
@@ -801,7 +849,9 @@ A TIN is a shadow entry if the previous tin contains the same file."
       (and (eq (cvs-fileinfo->type prev) 'CONFLICT)
 	   (eq (cvs-fileinfo->type curr) 'CONFLICT))
       (and (eq (cvs-fileinfo->type prev) 'MERGED)
-	   (eq (cvs-fileinfo->type curr) 'MODIFIED))))))
+	   (eq (cvs-fileinfo->type curr) 'MODIFIED))
+      (and (eq (cvs-fileinfo->type prev) 'REM-EXIST)
+	   (eq (cvs-fileinfo->type curr) 'REMOVED))))))
 
 
 (defun cvs-parse-stderr (stdout-buffer stderr-buffer head dir)
@@ -823,6 +873,29 @@ This function returns the last cons-cell in the list that is built."
 
       (while (< (point) (point-max))
 	(cond
+
+	 ;; RCVS support (for now, we simply ignore any output from
+	 ;; RCVS, including error messages!)
+
+	 ((looking-at "updating of .* finished$")
+	  (forward-line 1))
+
+	 ((looking-at "REMOTE FOLDER:.*")
+	  (forward-line 1)
+	  (while (and (< (point) (point-max)) (not (looking-at "phase 2.*")))
+	    (forward-line 1))
+	  (forward-line 2))
+
+	 ((looking-at "turn on remote mode$")
+	  (forward-line 1)
+	  (while (and (< (point) (point-max)) (not (looking-at "phase 2.*")))
+	    (forward-line 1))
+	  (forward-line 2))
+
+	 ((looking-at "phase 3.*")
+	  (goto-char (point-max)))
+
+	 ;; End of RCVS stuff.
 
 	 ;; CVS is descending a subdirectory.
 	 
@@ -913,6 +986,17 @@ second party")
 	  (setq head (cdr head))
 	  (forward-line 1))
 
+	 ((looking-at
+	   "cvs update: \\(.*\\) should be removed and is still there")
+	  (setcdr head
+		  (list
+		   (cvs-create-fileinfo
+		    'REM-EXIST current-dir
+		    (buffer-substring (match-beginning 1) (match-end 1))
+		    (buffer-substring (match-beginning 0) (match-end 0)))))
+	  (setq head (cdr head))
+	  (forward-line 1))
+
 	 ((looking-at "cvs update: in directory ")
 	  (let ((start (point)))
 	    (forward-line 1)
@@ -940,7 +1024,8 @@ second party")
 	  (setq initial-revision
 		(cvs-skip-line stdout-buffer stderr-buffer
 			       "^retrieving revision \\(.*\\)$" 1))
-	  (cvs-skip-line stdout-buffer stderr-buffer "^retrieving revision .*$")
+	  (cvs-skip-line stdout-buffer stderr-buffer
+			 "^retrieving revision .*$")
 
 	  ;; Get the file name from the next line.
 
@@ -971,9 +1056,7 @@ second party")
 		    filename
 		    (buffer-substring complex-start (point)))))
 
-	      (cvs-set-fileinfo->backup-file
-	       fileinfo
-	       (concat cvs-bakprefix filename "." initial-revision))
+	      (cvs-set-fileinfo->base-revision fileinfo initial-revision)
 
 	      (setcdr head (list fileinfo))
 	      (setq head (cdr head))))
@@ -1011,9 +1094,7 @@ ems during merge$")
 		    'MERGED current-dir
 		    filename
 		    (buffer-substring complex-start (point)))))
-	      (cvs-set-fileinfo->backup-file
-	       fileinfo
-	       (concat cvs-bakprefix filename "." initial-revision))
+	      (cvs-set-fileinfo->base-revision fileinfo initial-revision)
 	      (setcdr head (list fileinfo))
 	      (setq head (cdr head)))))))))))
   head)
@@ -1080,7 +1161,8 @@ This function doesn't return anything particular."
        (t (cvs-parse-error stdout-buffer stderr-buffer 'STDOUT (point)))))))
 
 (defun cvs-pp (fileinfo)
-  "Pretty print FILEINFO into a string."
+  "Pretty print FILEINFO.  Insert a printed representation in current buffer.
+For use by the cookie package."
 
   (let ((a (cvs-fileinfo->type fileinfo))
         (s (if (cvs-fileinfo->marked fileinfo)
@@ -1088,38 +1170,41 @@ This function doesn't return anything particular."
         (f (cvs-fileinfo->file-name fileinfo))
         (ci (if (cvs-fileinfo->handled fileinfo)
                 "  " "ci")))
-    (cond
-     ((eq a 'UPDATED)
-      (format "%s Updated     %s" s f))
-     ((eq a 'MODIFIED)
-      (format "%s Modified %s %s" s ci f))
-     ((eq a 'MERGED)
-      (format "%s Merged   %s %s" s ci f))
-     ((eq a 'CONFLICT)
-      (format "%s Conflict    %s" s f))
-     ((eq a 'ADDED)
-      (format "%s Added    %s %s" s ci f))
-     ((eq a 'REMOVED)
-      (format "%s Removed  %s %s" s ci f))
-     ((eq a 'UNKNOWN)
-      (format "%s Unknown     %s" s f))
-     ((eq a 'CVS-REMOVED)
-      (format "%s Removed from repository:  %s" s f))
-     ((eq a 'REM-CONFLICT)
-      (format "%s Conflict: Removed from repository, changed by you: %s" s f))
-     ((eq a 'MOD-CONFLICT)
-      (format "%s Conflict: Removed by you, changed in repository: %s" s f))
-     ((eq a 'DIRCHANGE)
-      (format "\nIn directory %s:"
-              (cvs-fileinfo->dir fileinfo)))
-     ((eq a 'MOVE-AWAY)
-      (format "%s Move away %s - it is in the way" s f))
-     ((eq a 'REPOS-MISSING)
-      (format "  This repository is missing! Remove this dir manually."))
-     ((eq a 'MESSAGE)
-      (cvs-fileinfo->full-log fileinfo))
-     (t
-      (format "%s Internal error! %s" s f)))))
+    (insert
+     (cond
+      ((eq a 'UPDATED)
+       (format "%s Updated     %s" s f))
+      ((eq a 'MODIFIED)
+       (format "%s Modified %s %s" s ci f))
+      ((eq a 'MERGED)
+       (format "%s Merged   %s %s" s ci f))
+      ((eq a 'CONFLICT)
+       (format "%s Conflict    %s" s f))
+      ((eq a 'ADDED)
+       (format "%s Added    %s %s" s ci f))
+      ((eq a 'REMOVED)
+       (format "%s Removed  %s %s" s ci f))
+      ((eq a 'UNKNOWN)
+       (format "%s Unknown     %s" s f))
+      ((eq a 'CVS-REMOVED)
+       (format "%s Removed from repository:  %s" s f))
+      ((eq a 'REM-CONFLICT)
+       (format "%s Conflict: Removed from repository, changed by you: %s" s f))
+      ((eq a 'MOD-CONFLICT)
+       (format "%s Conflict: Removed by you, changed in repository: %s" s f))
+      ((eq a 'REM-EXIST)
+       (format "%s Conflict: Removed by you, but still exists: %s" s f))
+      ((eq a 'DIRCHANGE)
+       (format "\nIn directory %s:"
+	       (cvs-fileinfo->dir fileinfo)))
+      ((eq a 'MOVE-AWAY)
+       (format "%s Move away %s - it is in the way" s f))
+      ((eq a 'REPOS-MISSING)
+       (format "  This repository is missing! Remove this dir manually."))
+      ((eq a 'MESSAGE)
+       (cvs-fileinfo->full-log fileinfo))
+      (t
+       (format "%s Internal error! %s" s f))))))
 
 
 ;;; You can define your own keymap in .emacs. pcl-cvs.el won't overwrite it.
@@ -1128,33 +1213,37 @@ This function doesn't return anything particular."
     nil
   (setq cvs-mode-map (make-keymap))
   (suppress-keymap cvs-mode-map)
-  (define-key cvs-mode-map " "	'cookie-next-cookie)
+  (define-key cvs-mode-map " "	'cvs-mode-next-line)
   (define-key cvs-mode-map "?"	'describe-mode)
-  (define-key cvs-mode-map "A"	'cvs-add-change-log-entry-other-window)
-  (define-key cvs-mode-map "M"	'cvs-mark-all-files)
-  (define-key cvs-mode-map "U"	'cvs-undo-local-changes)
-  (define-key cvs-mode-map "\C-?"  'cvs-unmark-up)
-  (define-key cvs-mode-map "\C-k"  'cvs-acknowledge)
-  (define-key cvs-mode-map "\C-n"  'cookie-next-cookie)
-  (define-key cvs-mode-map "\C-p"  'cookie-previous-cookie)
-  (define-key cvs-mode-map "\M-\C-?" 'cvs-unmark-all-files)
-  (define-key cvs-mode-map "a"	'cvs-add)
-  (define-key cvs-mode-map "b"	'cvs-diff-backup)
-  (define-key cvs-mode-map "c"	'cvs-commit)
-  (define-key cvs-mode-map "d"	'cvs-diff-cvs)
-  (define-key cvs-mode-map "e"	'cvs-find-file)
-  (define-key cvs-mode-map "f"	'cvs-find-file)
-  (define-key cvs-mode-map "g"	'cvs-update-no-prompt)
-  (define-key cvs-mode-map "i"	'cvs-ignore)
-  (define-key cvs-mode-map "l"	'cvs-log)
-  (define-key cvs-mode-map "m"	'cvs-mark)
-  (define-key cvs-mode-map "n"	'cookie-next-cookie)
-  (define-key cvs-mode-map "o"	'cvs-find-file-other-window)
-  (define-key cvs-mode-map "p"	'cookie-previous-cookie)
-  (define-key cvs-mode-map "r"	'cvs-remove-file)
-  (define-key cvs-mode-map "s"	'cvs-status)
-  (define-key cvs-mode-map "x"	'cvs-remove-handled)
-  (define-key cvs-mode-map "u"	'cvs-unmark))
+  (define-key cvs-mode-map "A"	'cvs-mode-add-change-log-entry-other-window)
+  (define-key cvs-mode-map "M"	'cvs-mode-mark-all-files)
+  (define-key cvs-mode-map "R"	'cvs-mode-revert-updated-buffers)
+  (define-key cvs-mode-map "U"	'cvs-mode-undo-local-changes)
+  (define-key cvs-mode-map "\C-?"  'cvs-mode-unmark-up)
+  (define-key cvs-mode-map "\C-k"  'cvs-mode-acknowledge)
+  (define-key cvs-mode-map "\C-n"  'cvs-mode-next-line)
+  (define-key cvs-mode-map "\C-p"  'cvs-mode-previous-line)
+  (define-key cvs-mode-map "\M-\C-?" 'cvs-mode-unmark-all-files)
+  (define-key cvs-mode-map "a"	'cvs-mode-add)
+  (define-key cvs-mode-map "b"	'cvs-mode-diff-backup)
+  (define-key cvs-mode-map "c"	'cvs-mode-commit)
+  (define-key cvs-mode-map "d"	'cvs-mode-diff-cvs)
+;;  This binding is intolerable. -jwz
+;;  (define-key cvs-mode-map "e"	'cvs-mode-emerge)
+  (define-key cvs-mode-map "e"	'cvs-mode-find-file)
+  (define-key cvs-mode-map "f"	'cvs-mode-find-file)
+  (define-key cvs-mode-map "g"	'cvs-mode-update-no-prompt)
+  (define-key cvs-mode-map "i"	'cvs-mode-ignore)
+  (define-key cvs-mode-map "l"	'cvs-mode-log)
+  (define-key cvs-mode-map "m"	'cvs-mode-mark)
+  (define-key cvs-mode-map "n"	'cvs-mode-next-line)
+  (define-key cvs-mode-map "o"	'cvs-mode-find-file-other-window)
+  (define-key cvs-mode-map "p"	'cvs-mode-previous-line)
+  (define-key cvs-mode-map "q"	'bury-buffer)
+  (define-key cvs-mode-map "r"	'cvs-mode-remove-file)
+  (define-key cvs-mode-map "s"	'cvs-mode-status)
+  (define-key cvs-mode-map "x"	'cvs-mode-remove-handled)
+  (define-key cvs-mode-map "u"	'cvs-mode-unmark))
 
 
 (defun cvs-get-marked (&optional ignore-marks)
@@ -1169,20 +1258,18 @@ Args: &optional IGNORE-MARKS."
   (cond
    ;; Any marked cookies?
    ((and (not ignore-marks)
-	 (tin-collect (current-buffer)
-		      'cvs-fileinfo->marked)))
+	 (collection-collect-tin cvs-cookie-handle 'cvs-fileinfo->marked)))
    ;; Nope.
    (t
-    (let ((sel (tin-get-selection
-		(current-buffer) (point) cookie-last-tin)))
+    (let ((sel (tin-locate cvs-cookie-handle (point))))
       (cond
        ;; If a directory is selected, all it members are returned.
        ((and sel (eq (cvs-fileinfo->type
-			(cookie-cookie (current-buffer) sel))
+			(tin-cookie cvs-cookie-handle sel))
 		       'DIRCHANGE))
-	(tin-collect
-	 (current-buffer) 'cvs-dir-member-p
-	 (cvs-fileinfo->dir (cookie-cookie (current-buffer) sel))))
+	(collection-collect-tin
+	 cvs-cookie-handle 'cvs-dir-member-p
+	 (cvs-fileinfo->dir (tin-cookie cvs-cookie-handle sel))))
        (t
 	(list sel)))))))
 
@@ -1192,35 +1279,66 @@ Args: &optional IGNORE-MARKS."
   (and (not (eq (cvs-fileinfo->type fileinfo) 'DIRCHANGE))
        (string= (cvs-fileinfo->dir fileinfo) dir)))
 
-(defun cvs-dir-empty-p (cvs-buf tin)
+(defun cvs-dir-empty-p (tin)
   "Return non-nil if TIN is a directory that is empty.
 Args: CVS-BUF TIN."
-  (and (eq (cvs-fileinfo->type (cookie-cookie cvs-buf tin)) 'DIRCHANGE)
-       (or (not (tin-next cvs-buf tin))
-	   (eq (cvs-fileinfo->type (cookie-cookie cvs-buf
-						  (tin-next cvs-buf tin)))
+  (and (eq (cvs-fileinfo->type (tin-cookie cvs-cookie-handle tin)) 'DIRCHANGE)
+       (or (not (tin-next cvs-cookie-handle tin))
+	   (eq (cvs-fileinfo->type
+		(tin-cookie cvs-cookie-handle
+				    (tin-next cvs-cookie-handle tin)))
 	       'DIRCHANGE))))
 
-(defun cvs-remove-handled ()
+(defun cvs-mode-revert-updated-buffers ()
+  "Revert any buffers that are UPDATED, MERGED or CONFLICT."
+  (interactive)
+  (cookie-map (function cvs-revert-fileinfo) cvs-cookie-handle))
+
+(defun cvs-revert-fileinfo (fileinfo)
+  "Revert the buffer that holds the file in FILEINFO if it has changed,
+and if the type is UPDATED, MERGED or CONFLICT."
+  (let* ((type (cvs-fileinfo->type fileinfo))
+	 (file (cvs-fileinfo->full-path fileinfo))
+	 (buffer (get-file-buffer file)))
+    ;; For a revert to happen...
+    (cond
+     ((and
+       ;; ...the type must be one that justifies a revert...
+       (or (eq type 'UPDATED)
+	   (eq type 'MERGED)
+	   (eq type 'CONFLICT))
+       ;; ...and the user must be editing the file...
+       buffer)
+      (save-excursion
+	(set-buffer buffer)
+	(cond
+	 ((buffer-modified-p)
+	  (error "%s: edited since last cvs-update."
+		 (buffer-file-name)))
+	 ;; Go ahead and revert the file.
+	 (t (revert-buffer 'dont-use-auto-save-file 'dont-ask))))))))
+
+
+(defun cvs-mode-remove-handled ()
   "Remove all lines that are handled.
 Empty directories are removed."
   (interactive)
   ;; Pass one: remove files that are handled.
-  (cookie-filter (current-buffer)
+  (collection-filter-cookies cvs-cookie-handle
 		 (function
 		  (lambda (fileinfo) (not (cvs-fileinfo->handled fileinfo)))))
   ;; Pass two: remove empty directories.
-  (cvs-remove-empty-directories (current-buffer)))
+  (cvs-remove-empty-directories))
 
 
-(defun cvs-remove-empty-directories (buffer)
-  "Remove empty directories in the *cvs* BUFFER."
-  (tin-filter buffer
-	      (function
-	       (lambda (tin)
-		 (not (cvs-dir-empty-p (current-buffer) tin))))))
+(defun cvs-remove-empty-directories ()
+  "Remove empty directories in the *cvs* buffer."
+  (collection-filter-tins cvs-cookie-handle
+		     (function
+		      (lambda (tin)
+			(not (cvs-dir-empty-p tin))))))
 
-(defun cvs-mark (pos)
+(defun cvs-mode-mark (pos)
   "Mark a fileinfo. Args: POS.
 If the fileinfo is a directory, all the contents of that directory are
 marked instead. A directory can never be marked.
@@ -1228,9 +1346,8 @@ POS is a buffer position."
 
   (interactive "d")
 
-  (let* ((tin (tin-get-selection
-	       (current-buffer) pos cookie-last-tin))
-	 (sel (cookie-cookie (current-buffer) tin)))
+  (let* ((tin (tin-locate cvs-cookie-handle pos))
+	 (sel (tin-cookie cvs-cookie-handle tin)))
 
     (cond
      ;; Does POS point to a directory? If so, mark all files in that directory.
@@ -1241,20 +1358,20 @@ POS is a buffer position."
 		    ((cvs-dir-member-p f dir)
 		     (cvs-set-fileinfo->marked f t)
 		     t))))		;Tell cookie to redisplay this cookie.
-       (current-buffer)
+       cvs-cookie-handle
        (cvs-fileinfo->dir sel)))
      (t
       (cvs-set-fileinfo->marked sel t)
-      (tin-invalidate-tins (current-buffer) tin)
-      (cookie-next-cookie (current-buffer) pos 1)))))
+      (tin-invalidate cvs-cookie-handle tin)
+      (tin-goto-next cvs-cookie-handle pos 1)))))
   
 
-(defun cvs-committable (tin cvs-buf)
+(defun cvs-committable (tin)
   "Check if the TIN is committable.
 It is committable if it
    a) is not handled and
    b) is either MODIFIED, ADDED, REMOVED, MERGED or CONFLICT."
-  (let* ((fileinfo (cookie-cookie cvs-buf tin))
+  (let* ((fileinfo (tin-cookie cvs-cookie-handle tin))
 	 (type (cvs-fileinfo->type fileinfo)))
     (and (not (cvs-fileinfo->handled fileinfo))
 	 (or (eq type 'MODIFIED)
@@ -1263,7 +1380,7 @@ It is committable if it
 	     (eq type 'MERGED)
 	     (eq type 'CONFLICT)))))
 
-(defun cvs-commit ()
+(defun cvs-mode-commit ()
 
   "Check in all marked files, or the current file.
 The user will be asked for a log message in a buffer.
@@ -1275,8 +1392,7 @@ buffer so that it is easy to kill the contents of the buffer with \\[kill-region
 
   (let* ((cvs-buf (current-buffer))
 	 (marked (cvs-filter (function cvs-committable)
-			     (cvs-get-marked)
-			     cvs-buf)))
+			     (cvs-get-marked))))
     (if (null marked)
 	(error "Nothing to commit!")
       (pop-to-buffer (get-buffer-create cvs-commit-prompt-buffer))
@@ -1294,6 +1410,18 @@ buffer so that it is easy to kill the contents of the buffer with \\[kill-region
 (defun cvs-edit-done ()
   "Commit the files to the repository."
   (interactive)
+  (if (null cvs-commit-list)
+      (error "You have already commited the files"))
+  (if (and (> (point-max) 1)
+	   (/= (char-after (1- (point-max))) ?\n)
+	   (or (eq cvs-commit-buffer-require-final-newline t)
+	       (and cvs-commit-buffer-require-final-newline
+		    (yes-or-no-p
+		     (format "Buffer %s does not end in newline.  Add one? "
+			     (buffer-name))))))
+      (save-excursion
+	(goto-char (point-max))
+	(insert ?\n)))
   (save-some-buffers)
   (let ((cc-list cvs-commit-list)
 	(cc-buffer (get-buffer cvs-buffer-name))
@@ -1303,17 +1431,40 @@ buffer so that it is easy to kill the contents of the buffer with \\[kill-region
     (bury-buffer msg-buffer)
     (cvs-use-temp-buffer)
     (message "Committing...")
-    (cvs-execute-list cc-list cvs-program (list "commit" "-m" msg))
-    (mapcar (function
-	     (lambda (tin)
-	       (cvs-set-fileinfo->handled (cookie-cookie cc-buffer tin) t)))
-	    cc-list)
-    (apply 'tin-invalidate-tins cc-buffer cc-list)
+    (if (cvs-execute-list cc-list cvs-program
+			  (if cvs-cvsroot
+			      (list "-d" cvs-cvsroot "commit" "-m" msg)
+			    (list "commit" "-m" msg)))
+	(error "Something went wrong. Check the %s buffer carefully."
+	       cvs-temp-buffer-name))
+    (let ((ccl cc-list))
+      (while ccl
+	(cvs-after-commit-function (tin-cookie cvs-cookie-handle (car ccl)))
+	(setq ccl (cdr ccl))))
+    (apply 'tin-invalidate cvs-cookie-handle cc-list)
+    (set-buffer msg-buffer)
+    (setq cvs-commit-list nil)
     (set-buffer cc-buffer)
     (if cvs-auto-remove-handled
-	(cvs-remove-handled)))
+	(cvs-mode-remove-handled)))
   
   (message "Committing... Done."))
+
+(defun cvs-after-commit-function (fileinfo)
+  "Do everything that needs to be done when FILEINFO has been commited.
+The fileinfo->handle is set, and if the buffer is present it is reverted."
+  (cvs-set-fileinfo->handled fileinfo t)
+  (if cvs-auto-revert-after-commit
+      (let* ((file (cvs-fileinfo->full-path fileinfo))
+	     (buffer (get-file-buffer file)))
+	;; For a revert to happen...
+	(if buffer
+	    ;; ...the user must be editing the file...
+	    (save-excursion
+	      (set-buffer buffer)
+	      (if (not (buffer-modified-p))
+		  ;; ...but it must be unmodified.
+		  (revert-buffer 'dont-use-auto-save-file 'dont-ask)))))))
 
 
 (defun cvs-execute-list (tin-list program constant-args)
@@ -1325,11 +1476,19 @@ arguments given to the program will be CONSTANT-ARGS followed by all
 the files (from TIN-LIST) that resides in that directory. If the files
 in TIN-LIST resides in different directories the PROGRAM will be run
 once for each directory (if all files in the same directory appears
-after each other)."
-			 
+after each other).
+
+Any output from PROGRAM will be inserted in the current buffer.
+
+This function return nil if all went well, or the numerical exit
+status or a signal name as a string. Note that PROGRAM might be called
+several times. This will return non-nil if something goes wrong, but
+there is no way to know which process that failed."
+
+  (let ((exitstatus nil))
     (while tin-list
       (let ((current-dir (cvs-fileinfo->dir
-			  (cookie-cookie cvs-buffer-name
+			  (tin-cookie cvs-cookie-handle
 					 (car tin-list))))
 	    arg-list arg-str)
 
@@ -1339,10 +1498,10 @@ after each other)."
 		    (string=
 		     current-dir
 		     (cvs-fileinfo->dir
-		      (cookie-cookie cvs-buffer-name (car tin-list)))))
+		      (tin-cookie cvs-cookie-handle (car tin-list)))))
 	  (setq arg-list
 		(cons (cvs-fileinfo->file-name
-		       (cookie-cookie cvs-buffer-name (car tin-list)))
+		       (tin-cookie cvs-cookie-handle (car tin-list)))
 		      arg-list))
 	  (setq tin-list (cdr tin-list)))
 
@@ -1358,9 +1517,15 @@ after each other)."
 				   (nconc (copy-sequence constant-args)
 					  arg-list)
 				   " ")))
-	(apply 'call-process program nil t t
-	       (nconc (copy-sequence constant-args) arg-list))
-	(goto-char (point-max)))))
+	(let ((res (apply 'call-process program nil t t
+			  (nconc (copy-sequence constant-args) arg-list))))
+	  ;; Remember the first, or highest, exitstatus.
+	  (if (and (not (and (integerp res) (zerop res)))
+		   (or (null exitstatus)
+		       (and (integerp exitstatus) (= 1 exitstatus))))
+	      (setq exitstatus res)))
+	(goto-char (point-max))))
+    exitstatus))
 
 
 (defun cvs-execute-single-file-list (tin-list extractor program constant-args)
@@ -1380,11 +1545,11 @@ this file, or a list of arguments to send to the program."
     (while tin-list
       (let ((default-directory (file-name-as-directory
 				(cvs-fileinfo->dir
-				 (cookie-cookie cvs-buffer-name
+				 (tin-cookie cvs-cookie-handle
 						(car tin-list)))))
 	    (arg-list
 	     (funcall extractor
-		      (cookie-cookie cvs-buffer-name (car tin-list)))))
+		      (tin-cookie cvs-cookie-handle (car tin-list)))))
 
 	;; Execute the command unless extractor returned t.
 
@@ -1423,34 +1588,65 @@ This mode is based on fundamental mode."
   (define-key cvs-edit-mode-map "\C-c\C-c" 'cvs-edit-done))
 
 
-(defun cvs-diff-cvs (&optional ignore-marks)
+(defun cvs-diffable (tins)
+  "Return a list of all tins on TINS that it makes sense to run
+``cvs diff'' on."
+  ;; +++ There is an unnecessary (nreverse) here. Get the list the
+  ;; other way around instead!
+  (let ((result nil))
+    (while tins
+      (let ((type (cvs-fileinfo->type
+		   (tin-cookie cvs-cookie-handle (car tins)))))
+	(if (or (eq type 'MODIFIED)
+		(eq type 'UPDATED)
+		(eq type 'MERGED)
+		(eq type 'CONFLICT)
+		(eq type 'REMOVED)	;+++Does this line make sense?
+		(eq type 'ADDED))	;+++Does this line make sense?
+	    (setq result (cons (car tins) result)))
+	(setq tins (cdr tins))))
+    (nreverse result)))
+	  
+				     
+(defun cvs-mode-diff-cvs (&optional ignore-marks)
   "Diff the selected files against the repository.
-The flags the variable cvs-cvs-diff-flags will be passed to ``cvs diff''.
-If the variable cvs-diff-ignore-marks is non-nil any marked files will
-not be considered to be selected.  An optional prefix argument will
-invert the influence from cvs-diff-ignore-marks."
+The flags in the variable cvs-diff-flags (which should be a list
+of strings) will be passed to ``cvs diff''.  If the variable
+cvs-diff-ignore-marks is non-nil any marked files will not be
+considered to be selected.  An optional prefix argument will invert
+the influence from cvs-diff-ignore-marks."
 
   (interactive "P")
 
-  (if (not (listp cvs-cvs-diff-flags))
-      (error "cvs-cvs-diff-flags should be a list of strings"))
+  (if (not (listp cvs-diff-flags))
+      (error "cvs-diff-flags should be a list of strings"))
 
   (save-some-buffers)
-  (let ((marked (cvs-get-marked
-		 (or (and ignore-marks (not cvs-diff-ignore-marks))
-		     (and (not ignore-marks) cvs-diff-ignore-marks)))))
+  (let ((marked (cvs-diffable
+		 (cvs-get-marked
+		  (or (and ignore-marks (not cvs-diff-ignore-marks))
+		      (and (not ignore-marks) cvs-diff-ignore-marks))))))
     (cvs-use-temp-buffer)
     (message "cvsdiffing...")
-    (cvs-execute-list marked cvs-program (cons "diff" cvs-cvs-diff-flags)))
-  (message "cvsdiffing... Done."))
+    ;; Don't care much about the exit status since it is the _sum_ of
+    ;; the status codes from the different files (not the _max_ as it
+    ;; should be).
+    (if (cvs-execute-list marked cvs-program
+			  (if cvs-cvsroot
+			      (cons "-d" (cons cvs-cvsroot
+					       (cons "diff" cvs-diff-flags)))
+			    (cons "diff" cvs-diff-flags)))
+	(message "cvsdiffing... Done.")
+      (message "cvsdiffing... No differences found."))))
 
 
-(defun cvs-backup-diffable (tin cvs-buf)
+(defun cvs-backup-diffable (tin)
   "Check if the TIN is backup-diffable.
 It must have a backup file to be diffable."
-  (cvs-fileinfo->backup-file (cookie-cookie cvs-buf tin)))
+  (file-readable-p
+   (cvs-fileinfo->backup-file (tin-cookie cvs-cookie-handle tin))))
 
-(defun cvs-diff-backup (&optional ignore-marks)
+(defun cvs-mode-diff-backup (&optional ignore-marks)
   "Diff the files against the backup file.
 This command can be used on files that are marked with \"Merged\"
 or \"Conflict\" in the *cvs* buffer.
@@ -1472,8 +1668,7 @@ The flags in cvs-diff-flags will be passed to ``diff''."
 		 (cvs-get-marked
 		  (or
 		   (and ignore-marks (not cvs-diff-ignore-marks))
-		   (and (not ignore-marks) cvs-diff-ignore-marks)))
-		 (current-buffer))))
+		   (and (not ignore-marks) cvs-diff-ignore-marks))))))
     (if (null marked)
 	(error "No ``Conflict'' or ``Merged'' file selected!"))
     (cvs-use-temp-buffer)
@@ -1486,23 +1681,22 @@ The flags in cvs-diff-flags will be passed to ``diff''."
 (defun cvs-diff-backup-extractor (fileinfo)
   "Return the filename and the name of the backup file as a list.
 Signal an error if there is no backup file."
-  (if (null (cvs-fileinfo->backup-file fileinfo))
+  (if (not (file-readable-p (cvs-fileinfo->backup-file fileinfo)))
       (error "%s has no backup file."
 	     (concat
 	      (file-name-as-directory (cvs-fileinfo->dir fileinfo))
 	      (cvs-fileinfo->file-name fileinfo))))
-  (list (cvs-fileinfo->file-name fileinfo)
-	(cvs-fileinfo->backup-file fileinfo)))
+  (list	(cvs-fileinfo->backup-file fileinfo)
+	 (cvs-fileinfo->file-name fileinfo)))
 
-(defun cvs-find-file-other-window (pos)
+(defun cvs-mode-find-file-other-window (pos)
   "Select a buffer containing the file in another window.
 Args: POS"
   (interactive "d")
-  (let ((cookie-last-tin
-	 (tin-get-selection (current-buffer) pos cookie-last-tin)))
-    (if cookie-last-tin
-	(let ((type (cvs-fileinfo->type (cookie-cookie (current-buffer)
-						       cookie-last-tin))))
+  (let ((tin (tin-locate cvs-cookie-handle pos)))
+    (if tin
+	(let ((type (cvs-fileinfo->type (tin-cookie cvs-cookie-handle
+							    tin))))
 	  (cond
 	   ((or (eq type 'REMOVED)
 		(eq type 'CVS-REMOVED))
@@ -1513,31 +1707,33 @@ Args: POS"
 	      (setq default-directory
 		    (file-name-as-directory
 		     (cvs-fileinfo->dir
-		      (cookie-cookie (current-buffer) cookie-last-tin))))
+		      (tin-cookie cvs-cookie-handle tin))))
 	      (dired-other-window default-directory)
 	      (set-buffer obuf)
 	      (setq default-directory odir)))
 	   (t
-	    (find-file-other-window (cvs-full-path (current-buffer)
-						   cookie-last-tin)))))
+	    (find-file-other-window (cvs-full-path tin)))))
       (error "There is no file to find."))))
 
-(defun cvs-full-path (buffer tin)
-  "Return the full path for the file that is described in TIN.
-Args: BUFFER TIN."
+(defun cvs-fileinfo->full-path (fileinfo)
+  "Return the full path for the file that is described in FILEINFO."
   (concat
    (file-name-as-directory
-    (cvs-fileinfo->dir (cookie-cookie buffer tin)))
-   (cvs-fileinfo->file-name (cookie-cookie buffer tin))))
+    (cvs-fileinfo->dir fileinfo))
+   (cvs-fileinfo->file-name fileinfo)))
 
-(defun cvs-find-file (pos)
+(defun cvs-full-path (tin)
+  "Return the full path for the file that is described in TIN."
+  (cvs-fileinfo->full-path (tin-cookie cvs-cookie-handle tin)))
+
+(defun cvs-mode-find-file (pos)
   "Select a buffer containing the file in another window.
 Args: POS"
   (interactive "d")
   (let* ((cvs-buf (current-buffer))
-	 (cookie-last-tin (tin-get-selection cvs-buf pos cookie-last-tin)))
-    (if cookie-last-tin
-	(let* ((fileinfo (cookie-cookie cvs-buf cookie-last-tin))
+	 (tin (tin-locate cvs-cookie-handle pos)))
+    (if tin
+	(let* ((fileinfo (tin-cookie cvs-cookie-handle tin))
 	       (type (cvs-fileinfo->type fileinfo)))
 	  (cond
 	   ((or (eq type 'REMOVED)
@@ -1551,10 +1747,10 @@ Args: POS"
 	      (set-buffer cvs-buf)
 	      (setq default-directory odir))) 
 	   (t
-	    (find-file (cvs-full-path cvs-buf cookie-last-tin)))))
+	    (find-file (cvs-full-path tin)))))
       (error "There is no file to find."))))
 
-(defun cvs-mark-all-files ()
+(defun cvs-mode-mark-all-files ()
   "Mark all files.
 Directories are not marked."
   (interactive)
@@ -1563,15 +1759,15 @@ Directories are not marked."
 			   ((not (eq (cvs-fileinfo->type cookie) 'DIRCHANGE))
 			    (cvs-set-fileinfo->marked cookie t)
 			    t))))
-	      (current-buffer)))
+	      cvs-cookie-handle))
 
 
-(defun cvs-unmark (pos)
+(defun cvs-mode-unmark (pos)
   "Unmark a fileinfo. Args: POS."
   (interactive "d")
 
-  (let* ((tin (tin-get-selection (current-buffer) pos cookie-last-tin))
-	 (sel (cookie-cookie (current-buffer) tin)))
+  (let* ((tin (tin-locate cvs-cookie-handle pos))
+	 (sel (tin-cookie cvs-cookie-handle tin)))
 
     (cond
      ((eq (cvs-fileinfo->type sel) 'DIRCHANGE)
@@ -1581,14 +1777,14 @@ Directories are not marked."
 		    ((cvs-dir-member-p f dir)
 		     (cvs-set-fileinfo->marked f nil)
 		     t))))
-       (current-buffer)
+       cvs-cookie-handle
        (cvs-fileinfo->dir sel)))
      (t
       (cvs-set-fileinfo->marked sel nil)
-      (tin-invalidate-tins (current-buffer) tin)
-      (cookie-next-cookie (current-buffer) pos 1)))))
+      (tin-invalidate cvs-cookie-handle tin)
+      (tin-goto-next cvs-cookie-handle pos 1)))))
 
-(defun cvs-unmark-all-files ()
+(defun cvs-mode-unmark-all-files ()
   "Unmark all files.
 Directories are also unmarked, but that doesn't matter, since
 they should always be unmarked."
@@ -1596,13 +1792,13 @@ they should always be unmarked."
   (cookie-map (function (lambda (cookie)
 			  (cvs-set-fileinfo->marked cookie nil)
 			  t))
-	      (current-buffer)))
+	      cvs-cookie-handle))
 
 
-(defun cvs-do-removal (cvs-buf tins)
+(defun cvs-do-removal (tins)
   "Remove files.
-Args: CVS-BUF TINS.
-CVS-BUF is the *cvs* buffer. TINS is a list of tins that the
+Args: TINS.
+TINS is a list of tins that the
 user wants to delete. The files are deleted. If the type of
 the tin is 'UNKNOWN the tin is removed from the buffer. If it
 is anything else the file is added to a list that should be
@@ -1616,37 +1812,41 @@ Returns a list of tins files that should be `cvs remove'd."
     (let (files-to-remove)
       (while tins
 	(let* ((tin (car tins))
-	       (fileinfo (cookie-cookie cvs-buf tin))
+	       (fileinfo (tin-cookie cvs-cookie-handle tin))
 	       (type (cvs-fileinfo->type fileinfo)))
 	  (if (not (or (eq type 'REMOVED) (eq type 'CVS-REMOVED)))
 	      (progn
-		(delete-file (cvs-full-path cvs-buf tin))
+		(delete-file (cvs-full-path tin))
 		(cond
 		 ((or (eq type 'UNKNOWN) (eq type 'MOVE-AWAY))
-		  (tin-delete cvs-buf tin))
+		  (tin-delete cvs-cookie-handle tin))
 		 (t
 		  (setq files-to-remove (cons tin files-to-remove))
 		  (cvs-set-fileinfo->type fileinfo 'REMOVED)
 		  (cvs-set-fileinfo->handled fileinfo nil)
-		  (tin-invalidate-tins cvs-buf tin))))))
+		  (tin-invalidate cvs-cookie-handle tin))))))
 	(setq tins (cdr tins)))
       files-to-remove))
    (t nil)))
 
 
 
-(defun cvs-remove-file ()
+(defun cvs-mode-remove-file ()
   "Remove all marked files."
   (interactive)
-  (let ((files-to-remove (cvs-do-removal (current-buffer) (cvs-get-marked))))
+  (let ((files-to-remove (cvs-do-removal (cvs-get-marked))))
     (if (null files-to-remove)
 	nil
       (cvs-use-temp-buffer)
       (message "removing from repository...")
-      (cvs-execute-list files-to-remove cvs-program '("remove"))
-      (message "removing from repository... done."))))
+      (if (cvs-execute-list files-to-remove cvs-program
+			    (if cvs-cvsroot
+				(list "-d" cvs-cvsroot "remove")
+			      '("remove")))
+	  (error "CVS exited with non-zero exit status.")
+	(message "removing from repository... done.")))))
 
-(defun cvs-undo-local-changes ()
+(defun cvs-mode-undo-local-changes ()
   "Undo local changes to all marked files.
 The file is removed and `cvs update FILE' is run."
   (interactive)
@@ -1659,7 +1859,7 @@ The file is removed and `cvs update FILE' is run."
       (let (files-to-update)
 	(while tins-to-undo
 	  (let* ((tin (car tins-to-undo))
-		 (fileinfo (cookie-cookie cvs-buffer-name tin))
+		 (fileinfo (tin-cookie cvs-cookie-handle tin))
 		 (type (cvs-fileinfo->type fileinfo)))
 	    (cond
 	     ((or
@@ -1668,63 +1868,85 @@ The file is removed and `cvs update FILE' is run."
 	       (eq type 'REM-CONFLICT) (eq type 'MOVE-AWAY)
 	       (eq type 'REMOVED))
 	      (if (not (eq type 'REMOVED))
-		  (delete-file (cvs-full-path cvs-buffer-name tin)))
+		  (delete-file (cvs-full-path tin)))
 	      (setq files-to-update (cons tin files-to-update))
 	      (cvs-set-fileinfo->type fileinfo 'UPDATED)
 	      (cvs-set-fileinfo->handled fileinfo t)
-	      (tin-invalidate-tins cvs-buffer-name tin))
+	      (tin-invalidate cvs-cookie-handle tin))
 
 	     ((eq type 'MOD-CONFLICT)
-	      (error "Use cvs-add instead on %s."
+	      (error "Use cvs-mode-add instead on %s."
 		     (cvs-fileinfo->file-name fileinfo)))
+
+	     ((eq type 'REM-CONFLICT)
+	      (error "Can't deal with a file you have removed and recreated."))
 
 	     ((eq type 'DIRCHANGE)
 	      (error "Undo on directories not supported (yet)."))
 
 	     ((eq type 'ADDED)
 	      (error "There is no old revision to get for %s"
-		     (cvs-fileinfo->file-name fileinfo))))
+		     (cvs-fileinfo->file-name fileinfo)))
+	     (t (error "cvs-mode-undo-local-changes: can't handle an %s"
+		       type)))
 
 	    (setq tins-to-undo (cdr tins-to-undo))))
 	(cvs-use-temp-buffer)
 	(message "Regetting files from repository...")
-	(cvs-execute-list files-to-update cvs-program '("update"))
-	(message "Regetting files from repository... done."))))))
+	(if (cvs-execute-list files-to-update cvs-program
+			      (if cvs-cvsroot
+				  (list "-d" cvs-cvsroot "update")
+				'("update")))
+	    (error "CVS exited with non-zero exit status.")
+	  (message "Regetting files from repository... done.")))))))
 
-(defun cvs-acknowledge ()
+(defun cvs-mode-acknowledge ()
   "Remove all marked files from the buffer."
   (interactive)
 
   (mapcar (function (lambda (tin)
-		      (tin-delete (current-buffer) tin)))
-	  (cvs-get-marked))
-  (setq cookie-last-tin nil))
+		      (tin-delete cvs-cookie-handle tin)))
+	  (cvs-get-marked)))
 
 
-(defun cvs-unmark-up (pos)
+(defun cvs-mode-unmark-up (pos)
   "Unmark the file on the previous line.
 Takes one argument POS, a buffer position."
   (interactive "d")
-  (cookie-previous-cookie (current-buffer) pos 1)
-  (cvs-set-fileinfo->marked (cookie-cookie (current-buffer) cookie-last-tin)
-			    nil)
-  (tin-invalidate-tins (current-buffer) cookie-last-tin))
+  (let ((tin (tin-goto-previous cvs-cookie-handle pos 1)))
+    (cond
+     (tin
+      (cvs-set-fileinfo->marked (tin-cookie cvs-cookie-handle tin)
+				nil)
+      (tin-invalidate cvs-cookie-handle tin)))))
 
-(defun cvs-add-file-update-buffer (cvs-buf tin)
-  "Subfunction to cvs-add. Internal use only.
+(defun cvs-mode-previous-line (arg)
+  "Go to the previous line.
+If a prefix argument is given, move by that many lines."
+  (interactive "p")
+  (tin-goto-previous cvs-cookie-handle (point) arg))
+
+(defun cvs-mode-next-line (arg)
+  "Go to the next line.
+If a prefix argument is given, move by that many lines."
+  (interactive "p")
+  (tin-goto-next cvs-cookie-handle (point) arg))
+
+(defun cvs-add-file-update-buffer (tin)
+  "Subfunction to cvs-mode-add. Internal use only.
 Update the display. Return non-nil if `cvs add' should be called on this
-file. Args: CVS-BUF TIN.
+file. Args: TIN.
 Returns 'ADD or 'RESURRECT."
-  (let ((fileinfo (cookie-cookie cvs-buf tin)))
+  (let ((fileinfo (tin-cookie cvs-cookie-handle tin)))
     (cond
      ((eq (cvs-fileinfo->type fileinfo) 'UNKNOWN)
       (cvs-set-fileinfo->type fileinfo 'ADDED)
-      (tin-invalidate-tins cvs-buf tin)
+      (tin-invalidate cvs-cookie-handle tin)
       'ADD)
      ((eq (cvs-fileinfo->type fileinfo) 'REMOVED)
       (cvs-set-fileinfo->type fileinfo 'UPDATED)
       (cvs-set-fileinfo->handled fileinfo t)
-      (tin-invalidate-tins cvs-buf tin)
+      (tin-invalidate cvs-cookie-handle tin)
       'RESURRECT))))
 
 (defun cvs-add-sub (cvs-buf candidates)
@@ -1735,7 +1957,7 @@ The first list is unknown tins that shall be `cvs add -m msg'ed.
 The second list is removed files that shall be `cvs add'ed (resurrected)."
   (let (add resurrect)
     (while candidates
-      (let ((type (cvs-add-file-update-buffer cvs-buf (car candidates))))
+      (let ((type (cvs-add-file-update-buffer (car candidates))))
 	(cond ((eq type 'ADD)
 	       (setq add (cons (car candidates) add)))
 	      ((eq type 'RESURRECT)
@@ -1743,7 +1965,7 @@ The second list is removed files that shall be `cvs add'ed (resurrected)."
       (setq candidates (cdr candidates)))
     (cons add resurrect)))
 
-(defun cvs-add ()
+(defun cvs-mode-add ()
   "Add marked files to the cvs repository."
   (interactive)
 
@@ -1758,15 +1980,23 @@ The second list is removed files that shall be `cvs add'ed (resurrected)."
 
     (cond (resurrect
 	   (message "Resurrecting files from repository...")
-	   (cvs-execute-list resurrect cvs-program '("add"))
-	   (message "Done.")))
+	   (if (cvs-execute-list resurrect cvs-program
+				 (if cvs-cvsroot
+				     (list "-d" cvs-cvsroot "add")
+				   '("add")))
+	       (error "CVS exited with non-zero exit status.")
+	     (message "Done."))))
 
     (cond (added
 	   (message "Adding new files to repository...")
-	   (cvs-execute-list added cvs-program (list "add" "-m" msg))
-	   (message "Done.")))))
+	   (if (cvs-execute-list added cvs-program
+				 (if cvs-cvsroot
+				     (list "-d" cvs-cvsroot "add" "-m" msg)
+				   (list "add" "-m" msg)))
+	       (error "CVS exited with non-zero exit status.")
+	     (message "Done."))))))
 
-(defun cvs-ignore ()
+(defun cvs-mode-ignore ()
   "Arrange so that CVS ignores the selected files.
 This command ignores files that are not flagged as `Unknown'."
   (interactive)
@@ -1774,12 +2004,12 @@ This command ignores files that are not flagged as `Unknown'."
   (mapcar (function (lambda (tin)
 		      (cond
 		       ((eq (cvs-fileinfo->type
-			     (cookie-cookie (current-buffer) tin)) 'UNKNOWN)
+			     (tin-cookie cvs-cookie-handle tin))
+			    'UNKNOWN)
 			(cvs-append-to-ignore
-			 (cookie-cookie (current-buffer) tin))
-			(tin-delete (current-buffer) tin)))))
-	  (cvs-get-marked))
-  (setq cookie-last-tin nil))
+			 (tin-cookie cvs-cookie-handle tin))
+			(tin-delete cvs-cookie-handle tin)))))
+	  (cvs-get-marked)))
 
 (defun cvs-append-to-ignore (fileinfo)
   "Append the file in fileinfo to the .cvsignore file"
@@ -1791,9 +2021,11 @@ This command ignores files that are not flagged as `Unknown'."
     (if (not (zerop (current-column)))
 	(insert "\n"))
     (insert (cvs-fileinfo->file-name fileinfo) "\n")
+    (if cvs-sort-ignore-file
+	(sort-lines nil (point-min) (point-max)))
     (save-buffer)))
 
-(defun cvs-status ()
+(defun cvs-mode-status ()
   "Show cvs status for all marked files."
   (interactive)
 
@@ -1801,35 +2033,45 @@ This command ignores files that are not flagged as `Unknown'."
   (let ((marked (cvs-get-marked)))
     (cvs-use-temp-buffer)
     (message "Running cvs status ...")
-    (cvs-execute-list marked cvs-program (cons "status" cvs-status-flags)))
-  (message "Running cvs status ... Done."))
+    (if (cvs-execute-list
+	 marked cvs-program
+	 (if cvs-cvsroot
+	     (cons "-d" (cons cvs-cvsroot (cons "status" cvs-status-flags)))
+	   (cons "status" cvs-status-flags)))
+	(error "CVS exited with non-zero exit status.")
+      (message "Running cvs status ... Done."))))
 
-(defun cvs-log ()
+(defun cvs-mode-log ()
   "Display the cvs log of all selected files."
   (interactive)
 
   (let ((marked (cvs-get-marked)))
     (cvs-use-temp-buffer)
     (message "Running cvs log ...")
-    (cvs-execute-list marked cvs-program (cons "log" cvs-log-flags)))
-  (message "Running cvs log ... Done."))
+    (if (cvs-execute-list marked cvs-program
+			  (if cvs-cvsroot
+			      (cons "-d" (cons cvs-cvsroot
+					       (cons "log" cvs-log-flags)))
+			    (cons "log" cvs-log-flags)))
+	(error "CVS exited with non-zero exit status.")
+      (message "Running cvs log ... Done."))))
 
 (defun cvs-byte-compile-files ()
   "Run byte-compile-file on all selected files that end in '.el'."
   (interactive)
   (let ((marked (cvs-get-marked)))
     (while marked
-      (let ((filename (cvs-full-path (current-buffer) (car marked))))
+      (let ((filename (cvs-full-path (car marked))))
 	(if (string-match "\\.el$" filename)
 	    (byte-compile-file filename)))
       (setq marked (cdr marked)))))
 
 (defun cvs-insert-full-path (tin)
   "Insert full path to the file described in TIN in the current buffer."
-  (insert (format "%s\n" (cvs-full-path cvs-buffer-name tin))))
+  (insert (format "%s\n" (cvs-full-path tin))))
 
 
-(defun cvs-add-change-log-entry-other-window (pos)
+(defun cvs-mode-add-change-log-entry-other-window (pos)
   "Add a ChangeLog entry in the ChangeLog of the current directory.
 Args: POS."
   (interactive "d")
@@ -1838,9 +2080,9 @@ Args: POS."
     (setq default-directory
 	  (file-name-as-directory
 	   (cvs-fileinfo->dir
-	    (cookie-cookie
-	     cvs-buf
-	     (tin-get-selection cvs-buf pos cookie-last-tin)))))
+	    (tin-cookie
+	     cvs-cookie-handle
+	     (tin-locate cvs-cookie-handle pos)))))
     (if (not default-directory)		;In case there was no entries.
 	(setq default-directory odir))
     (add-change-log-entry-other-window)
@@ -1850,7 +2092,7 @@ Args: POS."
 
 (defun print-cvs-tin (foo)
   "Debug utility."
-  (let ((cookie (cookie-cookie (current-buffer) foo))
+  (let ((cookie (tin-cookie cvs-cookie-handle foo))
 	(stream (get-buffer-create "debug")))
     (princ "==============\n" stream)
     (princ (cvs-fileinfo->file-name cookie) stream)
@@ -1862,9 +2104,105 @@ Args: POS."
     (princ (cvs-fileinfo->marked cookie) stream)
     (princ "\n" stream)))
 
-
+(defun cvs-mode-emerge (pos)
+  "Emerge appropriate revisions of the selected file.
+Args: POS"
+  (interactive "d")
+  (let* ((cvs-buf (current-buffer))
+	 (tin (tin-locate cvs-cookie-handle pos)))
+    (if tin
+	(let* ((fileinfo (tin-cookie cvs-cookie-handle tin))
+	       (type (cvs-fileinfo->type fileinfo)))
+	  (cond
+	   ((eq type 'MODIFIED)
+	    (require 'emerge)
+	    (let ((tmp-file
+		   (cvs-retrieve-revision-to-tmpfile fileinfo)))
+	      (unwind-protect
+		  (if (not (emerge-files
+			    t
+			    (cvs-fileinfo->full-path fileinfo)
+			    tmp-file
+			    (cvs-fileinfo->full-path fileinfo)))
+		      (error "Emerge session failed"))
+		(delete-file tmp-file))))
+
+	   ((or (eq type 'MERGED)
+		(eq type 'CONFLICT))
+	    (require 'emerge)
+	    (let ((tmp-file
+		   (cvs-retrieve-revision-to-tmpfile
+		    fileinfo))
+		  (ancestor-file
+		   (cvs-retrieve-revision-to-tmpfile
+		    fileinfo
+		    (cvs-fileinfo->base-revision fileinfo))))
+	      (unwind-protect
+		  (if (not (emerge-files-with-ancestor
+			    t
+			    (cvs-fileinfo->backup-file fileinfo)
+			    tmp-file
+			    ancestor-file
+			    (cvs-fileinfo->full-path fileinfo)))
+		      (error "Emerge session failed"))
+		(delete-file tmp-file)
+		(delete-file ancestor-file))))
+	   (t
+	    (error "Can only emerge \"Modified\", \"Merged\" or \"Conflict\"%s"
+		   " files"))))
+      (error "There is no file to emerge."))))
+
+(defun cvs-retrieve-revision-to-tmpfile (fileinfo &optional revision)
+  "Retrieve the latest revision of the file in FILEINFO to a temporary file.
+If second optional argument REVISION is given, retrieve that revision instead."
+  (let
+      ((temp-name (make-temp-name
+		   (concat (file-name-as-directory
+			    (or (getenv "TMPDIR") "/tmp"))
+			   "pcl-cvs." revision))))
+    (cvs-kill-buffer-visiting temp-name)
+    (if revision
+	(message "Retrieving revision %s..." revision)
+      (message "Retrieving latest revision..."))
+    (let ((res (call-process cvs-shell nil nil nil "-c"
+			     (concat cvs-program " update -p "
+				     (if revision
+					 (concat "-r " revision " ")
+				       "")
+				     (cvs-fileinfo->full-path fileinfo)
+				     " > " temp-name))))
+      (if (and res (not (and (integerp res) (zerop res))))
+	  (error "Something went wrong: %s" res))
+
+      (if revision
+	  (message "Retrieving revision %s... Done." revision)
+	(message "Retrieving latest revision... Done."))
+      (find-file-noselect temp-name)
+      temp-name)))
+
+(defun cvs-fileinfo->backup-file (fileinfo)
+  "Construct the file name of the backup file for FILEINFO."
+  (if (cvs-fileinfo->base-revision fileinfo)
+      (concat cvs-bakprefix (cvs-fileinfo->file-name fileinfo)
+	      "." (cvs-fileinfo->base-revision fileinfo))))
+
+(defun cvs-kill-buffer-visiting (filename)
+  "If there is any buffer visiting FILENAME, kill it (without confirmation)."
+  (let ((l (buffer-list)))
+    (while l
+      (if (string= (buffer-file-name (car l)) filename)
+	  (kill-buffer (car l)))
+      (setq l (cdr l)))))
+
+(defun cvs-change-cvsroot (newroot)
+  "Change the cvsroot."
+  (interactive "DNew repository: ")
+  (if (or (file-directory-p (expand-file-name "CVSROOT" newroot))
+	  (y-or-n-p (concat "Warning: no CVSROOT found inside repository."
+			    " Change cvs-cvsroot anyhow?")))
+      (setq cvs-cvsroot newroot)))
+
 (if (string-match "Lucid" emacs-version)
     (progn
       (autoload 'pcl-cvs-fontify "pcl-cvs-lucid")
       (add-hook 'cvs-mode-hook 'pcl-cvs-fontify)))
-

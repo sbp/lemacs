@@ -1,6 +1,6 @@
-# $Id: Makefile,v 1.1 1992/10/29 02:43:36 jwz Exp $
-# Makefile for pcl-cvs release 1.03.1.
-# Copyright (C) 1992  Per Cederqvist
+# @(#) Id: dist-makefile,v 1.19 1993/05/31 22:43:45 ceder Exp 
+# Makefile for pcl-cvs release 1.05.
+# Copyright (C) 1992, 1993  Per Cederqvist
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,12 +21,14 @@
 
 lispdir = /usr/local/lib/elisp
 
-emacs = lemacs
-
 # Where to install the info file.
 
 prefix=/usr/local
 infodir = $(prefix)/info
+
+# Used to byte-compile files.
+
+EMACS=lemacs
 
 #
 # The rest of this file should not need to be modified.
@@ -35,8 +37,8 @@ infodir = $(prefix)/info
 # Just in case...
 SHELL = /bin/sh
 
-ELFILES = pcl-cvs.el cookie.el elib-dll.el elib-node.el
-ELCFILES = pcl-cvs.elc cookie.elc elib-dll.elc elib-node.elc
+ELFILES = pcl-cvs.el pcl-cvs-lucid.el
+ELCFILES = pcl-cvs.elc pcl-cvs-lucid.elc
 INFOFILES = pcl-cvs
 TEXTMPS = pcl-cvs.aux pcl-cvs.log pcl-cvs.toc pcl-cvs.dvi pcl-cvs.cp \
 	pcl-cvs.fn pcl-cvs.vr pcl-cvs.tp pcl-cvs.ky pcl-cvs.pg \
@@ -68,6 +70,7 @@ info pcl-cvs: pcl-cvs.texinfo
 	makeinfo +fill-column=70 pcl-cvs.texinfo
 
 pcl-cvs.dvi: pcl-cvs.texinfo
+	tex pcl-cvs.texinfo
 	tex pcl-cvs.texinfo
 	-texindex pcl-cvs.cp pcl-cvs.fn pcl-cvs.vr pcl-cvs.tp pcl-cvs.ky \
 		pcl-cvs.pg

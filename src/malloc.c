@@ -653,7 +653,7 @@ realloc (mem, n)
 
     if ((new = malloc (n)) == 0)
       return 0;
-    bcopy (mem, new, tocopy);
+    memcpy (new, mem, tocopy);
     free (mem);
     return new;
   }
@@ -694,7 +694,7 @@ unsigned size;
 {
   return memalign (getpagesize (), size);
 }
-#endif /* not hpux */
+#endif /* not __hpux */
 #endif /* not VMS */
 
 #ifdef MSTATS

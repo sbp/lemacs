@@ -1,5 +1,5 @@
 ;; Compose-key processing in emacs.
-;; Copyright (C) 1992-1993 Free Software Foundation, Inc.
+;; Copyright (C) 1992, 1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -92,10 +92,14 @@
 (defvar compose-tilde-map	(make-sparse-keymap))
 (defvar compose-ring-map	(make-sparse-keymap))
 
+;;; The command `compose-key' exists so that this file may be autoloaded.
+(define-function 'compose-key compose-map)
+
 ;; The "Compose" key:
+;; (keysym is lower case because we downcase everything in the Symbol font...)
 ;;
-(define-key global-map [multi_key]	compose-map)
-;; (it's lower case because we downcase everything in the Symbol font...)
+;;;###autoload
+(define-key global-map [multi_key]	'compose-key)
 
 ;; The "Dead" keys:
 ;;
@@ -262,6 +266,7 @@
 ;;; The contents of the "dead key" maps.  These are shared by the
 ;;; compose-map.
 
+(set-keymap-name compose-acute-map 'compose-acute-map)
 (define-key compose-acute-map " "	"'")
 (define-key compose-acute-map "'"	[acute])
 (define-key compose-acute-map "A"	[Aacute])
@@ -277,6 +282,7 @@
 (define-key compose-acute-map "u"	[uacute])
 (define-key compose-acute-map "y"	[yacute])
 
+(set-keymap-name compose-grave-map 'compose-grave-map)
 (define-key compose-grave-map " "	[grave])
 (define-key compose-grave-map "A"	[Agrave])
 (define-key compose-grave-map "E"	[Egrave])
@@ -289,10 +295,12 @@
 (define-key compose-grave-map "o"	[ograve])
 (define-key compose-grave-map "u"	[ugrave])
 
+(set-keymap-name compose-cedilla-map 'compose-cedilla-map)
 (define-key compose-cedilla-map ","	[cedilla])
 (define-key compose-cedilla-map "C"	[Ccedilla])
 (define-key compose-cedilla-map "c"	[ccedilla])
 
+(set-keymap-name compose-diaeresis-map 'compose-diaeresis-map)
 (define-key compose-diaeresis-map " "	[diaeresis])
 (define-key compose-diaeresis-map "\""	[diaeresis])
 (define-key compose-diaeresis-map "A"	[Adiaeresis])
@@ -307,6 +315,7 @@
 (define-key compose-diaeresis-map "u"	[udiaeresis])
 (define-key compose-diaeresis-map "y"	[ydiaeresis])
 
+(set-keymap-name compose-circumflex-map 'compose-circumflex-map)
 (define-key compose-circumflex-map " "	"^")
 (define-key compose-circumflex-map "/"	"|")
 (define-key compose-circumflex-map "!"	[brokenbar])
@@ -328,6 +337,7 @@
 (define-key compose-circumflex-map "o"	[ocircumflex])
 (define-key compose-circumflex-map "u"	[ucircumflex])
 
+(set-keymap-name compose-tilde-map 'compose-tilde-map)
 (define-key compose-tilde-map " "	"~")
 (define-key compose-tilde-map "A"	[Atilde])
 (define-key compose-tilde-map "N"	[Ntilde])
@@ -336,6 +346,7 @@
 (define-key compose-tilde-map "n"	[ntilde])
 (define-key compose-tilde-map "o"	[otilde])
 
+(set-keymap-name compose-ring-map 'compose-ring-map)
 (define-key compose-ring-map " "	[degree])
 (define-key compose-ring-map "A"	[Aring])
 (define-key compose-ring-map "a"	[aring])
@@ -344,6 +355,7 @@
 ;;; The rest of the compose-map.  These are the composed characters
 ;;; that are not accessible via "dead" keys.
 
+(set-keymap-name compose-map 'compose-map)
 (define-key compose-map " '"	"'")
 (define-key compose-map " ^"	"^")
 (define-key compose-map " `"	"`")
@@ -609,7 +621,6 @@
 		       (cdr (nreverse (append (this-command-keys) nil))))))
 	 (map (or (key-binding keys)
 		  (error (format "can't find map?  %s" (this-command-keys)))))
-	 (event (allocate-event))
 	 old-ctl-arrow)
     (with-output-to-temp-buffer "*Help*"
       (set-buffer "*Help*")
@@ -621,11 +632,15 @@
       (insert "\nCompletions from here are:\n\n")
       (map-keymap 'compose-help-mapper map t)
       (message "? "))
-    (while (keymapp
-	    (setq map (lookup-key map (vector (next-command-event event))))))
-    (if map
-	(command-execute map)
-      (setq unread-command-event event))))
+    (let (event)
+      (while (progn
+	       (setq event (next-command-event))
+	       (setq map (lookup-key map (vector event)))
+	       (keymapp map))
+        )
+      (if map
+	  (command-execute map)
+        (setq unread-command-event event)))))
 
 (put 'compose-help 'isearch-command t)	; so that it doesn't terminate isearch
 

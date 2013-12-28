@@ -29,16 +29,20 @@ Modified Jan 93 by Hamish Macdonald for HPUX
 
 #include "config.h"
 
+#include <stdarg.h>
 #include <sys/param.h>
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <string.h>
 #include <stdio.h>
+#include <signal.h>
 #include <a.out.h>
 #include <unistd.h>
 #include <ctype.h>
 #include <sys/dir.h>
+
+#include "sysdep.h"
 
 /********************** Macros *************************************/
 
@@ -53,8 +57,7 @@ Modified Jan 93 by Hamish Macdonald for HPUX
 
 /********************** Function Prototypes/Declarations ***********/
 
-static void unexec_error (char *m, int use_errno, 
-                          char *a1, char *a2, char *a3);
+static void unexec_error (const char *fmt, int use_errno, ...);
 static int unexec_open (char *filename, int flag, int mode);
 static long unexec_seek (int fd, long position);
 static void unexec_read (int fd, long position, char *buf, int bytes);
@@ -70,7 +73,6 @@ int run_time_remap (char *dummy);
 
 /* for reporting error messages from system calls */
 extern int sys_nerr;
-extern char *sys_errlist[];
 extern int errno;
 extern int _DYNAMIC;
 extern char **environ;             
@@ -80,13 +82,18 @@ static unsigned long sbrk_of_0_at_unexec;
 /*******************************************************************/
 
 static void
-unexec_error (char *m, int use_errno, char *a1, char *a2, char *a3)
+unexec_error (const char *fmt, int use_errno, ...)
 {
-  char *err_msg = SYS_ERR;
+  const char *err_msg = SYS_ERR;
+  va_list args;
 
   fprintf (stderr, "unexec - ");
-  fprintf (stderr, m, a1, a2, a3);
-  if (use_errno) fprintf (stderr, ": %s", err_msg);
+  va_start (args, use_errno);
+  vfprintf (stderr, fmt, args);
+  va_end (args);
+
+  if (use_errno)
+      fprintf (stderr, ": %s", err_msg);
   fprintf (stderr, "\n");
   exit (1);
   return;
@@ -102,7 +109,10 @@ unexec_open (char *filename, int flag, int mode)
   fd = open (filename, flag, mode);
 
   if (fd < 0)
-    unexec_error ("Failure opening file %s", 1, (void *) filename, 0, 0);
+    {
+      unexec_error ("Failure opening file %s", 1, (void *) filename, 0, 0);
+      return -1;
+    }
   else
     return fd;
 }
@@ -185,7 +195,6 @@ unexec_write (int fd, long position, char *buf, int bytes)
 static void
 unexec_copy (int new_fd, int old_fd, long old_pos, long new_pos, int bytes)
 {
-    int n_written;
     int remains = bytes;        
     char buf[128];
 
@@ -259,12 +268,9 @@ unexec (char *new_name, char *old_name,
   /* old and new state */
   int old_fd;
   int new_fd;
-  caddr_t old_base_addr;
-  caddr_t new_base_addr;
   struct exec old_hdr;
   struct exec new_hdr;
   struct stat old_buf;
-  struct stat new_buf;
   /* some process specific "constants" */
   unsigned long n_pagsiz;
   caddr_t dynamic_beg;

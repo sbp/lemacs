@@ -2,6 +2,11 @@
 ;;;%Header
 ;;; Bridge process filter, V1.0
 ;;; Copyright (C) 1991 Chris McConnell, ccm@cs.cmu.edu  
+;;;
+;;; Send mail to ilisp-bug@darwin.bu.edu if you have problems.
+;;;
+;;; Send mail to ilisp-request@darwin.bu.edu if you want to be on the
+;;; ilisp mailing list.
 
 ;;; This file is part of GNU Emacs.
 
@@ -172,7 +177,7 @@ handler executed without error."
        (ding)
        (setq failed t)
        (message "bridge-handler \"%s\" failed %s (see bridge-last-failure)"
-		function err)
+		handler err)
        (setq bridge-last-failure
 	     (` ((funcall '(, handler) '(, proc) (, string))
 		 "Caused: "

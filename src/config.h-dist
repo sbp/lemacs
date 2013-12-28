@@ -20,13 +20,14 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #ifndef _CONFIG_H_
 #define _CONFIG_H_
 
-/* Allow Emacses larger than 16 megabytes.  */
-
-#ifndef VALBITS
-#define VALBITS 26
-#define GCTYPEBITS 5
+#define TIME_WITH_SYS_TIME /* >>>> should be done via "config" */
+#ifndef HAVE_CONFIG_H
+#define HAVE_CONFIG_H
 #endif
 
+#define LOWTAGS
+
+
 /* Define USE_GCC to compile with GCC.
    Define USE_LCC to compile with Lucid C.
    Otherwise, "cc" will be used.
@@ -42,14 +43,14 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    the s- files to use for them.  See s-template.h for documentation on 
    writing s- files.
  */
-#include "s/s-sunos4shr.h"
+#include "s/sunos4-1.h"
 
 /* Include here a m- file that describes the machine and system you use.
    See the file ../etc/MACHINES for a list of machines and the names of 
    the m- files to use for them.   See m-template.h for info on what m- 
    files should define.
  */
-#include "m/m-sparc.h"
+#include "m/sparc.h"
 
 /* Load in the conversion definitions if this system
    needs them and the source file being compiled has not
@@ -74,23 +75,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* Define HAVE_XPM if you have the `xpm' library and want emacs to use it. */
 #define HAVE_XPM
 
-/* Define `subprocesses' if you want to have code for asynchronous
-   subprocesses (as used in M-x compile and M-x shell).  These do not
-   work for some USG systems yet; for the ones where they work, the
-   s-*.h file defines this flag.  */
-
-#ifndef VMS
-#ifndef USG
-#define subprocesses
-#endif
-#endif
-
-/* Define the return type of signal handlers if the s-xxx file
-   did not already do so.  */
-#ifndef SIGTYPE
-#define SIGTYPE void
-#endif
-
 /* Define USER_FULL_NAME to return a string
    that is the user's full name.
    It can assume that the variable `pw'
@@ -110,8 +94,9 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* Define HIGHPRI as a negative number if you want Emacs to run at a higher
    than normal priority.  For this to take effect, you must install it as
-   setuid root. */
-
+   setuid root.  Emacs will change back to the users's own uid after setting
+   its priority.
+ */
 /* #define HIGHPRI */
 
 /* support `getenv' and `setenv' in Emacs (unix only) */
@@ -121,9 +106,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    numbers. */
 
 #define LISP_FLOAT_TYPE
-
-/* Define this for new syntax parsing code that works with C++ mode. */
-#define NEW_SYNTAX
 
 /* Define GNU_MALLOC if you want to use the *new* GNU memory allocator.
    If you have trouble with _malloc being multiply-defined, or if you're
@@ -152,12 +134,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* #define NEED_STRDUP */
 /* #define NEED_REALPATH */
 
-
-/* Define REL_ALLOC if you want to use the relocating allocator for
-   buffer space.  (There are too many problems with this right now.) */
-
-/* #define REL_ALLOC */
-
 /* Define ENERGIZE to compile with support for the Energize Programming System.
    If you do this, don't forget to define ENERGIZE in lwlib/Imakefile as well.
    You will need to set your C_SWITCH_SITE and LD_SWITCH_SITE to point at the
@@ -176,10 +152,10 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define LWLIB_HAS_EXTENSIONS
 #endif
 
-/* Sun SparStations and SGI machines have support for playing different sound
-   files as beeps.  If you are on a SparcStation but do not have the sound 
-   option installed for some reason (It's usually in /usr/demo/SOUND/) then
-   undefine USE_SOUND.
+/* Sun SparStations, SGI machines, and HP9000s700s have support for playing
+   different sound files as beeps.  If you are on a SparcStation but do not 
+   have the sound option installed for some reason (It's usually found in
+   /usr/demo/SOUND/) then undefine USE_SOUND.
  */
 /* #undef USE_SOUND */
 
@@ -207,6 +183,40 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #endif
 
 
+/* Define `subprocesses' if you want to have code for asynchronous
+   subprocesses (as used in M-x compile and M-x shell).  These do not
+   work for some USG systems yet; for the ones where they work, the
+   s- file defines this flag.  */
+
+#ifndef VMS
+#ifndef USG
+#define subprocesses
+#endif
+#endif
+
+/* Define the return type of signal handlers if the s-xxx file
+   did not already do so.  */
+#ifndef SIGTYPE
+#define SIGTYPE void
+#define SIGRETURN return
+#endif
+
+/* Define REL_ALLOC if you want to use the relocating allocator for
+   buffer space.  (There are too many problems with this right now.)
+ */
+/* #define REL_ALLOC */
+
+/* Some s- files may define SYSTEM_MALLOC, in which case make sure
+   we don't use REL_ALLOC. */
+#ifdef SYSTEM_MALLOC
+#ifdef GNU_MALLOC
+#undef GNU_MALLOC
+#ifdef REL_ALLOC
+#undef REL_ALLOC
+#endif
+#endif
+#endif
+
 #ifdef THIS_IS_YMAKEFILE
 
 /* Define LD_SWITCH_SITE to contain any special flags your loader may
@@ -214,14 +224,14 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    X libraries aren't in a place that your loader can find on its own,
    you might want to add "-L/..." or something similar.  */
 
-/* #define LD_SWITCH_SITE -L/x11r4/usr.`arch`/lib */
+/* #define LD_SWITCH_SITE -L/x11r5/usr.`arch`/lib */
 
 /* Define C_SWITCH_SITE to contain any special flags your compiler may
    need.  For instance, if you've defined HAVE_X_WINDOWS above and your
    X include files aren't in a place that your compiler can find on its
    own, you might want to add "-I/..." or something similar.  */
 
-/* #define C_SWITCH_SITE -I/x11r4/usr/include */
+/* #define C_SWITCH_SITE -I/x11r5/usr/include */
 
 #ifdef USE_GCC
 /* Depending on how GCC is installed, you may need to add the gcc library
@@ -229,11 +239,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    __fixunsdfsi or__main being undefined, you probably need to do this. */
 
 /* #define LIB_GCC /cadillacgnu/lib/sun4/gcc-gnulib */
-
-/* this kludge is because gcc uses "-static" and "-dynamic", while everyone
-   else in the world uses "-Bstatic" and "-Bdynamic". */
-# define Bstatic  static
-# define Bdynamic dynamic
 
 #endif /* USE_GCC */
 

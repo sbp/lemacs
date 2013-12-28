@@ -614,8 +614,7 @@ CHAR is given it becomes the first character of the command."
   (interactive "P")
   (let (com (buff (current-buffer)) (first t))
     (if char (setq unread-command-char char
-		   unread-command-event
-		   (character-to-event char (allocate-event))))
+		   unread-command-event (character-to-event char)))
     (setq prefix-arg arg)
     (while (or first (>= unread-command-char 0))
       ;; this while loop is executed until unread command char will be
@@ -684,7 +683,7 @@ obtained so far, and COM is the command part obtained so far."
     (vip-describe-arg prefix-arg)
     (setq char (read-char)))
   (setq unread-command-char char
-	unread-command-event (character-to-event char (allocate-event))))
+	unread-command-event (character-to-event char)))
 
 (defun vip-prefix-arg-com (char value com)
   "Vi operator as prefix argument."
@@ -734,7 +733,7 @@ obtained so far, and COM is the command part obtained so far."
 	  (vip-describe-arg prefix-arg)
 	  (setq char (read-char)))
 	(setq unread-command-char char
-	      unread-command-event (character-to-event char (allocate-event))))
+	      unread-command-event (character-to-event char)))
     ;; as com is non-nil, this means that we have a command to execute
     (if (or (= (car com) ?r) (= (car com) ?R))
 	;; execute apropriate region command.

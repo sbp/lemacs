@@ -100,9 +100,12 @@ previous N-1 messages."
 on the marked messages in the current folder."
   (interactive)
   (message "Next command uses marks...")
-  (if (fboundp 'next-command-event)
-      (setq unread-command-event (next-command-event (allocate-event)))
-    (setq unread-command-char (read-char))))
+  (cond
+   ((vm-fsf-emacs-19-p)
+    (setq unread-command-events (list (read-char))))
+   ((vm-lucid-emacs-p)
+    (setq unread-command-event (next-command-event (allocate-event))))
+   ((setq unread-command-char (read-char)))))
 
 (defun vm-marked-messages ()
   (let (list (mp vm-message-list))

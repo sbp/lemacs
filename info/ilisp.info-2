@@ -1,0 +1,485 @@
+This is Info file ilisp.info, produced by Makeinfo-1.49 from the input
+file ilisp.texi.
+
+   This file documents ILISP.
+
+   This is edition 0.11 of the ILISP manual for ILISP Version 5.5.
+
+   Copyright (C) 1991,1992,1993 Todd Kaufmann
+
+   Permission is granted to make and distribute verbatim copies of this
+manual provided the copyright notice and this permission notice are
+preserved on all copies.
+
+   Permission is granted to copy and distribute modified versions of
+this manual under the conditions for verbatim copying, provided that
+the entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+
+   Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that this permission notice may be stated in a
+translation approved by the Foundation.
+
+
+File: ilisp.info,  Node: Concept index,  Next: Key index,  Prev: Dialects,  Up: Top
+
+Concept Index
+*************
+
+* Menu:
+
+* *Aborted Commands* buffer:            Buffers of ILISP.
+* *Aborted Commands* buffer:            Interrupts.
+* *All-Callers* buffer:                 Buffers of ILISP.
+* *All-Callers* buffer:                 Source code commands.
+* *Changed-Definitions* buffer:         Buffers of ILISP.
+* *Completions* buffer:                 Buffers of ILISP.
+* *Edit-Definitions* buffer:            Buffers of ILISP.
+* *Edit-Definitions* buffer:            Source code commands.
+* *Error Output* buffer:                Buffers of ILISP.
+* *Errors* buffer:                      Buffers of ILISP.
+* *ilisp-send* buffer:                  Buffers of ILISP.
+* *Last-Changes* buffer:                Batch commands.
+* *Last-Changes* buffer:                Buffers of ILISP.
+* *Output* buffer:                      Buffers of ILISP.
+* comint-mode:                          Command history.
+* .el files:                            Files of ILISP.
+* .emacs forms:                         Autoloading.
+* bridge.el:                            Files of ILISP.
+* comint-ipc.el:                        Files of ILISP.
+* comint.el:                            Files of ILISP.
+* compat.el:                            Files of ILISP.
+* completer.el:                         Files of ILISP.
+* epoch-pop.el:                         Files of ILISP.
+* ilisp-bat.el:                         Files of ILISP.
+* ilisp-bug.el:                         Files of ILISP.
+* ilisp-cl.el:                          Files of ILISP.
+* ilisp-cmp.el:                         Files of ILISP.
+* ilisp-cmt.el:                         Files of ILISP.
+* ilisp-def.el:                         Files of ILISP.
+* ilisp-doc.el:                         Files of ILISP.
+* ilisp-el.el:                          Files of ILISP.
+* ilisp-ext.el:                         Files of ILISP.
+* ilisp-hi.el:                          Files of ILISP.
+* ilisp-hnd.el:                         Files of ILISP.
+* ilisp-ind.el:                         Files of ILISP.
+* ilisp-inp.el:                         Files of ILISP.
+* ilisp-key.el:                         Files of ILISP.
+* ilisp-kil.el:                         Files of ILISP.
+* ilisp-low.el:                         Files of ILISP.
+* ilisp-mod.el:                         Files of ILISP.
+* ilisp-mov.el:                         Files of ILISP.
+* ilisp-out.el:                         Files of ILISP.
+* ilisp-prc.el:                         Files of ILISP.
+* ilisp-prn.el:                         Files of ILISP.
+* ilisp-rng.el:                         Files of ILISP.
+* ilisp-snd.el:                         Files of ILISP.
+* ilisp-src.el:                         Files of ILISP.
+* ilisp-sym.el:                         Files of ILISP.
+* ilisp-utl.el:                         Files of ILISP.
+* ilisp-val.el:                         Files of ILISP.
+* ilisp-xfr.el :                        Files of ILISP.
+* ilisp.el:                             Files of ILISP.
+* ilisp.emacs:                          Files of ILISP.
+* ilisp.texi:                           Files of ILISP.
+* popper.el:                            Files of ILISP.
+* symlink-fix.el:                       Files of ILISP.
+* and-go functions:                     Eval and compile functions.
+* Aborting commands:                    Interrupts.
+* Anonymous FTP:                        FTP directions.
+* Apropos help:                         Documentation functions.
+* Arglist lisp:                         Documentation functions.
+* autoload definitions:                 Autoloading.
+* Break loop:                           Interrupts.
+* Buffer package:                       Package Commands.
+* Buffer package caching:               Package Commands.
+* buffers of ILISP:                     Buffers of ILISP.
+* bury output window:                   Popper buffers.
+* Byte-compiling ILISP files:           Makefile configuration.
+* Call:                                 Eval and compile functions.
+* Change commands:                      Batch commands.
+* Clearing changes:                     Batch commands.
+* Close all parens:                     Miscellany.
+* Close brackets:                       Miscellany.
+* Command history:                      Command history.
+* Comment region:                       Miscellany.
+* Common Lisp manual:                   Documentation functions.
+* Compile last form:                    Eval and compile functions.
+* Compile region:                       Eval and compile functions.
+* Compile/eval commands:                Eval and compile functions.
+* Compiling changes:                    Batch commands.
+* Compiling files:                      Files and directories.
+* Compiling ILISP files:                Makefile configuration.
+* Completion:                           Completion.
+* Current directory:                    Files and directories.
+* Currently running command:            Eval and compile functions.
+* Customization:                        Customization.
+* Default directory:                    Files and directories.
+* defining autoloads:                   Autoloading.
+* Defining new dialects:                Defining new dialects.
+* Defun:                                Eval and compile functions.
+* Describing bindings:                  Eval and compile functions.
+* Describing lisp objects:              Documentation functions.
+* Dialect startup:                      Customization.
+* Dialects:                             Dialects.
+* Dialects supported:                   Starting up.
+* Directories and files:                Files and directories.
+* Displaying commands:                  Eval and compile functions.
+* Documentation Functions:              Documentation functions.
+* epoch popper:                         Popper buffers.
+* Errors:                               Interrupts.
+* Eval region:                          Eval and compile functions.
+* Eval'ing changes:                     Batch commands.
+* Eval/compile commands:                Eval and compile functions.
+* Expanding macro forms:                Macroexpansion.
+* features:                             Introduction.
+* File changes:                         Batch commands.
+* Filename completion:                  Completion.
+* Files and directories:                Files and directories.
+* Files of ILISP:                       Files of ILISP.
+* Find callers:                         Source code commands.
+* Find file:                            Files and directories.
+* Find unbalanced parens:               Miscellany.
+* Finding source:                       Source code commands.
+* First prompt:                         Customization.
+* Franz manual:                         Documentation functions.
+* FTP site:                             FTP directions.
+* Getting ILISP:                        FTP directions.
+* Group changes:                        Batch commands.
+* grow output window:                   Popper buffers.
+* Hooks:                                Customization.
+* How to get:                           FTP directions.
+* ILISP buffers:                        Buffers of ILISP.
+* ILISP Mode Hooks:                     Customization.
+* In-package form:                      Package Commands.
+* Indentation:                          Miscellany.
+* Input search:                         Command history.
+* Inserting calls:                      Eval and compile functions.
+* Inserting results:                    Eval and compile functions.
+* Installation:                         Installation.
+* Interactive keyboard mode:            Keyboard modes.
+* Internal ILISP functions:             Writing new commands.
+* Interrupting commands:                Interrupts.
+* Last command:                         Command history.
+* Lisp find file:                       Files and directories.
+* List callers:                         Source code commands.
+* Listing bindings:                     Eval and compile functions.
+* Listing changes:                      Batch commands.
+* Loading files:                        Files and directories.
+* Macroexpansion:                       Macroexpansion.
+* Marking changes:                      Batch commands.
+* Minibuffer completion:                Documentation functions.
+* Modeline status:                      Eval and compile functions.
+* Negative prefix:                      Documentation functions.
+* Next definition:                      Source code commands.
+* Next input:                           Command history.
+* Package commands:                     Package Commands.
+* Parenthesis balancing:                Miscellany.
+* Partial completion:                   Completion.
+* Pop in break loop:                    Interrupts.
+* Popper buffers:                       Popper buffers.
+* Previous commands:                    Command history.
+* Previous definition:                  Source code commands.
+* Previous lisp buffer:                 Switching buffers.
+* Raw keyboard mode:                    Keyboard modes.
+* Region commands:                      Eval and compile functions.
+* Reindent lisp:                        Miscellany.
+* Replace lisp:                         Source code commands.
+* Resetting lisp:                       Interrupts.
+* Rigid indentation:                    Miscellany.
+* Running lisp:                         Starting up.
+* scrolling output:                     Popper buffers.
+* Search input:                         Command history.
+* Sending input to lisp:                Eval and compile functions.
+* Set buffer package:                   Package Commands.
+* Set default directory:                Files and directories.
+* Show current package:                 Package Commands.
+* Similar input:                        Command history.
+* Source Code Commands:                 Source code commands.
+* Source modes:                         Source code commands.
+* Starting up lisp:                     Starting up.
+* Status light:                         Eval and compile functions.
+* Supported dialects:                   Starting up.
+* Switching buffers:                    Switching buffers.
+* Symbolic link expansion:              Files and directories.
+* TMC completion:                       Completion.
+* Top-level, return to:                 Interrupts.
+* Tracing defuns:                       Tracing functions.
+* Turning popper off:                   Popper buffers.
+* Uncomment region:                     Miscellany.
+* Untracing defuns:                     Tracing functions.
+
+
+File: ilisp.info,  Node: Key index,  Next: Command index,  Prev: Concept index,  Up: Top
+
+Key Index
+*********
+
+* Menu:
+
+* TAB:                                  Miscellany.
+* C-z !:                                Files and directories.
+* C-z #:                                Keyboard modes.
+* C-z ):                                Miscellany.
+* C-z * 0:                              Batch commands.
+* C-z * c:                              Batch commands.
+* C-z * e:                              Batch commands.
+* C-z * l:                              Batch commands.
+* C-z ;:                                Miscellany.
+* C-z a:                                Documentation functions.
+* C-z A:                                Documentation functions.
+* C-z b:                                Switching buffers.
+* C-z c:                                Eval and compile functions.
+* C-z C-c:                              Eval and compile functions.
+* C-z C-e:                              Eval and compile functions.
+* C-z C-n:                              Eval and compile functions.
+* C-z C-r:                              Eval and compile functions.
+* C-z C-w:                              Eval and compile functions.
+* C-z d:                                Documentation functions.
+* C-z D:                                Documentation functions.
+* C-z e:                                Eval and compile functions.
+* C-z g:                                Interrupts.
+* C-z g:                                Eval and compile functions.
+* C-z I:                                Documentation functions.
+* C-z i:                                Documentation functions.
+* C-z i:                                Documentation functions.
+* C-z k:                                Files and directories.
+* C-z l:                                Files and directories.
+* C-z M:                                Macroexpansion.
+* C-z m:                                Macroexpansion.
+* C-z n:                                Eval and compile functions.
+* C-z P:                                Package Commands.
+* C-z p:                                Package Commands.
+* C-z prefix:                           Eval and compile functions.
+* C-z r:                                Eval and compile functions.
+* C-z s:                                Eval and compile functions.
+* C-z SPC:                              Batch commands.
+* C-z t:                                Tracing functions.
+* C-z w:                                Eval and compile functions.
+* C-z z:                                Interrupts.
+* C-z ^:                                Source code commands.
+* M-TAB:                                Documentation functions.
+* TAB:                                  Documentation functions.
+* C-c R:                                Command history.
+* C-d:                                  Interrupts.
+* C-g:                                  Interrupts.
+* C-x C-f:                              Files and directories.
+* C-x o:                                Popper buffers.
+* C-z 1:                                Popper buffers.
+* C-z G:                                Popper buffers.
+* C-z v:                                Popper buffers.
+* C-]:                                  Eval and compile functions.
+* LFD:                                  Eval and compile functions.
+* M-":                                  Source code commands.
+* M-,:                                  Source code commands.
+* M-.:                                  Source code commands.
+* M-?:                                  Source code commands.
+* M-C-l:                                Switching buffers.
+* M-C-q:                                Miscellany.
+* M-C-x:                                Eval and compile functions.
+* M-n:                                  Command history.
+* M-N:                                  Command history.
+* M-p:                                  Command history.
+* M-P:                                  Command history.
+* M-q:                                  Miscellany.
+* M-RET:                                Completion.
+* M-s:                                  Command history.
+* M-TAB:                                Completion.
+* M-x io-bridge-ilisp:                  Keyboard modes.
+* M-x lisp-directory:                   Source code commands.
+* M-x set-buffer-package-lisp:          Package Commands.
+* M-x who-calls-lisp:                   Source code commands.
+* M-`:                                  Source code commands.
+* RET:                                  Eval and compile functions.
+* ]:                                    Miscellany.
+
+
+File: ilisp.info,  Node: Command index,  Next: Variable index,  Prev: Key index,  Up: Top
+
+Command Index
+*************
+
+Commands available via `M-x' prefix.
+
+* Menu:
+
+* abort-commands-lisp:                  Interrupts.
+* abort-commands-lisp:                  Eval and compile functions.
+* akcl:                                 Starting up.
+* allegro:                              Starting up.
+* arglist-lisp:                         Documentation functions.
+* clear-changes-lisp:                   Batch commands.
+* clisp:                                Starting up.
+* close-all-lisp:                       Miscellany.
+* close-and-send-lisp:                  Eval and compile functions.
+* cmulisp:                              Starting up.
+* comint-msearch-input:                 Command history.
+* comint-msearch-input-matching:        Command history.
+* comint-next-input:                    Command history.
+* comint-previous-input:                Command history.
+* comint-previous-similar-input:        Command history.
+* comint-psearch-input:                 Command history.
+* comment-region-lisp:                  Miscellany.
+* compile-changes-lisp:                 Batch commands.
+* compile-defun-and-go-lisp:            Eval and compile functions.
+* compile-defun-lisp:                   Eval and compile functions.
+* compile-defun-lisp-and-go:            Eval and compile functions.
+* compile-file-lisp:                    Files and directories.
+* compile-region-and-go-lisp:           Eval and compile functions.
+* compile-region-lisp:                  Eval and compile functions.
+* complete:                             Completion.
+* complete-lisp:                        Completion.
+* default-directory-lisp:               Files and directories.
+* defdialect:                           Defining new dialects.
+* delete-char-or-pop-ilisp:             Interrupts.
+* describe-lisp:                        Documentation functions.
+* documentation-lisp:                   Documentation functions.
+* edit-callers-lisp:                    Source code commands.
+* edit-callers-lisp:                    Source code commands.
+* edit-definitions-lisp:                Source code commands.
+* eval-changes-lisp:                    Batch commands.
+* eval-defun-and-go-lisp:               Eval and compile functions.
+* eval-defun-and-go-lisp:               Eval and compile functions.
+* eval-defun-lisp:                      Eval and compile functions.
+* eval-next-sexp-and-go-lisp:           Eval and compile functions.
+* eval-next-sexp-lisp:                  Eval and compile functions.
+* eval-region-and-go-lisp:              Eval and compile functions.
+* eval-region-lisp:                     Eval and compile functions.
+* fi:clman:                             Documentation functions.
+* fi:clman-apropos:                     Documentation functions.
+* find-file-lisp:                       Files and directories.
+* find-unbalanced-lisp:                 Miscellany.
+* ibcl:                                 Starting up.
+* indent-line-ilisp:                    Miscellany.
+* indent-sexp-ilisp:                    Miscellany.
+* inspect-lisp:                         Documentation functions.
+* interrupt-subjob-ilisp:               Interrupts.
+* io-bridge-ilisp:                      Keyboard modes.
+* kcl:                                  Starting up.
+* lisp-directory:                       Source code commands.
+* list-changes-lisp:                    Batch commands.
+* load-file-lisp:                       Files and directories.
+* lucid:                                Starting up.
+* macroexpand-1-lisp:                   Macroexpansion.
+* macroexpand-lisp:                     Macroexpansion.
+* mark-change-lisp:                     Batch commands.
+* newline-and-indent-lisp:              Eval and compile functions.
+* next-caller-lisp:                     Source code commands.
+* next-definition-lisp:                 Source code commands.
+* next-definition-lisp:                 Source code commands.
+* oaklisp:                              Starting up.
+* package-lisp:                         Package Commands.
+* panic-lisp:                           Interrupts.
+* popper-bury-output:                   Popper buffers.
+* popper-grow-output:                   Popper buffers.
+* popper-other-window:                  Popper buffers.
+* popper-scroll-output:                 Popper buffers.
+* previous-buffer-lisp:                 Switching buffers.
+* raw-keys-ilisp:                       Keyboard modes.
+* reindent-lisp:                        Miscellany.
+* replace-lisp:                         Source code commands.
+* reset-ilisp:                          Interrupts.
+* return-ilisp:                         Eval and compile functions.
+* run-ilisp:                            Starting up.
+* scheme:                               Starting up.
+* search-lisp:                          Source code commands.
+* set-buffer-package-lisp:              Package Commands.
+* set-package-lisp:                     Package Commands.
+* setup-ilisp:                          Defining new dialects.
+* status-lisp:                          Eval and compile functions.
+* switch-to-lisp:                       Switching buffers.
+* trace-defun-lisp:                     Tracing functions.
+* who-calls-lisp:                       Source code commands.
+
+
+File: ilisp.info,  Node: Variable index,  Next: Function index,  Prev: Command index,  Up: Top
+
+Variable Index
+**************
+
+Variables and hooks of ILISP.
+
+* Menu:
+
+* *record-source-files*:                Source code commands.
+* DIALECT-hook:                         Customization.
+* auto-mode-alist:                      Source code commands.
+* comint-always-scroll:                 Popper buffers.
+* comint-mode-hook:                     Customization.
+* default-directory:                    Files and directories.
+* ilisp-defvar-regexp:                  Eval and compile functions.
+* ilisp-filter-length:                  Command history.
+* ilisp-filter-length:                  Customization.
+* ilisp-filter-regexp:                  Customization.
+* ilisp-filter-regexp:                  Command history.
+* ilisp-init-binary-command:            Makefile configuration.
+* ilisp-init-binary-extension:          Makefile configuration.
+* ilisp-init-hook:                      Customization.
+* ilisp-init-hook:                      Customization.
+* ilisp-load-hook:                      Customization.
+* ilisp-load-inits:                     Makefile configuration.
+* ilisp-locator:                        Source code commands.
+* ilisp-mode-hook:                      Customization.
+* ilisp-mode-hook:                      Customization.
+* ilisp-motd:                           Customization.
+* ilisp-other-prompt:                   Customization.
+* ilisp-package-regexp:                 Package Commands.
+* ilisp-prefix:                         Customization.
+* ilisp-prefix:                         Eval and compile functions.
+* ilisp-prefix-match:                   Completion.
+* ilisp-prefix-match:                   Customization.
+* ilisp-program:                        Customization.
+* ilisp-program:                        Makefile configuration.
+* ilisp-raw-echo:                       Keyboard modes.
+* ilisp-site-hook:                      Makefile configuration.
+* ilisp-site-hook:                      Customization.
+* lisp-dont-cache-package:              Package Commands.
+* lisp-edit-files:                      Source code commands.
+* lisp-no-popper:                       Popper buffers.
+* lisp-no-popper:                       Customization.
+* lisp-show-status:                     Eval and compile functions.
+* lisp-show-status:                     Customization.
+* lisp-source-modes:                    Source code commands.
+* lisp-wait-p:                          Eval and compile functions.
+* lisp-wait-p:                          Customization.
+* lisp-wait-p:                          Interrupts.
+* pop-up-windows:                       Switching buffers.
+* popper-buffers-to-skip:               Popper buffers.
+* popper-pop-buffers:                   Popper buffers.
+* popper-pop-buffers:                   Popper buffers.
+* popper-screen-properties:             Popper buffers.
+
+
+File: ilisp.info,  Node: Function index,  Prev: Variable index,  Up: Top
+
+Function Index
+**************
+
+Internal functions of ILISP which can be used to write new commands.
+
+* Menu:
+
+* compile-region-lisp:                  Writing new commands.
+* deflocal:                             Writing new commands.
+* eval-region-lisp:                     Writing new commands.
+* ilisp-compile-inits:                  Makefile configuration.
+* ilisp-completing-read:                Writing new commands.
+* ilisp-dialect:                        Writing new commands.
+* ilisp-package-command:                Package Commands.
+* ilisp-read:                           Writing new commands.
+* ilisp-read-symbol:                    Writing new commands.
+* ilisp-send:                           Writing new commands.
+* lisp-buffer-symbol:                   Writing new commands.
+* lisp-def-name:                        Writing new commands.
+* lisp-function-name:                   Writing new commands.
+* lisp-previous-sexp:                   Writing new commands.
+* lisp-previous-symbol:                 Writing new commands.
+* lisp-string-to-symbol:                Writing new commands.
+* lisp-symbol:                          Writing new commands.
+* lisp-symbol-delimiter:                Writing new commands.
+* lisp-symbol-name:                     Writing new commands.
+* lisp-symbol-package:                  Writing new commands.
+* lisp-symbol-to-string:                Writing new commands.
+
+

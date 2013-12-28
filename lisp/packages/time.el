@@ -1,13 +1,14 @@
 ;; Display time and load in mode line of Emacs.
-;; This uses the Lucid GNU Emacs timeout-event mechanism, via a 
-;; version of Kyle Jones' timer package.
-;; Copyright (C) 1985, 1986, 1987 Free Software Foundation, Inc.
+;; See also reportmail.el.
+;; This uses the Lucid Emacs timeout-event mechanism, via a version
+;; of Kyle Jones' timer package.
+;; Copyright (C) 1985, 1986, 1987, 1992 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -21,20 +22,37 @@
 
 (require 'timer)
 
+(defvar display-time-mail-file nil
+  "*File name of mail inbox file, for indicating existence of new mail.
+Default is system-dependent, and is the same as used by Rmail.")
+
+;;;###autoload
+;(defvar display-time-day-and-date nil "\
+;*Non-nil means \\[display-time] should display day and date as well as time.")
+
 (defvar display-time-interval 60
   "*Seconds between updates of time in the mode line.")
+
+(defvar display-time-24hr-format nil
+  "*Non-nill indicates time should be displayed as hh:mm, 0 <= hh <= 23.
+Nil means 1 <= hh <= 12, and an AM/PM suffix is used.")
 
 (defvar display-time-echo-area nil
   "*If non-nil, display-time will use the echo area instead of the mode line.")
 
+(defvar display-time-hook nil
+  "*List of functions to be called when the time is updated on the mode line.")
+
 (defvar display-time-string nil)
 
+;;;###autoload
 (defun display-time ()
-  "Display current time and load level in mode line of each buffer.
+  "Display current time, load level, and mail flag in mode line of each buffer.
 Updates automatically every minute.
-If display-time-day-and-date is non-nil, the current day and date
+If `display-time-day-and-date' is non-nil, the current day and date
 are displayed as well.
-If display-time-echo-area is non-nil, the time is displayed in the
+After each update, `display-time-hook' is run with `run-hooks'.
+If `display-time-echo-area' is non-nil, the time is displayed in the
 echo area instead of in the mode-line."
   (interactive)
   ;; if the "display-time" timer already exists, nuke it first.
@@ -60,8 +78,8 @@ echo area instead of in the mode-line."
   ;;
   ;; If we wanted to be really clever about this, we could have the timer
   ;; not be automatically restarted, but have it re-add itself each time.
-  ;; Then we could look at (current-time-seconds) and arrange for the timer
-  ;; to wake up exactly at the minute boundary.  But that's just a little
+  ;; Then we could look at (current-time) and arrange for the timer to
+  ;; wake up exactly at the minute boundary.  But that's just a little
   ;; more work than it's worth...
   (start-timer "display-time" 'display-time-function
 	       display-time-interval display-time-interval))
@@ -69,32 +87,41 @@ echo area instead of in the mode-line."
 
 (defun display-time-function ()
   (let ((time (current-time-string))
-	(load (format "%03d" (car (load-average))))
-	(mail-spool-file (concat rmail-spool-directory
-				 (or (getenv "LOGNAME")
-				     (getenv "USER")
-				     (user-login-name))))
-	hour pm string)
+	(load (format " %03d" (condition-case ()
+				 (car (load-average))
+			       (error 0))))
+	(mail-spool-file (or display-time-mail-file
+			     (getenv "MAIL")
+                             (concat rmail-spool-directory
+                                     (or (getenv "LOGNAME")
+                                         (getenv "USER")
+                                         (user-login-name)))))
+	hour am-pm-flag string)
     (setq hour (read (substring time 11 13)))
-    (setq pm (>= hour 12))
-    (if (> hour 12)
-	(setq hour (- hour 12))
-      (if (= hour 0)
-	  (setq hour 12)))
+    (if (not display-time-24hr-format)
+	(progn
+	  (setq am-pm-flag (if (>= hour 12) "pm" "am"))
+	  (if (> hour 12)
+	      (setq hour (- hour 12))
+	    (if (= hour 0)
+		(setq hour 12))))
+      (setq am-pm-flag ""))
     (setq string
 	  (concat (format "%d" hour) (substring time 13 16)
-		  (if pm "pm " "am ")
+		  am-pm-flag
 		  (substring load 0 -2) "." (substring load -2)
 		  (if (and (file-exists-p mail-spool-file)
 			   ;; file not empty?
-			   (> (nth 7 (file-attributes mail-spool-file)) 0))
+                           (< 0 (nth 7 (file-attributes
+                                        (file-chase-links mail-spool-file)))))
 		      " Mail"
-		    "")))
+                      "")))
     ;; Append the date if desired.
     (if display-time-day-and-date
 	(setq string (concat (substring time 0 11) string)))
+    (run-hooks 'display-time-hook)
     (if display-time-echo-area
-	(or (eq (selected-window) (minibuffer-window))
+	(or (> (minibuffer-depth) 0)
 	    ;; don't stomp echo-area-buffer if reading from minibuffer now.
 	    (save-excursion
 	      (save-window-excursion
@@ -106,6 +133,8 @@ echo area instead of in the mode-line."
       (setq display-time-string string)
       ;; Force redisplay of all buffers' mode lines to be considered.
       (save-excursion (set-buffer (other-buffer)))
-      (set-buffer-modified-p (buffer-modified-p)))))
+      (set-buffer-modified-p (buffer-modified-p))
+      ;; Do redisplay right now, if no input pending.
+      (sit-for 0))))
 
 (provide 'time)

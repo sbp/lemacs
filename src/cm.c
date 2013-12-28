@@ -1,5 +1,5 @@
 /* Cursor motion subroutines for GNU Emacs.
-   Copyright (C) 1985, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1992, 1993 Free Software Foundation, Inc.
     based primarily on public domain code written by Chris Torek
 
 This file is part of GNU Emacs.
@@ -24,35 +24,30 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "cm.h"
 #include "lisp.h"
 #include "termhooks.h"
-
-#ifndef tputs
-extern int tputs (char *, int, int (*) (char));
-#endif
+#include "dispmisc.h"
 
 #define	BIG	9999		/* 9999 good on VAXen.  For 16 bit machines
 				   use about 2000.... */
 
-char *tgoto ();
+extern char *tgoto (const char *cm, int hpos, int vpos);
 
-extern char *BC, *UP;
+extern const char *BC, *UP;
 
+/*>>> Great global variable name */
 int cost;		/* sums up costs */
 
-/* ARGSUSED */
-int
-evalcost (char c)
+void
+evalcost (int c)
 {
   cost++;
-  return 0;
 }
 
-int
-cmputc (char c)
+void
+cmputc (int c)
 {
   if (termscript)
     fputc (c & 0177, termscript);
   putchar (c & 0177);
-  return 0;
 }
 
 /* NEXT TWO ARE DONE WITH MACROS */
@@ -63,8 +58,9 @@ cmputc (char c)
  * let's let the guy put it anywhere.
  */
 
-static
-at (row, col) {
+static void
+at (int row, int col)
+{
     curY = row;
     curX = col;
 }
@@ -73,8 +69,9 @@ at (row, col) {
  * Add n columns to the current cursor position.
  */
 
-static
-addcol (n) {
+static void
+addcol (int n)
+{
     curX += n;
 
     /*
@@ -163,7 +160,7 @@ calccost (srcy, srcx, dsty, dstx, doit)
             tabx,
             tab2x,
             tabcost;
-    register char  *p;
+    register const char  *p;
 
     /* If have just wrapped on a terminal with xn,
        don't believe the cursor position: give up here
@@ -275,6 +272,7 @@ done:
 }
 
 #if 0
+static void
 losecursor ()
 {
   curY = -1;
@@ -296,8 +294,8 @@ cmgoto (row, col)
             relcost,
             directcost;
     int     use;
-    char   *p,
-           *dcm;
+    char   *p;
+    const char   *dcm;
 
   /* First the degenerate case */
   if (row == curY && col == curX)

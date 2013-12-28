@@ -21,7 +21,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define _EMACS_INSDEL_H_
 
 /* Move gap to position `pos'.   Note that this can quit!  */
-extern void move_gap (int pos);
+extern void move_gap (struct buffer *buf, int pos);
 
 /* Make the gap INCREMENT characters longer.  */
 extern void make_gap (int increment);
@@ -30,7 +30,7 @@ extern void make_gap (int increment);
    Run the before-change-function, if any.  */
 extern void prepare_to_modify_buffer (int start, int end);
 
-extern void modify_region (int start, int end);
+extern void modify_region (struct buffer *buf, int start, int end);
 
 /* Signal a change immediatly after it happens. */
 extern void signal_after_change (int pos, int lendel, int lenins);
@@ -39,26 +39,30 @@ extern void insert_relocatable_raw_string (const char *string,
                                            int length, 
                                            Lisp_Object obj);
 
-extern void insert_from_string (Lisp_Object obj, int pos, int length);
+#define insert_from_string(obj, length) \
+  insert_relocatable_raw_string (0, (length), (obj))
 
 /* Insert a raw string of specified length before point */
-extern void insert_raw_string (const char *string, int length);
+#define insert_raw_string(string, length) \
+  insert_relocatable_raw_string ((string), (length), Qzero)
 
-extern void insert (const char *string, int length);
+#define insert(string, length) \
+  insert_relocatable_raw_string ((string), (length), Qzero)
 
 /* Insert the null-terminated string S before point */
 extern void insert_string (const char *s);
 
 /* Insert the character C before point */
-/*   insert_relocatable_raw_string (&ch, 1, 0) */
-extern void insert_char (char c);
+/*   insert_relocatable_raw_string (&ch, 1, Qzero) */
+extern void insert_char (int ch);
 
 /* Like `insert_raw_string' except that all markers pointing
    at the place where the insertion happens are adjusted to point after it. */
-extern void insert_before_markers (const char *string, int length);
+extern void insert_before_markers (const char *string, int length,
+                                   Lisp_Object obj);
 
-extern void insert_from_string_before_markers (Lisp_Object string,
-                                               int pos, int length);
+#define insert_from_string_before_markers(string, length) \
+  insert_before_markers (0, (length), (string))
 
 /* Insert the string which begins at INDEX in buffer B into
    the current buffer at point. */

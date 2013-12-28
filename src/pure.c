@@ -1,4 +1,7 @@
 #include "config.h"
 #include "puresize.h"
+#include "lisp.h"
 
-int pure[PURESIZE / sizeof (int)] = {0,};   /* Force it into data space! */
+Lisp_Object pure[PURESIZE / sizeof (Lisp_Object)]
+     /* Force linker to put it into data space! */
+     = {0, };

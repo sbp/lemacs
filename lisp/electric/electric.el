@@ -21,37 +21,6 @@
 
 (provide 'electric)                           ; zaaaaaaap
 
-;; perhaps this should be in subr.el...
-(defun shrink-window-if-larger-than-buffer (window)
-  (if (not (and (one-window-p)
-		(eq (selected-window) window)))
-      (save-excursion
-	(set-buffer (window-buffer window))
-	(let ((w (selected-window))	;save-window-excursion can't win
-	      (buffer-file-name buffer-file-name)
-	      (p (point))
-	      (n 0)
-	      (window-min-height 0)
-	      (buffer-read-only nil)
-	      (modified (buffer-modified-p))
-	      (buffer (current-buffer)))
-	  (unwind-protect
-	      (progn
-		(select-window window)
-		(goto-char (point-min))
-		(while (pos-visible-in-window-p (point-max))
-		  ;; defeat file locking... don't try this at home, kids!
-		  (setq buffer-file-name nil)
-		  (insert ?\n) (setq n (1+ n)))
-		(if (> n 0) (shrink-window (1- n))))
-	    (delete-region (point-min) (point))
-	    (set-buffer-modified-p modified)
-	    (goto-char p)
-	    (select-window w)
-	    ;; Make sure we unbind buffer-read-only
-	    ;; with the proper current buffer.
-	    (set-buffer buffer))))))
-      
 ;; This loop is the guts for non-standard modes which retain control
 ;; until some event occurs.  It is a `do-forever', the only way out is to
 ;; throw.  It assumes that you have set up the keymap, window, and
@@ -74,12 +43,13 @@
 			      &optional prompt inhibit-quit
 					loop-function loop-state)
   (if (not prompt) (setq prompt "->"))
-  (let (cmd events err)
+  (let (cmd (err nil))
     (while t
-      (setq events (read-key-sequence
-		    (if (stringp prompt) prompt (funcall prompt))))
+      (setq cmd (read-key-sequence (if (stringp prompt)
+                                       prompt
+                                       (funcall prompt))))
       (or prefix-arg (setq last-command this-command))
-      (setq last-command-event (aref events (1- (length events)))
+      (setq last-command-event (aref cmd (1- (length cmd)))
 	    current-mouse-event
 	      (and (or (button-press-event-p last-command-event)
 		       (button-release-event-p last-command-event)
@@ -87,7 +57,7 @@
 		   last-command-event)
 	    this-command (if (menu-event-p last-command-event)
 			     last-command-event
-			   (key-binding events))
+                             (key-binding cmd))
 	    cmd this-command)
       (if (or (prog1 quit-flag (setq quit-flag nil))
 	      (eq (event-to-character last-input-event) interrupt-char))
@@ -110,6 +80,7 @@
 			     (if (not (eq b (current-buffer)))
 				 (throw return-tag (current-buffer)))))
 		       (command-execute cmd))
+		     (setq last-command this-command)
 		     (if (or (prog1 quit-flag (setq quit-flag nil))
 			     (eq (event-to-character last-input-event)
 				 interrupt-char))

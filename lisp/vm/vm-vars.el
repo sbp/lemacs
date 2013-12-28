@@ -131,7 +131,7 @@ to ask for confirmation before creating a new folder.")
   "*Non-nil value causes VM to remove empty (zero length) folder files
 after saving them.")
 
-(defvar vm-flush-interval 90
+(defvar vm-flush-interval t
   "*Non-nil value specifies how often VM flushes its cached internal
 data.  A numeric value gives the number of seconds between
 flushes.  A value of t means flush every time there is a change.
@@ -141,7 +141,7 @@ Normally when a message attribute is changed. VM keeps the record
 of the change in its internal memory and doesn't insert the
 changed data into the folder buffer until a particular message or
 the whole folder is saved to disk.  This makes normal Emacs
-auto-saving useless of VM folder buffers because the information
+auto-saving useless for VM folder buffers because the information
 you'd want to auto-save, i.e. the attribute changes, isn't in
 the buffer when it is auto-saved.
 
@@ -253,7 +253,7 @@ messages to have their own dinstinct set of attributes, apart from the
 underlying real message.
 
 The value of vm-virtual-mirror is considered only at the time a
-virtaul folder is visited.  Changing the value of vm-virtual-mirror
+virtual folder is visited.  Changing the value of vm-virtual-mirror
 does not affect the behavior of existing virtual folders.")
 
 (defvar vm-folder-read-only nil
@@ -385,6 +385,21 @@ centered within the summary window. A value of t causes VM to always
 keep arrow cenered.  A value of nil means VM will never bother centering
 the arrow.  A value that is not nil and not t causes VM to center the
 arrow only if the summary window is not the only existing window.")
+
+(defvar vm-summary-no-newlines-in-subject t
+  "*If true, then any newlines in the subject of a message will be replaced 
+with spaces in the summary buffer.")
+
+(defvar vm-uninteresting-senders nil
+  "*A regular expression matching those user-ids which are considered
+\"uninteresting\" in the VM summary buffer; messages whose From: field
+contains addresses which match this will have their recipient displayed
+in the summary buffer rather than the sender if the \"%u\" or \"%U\"
+format directive is used.  See also variable vm-uninteresting-arrow.")
+
+(defvar vm-uninteresting-arrow "=> "
+  "*The string used when the \"%u\" or \"%U\" format directive is 
+indicating the recipient of a message rather than the sender.")
 
 (defvar vm-mail-window-percentage 75
   "*Percentage of the screen that should be used to show mail messages.
@@ -538,8 +553,25 @@ were sent directly.")
 etc. when started in the usual way.")
 
 (defvar mail-yank-hooks nil
-  "*List of hook functions called after yanking a message into a *mail*
-buffer.  See the documentation for the function vm-yank-message for details.")
+  "Obsolete hook for modifying a citation just inserted in the mail buffer.
+Each hook function can find the citation between (point) and (mark t).
+And each hook function should leave point and mark around the citation
+text as modified.
+
+This is a normal hook, misnamed for historical reasons.
+It is semi-obsolete and mail agents should no longer use it.
+
+If this hook is entirely empty (nil), a default action is taken
+instead of no action.")
+
+(defvar mail-citation-hook nil
+  "*Hook for modifying a citation just inserted in the mail buffer.
+Each hook function can find the citation between (point) and (mark t).
+And each hook function should leave point and mark around the citation
+text as modified.
+
+If this hook is entirely empty (nil), a default action is taken
+instead of no action.")
 
 (defvar vm-show-message-hook nil
   "*List of hook functions called when a VM message is selected.
@@ -575,7 +607,7 @@ vm-show-message-hook will be run immediately after this hook.")
 
 (defvar vm-movemail-program "movemail"
   "*Name of program to use to move mail from the system spool
-to another location.  Normally this shoul be the movemail program
+to another location.  Normally this should be the movemail program
 distributed with Emacs.")
 
 (defvar vm-mode-map
@@ -755,22 +787,22 @@ specified by vm-edit-message-mode.")
   (or (and (boundp 'rmail-spool-directory) rmail-spool-directory)
       "/usr/spool/mail/"))
 (defconst vm-attributes-header-regexp
-  "^X-VM-\\(Attributes\\|v5-Data\\):\\(.*\n\\([ \t]+.*\n\\)*\\)")
+  "^X-VM-\\(Attributes\\|v5-Data\\):\\(.*\n\\([ \t].*\n\\)*\\)")
 (defconst vm-attributes-header "X-VM-v5-Data:")
 (defconst vm-message-order-header-regexp
-  "X-VM-Message-Order:\\(.*\n\\([ \t]+.*\n\\)*\\)")
+  "X-VM-Message-Order:\\(.*\n\\([ \t].*\n\\)*\\)")
 (defconst vm-message-order-header "X-VM-Message-Order:")
 (defconst vm-bookmark-header-regexp
-  "X-VM-Bookmark:\\(.*\n\\([ \t]+.*\n\\)*\\)")
+  "X-VM-Bookmark:\\(.*\n\\([ \t].*\n\\)*\\)")
 (defconst vm-bookmark-header "X-VM-Bookmark:")
 (defconst vm-vheader-header-regexp
-  "X-VM-VHeader:\\(.*\n\\([ \t]+.*\n\\)*\\)")
+  "X-VM-VHeader:\\(.*\n\\([ \t].*\n\\)*\\)")
 (defconst vm-vheader-header "X-VM-VHeader:")
 (defconst vm-berkeley-mail-status-header "Status: ")
 (defconst vm-berkeley-mail-status-header-regexp "^Status: \\(..?\\)\n")
 (defconst vm-generic-header-regexp
-  "^\\([^: \t\n]+\\)[\t ]*:\\(.*\n\\([ \t]+.*\n\\)*\\)")
-(defconst vm-header-regexp-format "^%s:[ \t]*\\(.*\\(\n[ \t]+.*\\)*\\)")
+  "^\\([^: \t\n]+\\)[\t ]*:\\(.*\n\\([ \t].*\n\\)*\\)")
+(defconst vm-header-regexp-format "^%s:[ \t]*\\(.*\\(\n[ \t].*\\)*\\)")
 (defconst vm-supported-groupings-alist
   '(("physical-order") ("subject") ("author") ("date-sent") ("recipient")))
 (defconst vm-supported-window-configurations
@@ -782,11 +814,12 @@ specified by vm-edit-message-mode.")
 (defconst vm-attributes-vector-length 9)
 (defconst vm-cache-vector-length 16)
 (defconst vm-softdata-vector-length 4)
-(defconst vm-virtual-data-vector-length 9)
+(defconst vm-location-data-vector-length 4)
+(defconst vm-mirror-data-vector-length 2)
 (defconst vm-startup-message-lines
       '("Mail bug reports to bug-vm@uunet.uu.net or post them to gnu.emacs.vm.bug"
 	"This is prerelease software.  Giving out copies of it means DEATH!"
-	"See Revelations 6:8 for full details"
+	"See Revelation 6:8 for full details"
 	"VM comes with ABSOLUTELY NO WARRANTY; type \\[vm-show-no-warranty] for full details"
 	"In Stereo (where available)"))
 ;    '("Mail bug reports to bug-vm@uunet.uu.net or post them to gnu.emacs.vm.bug"

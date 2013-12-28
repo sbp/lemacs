@@ -1,5 +1,5 @@
 /* Environment-hacking for GNU Emacs subprocess
-   Copyright (C) 1986-1993 Free Software Foundation, Inc.
+   Copyright (C) 1986, 1992, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -73,7 +73,7 @@ getenv_1 (str, ephemeral)
      int ephemeral;		/* if ephmeral, don't need to gc-proof */
 {
   register Lisp_Object env;
-  int len = strlen ((char *) str);
+  int len = strlen (str);
 
   for (env = Venvironment_alist; CONSP (env); env = XCONS (env)->cdr)
     {
@@ -87,7 +87,7 @@ getenv_1 (str, ephemeral)
 	  tem = XCONS (car)->cdr;
 	  if (ephemeral)
 	    /* Caller promises that gc won't make him lose */
-	    return (char*) XSTRING (tem)->data;
+	    return ((char *) XSTRING (tem)->data);
 	  else
 	    {
 	      register unsigned char **e;
@@ -125,12 +125,14 @@ getenv_1 (str, ephemeral)
   return ((char *) 0);
 }
 
+#ifndef NeXT	/* Apparently NeXTs hate this... */
 char *
 getenv (str)
      register const char *str;
 {
   return ((char *) getenv_1 (str, 0));
 }
+#endif /* NeXT */
 
 char *
 egetenv (str)
@@ -237,11 +239,11 @@ current_environ ()
 
       *e++ = s;
       len = XSTRING (str)->size;
-      bcopy (XSTRING (str)->data, s, len);
+      memcpy (s, XSTRING (str)->data, len);
       s += len;
       *s++ = '=';
       len = XSTRING (val)->size;
-      bcopy (XSTRING (val)->data, s, len);
+      memcpy (s, XSTRING (val)->data, len);
       s += len;
       *s++ = '\000';
     }
@@ -253,30 +255,13 @@ current_environ ()
 #endif /* dead code */
 
 
-DEFUN ("getenv", Fgetenv, Sgetenv, 1, 2, "sEnvironment variable: \np",
-  "Return the value of environment variable VAR, as a string.\n\
-When invoked interactively, print the value in the echo area.\n\
-VAR is a string, the name of the variable,\n\
- or the symbol t, meaning to return an alist representing the\n\
- current environment.")
-  (str, interactivep)
-     Lisp_Object str, interactivep;
+Lisp_Object
+lisp_getenv (Lisp_Object str)
 {
-  Lisp_Object val;
-  
-  if (str == Qt)		/* If arg is t, return whole environment */
+  if (EQ (str, Qt))		/* If arg is t, return whole environment */
     return (Fcopy_alist (Venvironment_alist));
-
   CHECK_STRING (str, 0);
-  val = Fcdr (Fassoc (str, Venvironment_alist));
-  if (!NILP (interactivep))
-    {
-      if (NILP (val))
-	message ("%s not defined in environment", XSTRING (str)->data);
-      else
-	message ("\"%s\"", XSTRING (val)->data);
-    }
-  return val;
+  return Fcdr (Fassoc (str, Venvironment_alist));
 }
 
 DEFUN ("setenv", Fsetenv, Ssetenv, 1, 2,
@@ -301,14 +286,15 @@ syms_of_environ ()
 {
   staticpro (&Venvironment_alist);
   defsubr (&Ssetenv);
-  defsubr (&Sgetenv);
+  /* Fgetenv is defined in editfns.c to make `make-docfile' happy */
 }
 
 void
 init_environ ()
 {
   Venvironment_alist = Qnil;
-  initialize_environment_alist ();
+  if (initialized)
+    initialize_environment_alist ();
 }
 
 #endif /* MAINTAIN_ENVIRONMENT */

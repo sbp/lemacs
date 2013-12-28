@@ -1,3 +1,5 @@
+#ifndef _LWLIB_UTILS_H_
+#define _LWLIB_UTILS_H_
 
 void XtNoClearRefreshWidget (Widget);
 
@@ -14,3 +16,5 @@ Boolean
 XtWidgetBeingDestroyedP (Widget widget);
 
 void XtSafelyDestroyWidget (Widget);
+
+#endif /* _LWLIB_UTILS_H_ */

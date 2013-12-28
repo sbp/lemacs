@@ -1,11 +1,11 @@
 ;; Outline mode commands for Emacs
-;; Copyright (C) 1986 Free Software Foundation, Inc.
+;; Copyright (C) 1986, 1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -18,25 +18,30 @@
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
 ;; Jan '86, Some new features added by Peter Desnoyers and rewritten by RMS.
-  
-(defvar outline-regexp "[*\^l]+"
+
+(defvar outline-regexp "[*\^L]+"
   "*Regular expression to match the beginning of a heading.
 Any line whose beginning matches this regexp is considered to start a heading.
 The recommended way to set this is with a Local Variables: list
 in the file it applies to.  See also outline-heading-end-regexp.")
   
-(defvar outline-heading-end-regexp "[\n^M]"
+(defvar outline-heading-end-regexp "[\n\^M]"
   "*Regular expression to match the end of a heading line.
 You can assume that point is at the beginning of a heading
 when this regexp is searched for.  The heading ends at the end of the match.
 The recommended way to set this is with a Local Variables: list
 in the file it applies to.")
 
+;;	(setq outline-regexp "[ \t]*/\\*")
+;;	(setq outline-heading-end-regexp "\\*/[^\n\^M]*[\n\^M]")
+
+
 (defvar outline-mode-map nil "")
 
 (if outline-mode-map
     nil
   (setq outline-mode-map (make-sparse-keymap))
+  (set-keymap-name outline-mode-map 'outline-mode-map)
   (set-keymap-parent outline-mode-map text-mode-map)
   (define-key outline-mode-map "\C-c\C-n" 'outline-next-visible-heading)
   (define-key outline-mode-map "\C-c\C-p" 'outline-previous-visible-heading)
@@ -111,7 +116,7 @@ outline-mode-hook, if they are non-nil."
 				   outline-regexp "\\)"))
   (run-hooks 'text-mode-hook 'outline-mode-hook))
 
-(defun outline-minor-mode (arg)
+(defun outline-minor-mode (&optional arg)
   (interactive "P")
   (setq outline-minor-mode
 	(if (null arg) (not outline-minor-mode)
@@ -126,9 +131,7 @@ outline-mode-hook, if they are non-nil."
 	    (lookup-key outline-mode-map "\C-c"))
 	  (use-local-map new-map))
 	(make-local-variable 'outline-regexp)
-	(setq outline-regexp "[ \t]*/\\*")
 	(make-local-variable 'outline-heading-end-regexp)
-	(setq outline-heading-end-regexp "\\*/[^\n\^M]*[\n\^M]")
 	(run-hooks 'outline-minor-mode-hook))
     (progn
       (setq selective-display nil)
@@ -164,12 +167,29 @@ or to beginning of this line if it is a heading line."
   (or (outline-on-heading-p)
       (re-search-backward (concat "^\\(" outline-regexp "\\)") nil 'move)))
 
+(defun outline-hidden-p ()
+  "Return t if point is on the header of a hidden subtree."
+  (save-excursion
+    (let ((end-of-entry (save-excursion (outline-next-heading))))
+      ;; Make sure that the end of the entry really exists.
+      (if (not end-of-entry)
+	  (setq end-of-entry (point-max)))
+      (outline-back-to-heading)
+      ;; If there are ANY ^M's, the entry is hidden.
+      (search-forward "\^M" end-of-entry t))))
+
+(defun outline-toggle-subtree ()
+  "Show a hidden subtree, or hide a shown subtree."
+  (interactive)
+  (if (outline-hidden-p)
+      (show-subtree)
+    (hide-subtree)))
+
 (defun outline-on-heading-p ()
-  "Return T if point is on a header line."
+  "Return t if point is on a heading line."
   (save-excursion
     (beginning-of-line)
-    (and (eq (preceding-char) ?\n)
-	 (looking-at outline-regexp))))
+    (and (bolp) (looking-at outline-regexp))))
 
 (defun outline-end-of-heading ()
   (if (re-search-forward outline-heading-end-regexp nil 'move)
@@ -180,6 +200,8 @@ or to beginning of this line if it is a heading line."
 With argument, repeats or can move backward if negative.
 A heading line is one that starts with a `*' (or that outline-regexp matches)."
   (interactive "p")
+  (if (null arg)
+      (setq arg 1))
   (if (< arg 0)
       (beginning-of-line)
     (end-of-line))
@@ -191,6 +213,8 @@ A heading line is one that starts with a `*' (or that outline-regexp matches)."
 With argument, repeats or can move forward if negative.
 A heading line is one that starts with a `*' (or that outline-regexp matches)."
   (interactive "p")
+  (if (null arg)
+      (setq arg 1))
   (outline-next-visible-heading (- arg)))
 
 (defun outline-flag-region (from to flag)
@@ -393,3 +417,4 @@ and return that position or nil if it cannot be found."
 	nil
         (point))))
 
+(provide 'outline)

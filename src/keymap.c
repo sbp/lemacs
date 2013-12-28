@@ -18,6 +18,19 @@ You should have received a copy of the GNU General Public License
 along with GNU Emacs; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
+
+#include "config.h"
+#include <stdio.h>
+
+#include "lisp.h"
+#include "keymap.h"
+#include "commands.h"
+#include "buffer.h"
+#include "insdel.h"
+#include "events.h"
+#include "elhash.h"
+
+
 /* A keymap contains four slots:
 
    parent	   A keymap to search after this one if no match.
@@ -33,6 +46,8 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 		   the Fwhere_is_internal() function be fast.  It needs to be
 		   fast because we want to be able to call it in realtime to
 		   update the keyboard-equivalents on the pulldown menus.
+                   Values of the table are either atoms (keysyms)
+                   or a dotted list of keysyms.
 
    sub_maps_cache  An alist; for each entry in this keymap whose binding is
 		   a keymap (that is, Fkeymapp()) this alist associates that
@@ -100,24 +115,39 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
  */
 
-#include "config.h"
-#include <stdio.h>
+struct keymap {
+  struct lcrecord_header header;
+  /*>>> Multiple (search-list) parents? */
+  Lisp_Object parent;		/* The keymap to be searched after this one */
+  Lisp_Object prompt;           /* Qnil or a string to print in the minibuffer
+                                 *  when reading from this keymap */
+  /* >>>>> NYI Lisp_Object global_map_override; */
+                                   
+  Lisp_Object table;		/* The contents of this keymap */
+  Lisp_Object inverse_table;	/* The inverse mapping of the above */
 
-#include "lisp.h"
-#include "keymap.h"
-#include "commands.h"
-#include "buffer.h"
-#include "events.h"
-#include "insdel.h"
-#include "elhash.h"
+  Lisp_Object sub_maps_cache;	/* Cache of directly inferior keymaps;
+				   This holds an alist, of the key and the
+				   maps, or the modifier bit and the map.
+				   If this is the symbol t, then the cache
+				   needs to be recomputed.
+				 */
+  int fullness;			/* How many entries there are in this table.
+ 				   This should be the same as the fullness
+ 				   of the `table', but hash.c is broken. */
+  Lisp_Object name;             /* Just for debugging convenience */
+};
 
-extern Lisp_Object Vcharacter_set_property;
+#define XKEYMAP(a) ((struct keymap *) XPNTR(a))
 
+
 #define min(a, b) ((a) < (b) ? (a) : (b))
 
 /* Actually allocate storage for these variables */
 
-static Lisp_Object Vcurrent_global_map;	/* Current global keymap */
+static Lisp_Object Vcurrent_global_map; /* Always a keymap */
+
+static Lisp_Object Vmouse_grabbed_buffer;
 
 /* This is incremented whenever a change is made to a keymap.  This is
    so that things which care (such as the menubar code) can recompute
@@ -128,18 +158,28 @@ int keymap_tick;
 /* Prefixing a key with this character is the same as sending a meta bit. */
 int meta_prefix_char;
 
+Lisp_Object Qkeymap;
 Lisp_Object Qkeymapp;
+
+Lisp_Object Vsingle_space_string;
 
 Lisp_Object Qsuppress_keymap;
 
-void describe_map_tree ();
-static Lisp_Object describe_buffer_bindings ();
-static Lisp_Object describe_buffer_mouse_bindings ();
-static void describe_command ();
-static void describe_map ();
-static int bucky_sym_to_bucky_bit ();
-static void describe_vector ();
+Lisp_Object Qmode_line_map;
 
+static Lisp_Object describe_buffer_bindings (Lisp_Object descbuf);
+static Lisp_Object describe_buffer_mouse_bindings (Lisp_Object descbuf);
+static void describe_command (Lisp_Object definition);
+static void describe_map (Lisp_Object map, Lisp_Object keys,
+                          int partial, 
+                          Lisp_Object shadow,
+                          int mice_only_p);
+static int bucky_sym_to_bucky_bit (Lisp_Object sym);
+static void describe_map_1 (Lisp_Object keymap, Lisp_Object elt_prefix,
+			    void (*elt_describer) (Lisp_Object),
+			    int partial, 
+			    Lisp_Object shadow, 
+			    int mice_only_p);
 Lisp_Object Qcontrol, Qctrl, Qmeta, Qsuper, Qhyper, Qsymbol, Qshift;
 Lisp_Object Qbutton0, Qbutton1, Qbutton2, Qbutton3, Qbutton4, Qbutton5,
   Qbutton6, Qbutton7;
@@ -148,45 +188,114 @@ Lisp_Object Qbutton0up, Qbutton1up, Qbutton2up, Qbutton3up, Qbutton4up,
 Lisp_Object Qmenu_selection;
 
 
-
-static void
-keymap_store_inverse_internal (keysym, keymap, value)
-     Lisp_Object keysym, value;
-     struct Lisp_Keymap *keymap;
+static Lisp_Object mark_keymap (Lisp_Object, void (*) (Lisp_Object));
+static void print_keymap (Lisp_Object, Lisp_Object, int);
+static int sizeof_keymap (void *h) { return (sizeof (struct keymap)); }
+/* #### add keymap_equal */
+DEFINE_LRECORD_IMPLEMENTATION (lrecord_keymap,
+                               mark_keymap, print_keymap, 
+                               0, sizeof_keymap, 0);
+static Lisp_Object
+mark_keymap (Lisp_Object obj, void (*markobj) (Lisp_Object))
 {
-  Lisp_Object keys = Fgethash (value, keymap->inverse_table, Qnil);
-  if (NILP (keys))
+  struct keymap *keymap = XKEYMAP (obj);
+  ((markobj) (keymap->parent));
+  ((markobj) (keymap->prompt));
+  ((markobj) (keymap->inverse_table));
+  ((markobj) (keymap->sub_maps_cache));
+  ((markobj) (keymap->name));
+  return (keymap->table);
+}
+  
+static void
+print_keymap (Lisp_Object obj, Lisp_Object printcharfun, int escapeflag)
+{
+  struct keymap *keymap = XKEYMAP (obj);
+  char buf[30];
+  int size = XFASTINT (Fkeymap_fullness (obj));
+  if (print_readably)
+    error ("printing unreadable object #<keymap 0x%x>", keymap->header.uid);
+  write_string_1 ("#<keymap ", -1, printcharfun);
+  if (!NILP (keymap->name))
+    print_internal (keymap->name, printcharfun, 1);
+  sprintf (buf, "%s%d entr%s 0x%x>",
+           ((NILP (keymap->name)) ? "" : " "),
+           size,
+           ((size == 1) ? "y" : "ies"),
+           keymap->header.uid);
+  write_string_1 (buf, -1, printcharfun);
+}
+
+
+static void
+keymap_store_inverse_internal (Lisp_Object inverse_table,
+                               Lisp_Object keysym,
+                               Lisp_Object value)
+{
+  Lisp_Object keys = Fgethash (value, inverse_table, Qunbound);
+
+  if (EQ (keys, Qunbound))
     {
-      keys = Fcons (keysym, Qnil);
-      Fputhash (value, keys, keymap->inverse_table);
+      keys = keysym;
+      /* Don't cons this unless necessary */
+      /* keys = Fcons (keysym, Qnil); */
+      Fputhash (value, keys, inverse_table);
+    }
+
+  else if (!CONSP (keys))
+    {
+      /* Now it's necessary to cons */
+      keys = Fcons (keys, keysym);
+      Fputhash (value, keys, inverse_table);
     }
   else
     {
-      Lisp_Object tail = keys;
-      while (!NILP (XCONS (tail)->cdr))
-	tail = XCONS (tail)->cdr;
-      XCONS (tail)->cdr = Fcons (keysym, Qnil);
-      /* We don't need to call puthash here, because we've modified the
-	 list directly (the pointer in the hash table is still valid.)
-       */
+      while (CONSP (Fcdr (keys)))
+	keys = XCONS (keys)->cdr;
+      XCONS (keys)->cdr = Fcons (XCONS (keys)->cdr, keysym);
+      /* No need to call puthash because we've destructively
+         modified the list tail in place */
     }
 }
 
 
 static void
-keymap_delete_inverse_internal (keysym, keymap, value)
-     Lisp_Object keysym, value;
-     struct Lisp_Keymap *keymap;
+keymap_delete_inverse_internal (Lisp_Object inverse_table,
+                                Lisp_Object keysym, 
+                                Lisp_Object value)
 {
-  Lisp_Object keys = Fgethash (value, keymap->inverse_table, Qnil);
+  Lisp_Object keys = Fgethash (value, inverse_table, Qunbound);
   Lisp_Object new_keys;
-  if (NILP (keys))
+  Lisp_Object tail;
+  Lisp_Object *prev;
+
+  if (EQ (keys, Qunbound))
     abort ();
-  new_keys = delq_no_quit (keysym, keys);
+
+  new_keys = keys;
+  for (prev = &new_keys, tail = new_keys;
+       ;
+       prev = &(XCONS (tail)->cdr), tail = XCONS (tail)->cdr)
+    {
+      if (EQ (tail, keysym))
+	{
+	  *prev = Qnil;
+	  break;
+	}
+      else if (!CONSP (tail))
+	abort ();
+      else if (EQ (keysym, XCONS (tail)->car))
+	{
+	  *prev = XCONS (tail)->cdr;
+	  break;
+	}
+    }
+
   if (NILP (new_keys))
-    Fremhash (value, keymap->inverse_table);
-  else if (!EQ (keys, new_keys))	/* meaning it was the first elt */
-    Fputhash (value, new_keys, keymap->inverse_table);
+    Fremhash (value, inverse_table);
+  else if (!EQ (keys, new_keys))
+    /* Removed the first elt */
+    Fputhash (value, new_keys, inverse_table);
   /* else the list's tail has been modified, so we don't need to
      touch the hash table again (the pointer in there is ok).
    */
@@ -196,38 +305,44 @@ keymap_delete_inverse_internal (keysym, keymap, value)
 static void
 keymap_store_internal (keysym, keymap, value)
      Lisp_Object keysym, value;
-     struct Lisp_Keymap *keymap;
+     struct keymap *keymap;
 {
   Lisp_Object prev_value = Fgethash (keysym, keymap->table, Qnil);
+
+  if (EQ (prev_value, value))
+      return;
   if (!NILP (prev_value))
-    keymap_delete_inverse_internal (keysym, keymap, prev_value);
+    keymap_delete_inverse_internal (keymap->inverse_table, 
+                                    keysym, prev_value);
   if (NILP (value))
     {
-      if (!NILP (prev_value))
-	{
-	  if ((--keymap->fullness) < 0) abort ();
-	  Fremhash (keysym, keymap->table);
-	}
+      keymap->fullness--;
+      if (keymap->fullness < 0) abort ();
+      Fremhash (keysym, keymap->table);
     }
   else
     {
       if (NILP (prev_value))
 	keymap->fullness++;
       Fputhash (keysym, value, keymap->table);
-      keymap_store_inverse_internal (keysym, keymap, value);
+      keymap_store_inverse_internal (keymap->inverse_table, 
+                                     keysym, value);
     }
   keymap_tick++;
 }
 
 
+/* Relies on caller to gc-protect km, keysym */
 static Lisp_Object
 keymap_lookup_directly (km, keysym, modifiers)
      Lisp_Object km, keysym;
      int modifiers;
 {
-  struct Lisp_Keymap *keymap;
-  Lisp_Object submap, submap_name;
+  struct keymap *keymap;
+  Lisp_Object submap;
+  Lisp_Object submap_name;
   int submap_bit;
+
   if (!KEYMAPP (km)) abort ();
   keymap = XKEYMAP (km);
   if (! modifiers)
@@ -255,11 +370,14 @@ keymap_lookup_directly (km, keysym, modifiers)
   submap = keymap_lookup_directly (km, submap_name, 0);
   if (NILP (submap))
     return Qnil;
-  submap = get_keymap (submap, 1);
-  return keymap_lookup_directly (submap, keysym, (modifiers & (~submap_bit)));
+  submap = get_keymap (submap, 1, 1);
+  /* Durst hope for tail-recursion? */
+  return (keymap_lookup_directly (submap,
+				  keysym, (modifiers & (~submap_bit))));
 }
 
 
+/* Relies on caller to gc-protect keymap, keysym, value */
 static void
 keymap_store (keymap, keysym, modifiers, value)
      Lisp_Object keymap, keysym, value;
@@ -267,8 +385,9 @@ keymap_store (keymap, keysym, modifiers, value)
 {
   Lisp_Object submap_name, submap;
   int submap_bit;
+
   if (!KEYMAPP (keymap))
-    keymap = get_keymap (keymap, 1);
+    keymap = get_keymap (keymap, 1, 1);
   XKEYMAP (keymap)->sub_maps_cache = Qt; /* Invalidate cache */
   if (! modifiers)
     {
@@ -306,52 +425,93 @@ keymap_store (keymap, keysym, modifiers, value)
 
 
 
-static void
-keymap_submaps_mapper (hash_key, hash_contents, closure)
-     void *hash_key, *hash_contents, *closure;
+struct keymap_submaps_closure
 {
-  Lisp_Object key = (Lisp_Object) hash_key;
-  Lisp_Object contents = (Lisp_Object) hash_contents;
-  struct Lisp_Keymap *self = (struct Lisp_Keymap *) closure;
-  if (NILP (Fkeymapp (contents)))
-    return;
-  self->sub_maps_cache = Fcons (Fcons (key, contents), self->sub_maps_cache);
+  Lisp_Object *result_locative;
+};
+
+static void
+keymap_submaps_mapper_0 (const void *hash_key, void *hash_contents, 
+                         void *keymap_submaps_closure)
+{
+  Lisp_Object contents;
+  VOID_TO_LISP (contents, hash_contents);
+  /* Perform any autoloads, etc */
+  (void) Fkeymapp (contents);
 }
 
-static int map_keymap_sort_predicate ();
+static void
+keymap_submaps_mapper (const void *hash_key, void *hash_contents, 
+                       void *keymap_submaps_closure)
+{
+  Lisp_Object key, contents;
+  Lisp_Object *result_locative;
+  CVOID_TO_LISP (key, hash_key);
+  VOID_TO_LISP (contents, hash_contents);
+  result_locative = (((struct keymap_submaps_closure *) keymap_submaps_closure)
+		     ->result_locative);
+
+  if (!NILP (Fkeymapp (contents)))
+    *result_locative = Fcons (Fcons (key, contents), *result_locative);
+}
+
+static int map_keymap_sort_predicate (Lisp_Object obj1, Lisp_Object obj2, 
+                                      Lisp_Object pred);
 
 static Lisp_Object
-keymap_submaps (keymap)
-     struct Lisp_Keymap *keymap;
+keymap_submaps (Lisp_Object keymap)
 {
-  if (!EQ (keymap->sub_maps_cache, Qt))
-    return keymap->sub_maps_cache;
-  keymap->sub_maps_cache = Qnil;
-  elisp_maphash (keymap_submaps_mapper, keymap->table, (void *) keymap);
-  /* keep it sorted so that the result of accessible-keymaps is ordered */
-  keymap->sub_maps_cache = list_sort (keymap->sub_maps_cache, Qnil,
-				      map_keymap_sort_predicate);
-  return keymap->sub_maps_cache;
+  struct keymap *k = XKEYMAP (keymap);
+
+  if (EQ (k->sub_maps_cache, Qt)) /* Unknown */
+    {
+      Lisp_Object result = Qnil;
+      struct gcpro gcpro1, gcpro2;
+      struct keymap_submaps_closure keymap_submaps_closure;
+
+      GCPRO2 (keymap, result);
+      keymap_submaps_closure.result_locative = &result;
+      /* Do this first pass to touch (and load) any autoloaded maps */
+      elisp_maphash (keymap_submaps_mapper_0, k->table,
+		     &keymap_submaps_closure);
+      result = Qnil;
+      elisp_maphash (keymap_submaps_mapper, k->table,
+		     &keymap_submaps_closure);
+      /* keep it sorted so that the result of accessible-keymaps is ordered */
+      k->sub_maps_cache = list_sort (result, 
+				     Qnil,
+				     map_keymap_sort_predicate);
+      UNGCPRO;
+    }
+  return (k->sub_maps_cache);
 }
 
 
 static Lisp_Object
-make_keymap (size)
-     int size;
+make_keymap (int size)
 {
-  Lisp_Object keymap = Fmake_vector (make_number (KEYMAP_SIZE), 
-                                     make_number (0));
-  XSETTYPE (keymap, Lisp_Keymap);
-  XKEYMAP (keymap)->parent = Qnil;
+  Lisp_Object result;
+  struct keymap *keymap = alloc_lcrecord (sizeof (struct keymap), 
+                                          lrecord_keymap);
+
+  XSETR (result, Lisp_Keymap, keymap);
+
+  keymap->parent = Qnil;
+  keymap->table = Qnil;
+  keymap->prompt = Qnil;
+  /* keymap->inhibit_global_map = Qnil; */
+  keymap->inverse_table = Qnil;
+  keymap->sub_maps_cache = Qnil; /* No possible submaps */
+  keymap->fullness = 0;
   if (size != 0) /* hack for copy-keymap */
     {
-      XKEYMAP (keymap)->table = Fmake_hashtable (make_number (size));
-      XKEYMAP (keymap)->inverse_table = Fmake_hashtable (make_number (size));
+      keymap->table = Fmake_hashtable (make_number (size));
+      /* Inverse table is often less dense because of duplicate key-bindings.
+         If not, it will grow anyway. */
+      keymap->inverse_table = Fmake_hashtable (make_number (size * 3 / 4));
     }
-  XKEYMAP (keymap)->sub_maps_cache = Qnil; /* No possible submaps */
-  XKEYMAP (keymap)->fullness = 0;
-  XKEYMAP (keymap)->name = Qnil;
-  return keymap;
+  keymap->name = Qnil;
+  return (result);
 }
 
 DEFUN ("make-keymap", Fmake_keymap, Smake_keymap, 0, 0, 0,
@@ -359,7 +519,7 @@ DEFUN ("make-keymap", Fmake_keymap, Smake_keymap, 0, 0, 0,
 meaning \"command undefined\".")
   ()
 {
-  return make_keymap (127);
+  return make_keymap (60);
 }
 
 DEFUN ("make-sparse-keymap", Fmake_sparse_keymap, Smake_sparse_keymap, 0, 0, 0,
@@ -370,7 +530,7 @@ that is expected to contain less entries.)  As keymaps dynamically resize,\n\
 the distinction is not great.")
   ()
 {
-  return make_keymap (10);
+  return make_keymap (8);
 }
 
 DEFUN ("keymap-parent", Fkeymap_parent, Skeymap_parent, 1, 1, 0,
@@ -381,7 +541,7 @@ of all keymaps.")
      (keymap)
      Lisp_Object keymap;
 {
-  keymap = get_keymap (keymap, 1);
+  keymap = get_keymap (keymap, 1, 1);
   return XKEYMAP (keymap)->parent;
 }
 
@@ -395,16 +555,17 @@ of all keymaps.")
 {
   Lisp_Object k;
   struct gcpro gcpro1, gcpro2;
-  GCPRO2 (keymap, parent);
 
-  keymap = get_keymap (keymap, 1);
+  GCPRO2 (keymap, parent);
+  keymap = get_keymap (keymap, 1, 1);
+
   if (!NILP (parent))
   {
     /* Require that it be an actual keymap object, rather than a symbol
        with a (crockish) symbol-function which is a keymap */
-    CHECK_KEYMAP (parent, 1);
+    CHECK_KEYMAP (parent, 1); /* get_keymap (parent, 1, 1); */
   }
-  
+
   for (k = parent; !NILP (k); k = XKEYMAP (k)->parent)
   {
     QUIT;
@@ -427,77 +588,115 @@ when printing the keymap.")
      (keymap, new_name)
      Lisp_Object keymap, new_name;
 {
-  keymap = get_keymap (keymap, 1);
+  keymap = get_keymap (keymap, 1, 1);
+
   XKEYMAP (keymap)->name = new_name;
   return (new_name);
 }
 
-
-extern Lisp_Object QKbackspace, QKtab, QKlinefeed, QKreturn, 
- QKescape, QKspace, QKdelete, QKundefined;
+/*
+ * DEFUN ("keymap-name", Fkeymap_name, Skeymap_name, 1, 1, 0,
+ *   "Returns the `name' of KEYMAP.\n\
+ * The name is only a debugging convenience; it is not used except\n\
+ * when printing the keymap.")
+ *      (keymap)
+ *      Lisp_Object keymap;
+ * {
+ *   keymap = get_keymap (keymap, 1, 1);
+ * 
+ *   return (XKEYMAP (keymap)->name);
+ * }
+ */
 
+DEFUN ("set-keymap-prompt", Fset_keymap_prompt, Sset_keymap_prompt, 2, 2, 0,
+  "Sets the `prompt' of KEYMAP to string NEW-PROMPT, or `nil'\n\
+if no prompt is desired.  The prompt is shown in the echo-area\n\
+when reading a key-sequence to be looked-up in this keymap.")
+     (keymap, new_prompt)
+     Lisp_Object keymap, new_prompt;
+{
+  keymap = get_keymap (keymap, 1, 1);
+  
+  if (!NILP (new_prompt))
+    CHECK_STRING (new_prompt, 1);
+
+  XKEYMAP (keymap)->prompt = new_prompt;
+  return (new_prompt);
+}
+
+DEFUN ("keymap-prompt", Fkeymap_prompt, Skeymap_prompt, 1, 2, 0,
+  "Returns the `prompt' of the given keymap.\n\
+If non-nil, the prompt is shown in the echo-area\n\
+when reading a key-sequence to be looked-up in this keymap.")
+     (keymap, use_inherited)
+     Lisp_Object keymap, use_inherited;
+{
+  for (;;)
+    {
+      Lisp_Object prompt;
+      keymap = get_keymap (keymap, 1, 1);
+      prompt = XKEYMAP (keymap)->prompt;
+      if (!NILP (prompt))
+	return (prompt);
+      if (NILP (use_inherited))
+	return (Qnil);
+      keymap = XKEYMAP (keymap)->parent;
+      if (NILP (keymap))
+	return (Qnil);
+      QUIT;
+    }
+}
+
+
 DEFUN ("keymapp", Fkeymapp, Skeymapp, 1, 1, 0,
-  "Return t if ARG is a keymap object.")
+  "Return t if ARG is a keymap object.\n\
+The keymap may be autoloaded first if necessary.")
   (object)
      Lisp_Object object;
 {
-  /* >>>> Should this be done, or should we just return KEYMAPP??? */
-  Lisp_Object tem = get_keymap (object, 0);
+  register Lisp_Object tem = get_keymap (object, 0, 1);
   return ((KEYMAPP (tem)) ? Qt : Qnil);
 }
 
+/* Check that OBJECT is a keymap (after dereferencing through any
+   symbols).  If it is, return it.
+
+   If AUTOLOAD is non-zero and OBJECT is a symbol whose function value
+   is an autoload form, do the autoload and try again.
+
+   ERROR controls how we respond if OBJECT isn't a keymap.
+   If ERROR is non-zero, signal an error; otherwise, just return Qnil. 
+ */
 Lisp_Object
-get_keymap (object, error)
-     Lisp_Object object;
-     int error;
+get_keymap (Lisp_Object object, int error, int autoload)
 {
-  register Lisp_Object tem;
+  Lisp_Object tem;
 
   while (1)
     {
-      tem = object;
-      while (SYMBOLP (tem) && !EQ (tem, Qunbound))
-	{
-	  tem = XSYMBOL (tem)->function;
-	  QUIT;
-	}
+      tem = indirect_function (object, 0);
+      
       if (KEYMAPP (tem))
 	return tem;
+      /* Should we do an autoload?  */
+      else if (autoload
+               /* (autoload "filename" doc nil keymap) */
+               && SYMBOLP (object)
+               && CONSP (tem)
+               && EQ (XCONS (tem)->car, Qautoload)
+               && EQ (Fcar (Fcdr (Fcdr (Fcdr (Fcdr (tem))))), Qkeymap))
+	{
+	  struct gcpro gcpro1, gcpro2;
+	  GCPRO2 (tem, object);
+	  do_autoload (tem, object);
+	  UNGCPRO;
+	}
       else if (error)
 	object = wrong_type_argument (Qkeymapp, object);
       else
 	return Qnil;
     }
 }
-
-static Lisp_Object
-access_keymap (map, idx)
-     Lisp_Object map;
-     Lisp_Object idx;
-{
-  Lisp_Object keysym;
-  int modifiers;
-  switch (XTYPE (idx)) {
-  case Lisp_Int:
-    {
-      struct Lisp_Event event;
-      event.event_type = empty_event;
-      character_to_event (idx, &event);
-      keysym = event.event.key.key;
-      modifiers = event.event.key.modifiers;
-    }
-    break;
-  case Lisp_Cons:
-    keysym = XCONS (idx)->car;
-    modifiers = XCONS (idx)->cdr;
-    if (!FIXNUMP (modifiers)) return Qnil;
-    break;
-  default:
-    abort ();
-  }
-  return keymap_lookup_directly (map, keysym, modifiers);
-}
-
 
 /* Given OBJECT which was found in a slot in a keymap,
    trace indirect definitions to get the actual definition of that slot.
@@ -507,32 +706,61 @@ access_keymap (map, idx)
  */
 
 static Lisp_Object
-get_keyelt (object)
-     register Lisp_Object object;
+get_keyelt (Lisp_Object object)
 {
   while (1)
     {
-      register Lisp_Object map, tem;
+      register Lisp_Object map;
 
-      map = get_keymap (Fcar_safe (object), 0);
-      tem = Fkeymapp (map);
+      if (!CONSP (object))
+	return (object);
+
+      {
+        struct gcpro gcpro1;
+        GCPRO1 (object);
+        map = XCONS (object)->car;
+        map = get_keymap (map, 0, 1);
+        UNGCPRO;
+      }
       /* If the contents are (KEYMAP . ELEMENT), go indirect.  */
-      if (!NILP (tem))
+      if (!NILP (map))
 	{
-	  object = Fcdr (object);
-	  return access_keymap (map, object);
-	}
-      else
+	  Lisp_Object idx = Fcdr (object);
+          Lisp_Object keysym;
+          int modifiers;
+          if (FIXNUMP (idx))
+          {
+            struct Lisp_Event event;
+            event.event_type = empty_event;
+            character_to_event (XINT (idx), &event);
+            keysym = event.event.key.key;
+            modifiers = event.event.key.modifiers;
+          }
+          else if (CONSP (idx))
+          {
+            keysym = XCONS (idx)->car;
+            if (!FIXNUMP (XCONS (idx)->cdr))
+              return Qnil;
+            modifiers = XINT (XCONS (idx)->cdr);
+          }
+          else
+            abort ();
+          /* >>>> Doesn't search parent keymaps! */
+          return keymap_lookup_directly (map, keysym, modifiers);
+        }
+      else if (STRINGP (XCONS (object)->car))
+      {
 	/* If the keymap contents looks like (STRING . DEFN),
 	   use DEFN.
 	   Keymap alist elements like (CHAR MENUSTRING . DEFN)
 	   will be used by HierarKey menus.  */
-	if (CONSP (object)
-	    && STRINGP (XCONS (object)->car))
 	  object = XCONS (object)->cdr;
+      }
       else
+      {
 	/* Anything else is really the value.  */
 	return object;
+      }
     }
 }
 
@@ -542,63 +770,84 @@ keymap_lookup_1 (Lisp_Object keymap, Lisp_Object keysym, int modifiers)
   return (get_keyelt (keymap_lookup_directly (keymap, keysym, modifiers)));
 }
 
-static void
-copy_keymap_inverse_mapper (hash_key, hash_contents, closure)
-     void *hash_key, *hash_contents, *closure;
+
+struct copy_keymap_inverse_closure
 {
-  Lisp_Object inverse_table = (Lisp_Object) closure;
-  Lisp_Object inverse_contents = (Lisp_Object) hash_contents;
-  Lisp_Object oiq = Vinhibit_quit;
-  Vinhibit_quit = Qt;
-  inverse_contents = Fcopy_sequence (inverse_contents);
-  Vinhibit_quit = oiq;
-  Fputhash ((Lisp_Object) hash_key, inverse_contents, inverse_table);
+  Lisp_Object inverse_table;
+};
+
+static void
+copy_keymap_inverse_mapper (const void *hash_key, void *hash_contents, 
+                            void *copy_keymap_inverse_closure)
+{
+  Lisp_Object key, inverse_table, inverse_contents;
+  struct copy_keymap_inverse_closure *closure = copy_keymap_inverse_closure;
+
+  VOID_TO_LISP (inverse_table, closure);
+  VOID_TO_LISP (inverse_contents, hash_contents);
+  CVOID_TO_LISP (key, hash_key);
+  /* copy-sequence deals with dotted lists. */
+  if (CONSP (inverse_contents))
+    inverse_contents = Fcopy_sequence (inverse_contents);
+  Fputhash (key, inverse_contents, closure->inverse_table);
 }
 
 
 static Lisp_Object
-copy_keymap_internal (keymap)
-     struct Lisp_Keymap *keymap;
+copy_keymap_internal (struct keymap *keymap)
 {
   Lisp_Object nkm = make_keymap (0);
-  struct Lisp_Keymap *new_keymap = XKEYMAP (nkm);
+  struct keymap *new_keymap = XKEYMAP (nkm);
+  struct copy_keymap_inverse_closure copy_keymap_inverse_closure;
+  copy_keymap_inverse_closure.inverse_table = keymap->inverse_table;
+
   new_keymap->parent = keymap->parent;
   new_keymap->fullness = keymap->fullness;
-  new_keymap->sub_maps_cache = Qnil;
+  new_keymap->sub_maps_cache = Qnil; /* No submaps */
   new_keymap->table = Fcopy_hashtable (keymap->table);
   new_keymap->inverse_table = Fcopy_hashtable (keymap->inverse_table);
   /* After copying the inverse map, we need to copy the conses which
      are its values, lest they be shared by the copy, and mangled.
    */
   elisp_maphash (copy_keymap_inverse_mapper, keymap->inverse_table,
-		 (void *) keymap->inverse_table);
+		 &copy_keymap_inverse_closure);
   return nkm;
 }
 
 
 static Lisp_Object copy_keymap (Lisp_Object keymap);
 
-static void
-copy_keymap_mapper (hash_key, hash_contents, closure)
-     void *hash_key, *hash_contents, *closure;
+struct copy_keymap_closure
 {
-  Lisp_Object key = (Lisp_Object) hash_key;
-  Lisp_Object contents = (Lisp_Object) hash_contents;
-  struct Lisp_Keymap *self = (struct Lisp_Keymap *) closure;
+  struct keymap *self;
+};
+
+static void
+copy_keymap_mapper (const void *hash_key, void *hash_contents, 
+                    void *copy_keymap_closure)
+{
+  Lisp_Object key, contents;
+  struct copy_keymap_closure *closure
+    = (struct copy_keymap_closure *) copy_keymap_closure;
+
+  CVOID_TO_LISP (key, hash_key);
+  VOID_TO_LISP (contents, hash_contents);
   /* Don't recursively copy keymaps that are indirected through symbols. */
   if (KEYMAPP (contents))
-    keymap_store_internal (key, self, copy_keymap (contents));
+    keymap_store_internal (key, closure->self, copy_keymap (contents));
 }
 
 static Lisp_Object
-copy_keymap (keymap)
-     Lisp_Object keymap;
+copy_keymap (Lisp_Object keymap)
 {
+  struct copy_keymap_closure copy_keymap_closure;
+
   if (!KEYMAPP (keymap)) abort ();
   keymap = copy_keymap_internal (XKEYMAP (keymap));
+  copy_keymap_closure.self = XKEYMAP (keymap);
   elisp_maphash (copy_keymap_mapper,
 		 XKEYMAP (keymap)->table,
-		 XKEYMAP (keymap));
+		 &copy_keymap_closure);
   return keymap;
 }
 
@@ -611,43 +860,46 @@ Any key definitions that are subkeymaps are recursively copied.")
   (keymap)
      Lisp_Object keymap;
 {
-  keymap = get_keymap (keymap, 1);
+  keymap = get_keymap (keymap, 1, 1);
   return copy_keymap (keymap);
 }
-
-
+
 static int
-keymap_fullness (keymap)
-     struct Lisp_Keymap *keymap;
+keymap_fullness (Lisp_Object keymap)
 {
-/*  int fullness = XFASTINT (Fhashtable_fullness (keymap->table));*/
-  int fullness = keymap->fullness;
-  Lisp_Object sub_maps = keymap_submaps (keymap);
+  int fullness;
+  Lisp_Object sub_maps;
+  struct gcpro gcpro1, gcpro2;
+
+  keymap = get_keymap (keymap, 1, 1);
+  fullness = XKEYMAP (keymap)->fullness;
+  sub_maps = keymap_submaps (keymap);
+  GCPRO2 (keymap, sub_maps);
   for (; !NILP (sub_maps); sub_maps = XCONS (sub_maps)->cdr)
     if (bucky_sym_to_bucky_bit (XCONS (XCONS (sub_maps)->car)->car))
       {
 	Lisp_Object sub_map = XCONS (XCONS (sub_maps)->car)->cdr;
 	fullness--; /* don't count bucky maps */
-	fullness += keymap_fullness (XKEYMAP (get_keymap (sub_map, 1)));
+	fullness += keymap_fullness (sub_map);
       }
-  return fullness;
+  UNGCPRO;
+  return (fullness);
 }
 
 DEFUN ("keymap-fullness", Fkeymap_fullness, Skeymap_fullness, 1, 1, 0,
        "Returns the number of bindings in the keymap.")
      (keymap)
-     Lisp_Object keymap;
+  Lisp_Object keymap;
 {
-  return make_number (keymap_fullness (XKEYMAP (get_keymap (keymap, 1))));
+  return (make_number (keymap_fullness (get_keymap (keymap, 1, 1))));
 }
 
 
 /* Given any kind of key-specifier, return a keysym and modifier mask.
  */
 static void
-define_key_parser (spec, keysym_return, modifiers_return)
-     Lisp_Object spec, *keysym_return;
-     int *modifiers_return;
+define_key_parser (Lisp_Object spec,
+                   Lisp_Object *keysym_return, int *modifiers_return)
 {
   if (SYMBOLP (spec))
     spec = Fcons (spec, Qnil); /* be nice */
@@ -698,7 +950,7 @@ define_key_parser (spec, keysym_return, modifiers_return)
     {
       int modifiers = 0;
       int mod_p;
-      Lisp_Object keysym;
+      Lisp_Object keysym = Qnil;
       Lisp_Object rest = spec;
 
       /* First, parse out the leading modifier symbols.
@@ -731,31 +983,35 @@ define_key_parser (spec, keysym_return, modifiers_return)
 	QUIT;
       }
 
-      /* Now, check and massage the trailing keysym specifier.
-       */
-      switch (XTYPE (keysym)) {
-      case Lisp_Symbol:
-	if (XSYMBOL (keysym)->name->size != 1)
-	  break;
-	XSET (keysym, Lisp_Int, XSYMBOL (keysym)->name->data [0]);
-	/* fall through */
-      case Lisp_Int:
-	if (XINT (keysym) < ' ' || XINT (keysym) > 127)
-          signal_error (Qerror,
-                        list2 (build_string
-                               ("keysym must be in the printing ASCII range"),
-                               keysym));
-	if (modifiers & MOD_SHIFT)
-          signal_error (Qerror,
-                        list2 (build_string (
-		   "the `shift' modifier may not be applied to ASCII keysyms"),
-                               spec));
-	break;
-      default:
-        signal_error (Qerror, 
-                      list2 (build_string ("unknown keysym specifier"),
-                             keysym));
-      }
+      /* Now, check and massage the trailing keysym specifier. */
+      if (SYMBOLP (keysym))
+	{
+	  if (XSYMBOL (keysym)->name->size == 1)
+	    {
+	      keysym = make_number (XSYMBOL (keysym)->name->data [0]);
+	      goto fixnum_keysym;
+	    }
+	}
+      else if (FIXNUMP (keysym))
+	{
+	fixnum_keysym:
+	  if (XINT (keysym) < ' ' || XINT (keysym) > 127)
+	    signal_error (Qerror,
+			  list2 (build_string
+				 ("keysym must be in the printing ASCII range"),
+				 keysym));
+	  if (modifiers & MOD_SHIFT)
+	    signal_error (Qerror,
+			  list2 (build_string (
+		    "the `shift' modifier may not be applied to ASCII keysyms"),
+				 spec));
+	}
+      else
+	{
+	  signal_error (Qerror, 
+			list2 (build_string ("unknown keysym specifier"),
+			       keysym));
+	}
 
       *keysym_return = keysym;
       *modifiers_return = modifiers;
@@ -827,7 +1083,7 @@ meta_prefix_char_p (keysym, modifiers)
   event.event_type = key_press_event;
   event.event.key.key = keysym;
   event.event.key.modifiers = modifiers;
-  return (meta_prefix_char == event_to_character (&event, 0));
+  return (meta_prefix_char == event_to_character (&event, 0, 0, 0));
 }
 
 
@@ -847,23 +1103,24 @@ define_key_alternate_name (keysym, modifiers, keysym_ret, modifiers_ret)
   *modifiers_ret = 0;
   if (modifiers_sans_meta == MOD_CONTROL)
     {
-      int k = XINT (keysym);
       if EQ (keysym, QKspace)
         *keysym_ret = make_number ('@'), *modifiers_ret = modifiers;
-      else if (!FIXNUMP (keysym))
-	;
-      else if (k == '@')
-	*keysym_ret = QKspace,	   *modifiers_ret = modifiers;
-      else if (k == 'h')
-	*keysym_ret = QKbackspace, *modifiers_ret = modifiers_sans_control;
-      else if (k == 'i')
-	*keysym_ret = QKtab,	   *modifiers_ret = modifiers_sans_control;
-      else if (k == 'j')
-	*keysym_ret = QKlinefeed,  *modifiers_ret = modifiers_sans_control;
-      else if (k == 'm')
-	*keysym_ret = QKreturn,	   *modifiers_ret = modifiers_sans_control;
-      else if (k == '[')
-	*keysym_ret = QKescape,	   *modifiers_ret = modifiers_sans_control;
+      else if (FIXNUMP (keysym))
+	{
+	  int k = XINT (keysym);
+	  if (k == '@')
+	    *keysym_ret = QKspace,   *modifiers_ret = modifiers;
+	  else if (k == 'h')
+	    *keysym_ret = QKbackspace, *modifiers_ret = modifiers_sans_control;
+	  else if (k == 'i')
+	    *keysym_ret = QKtab,       *modifiers_ret = modifiers_sans_control;
+	  else if (k == 'j')
+	    *keysym_ret = QKlinefeed,  *modifiers_ret = modifiers_sans_control;
+	  else if (k == 'm')
+	    *keysym_ret = QKreturn,    *modifiers_ret = modifiers_sans_control;
+	  else if (k == '[')
+	    *keysym_ret = QKescape,    *modifiers_ret = modifiers_sans_control;
+	}
     }
   else if (modifiers_sans_meta)
     ;
@@ -890,7 +1147,7 @@ ensure_meta_prefix_char_keymapp (keys, index, keymap)
   Lisp_Object meta_sym;
   int meta_mods, i;
   Lisp_Object mpc_binding;
-  define_key_parser (meta_prefix_char, &meta_sym, &meta_mods);
+  define_key_parser (make_number (meta_prefix_char), &meta_sym, &meta_mods);
   mpc_binding = keymap_lookup_1 (keymap, meta_sym, meta_mods);
   if (NILP (mpc_binding) || !NILP (Fkeymapp (mpc_binding)))
     return;
@@ -898,10 +1155,10 @@ ensure_meta_prefix_char_keymapp (keys, index, keymap)
   if (index == 0)
     new_keys = keys;
   else if (STRINGP (keys))
-    new_keys = Fsubstring (keys, 0, make_number (index));
+    new_keys = Fsubstring (keys, Qzero, make_number (index));
   else if (VECTORP (keys))
     {
-      new_keys = Fmake_vector (make_number (index), Qnil);
+      new_keys = make_vector (index, Qnil);
       for (i = 0; i < index; i++)
 	XVECTOR (new_keys)->contents [i] = XVECTOR (keys)->contents [i];
     }
@@ -937,7 +1194,7 @@ make_key_description (keysym, modifiers, prettify)
 	 "9" as its name.
        */
       char str [2];
-      str[0] = XFASTINT (keysym);
+      str[0] = XINT (keysym);
       str[1] = 0;
       keysym = intern (str);
     }
@@ -1064,6 +1321,7 @@ DEFUN ("define-key", Fdefine_key, Sdefine_key, 3, 3, 0, 0
   int metized = 0;
   int size;
   int ascii_hack;
+  struct gcpro gcpro1, gcpro2, gcpro3;
 
   if (VECTORP (keys))
     size = XVECTOR (keys)->size;
@@ -1073,15 +1331,17 @@ DEFUN ("define-key", Fdefine_key, Sdefine_key, 3, 3, 0, 0
     {
       if (!CONSP (keys)) keys = list1 (keys);
       size = 1;
-      keys = Fmake_vector (1, keys); /* this is kinda sleazy. */
+      keys = make_vector (1, keys); /* this is kinda sleazy. */
     }
   else
     {
       keys = wrong_type_argument (Qsequencep, keys);
-      size = XFASTINT (Flength (keys));
+      size = XINT (Flength (keys));
     }
   if (size == 0)
     return (Qnil);
+
+  GCPRO3 (keymap, keys, def);
 
   /* ASCII grunge.
      When the user defines a key which, in a strictly ASCII world, would be
@@ -1094,7 +1354,8 @@ DEFUN ("define-key", Fdefine_key, Sdefine_key, 3, 3, 0, 0
    */
   ascii_hack = (STRINGP (keys));
 
-  keymap = get_keymap (keymap, 1);
+  keymap = get_keymap (keymap, 1, 1);
+
   idx = 0;
   while (1)
     {
@@ -1104,22 +1365,19 @@ DEFUN ("define-key", Fdefine_key, Sdefine_key, 3, 3, 0, 0
 
       if (STRINGP (keys))
 	c = make_number (XSTRING (keys)->data [idx]);
-      else {
-	c = XVECTOR (keys)->contents [idx];
-	if (FIXNUMP (c) &&
-	    (XINT (c) < ' ' || XINT (c) > 127))
-	  return
-	    Fsignal (Qerror,
-		     Fcons (build_string
-			    ("keysym must be in the printing ASCII range"),
-			    Fcons (c, Qnil)));
-      }
+      else
+	{
+	  c = XVECTOR (keys)->contents [idx];
+	  if (FIXNUMP (c) &&
+	      (XINT (c) < ' ' || XINT (c) > 127))
+	    args_out_of_range_3 (c, make_number (32), make_number (127));
+	}
 
       define_key_parser (c, &keysym, &modifiers);
 
       if (!metized
 	  && meta_prefix_char >= 0
-	  && (XFASTINT (c) == meta_prefix_char
+	  && (XINT (c) == meta_prefix_char
               || meta_prefix_char_p (keysym, modifiers)))
 	{
 	  if (idx == (size - 1))
@@ -1138,9 +1396,12 @@ DEFUN ("define-key", Fdefine_key, Sdefine_key, 3, 3, 0, 0
 		      (defvar my-escape-map (lookup-key my-map "\e"))
 		 if the luser really wants the map in a variable.
 	       */
-	      Lisp_Object mmap = keymap_lookup_1 (keymap, Qmeta, 0);
-	      if (!NILP (mmap) &&
-		  keymap_fullness (XKEYMAP (get_keymap (mmap, 1))) != 0)
+	      Lisp_Object mmap;
+              struct gcpro gcpro1, gcpro2;
+              GCPRO2 (keysym, c);
+              mmap = keymap_lookup_1 (keymap, Qmeta, 0);
+	      if (!NILP (mmap)
+		  && keymap_fullness (mmap) != 0)
 		{
                   Lisp_Object desc
                     = Fsingle_key_description (make_number (meta_prefix_char));
@@ -1148,6 +1409,7 @@ DEFUN ("define-key", Fdefine_key, Sdefine_key, 3, 3, 0, 0
 				  ("Map contains meta-bindings, can't bind"),
 					       desc, keymap));
 		}
+              UNGCPRO;
 	    }
 	  else
 	    {
@@ -1173,15 +1435,21 @@ DEFUN ("define-key", Fdefine_key, Sdefine_key, 3, 3, 0, 0
       if ((modifiers & MOD_META) && meta_prefix_char >= 0)
 	ensure_meta_prefix_char_keymapp (keys, idx, keymap);
 
-      if (++idx == size) {
-	keymap_store (keymap, keysym, modifiers, def);
-	if (ascii_hack && !NILP (keysym2))
-	  keymap_store (keymap, keysym2, modifiers2, def);
-	return def;
-      }
+      if (++idx == size)
+	{
+	  keymap_store (keymap, keysym, modifiers, def);
+	  if (ascii_hack && !NILP (keysym2))
+	    keymap_store (keymap, keysym2, modifiers2, def);
+	  UNGCPRO;
+	  return def;
+	}
       
       {
-        Lisp_Object cmd = keymap_lookup_1 (keymap, keysym, modifiers);
+        Lisp_Object cmd;
+        struct gcpro gcpro1, gcpro2, gcpro3;
+        GCPRO3 (keysym, keysym2, c);
+
+        cmd = keymap_lookup_1 (keymap, keysym, modifiers);
 	if (NILP (cmd))
 	  {
 	    cmd = Fmake_sparse_keymap ();
@@ -1199,7 +1467,8 @@ DEFUN ("define-key", Fdefine_key, Sdefine_key, 3, 3, 0, 0
 	    NILP (keymap_lookup_1 (keymap, keysym2, modifiers2)))
 	  keymap_store (keymap, keysym2, modifiers2, cmd);
 
-	keymap = get_keymap (cmd, 1);
+	keymap = get_keymap (cmd, 1, 1);
+        UNGCPRO;
       }
     }
 }
@@ -1215,6 +1484,7 @@ struct raw_key {
 };
 
 
+/* Caller should gc-protect args */
 static Lisp_Object
 raw_lookup_key (Lisp_Object keymap,
                 const struct raw_key *raw_keys, int raw_keys_count,
@@ -1232,7 +1502,7 @@ raw_lookup_key (Lisp_Object keymap,
       Lisp_Object cmd;
       int parental_unit;
       QUIT;
-      k = get_keymap (k, 1);
+      k = get_keymap (k, 1, 1);
       parental_unit = (! NILP (XKEYMAP (k)->parent));
       
       if (meta_prefix_char < 0 || ! meta_prefix_char_p (keysym, modifiers))
@@ -1251,10 +1521,12 @@ raw_lookup_key (Lisp_Object keymap,
 	     * Return a fixnum to indicate that keys were too long.
 	     */
 	    cmd = make_number (keys_so_far + 1);
+#if 0
 	  else if (parental_unit)
 	    /* Durst hope for tail-recursion? */
 	    return (raw_lookup_key (cmd, raw_keys + 1, remaining, 
 				    keys_so_far + 1));
+#endif
 	  else
 	    cmd = raw_lookup_key (cmd, raw_keys + 1, remaining, 
 				  keys_so_far + 1);
@@ -1280,8 +1552,7 @@ raw_lookup_key (Lisp_Object keymap,
 	    {
 	      /* Search for the prefix-char-prefixed sequence directly */
 	      cmd = keymap_lookup_1 (k, keysym, modifiers);
-	      if (!NILP (cmd))
-		cmd = get_keymap (cmd, 0);
+	      cmd = get_keymap (cmd, 0, 1);
 	      if (!NILP (cmd))
 		cmd = raw_lookup_key (cmd, raw_keys + 1, remaining, 
 				      keys_so_far + 1);
@@ -1293,17 +1564,13 @@ raw_lookup_key (Lisp_Object keymap,
 					 raw_keys[1].bits | MOD_META);
 		  if (remaining == 1)
 		    ;
-		  else if (NILP (cmd))
-		    ;
-		  else if (NILP (Fkeymapp (cmd)))
-		    cmd = make_number (keys_so_far + 2);
-		  else if (parental_unit)
-		    /* Durst hope for tail-recursion? */
-		    return (raw_lookup_key (cmd, raw_keys + 2, remaining - 1,
-					    keys_so_far + 2));
 		  else
-		    cmd = raw_lookup_key (cmd, raw_keys + 2, remaining - 1,
-					  keys_so_far + 2);
+		    {
+		      cmd = get_keymap (cmd, 0, 1);
+		      if (!NILP (cmd))
+			cmd = raw_lookup_key (cmd, raw_keys + 2, remaining - 1,
+					      keys_so_far + 2);
+		    }
 		}
 	    }
 	}
@@ -1316,11 +1583,89 @@ raw_lookup_key (Lisp_Object keymap,
 }
 
 
-static struct raw_key *lookup_key_buf;
-static int lookup_key_buf_total_size;
+/* Value is number if `keys' is too long; NIL if valid but has no definition.*/
+/* Caller should gc-protect arguments */
+Lisp_Object
+lookup_keys (Lisp_Object keymap, int nkeys, Lisp_Object *keys)
+{
+  struct raw_key kkk[20];
+  struct raw_key *raw_keys;
+  int i;
 
-/* Value is number if `keys' is too long; NIL if valid but has no definition. 
-*/
+  if (nkeys == 0)
+    return Qnil;
+
+  if (nkeys > (countof (kkk)))
+    raw_keys = kkk;
+  else
+    raw_keys = (struct raw_key *) alloca (sizeof (struct raw_key) * nkeys);
+
+  for (i = 0; i < nkeys; i++)
+    {
+      Lisp_Object c = keys[i];
+      Lisp_Object keysym;
+      int modifiers;
+
+      define_key_parser (c, &keysym, &modifiers);
+      raw_keys[i].keysym = keysym;
+      raw_keys[i].bits = modifiers;
+    }
+  return (raw_lookup_key (keymap, raw_keys, nkeys, 0));
+}
+
+Lisp_Object
+lookup_events (Lisp_Object event_head, int nmaps, Lisp_Object keymaps[])
+{
+  struct raw_key kkk[20];
+
+  int nkeys;
+  struct raw_key *raw_keys;
+  struct Lisp_Event *e;
+  Lisp_Object tem;
+  struct gcpro gcpro1, gcpro2;
+  int iii;
+
+  CHECK_EVENT (event_head, 0);
+
+  for (e = XEVENT (event_head), nkeys = 0; e; e = event_next (e), nkeys++)
+    ;
+
+  if (nkeys < (countof (kkk)))
+    raw_keys = kkk;
+  else
+    raw_keys = (struct raw_key *) alloca (sizeof (struct raw_key) * nkeys);
+
+  for (e = XEVENT (event_head), nkeys = 0; e; e = event_next (e), nkeys++)
+    {
+      Lisp_Object c;
+      Lisp_Object keysym;
+      int modifiers;
+
+      XSETR (c, Lisp_Event, e);
+      define_key_parser (c, &keysym, &modifiers);
+      raw_keys[nkeys].keysym = keysym;
+      raw_keys[nkeys].bits = modifiers;
+    }
+  GCPRO2 (keymaps[0], event_head);
+  gcpro1.nvars = nmaps;
+  /* >>>raw_keys[].keysym slots aren't gc-protected.  We rely (but shouldn't)
+   * on somebody else somewhere (obarray) having a pointer to all keysyms. */
+  for (iii = 0; iii < nmaps; iii++)
+    {
+      tem = raw_lookup_key (keymaps[iii], raw_keys, nkeys, 0);
+      if (FIXNUMP (tem))
+	{
+	  /* Too long in some local map means don't look at global map */
+	  tem = Qnil;
+	  break;
+	}
+      else if (!NILP (tem))
+	break;
+    }
+  UNGCPRO;
+  return (tem);
+}
+
 DEFUN ("lookup-key", Flookup_key, Slookup_key, 2, 2, 0,
   "In keymap KEYMAP, look up key sequence KEYS.  Return the definition.\n\
 nil means undefined.  See doc of `define-key' for kinds of definitions\n\
@@ -1334,118 +1679,194 @@ it takes to reach a non-prefix command.")
      register Lisp_Object keymap;
      Lisp_Object keys;
 {
-  Lisp_Object c;
-  int i = 0;
-  int size;
-  Lisp_Object keysym;
-  int modifiers;
-
-  if (STRINGP (keys))
-    size = XSTRING (keys)->size;
-  else if (VECTORP (keys))
-    size = XVECTOR (keys)->size;
-  else if (FIXNUMP (keys) || SYMBOLP (keys))
-    size = 1;
-  else
+  if (VECTORP (keys))
+    {
+      return lookup_keys (keymap,
+			  XVECTOR (keys)->size, XVECTOR (keys)->contents);
+    }
+  else if (SYMBOLP (keys) || FIXNUMP (keys))
+    {
+      return lookup_keys (keymap, 1, &keys);
+    }
+  else if (!STRINGP (keys))
     {
       keys = wrong_type_argument (Qsequencep, keys);
-      size = XINT (Flength (keys));
+      return Flookup_key (keymap, keys);
     }
-
-  if (size == 0) return Qnil;
-
-  if (size >= lookup_key_buf_total_size)
+  else
     {
-      lookup_key_buf_total_size = size + 50;
-      lookup_key_buf = (struct raw_key *)
-	xrealloc (lookup_key_buf, sizeof (struct raw_key) *
-		  lookup_key_buf_total_size);
+      int length = XSTRING (keys)->size;
+      int i;
+      struct raw_key *raw_keys
+	= (struct raw_key *) alloca (sizeof (struct raw_key) * length);
+      if (length == 0)
+	return Qnil;
+
+      for (i = 0; i < length; i++)
+	{
+	  Lisp_Object c;
+	  Lisp_Object keysym;
+	  int modifiers;
+
+	  c = make_number ((unsigned char) XSTRING (keys)->data[i]);
+	  define_key_parser (c, &keysym, &modifiers);
+	  raw_keys[i].keysym = keysym;
+	  raw_keys[i].bits = modifiers;
+	}
+      return (raw_lookup_key (keymap, raw_keys, length, 0));
+    }
+}
+
+/* Given a key sequence, returns a list of keymaps to search for bindings.
+   Does all manner of semi-hairy heuristics, like looking in the current
+   buffer's map before looking in the global map and looking in the local
+   map of the buffer in which the mouse was clicked in event0 is a click.
+
+   It would be kind of nice if this were in Lisp so that this semi-hairy
+   semi-heuristic command-lookup behaviour could be readily understood and
+   customised.  However, this needs to be pretty fast, or performance of
+   keyboard macros goes to shit; putting this in lisp slows macros down
+   2-3x.  And they're already slower than v18 by 5-6x. 
+ */
+
+static int
+relevant_keymaps_to_search (Lisp_Object keys,
+                            int max_maps, Lisp_Object maps[])
+{
+#define push_map_or_punt(m) \
+  do { if (nmaps == max_maps) return (-1); \
+       else if (!NILP ((m))) maps[nmaps++] = (m); } while (0)
+
+  Lisp_Object terminal = Qnil;
+  int nmaps = 0;
+
+  if (EVENTP (keys))
+    {
+      struct Lisp_Event *e = XEVENT (keys);
+      for (e = XEVENT (keys);
+	   event_next (e);
+	   e = event_next (e))
+	;
+      XSETR (terminal, Lisp_Event, e);
+    }
+  else if (VECTORP (keys))
+    {
+      int len = XVECTOR (keys)->size;
+      if (len > 1)
+	terminal = XVECTOR (keys)->contents[len - 1];
     }
 
-  for (i = 0; i < size; i++)
+  if (!EVENTP (terminal)
+      || (XEVENT (terminal)->event_type != button_press_event 
+          && XEVENT (terminal)->event_type != button_release_event))
     {
-      if (STRINGP (keys))
-	c = make_number ((unsigned char) XSTRING (keys)->data [i]);
-      else if (VECTORP (keys))
-	c = XVECTOR (keys)->contents [i];
-      else if (FIXNUMP (keys) || SYMBOLP (keys))
-	c = keys;
-      else
-	abort ();
-      define_key_parser (c, &keysym, &modifiers);
-      lookup_key_buf[i].keysym = keysym;
-      lookup_key_buf[i].bits = modifiers;
+      /* It's not a mouse event, so use the local map of the current buffer. */
+      Lisp_Object local_map = current_buffer->keymap;
+      push_map_or_punt (local_map);
     }
-  return raw_lookup_key (keymap, lookup_key_buf, size, 0);
+  else
+    {
+      /* If it's a mouse event, then first check the mouse-grabbed-buffer.
+	 After that, the interesting buffer is the buffer of the window under
+	 the mouse.  If this was a mode-line hit instead of a text-hit, then
+	 check the mode-line-map of that buffer.  Then, check the local map.
+       */
+      Lisp_Object window, screen;
+      int mode_p;
+
+      if (BUFFERP (Vmouse_grabbed_buffer))
+	{
+	  Lisp_Object local_map = XBUFFER (Vmouse_grabbed_buffer)->keymap;
+	  push_map_or_punt (local_map);
+	}
+
+      window = Fevent_window (terminal);
+      screen = Fevent_screen (terminal);
+      mode_p = 0;
+
+      if (NILP (window) && !NILP (Fscreenp (screen)))
+	{
+	  mode_p = 1;
+	  window = window_from_coordinates (screen,
+					    XINT (Fevent_x (terminal)),
+					    XINT (Fevent_y (terminal)),
+					    0);
+	}
+
+      if (!NILP (window))
+	{
+	  Lisp_Object buffer = Fwindow_buffer (window);
+	  if (!NILP (buffer))
+	    {
+	      Lisp_Object local_map;
+	      if (mode_p)
+		{
+		  Lisp_Object mode_line_map
+                    = symbol_value_in_buffer (Qmode_line_map, buffer);
+		  if (!EQ (mode_line_map, Qunbound))
+		    push_map_or_punt (mode_line_map);
+		}
+	      local_map = XBUFFER (buffer)->keymap;
+	      if (!EQ (buffer, Vmouse_grabbed_buffer))
+		push_map_or_punt (local_map);
+	    }
+	}
+    }
+  push_map_or_punt (Vcurrent_global_map);
+  return (nmaps);
+#undef push_map_or_punt
 }
 
 
-extern Lisp_Object Vmouse_grabbed_buffer;
+/* Attempts to find a command corresponding to the event-sequence
+   whose head is event0 (sequence is threaded though event_next).
+   Returns either a command symbol or Qnil.
+ */
 
+Lisp_Object
+event_binding (Lisp_Object event0)
+{
+  Lisp_Object maps[10];
+  int nmaps;
+
+  if (!EVENTP (event0)) abort ();
+
+  nmaps = relevant_keymaps_to_search (event0, countof (maps), maps);
+  if (nmaps < 0) return (Qnil); /* >>> Urk! */
+  return (lookup_events (event0, nmaps, maps));
+}
+
 DEFUN ("key-binding", Fkey_binding, Skey_binding, 1, 1, 0,
   "Return the binding for command KEYS in current keymaps.\n\
 KEYS is a string, a vector of events, or a vector of key-description lists\n\
 as described in the documentation for the `define-key' function.\n\
-The binding is probably a symbol with a function definition.")
+The binding is probably a symbol with a function definition; see\n\
+the documentation for `lookup-key' for more information.")
   (keys)
-     Lisp_Object keys;
+    Lisp_Object keys;
 {
-  Lisp_Object map, value;
-  int mouse_p = 0;
-  Lisp_Object mouse_buffer = Qnil;
+  int i;
+  Lisp_Object maps[10];
+  int nmaps = relevant_keymaps_to_search (keys, countof (maps), maps);
+  if (nmaps < 0) abort (); /* this can't happen, right? */
 
-  /* If this is a mouse-click event, then the "local" keymap is considered
-     to be the local map of the buffer in the window over which the mouse
-     was clicked, not necessarily the window which point is in.
-   */
-  if ((VECTORP (keys) && XVECTOR (keys)->size > 0))
+#if 0
+  if (EVENTP (keys))           /* unadvertised "feature" for the future */
+    return (lookup_events (keys, nmaps, maps));
+#endif
+
+  for (i = 0; i < nmaps; i++)
     {
-      Lisp_Object event = XVECTOR (keys)->contents [XVECTOR (keys)->size - 1];
-      if (EVENTP (event) &&
-	  (XEVENT (event)->event_type == button_press_event ||
-	   XEVENT (event)->event_type == button_release_event))
+      Lisp_Object tem = Flookup_key (maps[i], keys);
+      if (FIXNUMP (tem))
 	{
-	  Lisp_Object window = Fevent_window (event);
-	  if (!NILP (window))
-	    mouse_buffer = Fwindow_buffer (window);
-	  mouse_p = 1;
+	  /* Too long in some local map means don't look at global map */
+	  return (Qnil);
 	}
+      else if (!NILP (tem))
+	return (tem);
     }
-
-  /* If this is a mouse-click event, and if `mouse-grabbed-buffer' is a
-     buffer, then it is consulted before either the local map (in this
-     case, the map of the buffer of the window under point) or the global
-     map.  (The motion-handling code also consults mouse-grabbed-buffer.)
-   */
-  if (mouse_p && BUFFERP (Vmouse_grabbed_buffer))
-    {
-      Lisp_Object grabbed_map = XBUFFER (Vmouse_grabbed_buffer)->keymap;
-      if (!NILP (grabbed_map))
-	{
-	  value = Flookup_key (grabbed_map, keys);
-	  if (!NILP (value) && !FIXNUMP (value))
-	    return value;
-	}
-    }
-
-  /* If it's a mouse event, the local-map of the current buffer is not
-     consulted at all (unless the mouse is over this buffer.) */
-  if (NILP (mouse_buffer))
-    map = current_buffer->keymap;
-  else
-    map = XBUFFER (mouse_buffer)->keymap;
-
-  if (!NILP (map))
-    {
-      value = Flookup_key (map, keys);
-      if (! NILP (value) && !FIXNUMP (value))
-	return value;
-    }
-  map = Vcurrent_global_map;
-  value = Flookup_key (map, keys);
-  if (FIXNUMP (value))
-    return Qnil;
-  return value;
+  return (Qnil);
 }
 
 
@@ -1454,7 +1875,7 @@ DEFUN ("use-global-map", Fuse_global_map, Suse_global_map, 1, 1, 0,
   (keymap)
      Lisp_Object keymap;
 {
-  keymap = get_keymap (keymap, 1);
+  keymap = get_keymap (keymap, 1, 1);
   Vcurrent_global_map = keymap;
   return Qnil;
 }
@@ -1466,7 +1887,7 @@ If KEYMAP is nil, that means no local keymap.")
      Lisp_Object keymap;
 {
   if (!NILP (keymap))
-    keymap = get_keymap (keymap, 1);
+    keymap = get_keymap (keymap, 1, 1);
 
   current_buffer->keymap = keymap;
 
@@ -1504,31 +1925,35 @@ DEFUN ("current-global-map", Fcurrent_global_map, Scurrent_global_map, 0, 0, 0,
    outside of this file doesn't need to know about.
  */
 
-struct map_keymap_closure {
-  void (*fn) ();
+struct map_keymap_unsorted_closure
+{
+  void (*fn) (Lisp_Object key, int modifiers, 
+              Lisp_Object binding, void *arg);
   void *arg;
   int bits;
 };
 
 /* used by map_keymap() */
 static void
-map_keymap_unsorted_mapper (hash_key, hash_contents, junk)
-     void *hash_key, *hash_contents, *junk;
+map_keymap_unsorted_mapper (const void *hash_key, void *hash_contents, 
+                            void *map_keymap_unsorted_closure)
 {
-  Lisp_Object key = (Lisp_Object) hash_key;
-  Lisp_Object contents = (Lisp_Object) hash_contents;
-  struct map_keymap_closure *closure = (struct map_keymap_closure *) junk;
+  Lisp_Object key, contents;
+  struct map_keymap_unsorted_closure *closure
+    = (struct map_keymap_unsorted_closure *) map_keymap_unsorted_closure;
   int modifiers = closure->bits;
-  int mod_bit = bucky_sym_to_bucky_bit (key);
+  int mod_bit;
+  CVOID_TO_LISP (key, hash_key);
+  VOID_TO_LISP (contents, hash_contents);
+  mod_bit = bucky_sym_to_bucky_bit (key);
   if (mod_bit)
     {
       int omod = modifiers;
       closure->bits = modifiers | mod_bit;
-      contents = get_keymap (contents, 1);
-      CHECK_KEYMAP (contents, 0);
+      contents = get_keymap (contents, 1, 1);
       elisp_maphash (map_keymap_unsorted_mapper,
 		     XKEYMAP (contents)->table,
-		     junk);
+		     map_keymap_unsorted_closure);
       closure->bits = omod;
     }
   else
@@ -1536,24 +1961,31 @@ map_keymap_unsorted_mapper (hash_key, hash_contents, junk)
 }
 
 
+struct map_keymap_sorted_closure
+{
+  Lisp_Object *result_locative;
+};
+
 /* used by map_keymap_sorted() */
 static void
-map_keymap_sorted_mapper (hash_key, hash_contents, closure)
-     void *hash_key, *hash_contents, *closure;
+map_keymap_sorted_mapper (const void *hash_key, void *hash_contents, 
+                          void *map_keymap_sorted_closure)
 {
-  Lisp_Object key = (Lisp_Object) hash_key;
-  Lisp_Object contents = (Lisp_Object) hash_contents;
-  Lisp_Object *list = (Lisp_Object *) closure;
+  Lisp_Object key, contents;
+  Lisp_Object *list = (((struct map_keymap_sorted_closure *)
+                        map_keymap_sorted_closure)->result_locative);
+  CVOID_TO_LISP (key, hash_key);
+  VOID_TO_LISP (contents, hash_contents);
   *list = Fcons (Fcons (key, contents), *list);
 }
 
 
-/* used by map_keymap_sorted(), describe_vector_sort_predicate(),
+/* used by map_keymap_sorted(), describe_map_sort_predicate(),
    and keymap_submaps().
  */
 static int
-map_keymap_sort_predicate (obj1, obj2, pred)
-     Lisp_Object obj1, obj2, pred;
+map_keymap_sort_predicate (Lisp_Object obj1, Lisp_Object obj2, 
+                           Lisp_Object pred)
 {
   /* obj1 and obj2 are conses with keysyms in their cars.  Cdrs are ignored.
    */
@@ -1561,7 +1993,7 @@ map_keymap_sort_predicate (obj1, obj2, pred)
   int sym1_p = 0, sym2_p = 0;
   obj1 = XCONS (obj1)->car;
   obj2 = XCONS (obj2)->car;
-  if (obj1 == obj2) return -1;
+  if (EQ (obj1, obj2)) return -1;
 
   bit1 = bucky_sym_to_bucky_bit (obj1);
   bit2 = bucky_sym_to_bucky_bit (obj2);
@@ -1571,13 +2003,13 @@ map_keymap_sort_predicate (obj1, obj2, pred)
    */
   if (! bit1 && SYMBOLP (obj1))
     {
-      Lisp_Object code = Fget (obj1, Vcharacter_set_property);
+      Lisp_Object code = Fget (obj1, Vcharacter_set_property, Qnil);
       if (FIXNUMP (code))
 	obj1 = code, sym1_p = 1;
     }
   if (! bit2 && SYMBOLP (obj2))
     {
-      Lisp_Object code = Fget (obj2, Vcharacter_set_property);
+      Lisp_Object code = Fget (obj2, Vcharacter_set_property, Qnil);
       if (FIXNUMP (code))
 	obj2 = code, sym2_p = 1;
     }
@@ -1588,11 +2020,13 @@ map_keymap_sort_predicate (obj1, obj2, pred)
 
   if (FIXNUMP (obj1)) /* they're both ASCII */
     {
-      if (obj1 == obj2 &&	/* If one started out as a symbol and the */
+      int o1 = XINT (obj1);
+      int o2 = XINT (obj2);
+      if (o1 == o2 &&		/* If one started out as a symbol and the */
 	  sym1_p != sym2_p)	/* other didn't, the symbol comes last. */
 	return (sym2_p ? 1 : -1);
 
-    return ((obj1 < obj2) ? 1 : -1);	/* else just compare them */
+    return ((o1 < o2) ? 1 : -1); /* else just compare them */
     }
 
   /* else they're both symbols.  If they're both buckys, then order them. */
@@ -1612,20 +2046,29 @@ map_keymap_sort_predicate (obj1, obj2, pred)
 
 /* used by map_keymap() */
 static void
-map_keymap_sorted (keymap, bits, function, closure)
-     struct Lisp_Keymap *keymap;
-     int bits;
-     void (*function) ();
-     void *closure;
+map_keymap_sorted (Lisp_Object keymap_table,
+                   int bits, 
+                   void (*function) (Lisp_Object key, int bits, 
+                                     Lisp_Object binding, 
+                                     void *map_keymap_sorted_closure),
+                   void *map_keymap_sorted_closure)
 {
   struct gcpro gcpro1, gcpro2, gcpro3;
-  Lisp_Object key, binding;
+  Lisp_Object key = Qnil;
+  Lisp_Object binding = Qnil;
   Lisp_Object contents = Qnil;
   int sub_bit;
-  if (! XFASTINT (Fhashtable_fullness (keymap->table)))
+
+  if (XINT (Fhashtable_fullness (keymap_table)) == 0)
     return;
+
   GCPRO3 (key, binding, contents);
-  elisp_maphash (map_keymap_sorted_mapper, keymap->table, (void *) &contents);
+
+  {
+    struct map_keymap_sorted_closure c1;
+    c1.result_locative = &contents;
+    elisp_maphash (map_keymap_sorted_mapper, keymap_table, &c1);
+  }
   contents = list_sort (contents, Qnil, map_keymap_sort_predicate);
   for (; !NILP (contents); contents = XCONS (contents)->cdr)
     {
@@ -1633,48 +2076,47 @@ map_keymap_sorted (keymap, bits, function, closure)
       binding = XCONS (XCONS (contents)->car)->cdr;
       sub_bit = bucky_sym_to_bucky_bit (key);
       if (sub_bit)
-	map_keymap_sorted (XKEYMAP (get_keymap (binding, 1)), bits | sub_bit,
-			   function, closure);
+	map_keymap_sorted (XKEYMAP (get_keymap (binding, 1, 1))->table,
+			   (bits | sub_bit),
+			   function,
+			   map_keymap_sorted_closure);
       else
-	(*function) (key, bits, binding, closure);
+	(*function) (key, bits, binding, map_keymap_sorted_closure);
     }
   UNGCPRO;
 }
 
 
-/* externally callable; used by Fmap_keymap() */
-void
-map_keymap (keymap, sort_first, function, fn_arg)
-     struct Lisp_Keymap *keymap;
-     int sort_first;
-     void (*function) ();
-     void *fn_arg;
-{
-  if (sort_first)
-    map_keymap_sorted (keymap, 0, function, fn_arg);
-  else
-    {
-      struct map_keymap_closure closure;
-      closure.fn = function;
-      closure.arg = fn_arg;
-      closure.bits = 0;
-      elisp_maphash (map_keymap_unsorted_mapper, keymap->table,
-		     (void *) &closure);
-    }
-}
-
 /* used by Fmap_keymap() */
 static void
-map_keymap_mapper (key, bits, binding, function)
-     Lisp_Object key, binding;
-     int bits;
-     void *function;
+map_keymap_mapper (Lisp_Object key, int bits, Lisp_Object binding, 
+                   void *function)
 {
-  call2 ((Lisp_Object) function,
-	 make_key_description (key, bits, 1),
-	 binding);
+  Lisp_Object fn;
+  VOID_TO_LISP (fn, function);
+  call2 (fn, make_key_description (key, bits, 1), binding);
 }
 
+
+static void
+map_keymap (Lisp_Object keymap_table, int sort_first,
+            void (*function) (Lisp_Object key, int modifiers,
+                              Lisp_Object binding, 
+                              void *fn_arg),
+            void *fn_arg)
+{
+  if (sort_first)
+    map_keymap_sorted (keymap_table, 0, function, fn_arg);
+  else
+    {
+      struct map_keymap_unsorted_closure map_keymap_unsorted_closure;
+      map_keymap_unsorted_closure.fn = function;
+      map_keymap_unsorted_closure.arg = fn_arg;
+      map_keymap_unsorted_closure.bits = 0;
+      elisp_maphash (map_keymap_unsorted_mapper, keymap_table,
+		     &map_keymap_unsorted_closure);
+    }
+}
 
 DEFUN ("map-keymap", Fmap_keymap, Smap_keymap, 2, 3, 0,
   "Apply FUNCTION to each element of KEYMAP.  FUNCTION will be called with\n\
@@ -1696,25 +2138,24 @@ faster.")
      (function, keymap, sort_first)
     Lisp_Object function, keymap, sort_first;
 {
+  struct gcpro gcpro1, gcpro2;
+
   if (!NILP (Fkeymapp (function))) /* tolerate obviously transposed args */
     {
       Lisp_Object tmp = function;
       function = keymap;
       keymap = tmp;
     }
-  keymap = get_keymap (keymap, 1);
-  map_keymap (XKEYMAP (keymap), !NILP (sort_first),
-	      map_keymap_mapper, (void *) function);
+  GCPRO2 (function, keymap);
+  keymap = get_keymap (keymap, 1, 1);
+  map_keymap (XKEYMAP (keymap)->table, !NILP (sort_first),
+	      map_keymap_mapper, LISP_TO_VOID (function));
+  UNGCPRO;
   return Qnil;
 }
 
 
 
-/* we use this global as scratch space because the alternative is even
-   uglier... (ok, well, we could define a struct and pass it instead...)
- */
-static Lisp_Object accessible_keymaps_tail;
-
 static int
 bucky_sym_to_bucky_bit (sym)
      Lisp_Object sym;
@@ -1729,41 +2170,47 @@ bucky_sym_to_bucky_bit (sym)
 }
 
 static void
-accessible_keymaps_mapper (hash_key, hash_contents, closure)
-     void *hash_key, *hash_contents, *closure;
+accessible_keymaps_mapper (Lisp_Object key, Lisp_Object contents,
+                           int modifiers,
+                           Lisp_Object accessible_keymaps_tail)
 {
-  Lisp_Object key = (Lisp_Object) hash_key;
-  Lisp_Object contents = (Lisp_Object) hash_contents;
-  int modifiers = (int) closure;
+  int bit = bucky_sym_to_bucky_bit (key);
 
-  Lisp_Object thisseq, cmd, vec;
-  int j, bit = bucky_sym_to_bucky_bit (key);
   if (bit)
     {
       Lisp_Object submaps;
-      contents = get_keymap (contents, 1);
-      submaps = keymap_submaps (XKEYMAP (contents));
+      contents = get_keymap (contents, 1, 1);
+      submaps = keymap_submaps (contents);
       for (; !NILP (submaps); submaps = XCONS (submaps)->cdr)
 	{
-	  accessible_keymaps_mapper ((void *)XCONS (XCONS (submaps)->car)->car,
-				     (void *)XCONS (XCONS (submaps)->car)->cdr,
-				     (void *)(bit | modifiers));
+	  accessible_keymaps_mapper (XCONS (XCONS (submaps)->car)->car,
+                                 XCONS (XCONS (submaps)->car)->cdr,
+                                 (bit | modifiers),
+                                 accessible_keymaps_tail);
 	}
-      return;
     }
-  cmd = get_keyelt (contents);
-  if (NILP (cmd))
-    abort ();
-  if (NILP (Fkeymapp (cmd)))
-    abort ();
-  cmd = get_keymap (cmd, 1);
-  thisseq = Fcar (Fcar (accessible_keymaps_tail));
+  else
+    {
+      Lisp_Object thisseq;
+      Lisp_Object cmd = get_keyelt (contents);
+      Lisp_Object vec;
+      int j;
 
-  vec = Fmake_vector (make_number (XVECTOR (thisseq)->size + 1), Qnil);
-  for (j = 0; j < XVECTOR (thisseq)->size; j++)
-    XVECTOR (vec)->contents [j] = XVECTOR (thisseq)->contents [j];
-  XVECTOR (vec)->contents [j] = make_key_description (key, modifiers, 1);
-  nconc2 (accessible_keymaps_tail, Fcons (Fcons (vec, cmd), Qnil));
+      if (NILP (cmd))
+	abort ();
+      if (NILP (Fkeymapp (cmd)))
+	abort ();
+      cmd = get_keymap (cmd, 1, 1);
+      thisseq = Fcar (Fcar (accessible_keymaps_tail));
+
+      vec = make_vector (XVECTOR (thisseq)->size + 1, Qnil);
+      for (j = 0; j < XVECTOR (thisseq)->size; j++)
+	XVECTOR (vec)->contents [j] = XVECTOR (thisseq)->contents [j];
+      XVECTOR (vec)->contents [j] = make_key_description (key, modifiers, 1);
+
+      nconc2 (accessible_keymaps_tail, 
+	      list1 (Fcons (vec, cmd)));
+    }
 }
 
 
@@ -1776,32 +2223,34 @@ so that the KEYS increase in length.  The first element is ([] . KEYMAP).")
   (startmap)
      Lisp_Object startmap;
 {
-  Lisp_Object accessible_keymaps =
-    list1 (Fcons (Fmake_vector (make_number (0), Qnil),
-		  get_keymap (startmap, 1)));
-  accessible_keymaps_tail = accessible_keymaps;
-
+  Lisp_Object accessible_keymaps = list1 (Fcons (make_vector (0, Qnil),
+						 get_keymap (startmap, 1, 1)));
+  Lisp_Object tail;
+  struct gcpro gcpro1;
+  GCPRO1 (accessible_keymaps);
+  
   /* For each map in the list maps,
      look at any other maps it points to
      and stick them at the end if they are not already in the list */
 
-  for (accessible_keymaps_tail = accessible_keymaps;
-       !NILP (accessible_keymaps_tail);
-       accessible_keymaps_tail = XCONS (accessible_keymaps_tail)->cdr)
+  for (tail = accessible_keymaps; !NILP (tail); tail = XCONS (tail)->cdr)
     {
-/*    Lisp_Object thisseq = Fcar (Fcar (accessible_keymaps_tail)); */
-      Lisp_Object thismap = Fcdr (Fcar (accessible_keymaps_tail));
+      Lisp_Object thismap = Fcdr (Fcar (tail));
       CHECK_KEYMAP (thismap, 0);
       for (; !NILP (thismap); thismap = XKEYMAP (thismap)->parent)
 	{
-	  Lisp_Object submaps = keymap_submaps (XKEYMAP (thismap));
+	  Lisp_Object submaps = keymap_submaps (thismap);
 	  for (; !NILP (submaps); submaps = XCONS (submaps)->cdr)
-	    accessible_keymaps_mapper((void *)XCONS(XCONS (submaps)->car)->car,
-				      (void *)XCONS(XCONS (submaps)->car)->cdr,
-				      (void *) 0);
+	    {
+	      accessible_keymaps_mapper (XCONS (XCONS (submaps)->car)->car,
+					 XCONS (XCONS (submaps)->car)->cdr,
+					 0,
+					 tail);
+	    }
 	}
     }
-  return accessible_keymaps;
+  UNGCPRO;
+  return (accessible_keymaps);
 }
 
 
@@ -1821,10 +2270,10 @@ spaces are put between sequence elements, etc.")
 	   STRINGP (keys))
     {
       Lisp_Object string = Qnil;
-      Lisp_Object sep = Qnil;
+      /* Lisp_Object sep = Qnil; */
       Lisp_Object s2;
       int i;
-      int size = XFASTINT (Flength (keys));
+      int size = XINT (Flength (keys));
       for (i = 0; i < size; i++)
 	{
 	  s2 = Fsingle_key_description
@@ -1836,22 +2285,21 @@ spaces are put between sequence elements, etc.")
 	    string = s2;
 	  else
 	    {
-	      if (NILP (sep)) sep = build_string (" ");
-	      string = concat2 (string, concat2 (sep, s2));
+	      /* if (NILP (sep)) Lisp_Object sep = build_string (" ") */;
+	      string = concat2 (string, concat2 (Vsingle_space_string, s2));
 	    }
 	}
       return string;
     }
-  else
-    {
-      return Fkey_description (wrong_type_argument (Qsequencep, keys));
-    }
+  return Fkey_description (wrong_type_argument (Qsequencep, keys));
 }
 
 DEFUN ("single-key-description", Fsingle_key_description,
        Ssingle_key_description, 1, 1, 0,
   "Return a pretty description of command character KEY.\n\
-Control characters turn into C-whatever, etc.")
+Control characters turn into C-whatever, etc.\n\
+This differs from `text-char-description' in that it returns a description\n\
+of a key read from the user rather than a character from a buffer.")
   (key)
      Lisp_Object key;
 {
@@ -1873,7 +2321,7 @@ Control characters turn into C-whatever, etc.")
       return (build_string (buf));
     }
 
-  else if (CONSP (key))
+  if (CONSP (key))
     {
       char buf [255];
       char *bufp = buf;
@@ -1911,50 +2359,33 @@ Control characters turn into C-whatever, etc.")
 	}
       return build_string (buf);
     }
-  else
-    {
-      return Fsingle_key_description
-	(wrong_type_argument (intern ("char-or-event-p"), key));
-    }
+  return Fsingle_key_description
+    (wrong_type_argument (intern ("char-or-event-p"), key));
 }
 
-static char *
-push_text_char_description (c, p)
-     register unsigned int c;
-     register char *p;
-{
-  if (c >= 0200)
-    {
-      *p++ = 'M';
-      *p++ = '-';
-      c -= 0200;
-    }
-  if (c < 040)
-    {
-      *p++ = '^';
-      *p++ = c + 64;		/* 'A' - 1 */
-    }
-  else if (c == 0177)
-    {
-      *p++ = '^';
-      *p++ = '?';
-    }
-  else
-    *p++ = c;
-  return p;  
-}
-
-DEFUN ("text-char-description", Ftext_char_description, Stext_char_description, 1, 1, 0,
+DEFUN ("text-char-description", Ftext_char_description, Stext_char_description,
+       1, 1, 0,
   "Return a pretty description of file-character CHAR.\n\
-Control characters turn into \"^char\", etc.")
+Unprintable characters turn into \"^char\" or \\NNN, depending on the value\n\
+of the `ctl-arrow' variable.\n\
+This differs from `single-key-description' in that it returns a description\n\
+of a character from a buffer rather than a key read from the user.")
   (chr)
      Lisp_Object chr;
 {
-  char tem[20];
+  char buf[20];
+  char *p;
+  unsigned int c;
+  Lisp_Object ctl_arrow = current_buffer->ctl_arrow;
+  int ctl_p = !NILP (ctl_arrow);
+  int printable_min = (FIXNUMP (ctl_arrow)
+		       ? XINT (ctl_arrow)
+		       : ((EQ (ctl_arrow, Qt) || EQ (ctl_arrow, Qnil))
+			  ? 256 : 160));
 
   if (EVENTP (chr))
     {
-      Lisp_Object ch = Fevent_to_character (chr, Qt);
+      Lisp_Object ch = Fevent_to_character (chr, Qnil, Qnil, Qt);
       if (NILP (ch))
 	return
 	  Fsignal (Qerror,
@@ -1965,53 +2396,96 @@ Control characters turn into \"^char\", etc.")
 
   CHECK_FIXNUM (chr, 0);
 
-  *push_text_char_description (XINT (chr) & 0377, tem) = 0;
+  c = XINT (chr) & 0377;
+  p = buf;
 
-  return build_string (tem);
+  if (c >= printable_min)
+    {
+      *p++ = c;
+    }
+  else if (c < 040 && ctl_p)
+    {
+      *p++ = '^';
+      *p++ = c + 64;		/* 'A' - 1 */
+    }
+  else if (c == 0177)
+    {
+      *p++ = '^';
+      *p++ = '?';
+    }
+  else if (c >= 0200 || c < 040)
+    {
+      *p++ = '\\';
+      *p++ = '0' + ((c & 0700) >> 6);
+      *p++ = '0' + ((c & 0070) >> 3);
+      *p++ = '0' + ((c & 0007));
+    }
+  else
+    {
+      *p++ = c;
+    }
+
+  *p = 0;
+  return build_string (buf);
 }
 
 
-
-static Lisp_Object where_is_recursive ();
+static Lisp_Object
+where_is_internal (Lisp_Object definition, Lisp_Object map,
+                   Lisp_Object shadow, Lisp_Object firstonly,
+                   char *target_buffer);
 
 DEFUN ("where-is-internal", Fwhere_is_internal, Swhere_is_internal, 1, 5, 0,
-  "Return list of keys that invoke DEFINITION in optional 2nd argument KEYMAP\n\
-or optional 4th argument GLOBAL_KEYMAP.\n\
-If KEYMAP is nil, search only GLOBAL_KEYMAP.\n\
-If GLOBAL_KEYMAP is nil, use the current global map.\n\
+  "Return list of keys that invoke DEFINITION in KEYMAP0 or KEYMAP1.\n\
+If KEYMAP0 is nil, search only KEYMAP1.\n\
+If KEYMAP1 is nil, use the current global map.\n\
 \n\
-If optional 3rd arg FIRSTONLY is non-nil,\n\
-return the first key sequence found, rather than a list of all possible\n\
-key sequences.")
-  (definition, local_keymap, firstonly, global_keymap, noindirect)
-     Lisp_Object definition, local_keymap, global_keymap;
+If optional 4th arg FIRSTONLY is non-nil,\n\
+return a string representing the first key sequence found,\n\
+rather than a list of all possible key sequences.\n\
+\n\
+If optional 5th arg NOINDIRECT is non-nil, don't follow indirections\n\
+to other keymaps or slots.  This makes it possible to search for an\n\
+indirect definition itself.")
+  (definition, keymap0, firstonly, keymap1, noindirect)
+     Lisp_Object definition, keymap0, keymap1;
      Lisp_Object firstonly, noindirect;
 {
-  Lisp_Object found [2];
-  if (NILP (global_keymap))
-    global_keymap = Vcurrent_global_map;
-  if (EQ (local_keymap, global_keymap))
-    local_keymap = Qnil;
+  Lisp_Object found0;
+  Lisp_Object found1;
+  struct gcpro gcpro1;
 
-  if (NILP (local_keymap))
-    found[0] = Qnil;
+  if (NILP (keymap1))
+    keymap1 = Vcurrent_global_map;
+  if (EQ (keymap0, keymap1))
+    keymap0 = Qnil;
+
+  if (NILP (keymap0))
+    found0 = Qnil;
   else
-    found[0] = where_is_recursive (definition, local_keymap, Qnil,
-				   firstonly, 0, 0, 0);
+    found0 = where_is_internal (definition, keymap0, Qnil, 
+                                firstonly, 0);
 
-  if (!NILP (firstonly) && !NILP (found[0]))
-    return found[0];
+  if (!NILP (firstonly) && !NILP (found0))
+    return found0;
+  GCPRO1 (found0);
 
-  found[1] = where_is_recursive (definition, global_keymap, local_keymap,
-				 firstonly, 0, 0, 0);
+  found1 = where_is_internal (definition, keymap1, keymap0, 
+                              firstonly, 0);
+  UNGCPRO;
   if (!NILP (firstonly))
-    return found[1];
-  else if (NILP (found[1]))
-    return found[0];
-  else if (NILP (found[0]))
-    return found[1];
+    return found1;
+  else if (NILP (found1))
+    return found0;
+  else if (NILP (found0))
+    return found1;
   else
-    return Fnconc (2, found);
+    {
+      Lisp_Object found[2];
+      found[0] = found0;
+      found[1] = found1;
+      return Fnconc (2, found);
+    }
 }
 
 
@@ -2022,9 +2496,9 @@ key sequences.")
    very fast.  This is used by menubar.c.
  */
 void
-where_is_to_char (definition, local_keymap, global_keymap, buf)
-     Lisp_Object definition, local_keymap, global_keymap;
-     char *buf;
+where_is_to_char (Lisp_Object definition, 
+                  Lisp_Object local_keymap, Lisp_Object global_keymap, 
+                  char *buf)
 {
   Lisp_Object found;
   if (NILP (global_keymap))
@@ -2035,26 +2509,18 @@ where_is_to_char (definition, local_keymap, global_keymap, buf)
   buf[0] = 0;
   if (!NILP (local_keymap))
     {
-      found = where_is_recursive (definition, local_keymap, Qnil, Qt,
-				  0, 0, buf);
+      found = where_is_internal (definition, local_keymap, Qnil, Qt, buf);
       if (!NILP (found))
 	return;
     }
-  where_is_recursive (definition, global_keymap, local_keymap, Qt,
-		      0, 0, buf);
+  where_is_internal (definition, global_keymap, local_keymap, Qt, buf);
 }
 
 
-static struct raw_key *keys_so_far;
-static int keys_so_far_total_size;
-
-
 static Lisp_Object 
-raw_keys_to_keys (keys, count)
-     struct raw_key *keys;
-     int count;
+raw_keys_to_keys (struct raw_key *keys, int count)
 {
-  Lisp_Object result = Fmake_vector (make_number (count), Qnil);
+  Lisp_Object result = make_vector (count, Qnil);
   while (count--)
     XVECTOR (result)->contents [count] =
       make_key_description (keys[count].keysym, keys[count].bits, 1);
@@ -2063,10 +2529,7 @@ raw_keys_to_keys (keys, count)
 
 
 static void
-format_raw_keys (keys, count, buf)
-     struct raw_key *keys;
-     int count;
-     char *buf;
+format_raw_keys (struct raw_key *keys, int count, char *buf)
 {
   int i;
   struct Lisp_Event event;
@@ -2083,12 +2546,21 @@ format_raw_keys (keys, count, buf)
 }
 
 
+struct keys_so_far
+{
+  int total_size;
+  struct raw_key *raw_keys;
+  int malloced;
+};
+
+
 static Lisp_Object
-where_is_recursive (definition, map, shadow, firstonly,
-		    keys_count, bits_so_far, target_buffer)
-     Lisp_Object definition, map, shadow, firstonly;
-     int keys_count, bits_so_far;
-     char *target_buffer;
+where_is_recursive_1 (Lisp_Object definition, Lisp_Object map,
+                      Lisp_Object shadow, int firstonly,
+                      int keys_count, int bits_so_far,
+                      char *target_buffer,
+                      struct keys_so_far *keys_so_far)
+
   /* definition is the thing to look for.
      map is a keymap.
      shadow is a keymap or nil; if it is a keymap, and there is different
@@ -2110,23 +2582,30 @@ where_is_recursive (definition, map, shadow, firstonly,
 {
   Lisp_Object result = Qnil;
 
-  if (keys_count >= keys_so_far_total_size)
+  if (keys_count >= keys_so_far->total_size)
     {
-      keys_so_far_total_size = keys_count + 50;
-      keys_so_far = (struct raw_key *)
-	xrealloc (keys_so_far,
-		  keys_so_far_total_size * sizeof (struct raw_key));
+      int size = keys_count + 50;
+      keys_so_far->total_size = size;
+      if (! keys_so_far->malloced)
+        keys_so_far->raw_keys
+          = (struct raw_key *) xmalloc (size * sizeof (struct raw_key));
+      else
+        keys_so_far->raw_keys
+          = (struct raw_key *) xrealloc (keys_so_far->raw_keys,
+                                         size * sizeof (struct raw_key));
+      keys_so_far->malloced = 1;
     }
 
-  for (map = get_keymap (map, 1);
+  for (map = get_keymap (map, 1, 1);
        !NILP (map);
-       map = get_keymap (XKEYMAP (map)->parent, 0))
+       map = get_keymap (XKEYMAP (map)->parent, 0, 1))
     {
-      Lisp_Object keys = Fgethash (definition, XKEYMAP (map)->inverse_table,
+      Lisp_Object keys = Fgethash (definition,
+				   XKEYMAP (map)->inverse_table,
 				   Qnil);
       Lisp_Object submaps;
 
-      if (!(NILP (keys)))
+      if (!NILP (keys))
 	{
 	  /* Verify that this key binding is not shadowed by another binding
 	     for the same key, before we say it exists.  The mechanism: look
@@ -2135,34 +2614,40 @@ where_is_recursive (definition, map, shadow, firstonly,
 	     number as value from raw_lookup_key() means undefined.
 	   */
 	  Lisp_Object shadowed = Qnil;
+          struct raw_key *so_far = keys_so_far->raw_keys;
 
-	  for (; !NILP (keys); keys = XCONS (keys)->cdr)
-	    {
-	      keys_so_far [keys_count].keysym = XCONS (keys)->car;
-	      keys_so_far [keys_count].bits = bits_so_far;
+          for (;;)
+            {
+              Lisp_Object k = ((CONSP (keys)) ? XCONS (keys)->car : keys);
+
+	      so_far [keys_count].keysym = k;
+	      so_far [keys_count].bits = bits_so_far;
 	      if (!NILP (shadow))
 		shadowed = raw_lookup_key (shadow,
-					   keys_so_far,
+					   so_far,
 					   keys_count + 1, 
 					   0);
 	      if (NILP (shadowed) ||
 		  FIXNUMP (shadowed) ||
-		  shadowed == definition)
+		  EQ (shadowed, definition))
 		{
 		  if (target_buffer)
 		    {
-		      if (NILP (firstonly)) abort ();
-		      format_raw_keys (keys_so_far, keys_count + 1,
+		      if (!firstonly) abort ();
+		      format_raw_keys (so_far,
+				       keys_count + 1,
 				       target_buffer);
-		      return 1;
+		      return (make_number (1));
 		    }
-		  else if (!NILP (firstonly))
-		    return raw_keys_to_keys (keys_so_far, keys_count + 1);
+		  else if (firstonly)
+		    return raw_keys_to_keys (so_far, keys_count + 1);
 		  else
 		    result =
-		      Fcons (raw_keys_to_keys (keys_so_far, keys_count + 1),
+		      Fcons (raw_keys_to_keys (so_far, keys_count + 1),
 			     result);
 		}
+              if (!CONSP (keys)) break;
+              keys = XCONS (keys)->cdr;
 	    }
 	}
 
@@ -2172,7 +2657,7 @@ where_is_recursive (definition, map, shadow, firstonly,
 	 return it immediately (in firstonly mode) or tack it onto the
 	 end of the ones we've gotten so far.
        */
-      for (submaps = keymap_submaps (XKEYMAP (map));
+      for (submaps = keymap_submaps (map);
 	   !NILP (submaps);
 	   submaps = XCONS (submaps)->cdr)
 	{
@@ -2183,7 +2668,11 @@ where_is_recursive (definition, map, shadow, firstonly,
 	  int lower_keys_count = keys_count;
 	  int bucky;
 
-	  submap = get_keymap (submap, 0);
+	  submap = get_keymap (submap, 0, 1);
+
+	  if (EQ (submap, map))
+	    /* Arrgh!  Some loser has introduced a loop... */
+	    continue;
 
 	  /* If this is not a keymap, then that's probably because someone
 	     did an `fset' of a symbol that used to point to a map such that
@@ -2204,15 +2693,16 @@ where_is_recursive (definition, map, shadow, firstonly,
 	    lower_bits = bits_so_far | bucky;
 	  else
 	    {
+	      struct raw_key *so_far = keys_so_far->raw_keys;
 	      lower_bits = 0;
-	      keys_so_far [lower_keys_count].keysym = key;
-	      keys_so_far [lower_keys_count].bits = bits_so_far;
+	      so_far [lower_keys_count].keysym = key;
+	      so_far [lower_keys_count].bits = bits_so_far;
 	      lower_keys_count++;
 	    }
-	  lower = where_is_recursive (definition, submap, shadow, firstonly,
+	  lower = where_is_recursive_1 (definition, submap, shadow, firstonly,
 				      lower_keys_count, lower_bits,
-				      target_buffer);
-	  if (NILP (firstonly))
+				      target_buffer, keys_so_far);
+	  if (!firstonly)
 	    result = nconc2 (lower, result);
 	  else if (!NILP (lower))
 	    return lower;
@@ -2225,6 +2715,29 @@ where_is_recursive (definition, map, shadow, firstonly,
     return (result);
 }
 
+
+static Lisp_Object
+where_is_internal (Lisp_Object definition, Lisp_Object map,
+                   Lisp_Object shadow, Lisp_Object firstonly,
+                   char *target_buffer)
+{
+  Lisp_Object tem;
+  struct raw_key raw[20];
+  struct keys_so_far junk;
+  junk.raw_keys = raw;
+  junk.total_size = countof (raw);
+  junk.malloced = 0;
+
+  tem = where_is_recursive_1 (definition, map,
+                              shadow, !NILP (firstonly),
+                              0, 0,
+                              target_buffer,
+                              &junk);
+  if (junk.malloced)
+    xfree (junk.raw_keys);
+  return (tem);
+}
+
 
 DEFUN ("describe-bindings", Fdescribe_bindings, Sdescribe_bindings, 0, 1, "P",
   "Show a list of all defined keys, and their definitions.\n\
@@ -2233,20 +2746,17 @@ If the argument is non-null, then only the mouse bindings are displayed.")
   (mice_only_p)
   Lisp_Object mice_only_p;
 {
-  register Lisp_Object thisbuf;
-  XSET (thisbuf, Lisp_Buffer, current_buffer);
   internal_with_output_to_temp_buffer ("*Help*",
 				       NILP (mice_only_p)
 				       ? describe_buffer_bindings
 				       : describe_buffer_mouse_bindings,
-				       thisbuf, Qnil);
+				       Fcurrent_buffer (), Qnil);
   return Qnil;
 }
 
+
 static Lisp_Object
-describe_buffer_bindings_1 (descbuf, mice_only_p)
-     Lisp_Object descbuf;
-     int mice_only_p;
+describe_buffer_bindings_1 (Lisp_Object descbuf, int mice_only_p)
 {
   const char *heading =
     (mice_only_p
@@ -2261,15 +2771,16 @@ describe_buffer_bindings_1 (descbuf, mice_only_p)
     {
       insert_string ("Local Bindings:\n");
       insert_string (heading);
-      describe_map_tree (XBUFFER (descbuf)->keymap,
-			 0, Qnil, Qnil, mice_only_p);
+      describe_map_tree (XBUFFER (descbuf)->keymap, 0, Qnil,
+                         mice_only_p);
       insert_string ("\n");
     }
 
   insert_string ("Global Bindings:\n");
   insert_string (heading);
 
-  describe_map_tree (Vcurrent_global_map, 0, XBUFFER (descbuf)->keymap, Qnil, mice_only_p);
+  describe_map_tree (Vcurrent_global_map, 0, XBUFFER (descbuf)->keymap,
+		     mice_only_p);
 
   Fset_buffer (descbuf);
   UNGCPRO;
@@ -2277,15 +2788,13 @@ describe_buffer_bindings_1 (descbuf, mice_only_p)
 }
 
 static Lisp_Object
-describe_buffer_bindings (descbuf)
-     Lisp_Object descbuf;
+describe_buffer_bindings (Lisp_Object descbuf)
 {
   return describe_buffer_bindings_1 (descbuf, 0);
 }
 
 static Lisp_Object
-describe_buffer_mouse_bindings (descbuf)
-     Lisp_Object descbuf;
+describe_buffer_mouse_bindings (Lisp_Object descbuf)
 {
   return describe_buffer_bindings_1 (descbuf, 1);
 }
@@ -2299,11 +2808,8 @@ describe_buffer_mouse_bindings (descbuf)
     don't mention keys which would be shadowed by it */
 
 void
-describe_map_tree (startmap, partial, shadow, chartab, mice_only_p)
-     Lisp_Object startmap, shadow;
-     int partial;
-     Lisp_Object chartab;
-     int mice_only_p;
+describe_map_tree (Lisp_Object startmap, int partial, Lisp_Object shadow,
+                   int mice_only_p)
 {
   Lisp_Object maps, elt, sh;
   struct gcpro gcpro1;
@@ -2329,19 +2835,15 @@ describe_map_tree (startmap, partial, shadow, chartab, mice_only_p)
 	}
       if (NILP (sh) || !NILP (Fkeymapp (sh)))
 	describe_map (Fcdr (elt), Fcar (elt), partial,
-		      (NILP (sh) ? Qnil : get_keymap (sh, 1)),
-		      chartab, mice_only_p);
+		      (NILP (sh) ? Qnil : get_keymap (sh, 1, 1)),
+		      mice_only_p);
     }
   UNGCPRO;
 }
 
 
-#define insert1(arg) \
-  do { Lisp_Object tem = (arg); Finsert (1, &tem); } while (0)
-
 static void
-describe_command (definition)
-     Lisp_Object definition;
+describe_command (Lisp_Object definition)
 {
   struct gcpro gcpro1;
   GCPRO1 (definition);
@@ -2369,8 +2871,7 @@ describe_command (definition)
 	{
 	  insert_string ("Prefix Command ");
 	  if (SYMBOLP (name) 
-	      && !NILP (Fboundp (name))
-	      && EQ (Fsymbol_value (name), definition))
+	      && EQ (find_symbol_value (name), definition))
 	    insert1 (name);
 	  else
 	    {
@@ -2389,30 +2890,23 @@ describe_command (definition)
 
 /* Describe the contents of map MAP, assuming that this map
    itself is reached by the sequence of prefix keys KEYS (a vector).
-   PARTIAL, SHADOW and CHARTAB are as in `describe_map_tree' above.  */
+   PARTIAL and SHADOW are as in `describe_map_tree' above.  */
 
 static void
-describe_map (map, keys, partial, shadow, chartab, mice_only_p)
-     Lisp_Object map, keys;
-     int partial;
-     Lisp_Object shadow;
-     Lisp_Object chartab;
-     int mice_only_p;
+describe_map (Lisp_Object map, Lisp_Object keys, 
+              int partial, Lisp_Object shadow, int mice_only_p)
 {
   Lisp_Object keysdesc;
-  struct gcpro gcpro1;
   
   if (!NILP (keys) && XINT (Flength (keys)) > 0)
-    keysdesc = concat2 (Fkey_description (keys), build_string (" "));
+    keysdesc = concat2 (Fkey_description (keys), Vsingle_space_string);
   else
     keysdesc = Qnil;
-  GCPRO1 (keysdesc);
-  describe_vector (map, keysdesc, describe_command,
-		   partial, shadow, chartab, mice_only_p);
-  UNGCPRO;
+  describe_map_1 (map, keysdesc, describe_command,
+		  partial, shadow, mice_only_p);
 }
 
-struct describe_vector_closure {
+struct describe_map_closure {
   Lisp_Object *list;	 /* pointer to the list to update */
   Lisp_Object partial;	 /* whether to ignore suppressed commands */
   Lisp_Object shadow;	 /* the map that shadows this one */
@@ -2423,19 +2917,17 @@ struct describe_vector_closure {
 };
 
 static void
-describe_vector_mapper (key, bits, binding, junk)
-     Lisp_Object key, binding;
-     int bits;
-     void *junk;
+describe_map_mapper (Lisp_Object key, int bits, Lisp_Object binding,
+		     void *describe_map_closure)
 {
   Lisp_Object sh;
-  struct describe_vector_closure *closure =
-    (struct describe_vector_closure *) junk;
+  struct describe_map_closure *closure =
+    (struct describe_map_closure *) describe_map_closure;
 
   /* Dont mention suppressed commands.  */
-  if (SYMBOLP (binding) &&
-      !NILP (closure->partial) &&
-      !NILP (Fget (binding, closure->partial)))
+  if (SYMBOLP (binding)
+      && !NILP (closure->partial)
+      && !NILP (Fget (binding, closure->partial, Qnil)))
     return;
 	      
   /* If we're only supposed to display mouse bindings and this isn't one,
@@ -2475,8 +2967,8 @@ describe_vector_mapper (key, bits, binding, junk)
 
 
 static int
-describe_vector_sort_predicate (obj1, obj2, pred)
-     Lisp_Object obj1, obj2, pred;
+describe_map_sort_predicate (Lisp_Object obj1, Lisp_Object obj2, 
+			     Lisp_Object pred)
 {
   /* obj1 and obj2 are conses of the form
      ( ( <keysym> . <bits> ) . <binding> )
@@ -2485,8 +2977,8 @@ describe_vector_sort_predicate (obj1, obj2, pred)
   int bit1, bit2;
   obj1 = XCONS (obj1)->car;
   obj2 = XCONS (obj2)->car;
-  bit1 = XFASTINT (XCONS (obj1)->cdr);
-  bit2 = XFASTINT (XCONS (obj2)->cdr);
+  bit1 = XINT (XCONS (obj1)->cdr);
+  bit2 = XINT (XCONS (obj2)->cdr);
   if (bit1 != bit2)
     return ((bit1 < bit2) ? 1 : -1);
   else
@@ -2498,8 +2990,7 @@ describe_vector_sort_predicate (obj1, obj2, pred)
    have consecutive character-set-properties.
  */
 static int
-elide_next_two_p (list)
-     Lisp_Object list;
+elide_next_two_p (Lisp_Object list)
 {
   Lisp_Object s1, s2;
 
@@ -2524,19 +3015,19 @@ elide_next_two_p (list)
 
   if (SYMBOLP (s1))
     {
-      Lisp_Object code = Fget (s1, Vcharacter_set_property);
+      Lisp_Object code = Fget (s1, Vcharacter_set_property, Qnil);
       if (FIXNUMP (code)) s1 = code;
       else return 0;
     }
   if (SYMBOLP (s2))
     {
-      Lisp_Object code = Fget (s2, Vcharacter_set_property);
+      Lisp_Object code = Fget (s2, Vcharacter_set_property, Qnil);
       if (FIXNUMP (code)) s2 = code;
       else return 0;
     }
 
-  if (XFASTINT (s1) == XFASTINT (s2) ||
-      XFASTINT (s1) + 1 == XFASTINT (s2))
+  if (XINT (s1) == XINT (s2) ||
+      XINT (s1) + 1 == XINT (s2))
     return 1;
   return 0;
 
@@ -2546,145 +3037,108 @@ elide_next_two_p (list)
 
 
 static void
-describe_vector (keymap, elt_prefix, elt_describer, partial, shadow, chartab,
-		 mice_only_p)
-     Lisp_Object keymap;
-     Lisp_Object elt_prefix;
-     void (*elt_describer) (Lisp_Object);
-     int partial;
-     Lisp_Object shadow;
-     Lisp_Object chartab;
-     int mice_only_p;
+describe_map_1 (Lisp_Object keymap,
+		Lisp_Object elt_prefix,
+		void (*elt_describer) (Lisp_Object),
+		int partial, 
+		Lisp_Object shadow,
+		int mice_only_p)
 {
-  struct describe_vector_closure closure;
+  struct describe_map_closure describe_map_closure;
   Lisp_Object list = Qnil;
   struct gcpro gcpro1, gcpro2, gcpro3, gcpro4;
+  int printable_min = (FIXNUMP (current_buffer->ctl_arrow)
+		       ? XINT (current_buffer->ctl_arrow)
+		       : ((EQ (current_buffer->ctl_arrow, Qt) ||
+			   EQ (current_buffer->ctl_arrow, Qnil))
+			  ? 256 : 160));
+  int elided = 0;
 
-  keymap = get_keymap (keymap, 1);
-  closure.partial = (partial ? Qsuppress_keymap : Qnil);
-  closure.shadow = shadow;
-  closure.list = &list;
-  closure.self_root = keymap;
-  closure.mice_only_p = mice_only_p;
+  keymap = get_keymap (keymap, 1, 1);
+  describe_map_closure.partial = (partial ? Qsuppress_keymap : Qnil);
+  describe_map_closure.shadow = shadow;
+  describe_map_closure.list = &list;
+  describe_map_closure.self_root = keymap;
+  describe_map_closure.mice_only_p = mice_only_p;
 
-  if (!NILP (chartab))
-    CHECK_VECTOR (chartab, 0);
-
-  GCPRO4 (keymap, elt_prefix, shadow, /* chartab, */ list);
+  GCPRO4 (keymap, elt_prefix, shadow, list);
 
   for (; !NILP (Fkeymapp (keymap)); keymap = XKEYMAP (keymap)->parent)
     {
-      closure.self = get_keymap (keymap, 1);
-      map_keymap (XKEYMAP (closure.self),
+      describe_map_closure.self = get_keymap (keymap, 1, 1);
+      map_keymap (XKEYMAP (describe_map_closure.self)->table,
 		  0, /* don't sort: we'll do it later */
-		  describe_vector_mapper, (void *) &closure);
+		  describe_map_mapper, &describe_map_closure);
     }
 
-  list = list_sort (list, Qnil, describe_vector_sort_predicate);
+  list = list_sort (list, Qnil, describe_map_sort_predicate);
 
-  insert_raw_string ("\n", 1);
-  while (!NILP (list)) {
-    Lisp_Object keysym = XCONS (XCONS (XCONS (list)->car)->car)->car;
-    int modifiers = XINT (XCONS (XCONS (XCONS (list)->car)->car)->cdr);
-
-    if (!NILP (elt_prefix))
-      insert_relocatable_raw_string ((char *) XSTRING (elt_prefix)->data,
-				     XSTRING (elt_prefix)->size,
-				     elt_prefix);
-
-    if (modifiers & MOD_META)    insert_raw_string ("M-", 2);
-    if (modifiers & MOD_CONTROL) insert_raw_string ("C-", 2);
-    if (modifiers & MOD_SUPER)   insert_raw_string ("S-", 2);
-    if (modifiers & MOD_HYPER)   insert_raw_string ("H-", 2);
-    if (modifiers & MOD_SYMBOL)  insert_raw_string ("Sym-", 4);
-    if (modifiers & MOD_SHIFT)   insert_raw_string ("Sh-", 3);
-    switch (XTYPE (keysym)) {
-    case Lisp_Symbol:
-      {
-	/* Calling Fsingle_key_description() would cons more */
-	if (EQ (keysym, QKlinefeed))	insert_raw_string ("LFD", 3);
-	else if (EQ (keysym, QKtab))	insert_raw_string ("TAB", 3);
-	else if (EQ (keysym, QKreturn))	insert_raw_string ("RET", 3);
-	else if (EQ (keysym, QKescape))	insert_raw_string ("ESC", 3);
-	else if (EQ (keysym, QKdelete))	insert_raw_string ("DEL", 3);
-	else if (EQ (keysym, QKspace))	insert_raw_string ("SPC", 3);
-	else if (EQ (keysym, QKbackspace)) insert_raw_string ("BS", 2);
-	else insert_raw_string ((char *) XSYMBOL (keysym)->name->data,
-				XSYMBOL (keysym)->name->size);
-	break;
-      }
-    case Lisp_Int:
-      {
-	char string [1];
-	string [0] = XFASTINT (keysym);
-	insert_raw_string (string, 1);
-	break;
-      }
-    default:
-      insert_string ("---bad keysym---");
-    }
-
+  insert_string ("\n");
+  while (!NILP (list))
     {
-      int k = 0;
+      Lisp_Object keysym = XCONS (XCONS (XCONS (list)->car)->car)->car;
+      int modifiers = XINT (XCONS (XCONS (XCONS (list)->car)->car)->cdr);
 
-      while (elide_next_two_p (list))
+      if (!NILP (elt_prefix))
+	insert_from_string (elt_prefix, -1);
+
+      if (modifiers & MOD_META)    insert_string ("M-");
+      if (modifiers & MOD_CONTROL) insert_string ("C-");
+      if (modifiers & MOD_SUPER)   insert_string ("S-");
+      if (modifiers & MOD_HYPER)   insert_string ("H-");
+      if (modifiers & MOD_SYMBOL)  insert_string ("Sym-");
+      if (modifiers & MOD_SHIFT)   insert_string ("Sh-");
+      if (SYMBOLP (keysym))
 	{
-	  k++;
-	  list = XCONS (list)->cdr;
-	}
-      if (k)
-	{
-	  if (k == 1)
-	    insert_raw_string (", ", 2);
+	  Lisp_Object code = Fget (keysym, Vcharacter_set_property, Qnil);
+	  int c = (FIXNUMP (code) ? XINT (code) : -1);
+	  /* Calling Fsingle_key_description() would cons more */
+	  if (EQ (keysym, QKlinefeed))		insert_string ("LFD");
+	  else if (EQ (keysym, QKtab))		insert_string ("TAB");
+	  else if (EQ (keysym, QKreturn))	insert_string ("RET");
+	  else if (EQ (keysym, QKescape))	insert_string ("ESC");
+	  else if (EQ (keysym, QKdelete))	insert_string ("DEL");
+	  else if (EQ (keysym, QKspace))	insert_string ("SPC");
+	  else if (EQ (keysym, QKbackspace))	insert_string ("BS");
+	  else if (c >= printable_min)		insert_char (c);
 	  else
-	    insert_raw_string (" .. ", 4);
-	  continue;
+	    insert_raw_string ((char *) XSYMBOL (keysym)->name->data,
+			       XSYMBOL (keysym)->name->size);
 	}
+      else if (FIXNUMP (keysym))
+	insert_char (XINT (keysym));
+      else
+	insert_string ("---bad keysym---");
+
+      if (elided)
+	elided = 0;
+      else
+	{
+	  int k = 0;
+
+	  while (elide_next_two_p (list))
+	    {
+	      k++;
+	      list = XCONS (list)->cdr;
+	    }
+	  if (k != 0)
+	    {
+	      if (k == 1)
+		insert_string (", ");
+	      else
+		insert_string (" .. ");
+	      elided = 1;
+	      continue;
+	    }
+	}
+
+      /* Print a description of the definition of this character.  */
+      (*elt_describer) (XCONS (XCONS (list)->car)->cdr);
+      list = XCONS (list)->cdr;
     }
-    
-    /* Print a description of the definition of this character.  */
-    (*elt_describer) (XCONS (XCONS (list)->car)->cdr);
-    list = XCONS (list)->cdr;
-  }
   UNGCPRO;
 }
 
-
-/* Apropos */
-static Lisp_Object apropos_predicate;
-static Lisp_Object apropos_accumulate;
-
-static void
-apropos_accum (symbol, string)
-     Lisp_Object symbol, string;
-{
-  register Lisp_Object tem;
-
-  tem = Fstring_match (string, Fsymbol_name (symbol), Qnil);
-  if (!NILP (tem) && !NILP (apropos_predicate))
-    tem = call1 (apropos_predicate, symbol);
-  if (!NILP (tem))
-    apropos_accumulate = Fcons (symbol, apropos_accumulate);
-}
-
-DEFUN ("apropos-internal", Fapropos_internal, Sapropos_internal, 1, 2, 0, 
-  "Show all symbols whose names contain match for REGEXP.\n\
-If optional 2nd arg PRED is non-nil, (funcall PRED SYM) is done\n\
-for each symbol and a symbol is mentioned only if that returns non-nil.\n\
-Return list of symbols found.")
-  (string, pred)
-     Lisp_Object string, pred;
-{
-  struct gcpro gcpro1, gcpro2;
-  CHECK_STRING (string, 0);
-  apropos_predicate = pred;
-  GCPRO2 (apropos_predicate, apropos_accumulate);
-  apropos_accumulate = Qnil;
-  map_obarray (Vobarray, apropos_accum, string);
-  apropos_accumulate = Fsort (apropos_accumulate, Qstring_lessp);
-  UNGCPRO;
-  return apropos_accumulate;
-}
 
 void
 syms_of_keymap ()
@@ -2695,26 +3149,42 @@ This character followed by some character `foo' turns into `Meta-foo'.\n\
 To disable the meta-prefix-char, set it to a negative number.");
   meta_prefix_char = 033;
 
+  DEFVAR_LISP ("mouse-grabbed-buffer", &Vmouse_grabbed_buffer,
+  "A buffer which should be consulted first for all mouse activity.\n\
+When a mouse-clicked it processed, it will first be looked up in the\n\
+local-map of this buffer, and then through the normal mechanism if there\n\
+is no binding for that click.  This buffer's value of `mode-motion-hook'\n\
+will be consulted instead of the `mode-motion-hook' of the buffer of the\n\
+window under the mouse.  You should *bind* this, not set it.");
+  Vmouse_grabbed_buffer = Qnil;
+
   DEFVAR_INT ("keymap-tick", &keymap_tick,
 	      "Incremented for each change to any keymap.");
   keymap_tick = 0;
 
+  defsymbol (&Qkeymap, "keymap");
   defsymbol (&Qkeymapp, "keymapp");
+
   defsymbol (&Qsuppress_keymap, "suppress-keymap");
 
-#if 0
-  defsymbol (&Qsingle_key_description, "single-key-description");
-  defsymbol (&Qkey_description, "key-description");
-#endif
+  defsymbol (&Qmode_line_map, "mode-line-map");
 
   staticpro (&Vcurrent_global_map);
+
+  Vsingle_space_string = make_pure_string (" ", 1, 1);
+  staticpro (&Vsingle_space_string);
+
+  defsubr (&Skeymap_parent);
+  defsubr (&Sset_keymap_parent);
+/*defsubr (&Skeymap_name); */
+  defsubr (&Sset_keymap_name);
+  defsubr (&Skeymap_prompt);
+  defsubr (&Sset_keymap_prompt);
 
   defsubr (&Skeymapp);
   defsubr (&Smake_keymap);
   defsubr (&Smake_sparse_keymap);
-  defsubr (&Skeymap_parent);
-  defsubr (&Sset_keymap_parent);
-  defsubr (&Sset_keymap_name);
+
   defsubr (&Scopy_keymap);
   defsubr (&Skeymap_fullness);
   defsubr (&Smap_keymap);
@@ -2728,10 +3198,10 @@ To disable the meta-prefix-char, set it to a negative number.");
   defsubr (&Saccessible_keymaps);
   defsubr (&Skey_description);
   defsubr (&Ssingle_key_description);
-  defsubr (&Stext_char_description);
   defsubr (&Swhere_is_internal);
   defsubr (&Sdescribe_bindings);
-  defsubr (&Sapropos_internal);
+
+  defsubr (&Stext_char_description);
 
   defsymbol (&Qcontrol, "control");
   defsymbol (&Qctrl, "ctrl");
@@ -2757,17 +3227,6 @@ To disable the meta-prefix-char, set it to a negative number.");
   defsymbol (&Qbutton6up, "button6up");
   defsymbol (&Qbutton7up, "button7up");
   defsymbol (&Qmenu_selection, "menu-selection");
-
-  /* no need to staticpro these because where_is_internal and lookup_key
-     do not eval, and do not use the data in these after they exit.
-   */
-  keys_so_far_total_size = 50;
-  keys_so_far = (struct raw_key *)
-    xmalloc (sizeof (struct raw_key) * keys_so_far_total_size);
-
-  lookup_key_buf_total_size = 50;
-  lookup_key_buf = (struct raw_key *)
-    xmalloc (sizeof (struct raw_key) * keys_so_far_total_size);
 }
 
 void

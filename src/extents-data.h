@@ -2,7 +2,7 @@
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -19,6 +19,12 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #ifndef ENERGIZE
 ERROR! extents-data.h is an Energize-only file
+#endif
+
+#ifndef NCR486
+# define IDENTITY_CRISIS "Energize"
+#else
+# define IDENTITY_CRISIS "C++ Workbench"
 #endif
 
 /****************************** Types *********************************/
@@ -86,7 +92,7 @@ typedef struct
 
 /* Information about each extent */
 
-typedef struct 
+typedef struct Energize_Extent_Data
 {
   int seal;                     /* must be EXTENT_SEAL */
   EId id;
@@ -175,6 +181,5 @@ static struct buffer_type_struct
 #define UNKNOWN_BUFFER_TYPE "energize-unknown-buffer"
 
 Energize_Extent_Data *energize_extent_data (EXTENT);
-void set_energize_extent_data (EXTENT, void *);
 
 #endif /* _EXTENTS_DATA_H_ */

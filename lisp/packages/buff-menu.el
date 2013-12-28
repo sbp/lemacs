@@ -27,6 +27,7 @@
     ()
   (setq Buffer-menu-mode-map (make-keymap))
   (suppress-keymap Buffer-menu-mode-map t)
+  (set-keymap-name Buffer-menu-mode-map 'Buffer-menu-mode-map)
   (define-key Buffer-menu-mode-map "q" 'Buffer-menu-select)
   (define-key Buffer-menu-mode-map "2" 'Buffer-menu-2-window)
   (define-key Buffer-menu-mode-map "1" 'Buffer-menu-1-window)
@@ -108,13 +109,16 @@ Precisely,\\{Buffer-menu-mode-map}"
 	    nil)))))
 
 (defvar list-buffers-header-line
-  (concat " MR Buffer           Size  Mode         File\n"
-	  " -- ------           ----  ----         ----\n"))
+  (purecopy (concat " MR Buffer           Size  Mode         File\n"
+                    " -- ------           ----  ----         ----\n")))
 
 (defvar list-buffers-identification 'default-list-buffers-identification
   "String used to identify this buffer, or a function of one argument
 to generate such a string.  This variable is always buffer-local.")
 (make-variable-buffer-local 'list-buffers-identification)
+
+(defvar list-buffers-directory)
+(make-variable-buffer-local 'list-buffers-directory)
 
 (defun default-list-buffers-identification (output)
   (save-excursion

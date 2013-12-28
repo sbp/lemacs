@@ -29,7 +29,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 static void
 pre_hook (Widget w, XtPointer client_data, XtPointer call_data)
 {
-  XlwMenuWidget bar = (XlwMenuWidget)w;
   widget_instance* instance = (widget_instance*)client_data;
   widget_value* val;
 
@@ -45,7 +44,6 @@ pre_hook (Widget w, XtPointer client_data, XtPointer call_data)
 static void
 pick_hook (Widget w, XtPointer client_data, XtPointer call_data)
 {
-  XlwMenuWidget bar = (XlwMenuWidget)w;
   widget_instance* instance = (widget_instance*)client_data;
   widget_value* contents_val = (widget_value*)call_data;
   widget_value* widget_val;

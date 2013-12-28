@@ -1,9 +1,8 @@
 ;;; -*-Emacs-Lisp-*-
 ;;; %Header
-;;; Shrink-wrapped temporary windows for GNU Emacs V2.11
+;;; Shrink-wrapped temporary windows for GNU Emacs Rcs_Info: 2.40 $
 ;;; Copyright (C) 1990, 1991, 1992 Chris McConnell, ccm@cs.cmu.edu.
 ;;; Thanks to Ken Laprade for suggestions and patches.
-;;; hacked for Emacs 19 and Lucid GNU Emacs
 
 ;;; This file is part of GNU Emacs.
 
@@ -39,13 +38,18 @@
 ;;; with-output-to-temp-buffer, the text will be displayed in the
 ;;; popper window if the name of the buffer is in popper-pop-buffers
 ;;; or popper-pop-buffers is set to T and the name is not in
-;;; popper-no-pop-buffers.  Many kinds of completion and help
-;;; information are displayed this way.  In general any buffer with
-;;; *'s around its name will be a temporary buffer.  Some commands
-;;; like shell-command do not use with-output-to-temp-buffer even
-;;; though you might like to have their output be temporary.  For
-;;; commands like this, you can define a wrapper like this using the
-;;; function popper-wrap.
+;;; popper-no-pop-buffers.  If you have a buffer with a process, you
+;;; can cause it to automatically scroll by setting
+;;; popper-scroll-buffers to t or to a list of buffer names to scroll.
+;;; Many kinds of completion and help information are displayed this
+;;; way.  In general any buffer with *'s around its name will be a
+;;; temporary buffer.  Some commands like shell-command do not use
+;;; with-output-to-temp-buffer even though you might like to have
+;;; their output be temporary.  For commands like this, you can define
+;;; a wrapper like this using the function popper-wrap.
+;;;
+;;; If popper-use-message-buffer if non-nil then popper output that is
+;;; one line or less will be displayed in the minibuffer.
 ;;;
 ;;; The default binding for C-x o is changed so that when a buffer is
 ;;; displayed in a popper window, it will be skipped if it is in
@@ -67,6 +71,8 @@
 ;;;
 ;;; (setq popper-load-hook 
 ;;;      '(lambda ()
+;;;        (setq popper-pop-buffers t) ; Make popper pop everything temporary - Hooray!
+;;;        (setq popper-buffers-to-skip t) 
 ;;;        ;; Define key bindings
 ;;;        (define-key global-map "\C-c1" 'popper-bury-output)
 ;;;        (define-key global-map "\C-cv" 'popper-scroll-output)
@@ -93,10 +99,18 @@
 (defvar popper-load-hook nil
   "List of functions to run when the popper module is loaded.")
 
+;;; 
+;;; Sun Jun 27 23:18:45 1993  --  Ivan
 ;;;
-(defvar popper-pop-buffers t
+;;; Made this default to nil.  Just because we require the popper doesn't mean we should lose.
+;;;
+(defvar popper-pop-buffers nil
   "*List of buffers to put in the shrink-wrapped pop-up window.  
 If it is T, all temporary buffers will be put in the pop-up window.")
+
+(defvar popper-use-message-buffer t
+  "*If non-nil makes output to popper-buffers that is one line or less
+  go to the minibuffer.")
 
 (defvar popper-no-pop-buffers nil
   "*If popper-pop-buffers is T, these buffers will not be put into the
@@ -110,6 +124,13 @@ skipped except those in popper-buffers-no-skip.")
 (defvar popper-buffers-no-skip nil
   "*\\[popper-other-window] will not skip these buffers when they are
 used in a popper window if popper-buffers-to-skip is T.")
+
+(defvar popper-eat-newlines t
+  "*Boolean for eating trailing newlines in popper buffers.")
+
+(defvar popper-scroll-buffers t
+  "*If set to T or a list of buffer names, cause buffers with
+associated processes to scroll automatically.")
 
 ;;; By default, this is set to 2 so that a window can be one line big.
 ;;; The number of lines in the popper window plus the mode line will
@@ -146,6 +167,16 @@ be set to a short help message on first use of popper.")
 (or (assq 'popper-buffer minor-mode-alist)
     (setq minor-mode-alist
 	  (cons '(popper-buffer popper-mode-line-text) minor-mode-alist)))
+
+(defconst popper-emacs-version-id
+  (cond ((string-match "Lucid" emacs-version)
+	 (if (string-match "^19.[0-7][^0-9]" emacs-version)
+	     'lucid-19
+	   'lucid-19-new))
+	((string-match "^19" emacs-version)
+	 'fsf-19)
+	(t 'fsf-18))
+  "What version of emacs we are running. ")
 
 ;;;%Utils
 ;;; This should be in emacs, but it isn't.
@@ -242,6 +273,31 @@ popper-empty-min if the buffer is empty or window-min-height."
 	min)))
 
 ;;;
+(defvar popper-original-filter nil
+  "Original process filter.")
+(make-variable-buffer-local 'popper-original-filter)
+(defun popper-scroll-filter (process output)
+  "Scroll and keep last point in window."
+  (let* ((old (selected-window))
+	 (buffer (process-buffer process))
+	 (window (get-buffer-window buffer))
+	 *w)
+    (save-excursion
+      (set-buffer buffer)
+      (if popper-original-filter
+	  (funcall popper-original-filter process output)
+	  (goto-char (process-mark process))
+	  (insert output)
+	  (set-marker (process-mark process) (point))))
+    (if (and window)
+	(progn
+	  (setq *w window)
+	  (select-window window)
+	  (goto-char (point-max))
+	  (move-to-window-line nil)
+	  (select-window old)))))
+
+;;;
 (defun popper-show-output (&optional buffer size)
   "Bring the output window up showing optional BUFFER in window of
 SIZE.  If SIZE is not specified, then shrink the window.  Finally
@@ -252,7 +308,14 @@ select the original window."
 		  (or buffer (popper-first-buffer) 
 		      (error "No popper buffers"))))
 	 start parent
-	 (min-height (+ window-min-height (or size window-min-height))))
+	 (min-height (+ window-min-height (or size window-min-height)))
+	 (text-lines (save-excursion
+		       (set-buffer buffer)
+		       (count-lines (point-min) (point-max)))))
+    (if (and (= text-lines 1) popper-use-message-buffer)
+	(message 
+	 (save-excursion
+	   (set-buffer buffer) (buffer-substring (point-min) (point-max))))
     (setq popper-last-output-window window)
     (if (eq buffer old-buffer)
 	(popper-shrink-window)
@@ -271,13 +334,19 @@ select the original window."
 	(setq popper-buffer t)
 	(or popper-mode-line-text
 	    (setq popper-mode-line-text
-		  (list (format " %s bury, %s scroll"
-				;; what where-is-internal returns isn't a
-				;; string in Lucid GNU Emacs
-				(key-description
-				 (where-is-internal 'popper-bury-output nil t))
-				(key-description
-				 (where-is-internal 'popper-scroll-output nil t))))))
+		  (list (format 
+			 " %s bury, %s scroll" 
+			 (key-description
+			  (if (eq popper-emacs-version-id 'fsf-19)
+			      (where-is-internal
+			       'popper-bury-output nil nil t)
+			    (where-is-internal 'popper-bury-output nil t)))
+			 (key-description 
+			  (if (eq popper-emacs-version-id 'fsf-19)
+			      (where-is-internal 
+			       'popper-scroll-output nil nil t)
+			    (where-is-internal 'popper-scroll-output 
+					       nil t)))))))
 	(setq popper-output-buffers
 	      (cons buffer (delq buffer popper-output-buffers)))
 	(if (not size) (popper-shrink-window))
@@ -294,7 +363,7 @@ select the original window."
 	      (set-window-start (selected-window) point)))
 	(if (eq popper-last-output-window (minibuffer-window))
 	    (select-window (minibuffer-window)))
-	(set-buffer old-buffer))))
+	(set-buffer old-buffer)))))
 
 ;;;
 (defun popper-shrink-window ()
@@ -308,13 +377,31 @@ popper-empty-min is used."
 	  (buffer-modified-p (buffer-modified-p)))
       (save-excursion
 	;; Delete trailing blank lines
-	(goto-char (point-max))
-	(skip-chars-backward "\n")
-	(if (< (point) (point-max)) (delete-region (1+ (point)) (point-max)))
+	(if popper-eat-newlines
+	    (progn
+	      (goto-char (point-max))
+	      (skip-chars-backward "\n")
+	      (if (< (point) (point-max))
+		  (delete-region (1+ (point)) (point-max)))))
 	(goto-char (point-min))
 	;; Delete leading blank lines
 	(if (looking-at "\n+") (replace-match ""))
 	(set-buffer-modified-p buffer-modified-p)))
+    ;; Keep scrolling process pop-ups
+    (let ((process (get-buffer-process (current-buffer))))
+      (if (and process (or (eq popper-scroll-buffers t)
+			   (memq (buffer-name (current-buffer))
+				 popper-scroll-buffers)))
+	  (progn 
+	    (while (not (marker-position (process-mark process)))
+	      (accept-process-output))
+	    (goto-char (point-max))
+	    ;; (set-marker (process-mark process) (point))
+	    (insert ? )
+	    (set-mark (point))
+	    (setq popper-original-filter (process-filter process))
+	    (set-process-filter process 'popper-scroll-filter)
+	    )))
     (enlarge-window (- (max (1+ (save-excursion 
 				  (goto-char (point-min))
 				  (vertical-motion window-lines)))
@@ -381,8 +468,9 @@ be brought up."
 			  (scroll-up n)
 			(error
 			 (if (or (null n) (and (numberp n) (> n 0)))
-			     (goto-char (point-min))
-			     (goto-char (point-max))))))
+			     (set-window-start (selected-window) (point-min))
+			     (while (not (pos-visible-in-window-p (point-max)))
+			       (scroll-up nil))))))
 	    (select-window window)))
 	(popper-show-output))))
 
@@ -482,74 +570,54 @@ T those that are not in popper-buffers-no-skip."
 	      (other-window arg)))))
 (define-key ctl-x-map "o" 'popper-other-window)
 
-;;; %Wrappers
-(defun popper-unwrap (function)
-  "Remove the popper wrapper for NAME."
-  (let ((var (car (read-from-string (format "popper-%s" function)))))
-    (if (boundp var)
-	(progn (fset function (symbol-value var))
-	       (makunbound var)))))
+(require 'advice)
+(ad-start-advice)
+
+(defun foobar-break (shown)
+  (message "IN FOOBAR-BREAK")
+  (sleep-for 1))
+
 
 ;;;
-(defun popper-wrap (function buffer)
+(defmacro popper-wrap (function buffer)
   "Define a wrapper on FUNCTION so that BUFFER will be a pop up window."
-  (popper-unwrap function)
-  (let* ((var (car (read-from-string (format "popper-%s" function))))
-	 (defn (symbol-function function))
-	 arg-spec doc int)
-    (set var defn)
-    (if (consp defn)
-	(setq arg-spec (elt defn 1)
-	      doc (elt defn 2)
-	      int (elt defn 3))
-	(setq arg-spec (aref defn 0)
-	      doc (and (> (length defn) 4) (aref defn 4))
-	      int (and (> (length defn) 5) (list 'interactive (aref defn 5)))))
-    (fset function 
-	  (append 
-	   (list 'lambda arg-spec)
-	   (if (numberp doc) (list (documentation function)))
-	   (if (stringp doc) (list doc))
-	   (if (eq (car int) 'interactive) (list int))
-	   (list 
-	    (list
-	     'let '((shown nil))
-	     (list 'save-window-excursion 
-		   (cons 'funcall 
-			 (cons 
-			  var
-			  (let ((args nil))
-			    (while arg-spec
-			      (if (not (eq (car arg-spec) '&optional))
-				  (setq args (cons (car arg-spec)
-						   args)))
-			      (setq arg-spec (cdr arg-spec)))
-			    (reverse args))))
-		   (list 'setq 'shown (list 'get-buffer-window buffer)))
-	     (list 'if 'shown
-		   (list 'funcall
-			 '(if (string-match "^19\\." emacs-version)
-			      temp-buffer-show-function
-			    temp-buffer-show-hook)
-			 buffer))))))
-    (if (not (eq popper-pop-buffers t))
-	(let ((elt popper-pop-buffers))
-	  (while (consp elt)
-	    (if (string= (car elt) buffer) 
-		(setq elt t)
-		(setq elt (cdr elt))))
-	  (if (not elt)
-	      (setq popper-pop-buffers (cons buffer popper-pop-buffers)))))))
+  (let ((name (intern (concat "popper-wrapper-" (symbol-name function)))))
+    (list 'progn
+	  (list 'defadvice function 
+		(list 'around name 'activate)
+		(list 'let '((shown nil))
+		      (list 'save-window-excursion 
+			    'ad-do-it
+			    (list 'setq 'shown 
+				  (list 'get-buffer-window buffer)))
+		      (list 'if 'shown
+			    (list 'funcall 
+				  (if (string-match "^18" emacs-version)
+				      'temp-buffer-show-hook
+				      'temp-buffer-show-function)
+				  buffer))))
+	  (list 'if 
+		'(not (eq popper-pop-buffers t))
+		(list 'let '((elt popper-pop-buffers))
+		      (list 'while '(consp elt)
+			    (list 'if (list 'string= '(car elt) buffer)
+				  '(setq elt t)
+				  '(setq elt (cdr elt))))
+		      (list 'if '(not elt)
+			    (list 'setq 
+				  'popper-pop-buffers 
+				  (list 'cons buffer 
+					'popper-pop-buffers))))))))
 
 ;;; 
-(popper-wrap 'shell-command "*Shell Command Output*")
-(popper-wrap 'shell-command-on-region "*Shell Command Output*")
+(popper-wrap shell-command "*Shell Command Output*")
+(popper-wrap shell-command-on-region "*Shell Command Output*")
 
 ;;;
-(if (string-match "^19\\." emacs-version)
-    (setq temp-buffer-show-function 'popper-show)
-  (setq temp-buffer-show-hook 'popper-show))
-  
+(if (string-match "^18" emacs-version) 
+    (setq temp-buffer-show-hook 'popper-show)
+  (setq temp-buffer-show-function 'popper-show))
+
 (run-hooks 'popper-load-hook)
 
 ;;; Default key bindings

@@ -2,13 +2,13 @@
 ;;; The optimization passes of the emacs-lisp byte compiler.
 
 ;; By Jamie Zawinski <jwz@lucid.com> and Hallvard Furuseth <hbf@ulrik.uio.no>.
-;; last modified 22-jul-92.
+;; last modified 27-jun-93.
 
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -71,13 +71,14 @@
 ;;; but beware of traps like
 ;;;   (cons (list x y) (list x y))
 ;;;
-;;; Tail-recursion elimination is not really possible in elisp.  Tail-recursion
-;;; elimination is almost always impossible when all variables have dynamic
-;;; scope, but given that the "return" byteop requires the binding stack to be
-;;; empty (rather than emptying it itself), there can be no truly tail-
-;;; recursive elisp functions that take any arguments or make any bindings.
+;;; Tail-recursion elimination is not really possible in Emacs Lisp.
+;;; Tail-recursion elimination is almost always impossible when all variables
+;;; have dynamic scope, but given that the "return" byteop requires the
+;;; binding stack to be empty (rather than emptying it itself), there can be
+;;; no truly tail-recursive Emacs Lisp functions that take any arguments or
+;;; make any bindings.
 ;;;
-;;; Here is an example of an elisp function which could safely be
+;;; Here is an example of an Emacs Lisp function which could safely be
 ;;; byte-compiled tail-recursively:
 ;;;
 ;;;  (defun tail-map (fn list)
@@ -107,7 +108,7 @@
 ;;; overflow.  I don't believe there is any way around this without lexical
 ;;; scope.
 ;;;
-;;; Wouldn't it be nice if elisp had lexical scope.
+;;; Wouldn't it be nice if Emacs Lisp had lexical scope.
 ;;;
 ;;; Idea: the form (lexical-scope) in a file means that the file may be 
 ;;; compiled lexically.  This proclamation is file-local.  Then, within 

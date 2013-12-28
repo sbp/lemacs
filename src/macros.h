@@ -1,5 +1,5 @@
 /* Definitions for keyboard macro interpretation in GNU Emacs.
-   Copyright (C) 1985-1993 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1992, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -20,7 +20,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #ifndef _EMACS_MACROS_H_
 #define _EMACS_MACROS_H_
 
-/* Kbd macro currently being executed (a string) */
+/* Kbd macro currently being executed (a string or vector) */
 
 extern Lisp_Object Vexecuting_macro;
 
@@ -31,5 +31,12 @@ extern int executing_macro_index;
 /* Nonzero while defining a kbd macro */
 
 extern int defining_kbd_macro;
+
+extern int kbd_macro_end;
+extern int kbd_macro_ptr;
+
+extern void store_kbd_macro_event (Lisp_Object event);
+extern void pop_kbd_macro_event (Lisp_Object event);
+extern void finalize_kbd_macro_chars (void);
 
 #endif /* _EMACS_MACROS_H_ */

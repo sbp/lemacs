@@ -1,5 +1,5 @@
 /* Fundamental definitions for GNU Emacs Lisp interpreter.
-   Copyright (C) 1985-1993 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1987, 1992, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -21,31 +21,109 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define _EMACS_LISP_H_
 
 #ifdef emacs	/* some things other than emacs want the structs */
-#if __STDC__
 
 /* I don't know how correct this attempt to get more prototypes is... */
-# if defined(sun) && defined(_POSIX_SOURCE)
-#  undef _POSIX_SOURCE
-# endif
+#if defined(sun) && defined(_POSIX_SOURCE)
+# undef _POSIX_SOURCE
+#endif
 
-# if defined(__lucid) && !defined(__STDC_EXTENDED__)
-#  define __STDC_EXTENDED__ 1
-# endif
+#if defined(__lucid) && !defined(__STDC_EXTENDED__)
+# define __STDC_EXTENDED__ 1
+#endif
 
-# include <stdlib.h>
-# include <unistd.h>
-# include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>            /* primarily for memcpy, etc */
 
-# ifdef __lucid
-#  include <sysent.h>
-# endif
+#ifdef __lucid
+# include <sysent.h>
+#endif
 
 #ifdef NeXT
 typedef int pid_t;
 #endif
 
-#endif /* __STDC__ */
+/* Emacs needs to use its own definitions of certain system calls on some
+   systems (like SunOS 4.1, where the read system call is interruptable but
+   emacs expects it not to be.  This used to be done by having the appropriate
+   "s" file do `#define read sys_read' and having there be a definition of the
+   sys_read function in sysdep.c, but doing it this way can cause conflicts if
+   the prototype of sys_read doesn't exactly match the prototype of read from
+   the system header files, because read will be defined before the system
+   header files are included.  So instead, the "s" files define `emacs_read'
+   as `sys_read', and if `emacs_read' is not defined by the time lisp.h is
+   included, then we define it to be simply `read'.  All calls to read, write,
+   open, and close in the emacs source are really calls to the emacs_ version
+   instead.
+
+   Possibly the INTERRUPTIBLE_IO flag could be used for this instead?  Then the
+   s and m files would only need to do one define (INTERRUPTIBLE_IO) instead of
+   four or five (INTERRUPTIBLE_IO, emacs_read, emacs_write, emacs_open, and
+   maybe emacs_close).
+
+   Possibly we should do this with fwrite/emacs_fwrite as well, but it looks
+   like VMS is the only system that needs to encapsulate fwrite.
+ */
+#ifndef emacs_read
+#define emacs_read read
+#endif
+#ifndef emacs_write
+#define emacs_write write
+#endif
+#ifndef emacs_open
+#define emacs_open open
+#endif
+#ifndef emacs_close
+#define emacs_close close
+#endif
+
 #endif /* emacs */
+
+/* generally useful */
+#define countof(x) (sizeof((x))/sizeof((x)[0]))
+
+/* We assume an ANSI C compiler and libraries and memcpy, memset, memcmp */
+/*  (This definition is here because system header file macros may want
+ *   to call bzero (eg FD_ZERO) */
+#ifndef bzero
+#define bzero(m, l) memset ((m), 0, (l))
+#endif
+
+#ifndef DOESNT_RETURN
+# ifdef __GNUC__
+#  define DOESNT_RETURN void volatile /* eg extern DOESNT_RETURN abort (); */
+# else
+#  define DOESNT_RETURN void
+# endif
+#endif
+
+#ifndef ALIGNOF
+# if defined (__GNUC__) && (__GNUC__ >= 2)
+#  define ALIGNOF(x) __alignof(x)
+# else
+#  define ALIGNOF(x) sizeof(x)
+# endif
+#endif
+
+
+/* These values are overridden by the m- file on some machines.  */
+#ifndef GCTYPEBITS
+# define GCTYPEBITS 3L
+#endif
+
+#ifndef VALBITS
+# define VALBITS ((LONGBITS)-((GCTYPEBITS)+1L))
+#endif
+
+
+/* There's not any particular reason not to use lrecords for these; some
+   objects get slightly larger, but we get 3 bit tags instead of 4.
+ */
+#define LRECORD_FLOAT
+#define LRECORD_SYMBOL
+#define LRECORD_BYTECODE
+#define LRECORD_EXTENT
+
 
 /* Define the fundamental Lisp data structures */
 
@@ -54,375 +132,69 @@ typedef int pid_t;
 enum Lisp_Type
   {
     /* Integer.  XINT(obj) is the integer value. */
-    Lisp_Int,
+    Lisp_Int                    /* 0  DTP-FIXNUM */
 
-    /* Symbol.  XSYMBOL (object) points to a struct Lisp_Symbol. */
-    Lisp_Symbol,
-
-    /* Marker (buffer ptr).  XMARKER(object) points to a struct Lisp_Marker. */
-    Lisp_Marker,
-
-    /* String.  XSTRING (object) points to a struct Lisp_String.
-       The length of the string, and its contents, are stored therein. */
-    Lisp_String,
-
-    /* Vector of Lisp objects.  XVECTOR(object) points to a struct Lisp_Vector.
-       The length of the vector, and its contents, are stored therein. */
-    Lisp_Vector,
+    /* XRECORD_LHEADER (object) points to a struct lrecord_header
+       lheader->implementation determines the type (and GC behaviour)
+       of the object. */
+    ,Lisp_Record                /* 1  DTP-OTHER-POINTER */
 
     /* Cons.  XCONS (object) points to a struct Lisp_Cons. */
-    Lisp_Cons,
+    ,Lisp_Cons                  /* 2  DTP-LIST */
 
-    /* Byte-compiled function.  A vector of 4 to 6 elements which are the
-       arglist, bytecode-string, constant vector, stack size,
-       (optional) doc string, and (optional) interactive spec.  */
-    Lisp_Compiled,
+/* LRECORD_STRING is NYI */
+    /* String.  XSTRING (object) points to a struct Lisp_String.
+       The length of the string, and its contents, are stored therein. */
+    ,Lisp_String                /* 3  DTP-STRING */
 
-    /* Editor buffer.  XBUFFER(obj) points to a struct buffer.  */
-    Lisp_Buffer,
+/* LRECORD_VECTOR is NYI */
+    /* Vector of Lisp objects.  XVECTOR(object) points to a struct Lisp_Vector.
+       The length of the vector, and its contents, are stored therein. */
+    ,Lisp_Vector                /* 4  DTP-SIMPLE-ARRAY */
 
-    /* Built-in function.  XSUBR(obj) points to a struct Lisp_Subr
-       which describes how to call the function, and its documentation,
-       as well as pointing to the code. */
-    Lisp_Subr,
+#ifndef LRECORD_EXTENT
+    /* An active region in buffer or string.  See extents.h */
+    ,Lisp_Extent
+#endif /* !LRECORD_EXTENT */
 
-    /* Internal value return by subroutines of read.
-       The user never sees this data type.
-       Its value is just a number. */
-    Lisp_Internal,
+#ifndef LRECORD_BYTECODE
+    /* Byte-compiled function.  See bytecode.h */
+    ,Lisp_Compiled
+#endif /* !LRECORD_BYTECODE */
 
-    /* Forwarding pointer to an int variable.
-       This is allowed only in the value cell of a symbol,
-       and it means that the symbol's value really lives in the
-       specified int variable.
-       XINTPTR(obj) points to the int variable. */
-    Lisp_Intfwd,
-
-    /* Boolean forwarding pointer to an int variable.
-       This is like Lisp_Intfwd except that the ostensible
-       "value" of the symbol is t if the int variable is nonzero,
-       nil if it is zero.  XINTPTR(obj) points to the int variable. */
-    Lisp_Boolfwd,
-
-    /* Object describing a connection to a subprocess.
-       It points to storage of type  struct Lisp_Process  */
-    Lisp_Process,
-
-    /* Forwarding pointer to a Lisp_Object variable.
-       This is allowed only in the value cell of a symbol,
-       and it means that the symbol's value really lives in the
-       specified variable.
-       XOBJFWD(obj) points to the Lisp_Object variable. */
-    Lisp_Objfwd,
-
-    /* Pointer to a vector-like object describing a display screen
-       on which Emacs can display a window hierarchy.  */
-    Lisp_Screen,
-
-    /* Used when a FILE * value needs to be passed
-       in an argument of type Lisp_Object.
-       You must do *(FILE **) XPNTR(obj) to get the value.
-       The user will never see this data type. */
-    Lisp_Internal_Stream,
-
-    /* Used in a symbol value cell when the symbol's value is per-buffer.
-        The actual contents are a cons cell which starts a list like this:
-        (REALVALUE BUFFER CURRENT-ALIST-ELEMENT . DEFAULT-VALUE)).
-
-	BUFFER is the last buffer for which this symbol's value was
-	made up to date.
-
-        CURRENT-ALIST-ELEMENT is a pointer to an element of BUFFER's
-	b_local_var_alist, that being the element whose car is this variable.
-        Or it can be a pointer to the (CURRENT-ALIST-ELEMENT . DEFAULT-VALUE), if BUFFER
-	does not have an element in its alist for this variable
-	(that is, if BUFFER sees the default value of this variable).
-
-	If we want to examine or set the value and BUFFER is current,
-	we just examine or set REALVALUE.
-	If BUFFER is not current, we store the current REALVALUE value into
-	CURRENT-ALIST-ELEMENT, then find the appropriate alist element for
-	the buffer now current and set up CURRENT-ALIST-ELEMENT.
-	Then we set REALVALUE out of that element, and store into BUFFER.
-
-	If we are setting the variable and the current buffer does not have
-	an alist entry for this variable, an alist entry is created.
-
-	Note that REALVALUE can be a forwarding pointer.
-	Each time it is examined or set, forwarding must be done.  */
-    Lisp_Buffer_Local_Value,
-
-    /* Like Lisp_Buffer_Local_Value with one difference:
-	merely setting the variable while some buffer is current
-	does not cause that buffer to have its own local value of this variable.
-	Only make-local-variable does that.  */
-    Lisp_Some_Buffer_Local_Value,
-
-
-    /* Like Lisp_Objfwd except that value lives in a slot
-       in the current buffer.  Value is byte index of slot within buffer */
-    Lisp_Buffer_Objfwd,
-
-    /* In symbol value cell, means var is unbound.
-       In symbol function cell, means function name is undefined. */
-    Lisp_Void,
-
-    /* Window used for Emacs display.
-       Data inside looks like a Lisp_Vector.  */
-    Lisp_Window,
-
-    /* Used by save,set,restore-window-configuration */
-    Lisp_Window_Configuration,
-
-    /* An active region in buffer or string.  XEXTENT (obj) is
-       typedef EXTENT. */
-    Lisp_Extent,
-
-    Lisp_Extent_Data,
-
-    Lisp_Extent_Replica,
+#ifndef LRECORD_SYMBOL
+    ,Lisp_Symbol
+#endif /* !LRECORD_SYMBOL */
 
 #ifdef LISP_FLOAT_TYPE
-    Lisp_Float,
+#ifndef LRECORD_FLOAT
+   ,Lisp_Float
+#endif /* !LRECORD_FLOAT */
 #endif /* LISP_FLOAT_TYPE */
-
-    Lisp_Event,
-    Lisp_Keymap
   };
 
-#ifndef NO_UNION_TYPE
+#define POINTER_TYPE_P(type) ((type) != Lisp_Int)
 
-#ifndef BIG_ENDIAN
-
-/* Definition of Lisp_Object for little-endian machines.  */
-
-typedef
-union Lisp_Object
-  {
-    /* Used for comparing two Lisp_Objects;
-       also, positive integers can be accessed fast this way. */
-    int i;
-
-    struct
-      {
-	int val: 24;
-	char type;
-      } s;
-    struct
-      {
-	unsigned int val: 24;
-	char type;
-      } u;
-    struct
-      {
-	unsigned int val: 24;
-	enum Lisp_Type type: 7;
-	/* The markbit is not really part of the value of a Lisp_Object,
-	   and is always zero except during garbage collection.  */
-	unsigned int markbit: 1;
-      } gu;
-  }
-Lisp_Object;
-
-#else /* If BIG_ENDIAN */
-
-typedef
-union Lisp_Object
-  {
-    /* Used for comparing two Lisp_Objects;
-       also, positive integers can be accessed fast this way. */
-    int i;
-
-    struct
-      {
-	char type;
-	int val: 24;
-      } s;
-    struct
-      {
-	char type;
-	unsigned int val: 24;
-      } u;
-    struct
-      {
-	/* The markbit is not really part of the value of a Lisp_Object,
-	   and is always zero except during garbage collection.  */
-	unsigned int markbit: 1;
-	enum Lisp_Type type: 7;
-	unsigned int val: 24;
-      } gu;
-  }
-Lisp_Object;
-
-#endif /* BIG_ENDIAN */
-
-#endif /* NO_UNION_TYPE */
-
-
-/* If union type is not wanted, define Lisp_Object as just a number
-   and define the macros below to extract fields by shifting */
-
-#ifdef NO_UNION_TYPE
-
-#define Lisp_Object int
-
-/* These values are overridden by the m- file on some machines.  */
-#ifndef VALBITS
-#define VALBITS 24
-#endif
-
-#ifndef GCTYPEBITS
-#define GCTYPEBITS 7
-#endif
-
-#ifndef VALMASK
-#define VALMASK ((1<<VALBITS) - 1)
-#endif
-#define GCTYPEMASK ((1<<GCTYPEBITS) - 1)
-#define MARKBIT (1 << (VALBITS + GCTYPEBITS))
-
-#endif /* NO_UNION_TYPE */
-
-/* These macros extract various sorts of values from a Lisp_Object.
- For example, if tem is a Lisp_Object whose type is Lisp_Cons,
- XCONS (tem) is the struct Lisp_Cons * pointing to the memory for that cons. */
-
-#ifdef NO_UNION_TYPE
-
-/* One need to override this if there must be high bits set in data space
-   (doing the result of the below & ((1 << (GCTYPE + 1)) - 1) would work
-    on all machines, but would penalise machines which don't need it)
+/* This should be the underlying type intowhich a Lisp_Object must fit.
+   In a strict ANSI world, this must be `int', since ANSI says you can't
+   use bitfields on any type other than `int'.  However, on a machine
+   where `int' and `long' are not the same size, this should be the
+   longer of the two.  (This also must be something intowhich a pointer
+   to an arbitrary object will fit, modulo any DATA_SEG_BITS cruft.)
  */
-#ifndef XTYPE
-#define XTYPE(a) ((enum Lisp_Type) ((a) >> VALBITS))
-#endif
-
-#ifndef XSETTYPE
-#define XSETTYPE(a, b) ((a)  =  XUINT (a) | ((int)(b) << VALBITS))
-#endif
-
-/* Use XFASTINT for fast retrieval and storage of integers known
-  to be positive.  This takes advantage of the fact that Lisp_Int is 0.  */
-#define XFASTINT(a) (a)
-
-/* Extract the value of a Lisp_Object as a signed integer.  */
-
-#ifndef XINT   /* Some machines need to do this differently.  */
-#define XINT(a) (((a) << (INTBITS-VALBITS)) >> (INTBITS-VALBITS))
-#endif
-
-/* Extract the value as an unsigned integer.  This is a basis
-   for extracting it as a pointer to a structure in storage.  */
-
-#ifndef XUINT
-#define XUINT(a) ((a) & VALMASK)
-#endif
-
-#ifndef XPNTR
-#ifdef HAVE_SHM
-/* In this representation, data is found in two widely separated segments.  */
-extern int pure_size;
-#define XPNTR(a) \
-  (XUINT (a) | (XUINT (a) > pure_size ? DATA_SEG_BITS : PURE_SEG_BITS))
-#else /* not HAVE_SHM */
-#ifdef DATA_SEG_BITS
-/* This case is used for the rt-pc.
-   In the diffs I was given, it checked for ptr = 0
-   and did not adjust it in that case.
-   But I don't think that zero should ever be found
-   in a Lisp object whose data type says it points to something.  */
-#define XPNTR(a) (XUINT (a) | DATA_SEG_BITS)
+#if (LONGBITS > INTBITS)
+# define LISP_WORD_TYPE long
 #else
-#define XPNTR(a) XUINT (a)
-#endif
-#endif /* not HAVE_SHM */
-#endif /* no XPNTR */
-
-#ifndef XSETINT
-#if 0 /* This is the nominal def, but it breaks things. */
-#define XSETINT(a, b)  XSET ((a), Lisp_Int, (b))
-#endif
-#define XSETINT(a, b)  ((a) = ((a) & ~VALMASK) |  ((b) & VALMASK))
+# define LISP_WORD_TYPE int
 #endif
 
-#ifndef XSET
-#define XSET(var, type, ptr) \
-   ((var) = ((int)(type) << VALBITS) + ((int) (ptr) & VALMASK))
-#endif
+#ifdef NO_UNION_TYPE
+# include "lisp-disunion.h"
+#else /* !NO_UNION_TYPE */
+# include "lisp-union.h"
+#endif /* !NO_UNION_TYPE */
 
-/* During garbage collection, XGCTYPE must be used for extracting types
- so that the mark bit is ignored.  XMARKBIT accesses the markbit.
- Markbits are used only in particular slots of particular structure types.
- Other markbits are always zero.
- Outside of garbage collection, all mark bits are always zero.  */
-
-#ifndef XGCTYPE
-#define XGCTYPE(a) ((enum Lisp_Type) (((a) >> VALBITS) & GCTYPEMASK))
-#endif
-
-#if VALBITS + GCTYPEBITS == INTBITS - 1
-/* Make XMARKBIT faster if mark bit is sign bit.  */
-#ifndef XMARKBIT
-#define XMARKBIT(a) ((a) < 0)
-#endif
-#endif /* markbit is sign bit */
-
-#ifndef XMARKBIT
-#define XMARKBIT(a) ((a) & MARKBIT)
-#endif
-
-#ifndef XSETMARKBIT
-#define XSETMARKBIT(a,b) ((a) = ((a) & ~MARKBIT) | ((b) ? MARKBIT : 0))
-#endif
-
-#ifndef XMARK
-#define XMARK(a) ((a) |= MARKBIT)
-#endif
-
-#ifndef XUNMARK
-#define XUNMARK(a) ((a) &= ~MARKBIT)
-#endif
-
-#endif /* NO_UNION_TYPE */
-
-#ifndef NO_UNION_TYPE
-
-#define XTYPE(a) ((enum Lisp_Type) (a).u.type)
-#define XSETTYPE(a, b) ((a).u.type = (char) (b))
-
-/* Use XFASTINT for fast retrieval and storage of integers known
-  to be positive.  This takes advantage of the fact that Lisp_Int is 0.  */
-#define XFASTINT(a) ((a).i)
-
-#ifdef EXPLICIT_SIGN_EXTEND
-/* Make sure we sign-extend; compilers have been known to fail to do so.  */
-#define XINT(a) (((a).i << (32-VALBITS)) >> (32-VALBITS))
-#else
-#define XINT(a) ((a).s.val)
-#endif /* EXPLICIT_SIGN_EXTEND */
-
-#define XUINT(a) ((a).u.val)
-#define XPNTR(a) ((a).u.val)
-#define XSETINT(a, b) ((a).s.val = (int) (b))
-
-#define XSET(var, vartype, ptr) \
-   (((var).s.type = ((char) (vartype))), ((var).s.val = ((int) (ptr))))
-
-/* During garbage collection, XGCTYPE must be used for extracting types
- so that the mark bit is ignored.  XMARKBIT access the markbit.
- Markbits are used only in particular slots of particular structure types.
- Other markbits are always zero.
- Outside of garbage collection, all mark bits are always zero.  */
-
-#define XGCTYPE(a) ((a).gu.type)
-#define XMARKBIT(a) ((a).gu.markbit)
-#define XSETMARKBIT(a,b) (XMARKBIT(a) = (b))
-#define XMARK(a) (XMARKBIT(a) = 1)
-#define XUNMARK(a) (XMARKBIT(a) = 0)
-
-#endif /* NO_UNION_TYPE */
-
-
+
 #define XCONS(a) ((struct Lisp_Cons *) XPNTR(a))
 #define XBUFFER(a) ((struct buffer *) XPNTR(a))
 #define XVECTOR(a) ((struct Lisp_Vector *) XPNTR(a))
@@ -430,21 +202,15 @@ extern int pure_size;
 #define XSTRING(a) ((struct Lisp_String *) XPNTR(a))
 #define XSYMBOL(a) ((struct Lisp_Symbol *) XPNTR(a))
 #define XMARKER(a) ((struct Lisp_Marker *) XPNTR(a))
-#define XOBJFWD(a) ((Lisp_Object *) XPNTR(a))
-#define XINTPTR(a) ((int *) XPNTR(a))
-#define XWINDOW(a) ((struct window *) XPNTR(a))
-#define XEXTENT(a) ((EXTENT) XPNTR(a))
-#define XEXTENT_REPLICA(a) ((EXTENT_REPLICA) XPNTR(a))
-#define XPROCESS(a) ((struct Lisp_Process *) XPNTR(a))
 #ifdef LISP_FLOAT_TYPE
-#define XFLOAT(a) ((struct Lisp_Float *) XPNTR(a))
+# define XFLOAT(a) ((struct Lisp_Float *) XPNTR(a))
 #else
-#define XFLOAT(a) --- error!  No float support. ---
+# define XFLOAT(a) --- error!  No float support. ---
 #endif
-#define XEVENT(a) ((struct Lisp_Event *) XPNTR(a))
-#define XKEYMAP(a) ((struct Lisp_Keymap *) XPNTR(a))
 
 
+#include "lrecord.h"
+
 /* In a cons, the markbit of the car is the gc mark bit */
 
 struct Lisp_Cons
@@ -456,68 +222,87 @@ struct Lisp_Cons
 
 struct Lisp_String
   {
-    int size;
-    Lisp_Object dup_list;
+    long size;
     unsigned char *data;
+    Lisp_Object dup_list;
   };
+#define string_length(s) ((s)->size)
+#define string_dups(s) ((s)->dup_list)
 
 struct Lisp_Vector
   {
-    int size;
-    struct Lisp_Vector *next;
+    long size;
+    /* Now uses vector->contents[size], terminated by Qzero.
+     * This means that pure vectors don't need a "next" */
+    /* struct Lisp_Vector *next; */
     Lisp_Object contents[1];
   };
+#define vector_length(v) ((v)->size)
+#define vector_next(v) ((v)->contents[(v)->size])
 
 /* In a symbol, the markbit of the plist is used as the gc mark bit */
-
 struct Lisp_Symbol
   {
+#ifdef LRECORD_SYMBOL
+    struct lrecord_header lheader;
+#endif
+    /* next symbol in this obarray bucket */
+    struct Lisp_Symbol *next;
     struct Lisp_String *name;
     Lisp_Object value;
     Lisp_Object function;
     Lisp_Object plist;
-    struct Lisp_Symbol *next;	/* -> next symbol in this obarray bucket */
   };
-/* next symbol in this obarray bucket */
 #define symbol_next(s) ((s)->next)
 
+#ifndef LRECORD_SYMBOL
+# define XSETSYMBOL(s, p) XSET ((s), Lisp_Symbol, (p))
+#else
+# define XSETSYMBOL(s, p) XSETR ((s), Lisp_Symbol, (p))
+#endif /* LRECORD_SYMBOL */
+
+
+
 struct Lisp_Subr
   {
-    Lisp_Object (*function) ();
+    struct lrecord_header lheader;
     short min_args, max_args;
-    char *symbol_name;
-    char *prompt;
-    char *doc;
+    const char *prompt;
+    const char *doc;
+    const char *name;
+    Lisp_Object (*subr_fn) ();
   };
-#define subr_function(subr) (subr)->function
-#define subr_name(subr) (subr)->symbol_name
-
-/* In a marker, the markbit of the chain field is used as the gc mark bit */
+#define subr_function(subr) (subr)->subr_fn
+#define subr_name(subr) (subr)->name
 
 struct Lisp_Marker
   {
+    struct lrecord_header lheader;
+    struct Lisp_Marker *next;
     struct buffer *buffer;
-    Lisp_Object chain;
-    int bufpos;
-#if 0
-    int modified;
-#endif
+    long bufpos;
   };
+#define marker_next(m) ((m)->next)
 
 #ifdef LISP_FLOAT_TYPE
 struct Lisp_Float
   {
-    Lisp_Object type;		/* essentially used for mark-bit 
-				   and chaining when on free-list */
+#ifdef LRECORD_FLOAT
+    struct lrecord_header lheader;
+    union { double d; struct Lisp_Float *next; } data;
+# define float_next(f) ((f)->data.next)
+# define float_data(f) ((f)->data.d)
+# define XSETFLOAT(s, p) XSETR ((s), Lisp_Float, (p))
+#else /* !LRECORD_FLOAT */
+    struct Lisp_Float *next;    /* used as a mark-bit when not on freelist
+                                   Used for chaining when on free-list */
     double data;  
+# define float_next(f) ((f)->next)
+# define XSETFLOAT(s, p) XSET ((s), Lisp_Float, (p))
+# define float_data(f) ((f)->data)
+#endif /* !LRECORD_FLOAT */
   };
 #endif /* LISP_FLOAT_TYPE */
-
-/* These structures are defined elsewhere, but assert that they name global
-   structures so that we can use pointers to them in prototypes. */
-struct Lisp_Event;
-struct Lisp_Process;
-
 
 #ifdef emacs /* gdb doesn't like this */
 
@@ -525,169 +310,140 @@ struct Lisp_Process;
    of some character set associated with the current buffer. */
 typedef unsigned char UCHAR;
 
-#endif /* emacs */
-
 /* A UCHAR is displayed on a given terminal by means of a
    sequence of one or more GLYPHs.
    A GLYPH is something that takes
    up exactly one display position on the screen.  */
 typedef unsigned short GLYPH;
 
-/* Meanings of slots in a Lisp_Compiled:  */
+#endif /* emacs */
 
-#define COMPILED_ARGLIST 0
-#define COMPILED_BYTECODE 1
-#define COMPILED_CONSTANTS 2
-#define COMPILED_STACK_DEPTH 3
-#define COMPILED_DOC_STRING 4
-#define COMPILED_INTERACTIVE 5
 
 /* Data type checking */
 
-#define NILP(x)  (XFASTINT (x) == XFASTINT (Qnil))
-
+#define NILP(x)  (EQ ((x), Qnil))
 #define CONSP(x) (XTYPE ((x)) == Lisp_Cons)
-#define SYMBOLP(x) (XTYPE ((x)) == Lisp_Symbol)
 #define FIXNUMP(x) (XTYPE ((x)) == Lisp_Int)
-#define MARKERP(x) (XTYPE ((x)) == Lisp_Marker)
+
+#ifdef LRECORD_SYMBOL
+# define SYMBOLP(x) (RECORD_TYPEP ((x), lrecord_symbol))
+extern const struct lrecord_implementation lrecord_symbol[];
+#else /* !LRECORD_SYMBOL */
+# define SYMBOLP(x) (XTYPE ((x)) == Lisp_Symbol)
+#endif /* !LRECORD_SYMBOL */
+
 #define STRINGP(x) (XTYPE ((x)) == Lisp_String)
+
 #define VECTORP(x) (XTYPE ((x)) == Lisp_Vector)
-#define SUBRP(x) (XTYPE ((x)) == Lisp_Subr)
-#define PROCESSP(x) (XTYPE ((x)) == Lisp_Process)
-#define BUFFERP(x) (XTYPE ((x)) == Lisp_Buffer)
-#define WINDOWP(x) (XTYPE ((x)) == Lisp_Window)
-#define SCREENP(x) (XTYPE ((x)) == Lisp_Screen)
-#define KEYMAPP(x) (XTYPE ((x)) == Lisp_Keymap)
-#define COMPILEDP(x) (XTYPE ((x)) == Lisp_Compiled)
-#define EVENTP(x) (XTYPE ((x)) == Lisp_Event)
-#define EXTENTP(x) (XTYPE ((x)) == Lisp_Extent)
-#define EXTENT_REPLICA_P(x) (XTYPE ((x)) == Lisp_Extent_Replica)
 
+#ifdef LRECORD_FLOAT
+# define FLOATP(x) (RECORD_TYPEP ((x), lrecord_float))
+extern const struct lrecord_implementation lrecord_float[];
+#else /* !LRECORD_FLOAT */
+# define FLOATP(x) (XTYPE ((x)) == Lisp_Float)
+#endif /* !LRECORD_FLOAT */
+
+#ifdef LRECORD_BYTECODE
+# define COMPILEDP(x) (RECORD_TYPEP ((x), lrecord_bytecode))
+extern const struct lrecord_implementation lrecord_bytecode[];
+#else /* !LRECORD_BYTECODE */
+# define COMPILEDP(x) (XTYPE ((x)) == Lisp_Compiled)
+#endif /* !LRECORD_BYTECODE */
+
+#define SUBRP(x) (RECORD_TYPEP((x), lrecord_subr))
+extern const struct lrecord_implementation lrecord_subr[];
+#define MARKERP(x) (RECORD_TYPEP((x), lrecord_marker))
+extern const struct lrecord_implementation lrecord_marker[];
 #ifdef LISP_FLOAT_TYPE
-#define FLOATP(x) (XTYPE ((x)) == Lisp_Float)
-#define NUMBERP(x) (FIXNUMP (x) || FLOATP (x))
+# define NUMBERP(x) (FIXNUMP (x) || FLOATP (x))
 #else
-#define FLOATP(x) --- error! no float support. ---
-#define NUMBERP(x) (FIXNUMP (x))
+# define NUMBERP(x) (FIXNUMP (x))
 #endif
-
-#define EQ(x, y) (XFASTINT (x) == XFASTINT (y))
 
 #ifdef emacs
 
 #define CHECK_LIST(x, i) \
-  { if ((!CONSP ((x))) && !NILP (x)) x = wrong_type_argument (Qlistp, (x)); }
+  do { if ((!CONSP ((x))) && !NILP (x)) x = wrong_type_argument (Qlistp, (x)); } while (0)
 
 #define CHECK_STRING(x, i) \
-  { if (!STRINGP ((x))) x = wrong_type_argument (Qstringp, (x)); }
+  do { if (!STRINGP ((x))) x = wrong_type_argument (Qstringp, (x)); } while (0)
 
 #define CHECK_CONS(x, i) \
-  { if (!CONSP ((x))) x = wrong_type_argument (Qconsp, (x)); }
+  do { if (!CONSP ((x))) x = wrong_type_argument (Qconsp, (x)); } while (0)
 
 #define CHECK_SYMBOL(x, i) \
-  { if (!SYMBOLP ((x))) x = wrong_type_argument (Qsymbolp, (x)); }
+  do { if (!SYMBOLP ((x))) x = wrong_type_argument (Qsymbolp, (x)); } while (0)
 
 #define CHECK_VECTOR(x, i) \
-  { if (!VECTORP ((x))) x = wrong_type_argument (Qvectorp, (x)); }
-
-#define CHECK_BUFFER(x, i) \
-  { if (!BUFFERP ((x))) x = wrong_type_argument (Qbufferp, (x)); }
-
-#define CHECK_WINDOW(x, i) \
-  { if (!WINDOWP ((x))) x = wrong_type_argument (Qwindowp, (x)); }
-
-#define CHECK_EXTENT(x, i) \
-  { if (!EXTENTP ((x))) x = wrong_type_argument (Qextentp, (x)); }
-
-#define CHECK_EXTENT_REPLICA(x, i) \
-  { if (!EXTENT_REPLICA_P ((x))) \
-      x = wrong_type_argument (Qextent_replica_p, (x)); }
-
-#define CHECK_PROCESS(x, i) \
-  { if (!PROCESSP ((x))) x = wrong_type_argument (Qprocessp, (x)); }
-
-#define CHECK_EVENT(x, i) \
-  { if (!EVENTP ((x))) x = wrong_type_argument (Qeventp, (x)); }
-
-#define CHECK_KEYMAP(x, i) \
-  { if (!KEYMAPP ((x))) x = wrong_type_argument (Qkeymapp, (x)); }
+  do { if (!VECTORP ((x))) x = wrong_type_argument (Qvectorp, (x)); } while(0)
 
 #define CHECK_FIXNUM(x, i) \
-  { if (!FIXNUMP ((x))) x = wrong_type_argument (Qintegerp, (x)); }
-
-#define CHECK_NUMBER(x, i)  \
-  { if (!NUMBERP (x)) x = wrong_type_argument (Qnumberp, (x)); }
+  do { if (!FIXNUMP ((x))) x = wrong_type_argument (Qintegerp, (x)); } while(0)
 
 #define CHECK_NATNUM(x, i) \
-  { if (!FIXNUMP ((x)) || XINT ((x)) < 0) \
-      x = wrong_type_argument (Qnatnump, (x)); }
+  do { if (!FIXNUMP ((x)) || XINT ((x)) < 0) \
+      x = wrong_type_argument (Qnatnump, (x)); } while (0)
+
+/* The second check was looking for GCed markers still in use */
+#define CHECK_MARKER(x, i) \
+  do { if (!MARKERP ((x))) x = wrong_type_argument (Qmarkerp, (x)); } while (0)
+/* if (FIXNUMP (XMARKER ((x))->lheader.next.v)) abort (); */
+
 
 #define CHECK_FIXNUM_COERCE_MARKER(x, i) \
-  { if (MARKERP ((x))) XFASTINT (x) = marker_position (x); \
-    else if (!FIXNUMP ((x))) \
-      x = wrong_type_argument (Qinteger_or_marker_p, (x)); }
+  do { if (FIXNUMP ((x))) \
+         ; \
+       else if (MARKERP ((x))) \
+         (x) = make_number (marker_position ((x))); \
+       else \
+         (x) = wrong_type_argument (Qinteger_or_marker_p, ((x))); } while (0)
 
-#define CHECK_NUMBER_COERCE_MARKER(x, i) \
-  { if (MARKERP ((x))) XFASTINT (x) = marker_position (x); \
-    else if (!NUMBERP ((x))) \
-      x = wrong_type_argument (Qnumber_or_marker_p, (x)); }
-
-/* The second check is looking for GCed markers still in use */
-#define CHECK_MARKER(x, i) \
-  { if (!MARKERP ((x))) x = wrong_type_argument (Qmarkerp, (x)); \
-    if (FIXNUMP (XMARKER ((x))->chain)) abort (); }
+#define CHECK_SUBR(x, i) \
+ do { if (!SUBRP ((x))) (x) = wrong_type_argument (Qsubrp, ((x))); } while (0)
 
 #ifdef LISP_FLOAT_TYPE
 
 #ifndef DBL_DIG
-#define DBL_DIG 16
+# define DBL_DIG 16
 #endif
-
-#define CHECK_FLOAT(x, i) \
-{ if (!FLOATP (x)) x = wrong_type_argument (Qfloatp, (x)); }
 
 #define XFLOATINT(n) extract_float((n))
 
-#else  /* Not LISP_FLOAT_TYPE */
+#define CHECK_FLOAT(x, i) \
+  do { if (!FLOATP (x)) (x) = wrong_type_argument (Qfloatp, ((x))); } while (0)
 
-#define CHECK_FLOAT(x,i) --- error! no float support. ---
+#define CHECK_NUMBER(x, i)  \
+  do { if ( !FIXNUMP ((x)) && !FLOATP ((x))) \
+       (x) = wrong_type_argument (Qnumberp, ((x))); } while (0)
+
+#define CHECK_NUMBER_COERCE_MARKER(x, i) \
+  do { if (FIXNUMP ((x)) || FLOATP ((x))) \
+         ; \
+       else if (MARKERP ((x))) \
+         (x) = make_number (marker_position ((x))); \
+       else  \
+         (x) = wrong_type_argument (Qnumber_or_marker_p, ((x))); } while (0)
+
+#else  /* not LISP_FLOAT_TYPE */
+
+#define CHECK_NUMBER CHECK_FIXNUM
+
+#define CHECK_NUMBER_COERCE_MARKER CHECK_FIXNUM_COERCE_MARKER
 
 #define XFLOATINT(n) XINT((n))
 
+#define CHECK_FLOAT(x,i) --- error! no float support. ---
+
 #endif /* LISP_FLOAT_TYPE */
 
-#ifdef VIRT_ADDR_VARIES
 
-/* For machines like APOLLO where text and data can go anywhere
-   in virtual memory.  */
+
 #define CHECK_IMPURE(obj) \
-  { extern int pure[]; \
-    if ((PNTR_COMPARISON_TYPE) XPNTR (obj) < (PNTR_COMPARISON_TYPE) ((char *) pure + PURESIZE) \
-	&& (PNTR_COMPARISON_TYPE) XPNTR (obj) >= (PNTR_COMPARISON_TYPE) pure) \
-      pure_write_error (); }
-
-#else /* not VIRT_ADDR_VARIES */
-#ifdef PNTR_COMPARISON_TYPE
-
-/* when PNTR_COMPARISON_TYPE is not the default (unsigned int) */
-#define CHECK_IMPURE(obj) \
-  { extern char my_edata; \
-    if ((PNTR_COMPARISON_TYPE) XPNTR (obj) < (PNTR_COMPARISON_TYPE) &my_edata) \
-      pure_write_error (); }
-
-#else /* not VIRT_ADDRESS_VARIES, not PNTR_COMPARISON_TYPE */
-
-#define CHECK_IMPURE(obj) \
-  { extern char my_edata; \
-    if (XPNTR (obj) < (unsigned int) &my_edata) \
-      pure_write_error (); }
-
-#endif /* PNTR_COMPARISON_TYPE */
-#endif /* VIRT_ADDRESS_VARIES */
+  do { if (purified (obj)) pure_write_error (); } while (0)
 
 /* Cast pointers to this type to compare them.  Some machines want int.  */
 #ifndef PNTR_COMPARISON_TYPE
-#define PNTR_COMPARISON_TYPE unsigned int
+# define PNTR_COMPARISON_TYPE unsigned int
 #endif
 
 
@@ -734,82 +490,90 @@ typedef unsigned short GLYPH;
  `doc' is documentation for the user.
 */
 
+#define SUBR_MAX_ARGS 7
+#define MANY -2
+#define UNEVALLED -1
+
+/* Can't be const, because then subr->doc is read-only and
+ *  FSnarf_documentation chokes */
 #define DEFUN(lname, fnname, sname, minargs, maxargs, prompt, doc) \
   Lisp_Object fnname (); \
-  struct Lisp_Subr sname = {fnname, minargs, maxargs, lname, prompt, 0}; \
+  static struct Lisp_Subr sname \
+     = { { lrecord_subr }, minargs, maxargs, prompt, 0, lname, fnname }; \
   Lisp_Object fnname
 
 /* defsubr (Sname);
  is how we define the symbol for function `name' at start-up time. */
 extern void defsubr (struct Lisp_Subr *);
 
-#define MANY -2
-#define UNEVALLED -1
-#define SUBR_MAX_ARGS 7
+extern void defsymbol (Lisp_Object *location, const char *name);
 
-extern void defvar_lisp (const char *namestring,
-                         Lisp_Object *address, const char *doc);
-extern void defvar_lisp_nopro (const char *namestring,
-                               Lisp_Object *address, const char *doc);
-extern void defvar_bool (const char *namestring,
-                         int *address, const char *doc);
-extern void defvar_int (const char *namestring,
-                        int *address, const char *doc);
+struct symbol_value_forward;
 
 /* Macros we use to define forwarded Lisp variables.
    These are used in the syms_of_FILENAME functions.  */
 
-#define DEFVARLISP(lname, vname, doc) defvar_lisp (lname, vname, doc)
-#define DEFVARBOOL(lname, vname, doc) defvar_bool (lname, vname, doc)
-#define DEFVARINT(lname, vname, doc) defvar_int (lname, vname, doc)
+/* Sigh, need to include this for const structure initialisations below.
+ *   C sucks, yet again */
+#include "symeval.h"
 
-#define DEFVAR_LISP(lname, vname, doc) defvar_lisp (lname, vname, doc)
-#define DEFVAR_LISP_NOPRO(lname, vname, doc) \
- defvar_lisp_nopro (lname, vname, doc)
-#define DEFVAR_BOOL(lname, vname, doc) defvar_bool (lname, vname, doc)
-#define DEFVAR_INT(lname, vname, doc) defvar_int (lname, vname, doc)
+extern void defvar_mumble (const char *names,
+                           const void *magic, int sizeof_magic);
+
+#define DEFVARLISP(lname, c_location, doc) \
+ do { static const struct symbol_value_forward I_hate_C \
+       = { { { { lrecord_symbol_value_forward }, (void *) (c_location), 69 }, \
+             object_forward } }; \
+      defvar_mumble ((lname), &I_hate_C, sizeof (I_hate_C)); \
+      staticpro ((c_location)); \
+ } while (0)
+#define DEFVARINT(lname, c_location, doc) \
+ do { static const struct symbol_value_forward I_hate_C \
+       = { { { {lrecord_symbol_value_forward}, (void *) (c_location), 69 }, \
+             fixnum_forward } }; \
+      defvar_mumble ((lname), (&I_hate_C), (sizeof (I_hate_C))); \
+ } while (0)
+#define DEFVARBOOL(lname, c_location, doc) \
+ do { static const struct symbol_value_forward I_hate_C \
+       = { { { {lrecord_symbol_value_forward}, (void *) (c_location), 69 }, \
+             boolean_forward } }; \
+      defvar_mumble ((lname), &I_hate_C, sizeof (I_hate_C)); \
+ } while (0)
+
+/* These discard their DOC arg because it is snarfed by make-docfile
+ *  and stored in an external file. */
+#define DEFVAR_LISP(lname, c_location, doc) DEFVARLISP (lname, c_location, 0)
+#define DEFVAR_BOOL(lname, c_location, doc) DEFVARBOOL (lname, c_location, 0)
+#define DEFVAR_INT(lname, c_location, doc) DEFVARINT (lname, c_location, 0)
+
 
-/* Structure for recording Lisp call stack for backtrace purposes */
+/* Depth of special binding/unwind-protect stack.  Use as arg to unbind_to */
+extern int specpdl_depth (void);
 
-struct specbinding
-  {
-    Lisp_Object symbol, old_value;
-    Lisp_Object (*func) ();
-    Lisp_Object unused;		/* Dividing by 16 is faster than by 12 */
-  };
+extern int sigio_happened;
+extern int check_sigio (void);
 
-extern struct specbinding *specpdl;
-extern struct specbinding *specpdl_ptr;
-extern int specpdl_depth;
-
-struct handler
-  {
-    Lisp_Object handlers;
-    Lisp_Object handler_arg;
-    struct catchtag *tag;
-    struct handler *next;
-  };
-
-extern struct handler *handlerlist;
-
-/* Check quit-flag and quit if it is non-nil. */
-
-#define QUIT \
-  if (!NILP (Vquit_flag) && NILP (Vinhibit_quit)) \
-    { Vquit_flag = Qnil; Fsignal (Qquit, Qnil); }
+extern void signal_quit (void);
 
 /* Nonzero if ought to quit now.  */
+#define QUITP ((sigio_happened ? check_sigio() : 0), \
+	       (!NILP (Vquit_flag) && NILP (Vinhibit_quit)))
 
-#define QUITP (!NILP (Vquit_flag) && NILP (Vinhibit_quit))
+/* Check quit-flag and quit if it is non-nil. */
+#define QUIT \
+  do { if (QUITP) signal_quit (); } while (0)
+
 
 /* 1 if CH is upper case.  */
 
-#define UPPERCASEP(CH) (XSTRING (current_buffer->downcase_table)->data[CH] != (CH))
+#define UPPERCASEP(CH) \
+  (XSTRING (current_buffer->downcase_table)->data[CH] != (CH))
 
 /* 1 if CH is lower case.  */
 
 #define LOWERCASEP(CH) \
-  (!UPPERCASEP (CH) && XSTRING (current_buffer->upcase_table)->data[CH] != (CH))
+  (!UPPERCASEP (CH) \
+   && XSTRING (current_buffer->upcase_table)->data[CH] != (CH))
 
 /* 1 if CH is neither upper nor lower case.  */
 
@@ -817,8 +581,9 @@ extern struct handler *handlerlist;
 
 /* Upcase a character, or make no change if that cannot be done.  */
 
-#define UPCASE(CH) (XSTRING (current_buffer->downcase_table)->data[CH] == (CH) \
-		    ? UPCASE1 (CH) : (CH))
+#define UPCASE(CH) \
+  (XSTRING (current_buffer->downcase_table)->data[CH] == (CH) \
+   ? UPCASE1 (CH) : (CH))
 
 /* Upcase a character known to be not upper case.  */
 
@@ -848,15 +613,16 @@ extern int gc_cons_threshold;
 
 /* Structure for recording stack slots that need marking */
 
-/* This is a chain of structures, each of which points at a Lisp_Object variable
- whose value should be marked in garbage collection.
- Normally every link of the chain is an automatic variable of a function,
- and its `val' points to some argument or local variable of the function.
- On exit to the function, the chain is set back to the value it had on entry.
- This way, no link remains in the chain when the stack frame containing the link disappears.
+/* This is a chain of structures, each of which points at a Lisp_Object
+   variable whose value should be marked in garbage collection.
+   Normally every link of the chain is an automatic variable of a function,
+   and its `val' points to some argument or local variable of the function.
+   On exit to the function, the chain is set back to the value it had on
+   entry.  This way, no link remains in the chain when the stack frame
+   containing the link disappears. 
 
- Every function that can call Feval must protect in this fashion all
- Lisp_Object variables whose contents will be used again. */
+   Every function that can call Feval must protect in this fashion all
+   Lisp_Object variables whose contents will be used again. */
 
 extern struct gcpro *gcprolist;
 
@@ -923,14 +689,22 @@ extern void debug_gcpro1(), debug_gcpro2(), debug_gcpro3(), debug_gcpro4(),
   while (0)
 
 /* Call staticpro (&var) to protect static variable `var'. */
-
 extern void staticpro (Lisp_Object *);
 
 /* Nonzero means Emacs has already been initialized.
    Used during startup to detect startup of dumped Emacs.  */
 extern int initialized;
 
-extern int immediate_quit;	   /* Nonzero means ^G can quit instantly */
+/* Nonzero means ^G can quit instantly.
+   Setting this means that the SIGIO handler can do a longjmp().
+   You'd better be really, really sure you know this is safe.
+ */
+extern int immediate_quit;
+
+#ifdef __GNUC__
+extern DOESNT_RETURN exit (int);
+extern DOESNT_RETURN abort (void);
+#endif
 
 #include "emacsfns.h"
 

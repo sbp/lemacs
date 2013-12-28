@@ -1,35 +1,0 @@
-;;; compiled by devin@scylla on Fri Oct  9 14:42:41 1992
-;;; from file /cadillac-scylla/devin/lemacs/lisp/energize/visit-use.el
-;;; emacs version 19.3.3 Lucid.
-;;; bytecomp version 2.08; 27-aug-92.
-;;; optimization is on.
-;;; this file uses opcodes which do not exist in Emacs18.
-
-(if (and (boundp 'emacs-version)
-	 (or (and (boundp 'epoch::version) epoch::version)
-	     (string-lessp emacs-version "19")))
-    (error "This file was compiled for Emacs19."))
-
-(defvar next-use-show-le-browser t "\
-*If t next-use-command will show both the next use and the le-browser buffer")
-(byte-code "ÀÁ!¬‚ÂÀÃ!¬‚ÂÀÄ!¬‚ÂÀÅ!¬‚ÂÀÆ!¬ƒÂÀÇ!¬ƒÂÈÉMˆÊËMˆÌÍMˆÎÏMˆĞÑMˆÒÓMˆÔÕMˆÖ×MˆØÙMˆÚÛMˆÜİMˆŞßM‡" [boundp next-use-command-name nil next-use-label next-use-from-extent next-use-name next-use-to-extent next-use-position extent-after #[(pos) "Àp!‰«Â	!W«‡À	!‰¬r	)‡" [next-extent extent extent-start-position pos] 3] next-use-start-pos #[nil "ŠebˆÀ	ÂÃ#­`)‡" [search-forward next-use-label nil t] 4] next-use-get-name #[(name) "GÁZ‰ÃV«\nHÄ=¬‡\nÁZ‰ªn\nHÄU«ˆ\nÁ\\ÅOª)‡" [name 1 colon 0 58 nil] 4] next-use-init #[(command label) "Á=¬‰ÂÃÄ`!ÅÆ$ˆ	\nË ‰¬†ÍÎ!ˆªŒÏ!ÑÒ !)Ô ‡" [major-mode energize-browser-mode energize-execute-command "browse_le" extent-at nil t command next-use-command-name label next-use-label next-use-start-pos pos error "no uses" extent-after next-use-from-extent next-use-get-name buffer-name next-use-name next-use-show-both] 6] next-use-end-pos #[nil "ŠebˆÀ	!ˆÂÃÄÅ#ˆ`)‡" [search-forward next-use-label re-search-forward "^ *[A-Za-z ]*: " nil end] 4] next-use-next-to-extent #[nil "À	!qˆÂ Ä	!‰«—Å	!W«Æp	Ç$¬‡Ä	!‰¬i	«‰Å	!Y«‚Ç	)‡" [extent-buffer next-use-from-extent next-use-end-pos end-pos next-extent extent-start-position energize-list-menu nil next-use-command-name] 6] next-use-show-from #[nil "«ªÁ\n!qˆÃÅÁ\n!!ŠÇ\n!bˆÈyˆ`)	Ê	\"ˆË	\"+‡ÌÍÎÁ\n!!\"‡" [next-use-show-le-browser extent-buffer next-use-from-extent t pop-up-windows display-buffer w extent-start-position 0 pos set-window-point set-window-start message "next use of %s" buffer-name] 5] next-use-show-to #[nil "À	\nÃÄ$ˆÅ`!Ç!‰‡" [energize-execute-command next-use-command-name next-use-from-extent nil t extent-at next-use-to-extent extent-start-position next-use-position] 5] next-use-show-both #[nil "À ˆÁ ‡" [next-use-show-from next-use-show-to] 1] next-use-next #[nil "À	!qˆ\nÃ	!W«¦\nbˆÄÃ	!Æ#«š`Ç ˆÈG!ˆ	«ƒÊ ˆË ˆÌÀ	!!‡Í «ƒÎ ‡Ï ˆĞÑ!‡" [extent-buffer next-use-to-extent next-use-position extent-end-position search-forward next-use-name t push-mark backward-char zmacs-regions zmacs-activate-region next-use-show-from pop-to-buffer next-use-next-to-extent next-use-show-both next-use-terminate error "no more"] 4] next-use-terminate #[nil "ÀÀÀÀÀÀ‰‡" [nil next-use-command-name next-use-label next-use-from-extent next-use-name next-use-to-extent next-use-position] 2] next-use-go #[(label command) "¬…Á\n\"‡Ä ‡" [next-use-from-extent next-use-init label command next-use-next] 3]] 2)
-(fset 'next-use-command #[(arg) "«ƒÁ ˆÂÃÄ\"‡" [arg next-use-terminate next-use-go "source" "Used By:"] 3 "\
-Show the next place where the current language element is used.
-The current language element is the one that point is on for source buffers
-or the element displayed in a language element browser buffer.
-Repeated calls to this functions visit all the callers in sequence.  
-The caller function is first displayed then all the places in the caller that
-call the language element are visited.
-
-With prefix arg set, start a visit from scratch on the current language 
-element. 
-
-The variable next-use-show-le-browser controls if this command should display 
-both the language element browser buffer and the next user or just the next
-user of the current language element." "P"])
-(define-key global-map [(control x) \\] 'next-use-command)
-(fset 'next-use-start #[nil "ÀÁ!‡" [next-use-command 4] 2 "\
-Start visiting the uses of a language element.
-If executed in a LE Browser buffer visit the uses of the language element
-in the buffer.  In a source buffer visit the uses of the language element
-at (point)" nil])

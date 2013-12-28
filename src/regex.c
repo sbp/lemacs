@@ -46,7 +46,7 @@ what you give them.   Help stamp out software-hoarding!  */
 #define Sword 1
 #endif
 
-#define SYNTAX(c) re_syntax_table[c]
+#define SYNTAX(ignored,c) re_syntax_table[c]
 
 #ifdef SYNTAX_TABLE
 
@@ -96,8 +96,16 @@ init_syntax_once ()
 
 #define BYTEWIDTH 8
 
-#ifndef SIGN_EXTEND_CHAR
-#define SIGN_EXTEND_CHAR(x) (x)
+/* We remove any previous definition of `SIGN_EXTEND_CHAR',
+   since ours (we hope) works properly with all combinations of
+   machines, compilers, `char' and `unsigned char' argument types.
+   (Per Bothner suggested the basic approach.)  */
+#undef SIGN_EXTEND_CHAR
+#if __STDC__
+#define SIGN_EXTEND_CHAR(c) ((signed char) (c))
+#else  /* not __STDC__ */
+/* As in Harbison and Steele.  */
+#define SIGN_EXTEND_CHAR(c) ((((unsigned char) (c)) ^ 128) - 128)
 #endif
 
 static int obscure_syntax = 0;
@@ -178,7 +186,7 @@ re_compile_pattern (pattern, size, bufp)
   register char *b = bufp->buffer;
   register char *p = pattern;
   char *pend = pattern + size;
-  register unsigned c, c1;
+  register unsigned long c, c1;
   char *p1;
   unsigned char *translate = (unsigned char *) bufp->translate;
 
@@ -702,6 +710,10 @@ re_compile_fastmap (bufp)
   unsigned char *stackb[NFAILURES];
   unsigned char **stackp = stackb;
 
+#ifdef emacs
+  Lisp_Object syntax_table = current_buffer->syntax_table;
+#endif
+
   memset (fastmap, 0, (1 << BYTEWIDTH));
   bufp->fastmap_accurate = 1;
   bufp->can_be_null = 0;
@@ -800,13 +812,13 @@ re_compile_fastmap (bufp)
 
 	case wordchar:
 	  for (j = 0; j < (1 << BYTEWIDTH); j++)
-	    if (SYNTAX (j) == Sword)
+	    if (SYNTAX (syntax_table, j) == Sword)
 	      fastmap[j] = 1;
 	  break;
 
 	case notwordchar:
 	  for (j = 0; j < (1 << BYTEWIDTH); j++)
-	    if (SYNTAX (j) != Sword)
+	    if (SYNTAX (syntax_table, j) != Sword)
 	      fastmap[j] = 1;
 	  break;
 
@@ -814,14 +826,14 @@ re_compile_fastmap (bufp)
 	case syntaxspec:
 	  k = *p++;
 	  for (j = 0; j < (1 << BYTEWIDTH); j++)
-	    if (SYNTAX (j) == (enum syntaxcode) k)
+	    if (SYNTAX (syntax_table, j) == (enum syntaxcode) k)
 	      fastmap[j] = 1;
 	  break;
 
 	case notsyntaxspec:
 	  k = *p++;
 	  for (j = 0; j < (1 << BYTEWIDTH); j++)
-	    if (SYNTAX (j) != (enum syntaxcode) k)
+	    if (SYNTAX (syntax_table, j) != (enum syntaxcode) k)
 	      fastmap[j] = 1;
 	  break;
 #endif /* emacs */
@@ -1043,6 +1055,9 @@ re_match_2 (pbufp, string1, size1, string2, size2, pos, regs, mstop)
   register unsigned char *d, *dend;
   register int mcnt;
   unsigned char *translate = (unsigned char *) pbufp->translate;
+#ifdef emacs
+  Lisp_Object syntax_table = current_buffer->syntax_table;
+#endif
 
  /* Failure point stack.  Each place that can handle a failure further down the line
     pushes a failure point on this stack.  It consists of two char *'s.
@@ -1194,7 +1209,7 @@ re_match_2 (pbufp, string1, size1, string2, size2, pos, regs, mstop)
 	    /* Don't allow matching a register that hasn't been used.
 	       This isn't fully reliable in the current version,
 	       but it is better than crashing.  */
-	    if ((int) regend[regno] <= -1)
+	    if ((LISP_WORD_TYPE) regend[regno] <= -1)
 	      goto fail;
 
 	    d2 = regstart[regno];
@@ -1254,7 +1269,7 @@ re_match_2 (pbufp, string1, size1, string2, size2, pos, regs, mstop)
 	    else
 	      c = *d;
 
-	    if (c < (int) *p * BYTEWIDTH
+	    if (c <  *p * BYTEWIDTH
 		&& p[1 + c / BYTEWIDTH] & (1 << (c % BYTEWIDTH)))
 	      not = !not;
 
@@ -1336,7 +1351,7 @@ re_match_2 (pbufp, string1, size1, string2, size2, pos, regs, mstop)
 		       || p1[3] == (unsigned char) charset_not)
 		{
 		  int not = p1[3] == (unsigned char) charset_not;
-		  if (c < (int) p1[4] * BYTEWIDTH
+		  if (c <  p1[4] * BYTEWIDTH
 		      && p1[5 + c / BYTEWIDTH] & (1 << (c % BYTEWIDTH)))
 		    not = !not;
 		  /* not is 1 if c would match */
@@ -1386,8 +1401,8 @@ re_match_2 (pbufp, string1, size1, string2, size2, pos, regs, mstop)
 	      || d == end2  /* Points to end */
 	      || (d == end1 && size2 == 0)) /* Points to end */
 	    break;
-	  if ((SYNTAX (d[-1]) == Sword)
-	      != (SYNTAX (d == end1 ? *string2 : *d) == Sword))
+	  if ((SYNTAX (syntax_table, d[-1]) == Sword)
+	      != (SYNTAX (syntax_table, d == end1 ? *string2 : *d) == Sword))
 	    break;
 	  goto fail;
 
@@ -1396,28 +1411,28 @@ re_match_2 (pbufp, string1, size1, string2, size2, pos, regs, mstop)
 	      || d == end2  /* Points to end */
 	      || (d == end1 && size2 == 0)) /* Points to end */
 	    goto fail;
-	  if ((SYNTAX (d[-1]) == Sword)
-	      != (SYNTAX (d == end1 ? *string2 : *d) == Sword))
+	  if ((SYNTAX (syntax_table, d[-1]) == Sword)
+	      != (SYNTAX (syntax_table, d == end1 ? *string2 : *d) == Sword))
 	    goto fail;
 	  break;
 
 	case wordbeg:
 	  if (d == end2  /* Points to end */
 	      || (d == end1 && size2 == 0) /* Points to end */
-	      || SYNTAX (* (d == end1 ? string2 : d)) != Sword) /* Next char not a letter */
+	      || SYNTAX (syntax_table, * (d == end1 ? string2 : d)) != Sword) /* Next char not a letter */
 	    goto fail;
 	  if (d == string1  /* Points to first char */
-	      || SYNTAX (d[-1]) != Sword)  /* prev char not letter */
+	      || SYNTAX (syntax_table, d[-1]) != Sword)  /* prev char not letter */
 	    break;
 	  goto fail;
 
 	case wordend:
 	  if (d == string1  /* Points to first char */
-	      || SYNTAX (d[-1]) != Sword)  /* prev char not letter */
+	      || SYNTAX (syntax_table, d[-1]) != Sword)  /* prev char not letter */
 	    goto fail;
 	  if (d == end2  /* Points to end */
 	      || (d == end1 && size2 == 0) /* Points to end */
-	      || SYNTAX (d == end1 ? *string2 : *d) != Sword) /* Next char not a letter */
+	      || SYNTAX (syntax_table, d == end1 ? *string2 : *d) != Sword) /* Next char not a letter */
 	    break;
 	  goto fail;
 
@@ -1445,7 +1460,8 @@ re_match_2 (pbufp, string1, size1, string2, size2, pos, regs, mstop)
 	  mcnt = *p++;
 	matchsyntax:
 	  PREFETCH;
-	  if (SYNTAX (*d++) != (enum syntaxcode) mcnt) goto fail;
+	  if (SYNTAX (syntax_table, *d++) != (enum syntaxcode) mcnt)
+            goto fail;
 	  break;
 	  
 	case notwordchar:
@@ -1456,17 +1472,18 @@ re_match_2 (pbufp, string1, size1, string2, size2, pos, regs, mstop)
 	  mcnt = *p++;
 	matchnotsyntax:
 	  PREFETCH;
-	  if (SYNTAX (*d++) == (enum syntaxcode) mcnt) goto fail;
+	  if (SYNTAX (syntax_table, *d++) == (enum syntaxcode) mcnt)
+            goto fail;
 	  break;
 #else
 	case wordchar:
 	  PREFETCH;
-	  if (SYNTAX (*d++) == 0) goto fail;
+	  if (SYNTAX (syntax_table, *d++) == 0) goto fail;
 	  break;
 	  
 	case notwordchar:
 	  PREFETCH;
-	  if (SYNTAX (*d++) != 0) goto fail;
+	  if (SYNTAX (syntax_table, *d++) != 0) goto fail;
 	  break;
 #endif /* not emacs */
 

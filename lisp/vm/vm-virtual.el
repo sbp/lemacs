@@ -31,38 +31,39 @@
     (setq first-time (not (eq major-mode 'vm-virtual-mode)))
     (if first-time
 	(progn
-	  (setq major-mode 'vm-virtual-mode
-		mode-name "VM Virtual"
+	  (buffer-disable-undo (current-buffer))
+	  (abbrev-mode 0)
+	  (auto-fill-mode 0)
+	  (setq mode-name "VM Virtual"
 		mode-line-format vm-mode-line-format
 		buffer-read-only t
 		vm-folder-read-only read-only
 		truncate-lines t
 		vm-current-grouping vm-group-by
-		vm-mail-buffer (current-buffer)
-		vm-summary-buffer vm-mail-buffer
 		vm-numbering-redo-start-point t
 		vm-summary-redo-start-point t)
-	  (buffer-flush-undo (current-buffer))
-	  (abbrev-mode 0)
-	  (auto-fill-mode 0)
 	  (vm-build-virtual-message-list
-	   (assoc folder-name vm-virtual-folder-alist)
-	   read-only)
-	  (vm-thoughtfully-select-message)
+	   (assoc folder-name vm-virtual-folder-alist))
 	  (use-local-map vm-mode-map)
+	  ;; save this for last in case the user interrupts.
+	  ;; an interrupt anywhere before this point will cause
+	  ;; everything to be redone next revisit.
+	  (setq major-mode 'vm-virtual-mode)
+	  (vm-thoughtfully-select-message)
 	  (vm-emit-totals-blurb)))
     (switch-to-buffer (current-buffer))
     (and (not vm-inhibit-startup-message) (not vm-startup-message-displayed)
 	 (vm-display-startup-message))))
 
-(defun vm-build-virtual-message-list (def read-only)
+(defun vm-build-virtual-message-list (def)
   (let ((clauses (cdr def))
 	;; letter bomb protection
+	;; set enable-local-variables to nil for newer Emacses
 	(inhibit-local-variables t)
+	(enable-local-variables nil)
 	(vbuffer (current-buffer))
-	(inhibit-quit t)
-	message-list folders folder selector-list selector arg
-	buffers-used)
+	message-list mp folders folder selector-list selector arg
+	real-buffers-used)
     (save-excursion
       (while clauses
 	(setq folders (car (car clauses))
@@ -89,7 +90,7 @@
 			      (find-file-noselect folder)))
 	      (if (not (memq vbuffer vm-virtual-buffers))
 		  (setq vm-virtual-buffers (cons vbuffer vm-virtual-buffers)
-			buffers-used (cons (current-buffer) buffers-used)))
+			real-buffers-used (cons (current-buffer) real-buffers-used)))
 	      (if (not (eq major-mode 'vm-mode))
 		  (vm-mode))
 	      (setq mp vm-message-list)
@@ -101,10 +102,10 @@
 		      (setq message-list (cons (copy-sequence (car mp))
 					       message-list))
 		      (if vm-virtual-mirror
-			  (vm-set-virtual-messages-of
-			   (car mp)
-			   (cons (car message-list)
-				 (vm-virtual-messages-of (car mp))))
+			  ()
+			(vm-set-mirror-data-of
+			 (car message-list)
+			 (make-vector nil vm-mirror-data-vector-length))
 			(vm-set-attributes-of
 			 (car message-list)
 			 (make-vector vm-attributes-vector-length nil)))
@@ -112,13 +113,36 @@
 		       (car message-list)
 		       (copy-sequence (vm-softdata-of
 				       (car message-list))))
-		      (vm-set-mark-of (car message-list) nil)))
+		      (vm-set-mark-of (car message-list) nil)
+		      (vm-set-modflag-of (car message-list) nil)
+		      (vm-set-reverse-link-of (car message-list) nil)))
 		(setq mp (cdr mp)))
 	      (setq folders (cdr folders))))
 	  (setq selector-list (cdr selector-list)))
 	(setq clauses (cdr clauses))))
-    (setq vm-message-list (nreverse message-list)
-	  vm-real-buffers buffers-used)))
+    ;; Until this point the user doesn't really have a virtual
+    ;; folder, as the virtual message haven't been linked to the
+    ;; real messages, virtual buffers to the real buffers, and no
+    ;; message list has been installed.
+    ;;
+    ;; Now we tie it all together, with this section of code being
+    ;; uninterruptible.
+    (let ((inhibit-quit))
+      (setq vm-real-buffers real-buffers-used)
+      (while real-buffers-used
+	(set-buffer (car real-buffers-used))
+	(if (not (memq vbuffer vm-virtual-buffers))
+	    (setq vm-virtual-buffers (cons vbuffer vm-virtual-buffers)))
+	(setq real-buffers-used (cdr real-buffers-used)))
+      (if vm-virtual-mirror
+	  (progn
+	    (setq mp message-list)
+	    (while mp
+	      (vm-set-virtual-messages-of
+	       (vm-real-message-of (car mp))
+	       (cons (car map) (vm-virtual-messages-of (car mp))))
+	      (setq mp (cdr mp)))))
+      (setq vm-message-list (nreverse message-list)))))
 
 (defun vm-delete-directories (list)
   (vm-delete 'file-directory-p list))
@@ -167,8 +191,8 @@
 	      bp (cdr bp))))
     (while mp
       (vm-set-virtual-messages-of
-       (car mp)
-       (delq (car mp) (vm-virtual-messages-of (car mp))))
+       (vm-real-message-of (car mp))
+       (delq (car mp) (vm-virtual-messages-of (vm-real-message-of (car mp)))))
       (setq mp (cdr mp)))
     (set-buffer-modified-p nil)
     (kill-buffer (current-buffer))))

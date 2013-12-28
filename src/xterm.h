@@ -20,6 +20,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #ifndef _EMACS_XTERM_H_
 #define _EMACS_XTERM_H_
 
+#include <signal.h>
 #include <X11/Xlib.h>
 #include <X11/cursorfont.h>
 #include <X11/Xutil.h>
@@ -27,34 +28,23 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include <X11/Xatom.h>
 #include <X11/Xresource.h>
 
-#include <X11/Intrinsic.h>  /* must be before lisp.h */
+#include <X11/Intrinsic.h>
 
 #include "blockio.h"
+
+/* R5 defines the XPointer type, but R4 doesn't.  
+   R4 also doesn't define a version number, but R5 does. */
+#if (XlibSpecificationRelease < 5)
+# define XPointer char *
+#endif
+
 
 #define MAX_LINE_WIDTH(s) (PIXEL_WIDTH (s) \
 			    - (2 * (s)->display.x->internal_border_width))
 
-struct x_pixmap
-{
-  Pixmap pixmap, mask;
-  GLYPH glyph_id;		/* index into glyph_to_x_pixmaps */
-  unsigned short face_id;	/* ~0 means use colors of current face */
-  unsigned int width;
-  unsigned int height;
-  unsigned int depth;		/* 0 depth means this is a bitmap of depth 1,
-				   and 1 represents the foreground color.
-				   Nonzero depth means that the cells of the
-				   pixmap are actual pixel values.  This
-				   matters because BlackPixel/WhitePixel vary.
-				 */
-};
-
-extern struct x_pixmap builtin_continuer_pixmap;
-extern struct x_pixmap builtin_truncator_pixmap;
-extern struct x_pixmap builtin_rarrow_pixmap;
-
-extern struct x_pixmap *glyph_to_x_pixmap (GLYPH g);
-
+extern GLYPH truncator_glyph, continuer_glyph, lucid_glyph;
+extern Lisp_Object glyph_to_pixmap (GLYPH g);
+extern Lisp_Object Vlucid_logo;
 
 #define EOL_CURSOR_WIDTH 4
 
@@ -71,6 +61,8 @@ extern XCharStruct *x_char_info ();
 #define FONT_WIDTH(f)	((f)->max_bounds.width)
 #define FONT_HEIGHT(f)	((f)->ascent + (f)->descent)
 #define FONT_BASE(f)    ((f)->ascent)
+#define FONT_ASCENT(f)	((f)->ascent)
+#define FONT_DESCENT(f)	((f)->descent)
 
 #ifndef sigmask
 #define sigmask(no) (1L << ((no) - 1))
@@ -149,6 +141,11 @@ struct x_display
 
   Widget menubar_widget;
 
+  /* The icon pixmaps; these are Lisp_Pixmap objects, or Qnil. */
+  Lisp_Object icon_pixmap;
+  Lisp_Object icon_pixmap_mask;
+
+
 #ifdef ENERGIZE
   /* The Energize property-sheets.  The current_ slots are the ones which are
      actually on the screen.  The desired_ slots are the ones which should
@@ -194,5 +191,93 @@ struct x_display
 
 /* Number of pixels below each line. */
 extern int x_interline_space;
+
+extern int reasonable_glyph_index_p (int index);
+
+extern void x_clear_display_line (int vpos, int pix_width);
+extern int x_write_glyphs (struct screen *s, int left, int top, int n,
+                           GC force_gc, int box_p);
+extern void x_clear_display_line_end (int vpos);
+extern void x_new_selected_screen (struct screen *screen);
+extern void x_focus_screen (struct screen *s);
+/* >>> Need declaration of "union display" to be able to include this */
+/* extern void x_destroy_window (struct screen *s, union display displ); */
+extern void x_read_mouse_position (struct screen *s, int *x, int *y);
+extern void x_set_mouse_position (struct screen *s, int x, int y);
+extern void x_make_screen_visible (struct screen *s);
+extern void x_make_screen_invisible (struct screen *s);
+extern void x_iconify_screen (struct screen *s);
+extern void x_report_screen_params (struct screen *s, Lisp_Object *alistptr);
+extern void x_set_screen_values (struct screen *s, Lisp_Object alist);
+extern void x_set_window_size (struct screen *s, int cols, int rows);
+extern void x_set_offset (struct screen *s, int xoff, int yoff);
+extern void x_raise_screen (struct screen *s, int force);
+extern void x_lower_screen (struct screen *s);
+extern void x_format_screen_title (struct screen *s);
+extern void x_screen_redraw_cursor (struct screen *screen);
+extern Lisp_Object x_term_init (Lisp_Object argv_list);
+extern void x_set_title_from_char (struct screen* s, char* name);
+extern void x_set_icon_name_from_char (struct screen* s, char* name);
+
+extern void x_handle_selection_notify (XSelectionEvent *event);
+extern void x_handle_selection_request (XSelectionRequestEvent *event);
+extern void x_handle_selection_clear (XSelectionClearEvent *event);
+extern void x_handle_property_notify (XPropertyEvent *event);
+
+extern void repaint_lines (struct screen *, 
+                           int left, int top, int width, int height);
+extern void Cdumprectangle (register int, register int, register int,
+			    register int cols, struct screen *s);
+extern void Fastmove_cursor (struct screen *);
+extern void update_cursor (struct screen *s, int blit);
+
+extern Lisp_Object Fx_get_resource (Lisp_Object name, Lisp_Object class, 
+                                    Lisp_Object type, Lisp_Object screen);
+
+
+extern void x_init_modifier_mapping (Display *display);
+
+extern Lisp_Object Fx_create_screen (Lisp_Object parms, Lisp_Object lisp_window_id);
+
+extern void x_destroy_window (struct screen *s);
+
+extern int x_selection_timeout;
+
+extern void emacs_Xt_focus_event_handler (XEvent *x_event,
+                                          struct screen *s);
+extern void emacs_Xt_make_event_stream (void);
+
+extern struct screen *x_any_window_to_screen (Window);
+
+extern void x_format_screen_title (struct screen *);
+
+extern struct screen *get_x_screen (Lisp_Object);
+
+extern Lisp_Object text_part_sym;     /* 'text-part */
+extern Lisp_Object modeline_part_sym; /* 'modeline-part */
+
+extern Lisp_Object x_term_init (Lisp_Object);
+extern void Xatoms_of_xselect (void);
+
+extern void init_bitmap_tables_1 (void); /* xterm.c */
+extern Lisp_Object WM_COMMAND_screen; /* in xfns.c */
+
+
+#ifdef DUBIOUS_X_ERROR_HANDLING
+
+extern Lisp_Object Qx_error;
+
+extern void expect_x_error (Display *dpy);
+extern int x_error_occurred_p (Display *dpy);
+extern int signal_if_x_error (Display *dpy, int resumable_p);
+
+#define X_ERROR_OCCURRED(dpy, body)	\
+     (expect_x_error ((dpy)), (body), x_error_occurred_p (dpy))
+
+#define HANDLING_X_ERROR(dpy, body)	\
+     ( expect_x_error ((dpy)), (body), signal_if_x_error ((dpy), 0))
+
+#endif /* dubiousness */
+
 
 #endif /* _EMACS_XTERM_H_ */

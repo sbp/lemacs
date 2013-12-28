@@ -31,6 +31,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #ifdef MOTIF_CLIPBOARDS
 # include <Xm/CutPaste.h>
+static void hack_motif_clipboard_selection ();
 #endif
 
 #define CUT_BUFFER_SUPPORT
@@ -201,31 +202,6 @@ x_atom_to_symbol (display, atom)
   return val;
 }
 
-
-static Lisp_Object
-long_to_cons (i)
-     unsigned long i;
-{
-  unsigned int top = i >> 16;
-  unsigned int bot = i & 0xFFFF;
-  if (top == 0) return make_number (bot);
-  if (top == 0xFFFF) return Fcons (make_number (-1), make_number (bot));
-  return Fcons (make_number (top), make_number (bot));
-}
-
-static unsigned long
-cons_to_long (c)
-     Lisp_Object c;
-{
-  int top, bot;
-  if (FIXNUMP (c)) return XINT (c);
-  top = XCONS (c)->car;
-  bot = XCONS (c)->cdr;
-  if (CONSP (bot)) bot = XCONS (bot)->car;
-  return ((XINT (top) << 16) | XINT (bot));
-}
-
-
 
 /* Do protocol to assert ourself as a selection owner.
    Update the Vselection_alist so that we can reply to later requests for 
@@ -270,41 +246,124 @@ x_own_selection (selection_name, selection_value)
 	      break;
 	    }
       }
-  }
-
 #ifdef MOTIF_CLIPBOARDS
+    hack_motif_clipboard_selection (selection_atom, selection_value,
+				    time, display, selecting_window,
+				    !NILP (prev_value));
+#endif
+  }
+}
+
+
+#ifdef MOTIF_CLIPBOARDS /* Bend over baby.  Take it and like it. */
+
+# ifdef MOTIF_INCREMENTAL_CLIPBOARDS_WORK
+static void motif_clipboard_cb ();
+# endif
+
+static void
+hack_motif_clipboard_selection (Atom selection_atom,
+				Lisp_Object selection_value,
+				Time time,
+				Display *display,
+				Window selecting_window,
+				Bool owned_p)
+{
   /* Those Motif wankers can't be bothered to follow the ICCCM, and do
      their own non-Xlib non-Xt clipboard processing.  So we have to do
      this so that linked-in Motif widgets don't get themselves wedged.
    */
-  if (selection_atom == Xatom_CLIPBOARD &&
-      STRINGP (selection_value))
+  if (selection_atom == Xatom_CLIPBOARD
+      && STRINGP (selection_value)
+
+      /* If we already own the clipboard, don't own it again in the Motif
+	 way.  This might lose in some subtle way, since the timestamp won't
+	 be current, but owning the selection on the Motif way does a
+	 SHITLOAD of X protocol, and it makes killing text be incredibly
+	 slow when using an X terminal.  ARRRRGGGHHH!!!!
+       */
+      /* No, this is no good, because then Motif text fields don't bother
+	 to look up the new value, and you can't Copy from a buffer, Paste
+	 into a text field, then Copy something else from the buffer and
+	 paste it intot he text field -- it pastes the first thing again. */
+/*      && !owned_p */
+      )
     {
+#ifdef MOTIF_INCREMENTAL_CLIPBOARDS_WORK
       Widget widget = selected_screen->display.x->edit_widget;
-      int result;
+#endif
       long itemid;
-      int dataid;
+      int dataid;	/* 1.2 wants long, but 1.1.5 wants int... */
       XmString fmh;
       BLOCK_INPUT;
       fmh = XmStringCreateLtoR ("Clipboard", XmSTRING_DEFAULT_CHARSET);
       while (ClipboardSuccess !=
 	     XmClipboardStartCopy (display, selecting_window, fmh, time,
-				   widget, NULL, &itemid))
+#ifdef MOTIF_INCREMENTAL_CLIPBOARDS_WORK
+				   widget, motif_clipboard_cb,
+#else
+				   0, NULL,
+#endif
+				   &itemid))
 	;
       XmStringFree (fmh);
       while (ClipboardSuccess !=
 	     XmClipboardCopy (display, selecting_window, itemid, "STRING",
+#ifdef MOTIF_INCREMENTAL_CLIPBOARDS_WORK
+			      /* O'Reilly examples say size can be 0, 
+				 but this clearly is not the case. */
+			      0, XSTRING (selection_value)->size + 1,
+			      (int) selecting_window, /* private id */
+#else /* !MOTIF_INCREMENTAL_CLIPBOARDS_WORK */
 			      (char *) XSTRING (selection_value)->data,
 			      XSTRING (selection_value)->size + 1,
-			      0, &dataid))
+			      0,
+#endif /* !MOTIF_INCREMENTAL_CLIPBOARDS_WORK */
+			      &dataid))
 	;
       while (ClipboardSuccess !=
 	     XmClipboardEndCopy (display, selecting_window, itemid))
 	;
       UNBLOCK_INPUT;
     }
-#endif /* MOTIF_CLIPBOARDS */
 }
+
+# ifdef MOTIF_INCREMENTAL_CLIPBOARDS_WORK
+/* I tried to treat the clipboard like a real selection, and not send
+   the data until it was requested, but it looks like that just doesn't
+   work at all unless the selection owner and requestor are in different
+   processes.  From reading the Motif source, it looks like they never
+   even considered having two widgets in the same application transfer
+   data between each other using "by-name" clipboard values.  What a
+   bunch of fuckups.
+ */
+static void
+motif_clipboard_cb (Widget widget, int *data_id, int *private_id, int *reason)
+{
+  switch (*reason)
+    {
+    case XmCR_CLIPBOARD_DATA_REQUEST:
+      {
+	Display *dpy = XtDisplay (widget);
+	Window window = (Window) *private_id;
+	Lisp_Object selection = assq_no_quit (QCLIPBOARD, Vselection_alist);
+	if (NILP (selection)) abort ();
+	selection = XCONS (selection)->cdr;
+	if (!STRINGP (selection)) abort ();
+	XmClipboardCopyByName (dpy, window, *data_id,
+			       (char *) XSTRING (selection)->data,
+			       XSTRING (selection)->size + 1,
+			       0);
+      }
+      break;
+    case XmCR_CLIPBOARD_DATA_DELETE:
+    default:
+      /* don't need to free anything */
+      break;
+    }
+}
+# endif /* MOTIF_INCREMENTAL_CLIPBOARDS_WORK */
+#endif /* MOTIF_CLIPBOARDS */
 
 
 /* Given a selection-name and desired type, this looks up our local copy of
@@ -392,10 +451,11 @@ x_get_local_selection (selection_symbol, target_type)
   /* Otherwise the lisp converter function returned something unrecognised. 
    */
   else
-    return
-      Fsignal (Qerror,
-	       Fcons (build_string ("unrecognised selection-conversion type"),
-		      Fcons (handler_fn, Fcons (value, Qnil))));
+    signal_error (Qerror,
+                  list3 (build_string
+			 ("unrecognised selection-conversion type"),
+                         handler_fn,
+                         value));
 }
 
 
@@ -431,8 +491,8 @@ static Lisp_Object
 x_selection_request_lisp_error (closure)
      Lisp_Object closure;
 {
-  /* Sleazy! */
-  XSelectionRequestEvent *event = (XSelectionRequestEvent *) closure;
+  /* #### Sleazy!  Assumes the X event pointer fits in a Lisp_Int. */
+  XSelectionRequestEvent *event = (XSelectionRequestEvent *) XPNTR (closure);
   
   if (event->type == 0) /* we set this to mean "completed normally" */
     return Qnil;
@@ -561,6 +621,7 @@ x_handle_selection_request (event)
   Lisp_Object converted_selection = Qnil;
   Time local_selection_time;
   Lisp_Object successful_p = Qnil;
+  Lisp_Object tmp;
   int count;
 
   GCPRO3 (local_selection_data, converted_selection, target_symbol);
@@ -613,9 +674,10 @@ x_handle_selection_request (event)
       goto DONE;
     }
 
-  count = specpdl_ptr - specpdl;
-  record_unwind_protect (x_selection_request_lisp_error,
-			 (Lisp_Object) event);	/* #### dangerous cast */
+  count = specpdl_depth ();
+  /* #### Sleazy!  Assumes the X event pointer fits in a Lisp_Int. */
+  XSET (tmp, Lisp_Int, (LISP_WORD_TYPE) event);
+  record_unwind_protect (x_selection_request_lisp_error, tmp);
   target_symbol = x_atom_to_symbol (reply.display, event->target);
 
 #if 0 /* #### MULTIPLE doesn't work yet */
@@ -748,8 +810,7 @@ static struct prop_location {
 
 
 static int
-property_deleted_p (tick)
-     void *tick;
+property_deleted_p (void *tick)
 {
   struct prop_location *rest = for_whom_the_bell_tolls;
   while (rest)
@@ -779,7 +840,7 @@ static int
 expect_property_change (display, window, property, state)
      Display *display;
      Window window;
-     Lisp_Object property;
+     Atom property;
      int state;
 {
   struct prop_location *pl = (struct prop_location *)
@@ -893,15 +954,17 @@ copy_multiple_data (obj)
     return Fcons (XCONS (obj)->car, copy_multiple_data (XCONS (obj)->cdr));
     
   CHECK_VECTOR (obj, 0);
-  vec = Fmake_vector (size = XVECTOR (obj)->size, Qnil);
+  size = XVECTOR (obj)->size;
+  vec = make_vector (size, Qnil);
   for (i = 0; i < size; i++)
     {
       Lisp_Object vec2 = XVECTOR (obj)->contents [i];
       CHECK_VECTOR (vec2, 0);
       if (XVECTOR (vec2)->size != 2)
-	Fsignal (Qerror, Fcons (build_string ("vectors must be of length 2"),
-				Fcons (vec2, Qnil)));
-      XVECTOR (vec)->contents [i] = Fmake_vector (2, Qnil);
+	signal_error (Qerror, list2 (build_string
+				     ("vectors must be of length 2"),
+                                     vec2));
+      XVECTOR (vec)->contents [i] = make_vector (2, Qnil);
       XVECTOR (XVECTOR (vec)->contents [i])->contents [0] =
 	XVECTOR (vec2)->contents [0];
       XVECTOR (XVECTOR (vec)->contents [i])->contents [1] =
@@ -951,7 +1014,7 @@ x_get_foreign_selection (selection_symbol, target_type)
   Atom target_property = Xatom_EMACS_TMP;
   Atom selection_atom = symbol_to_x_atom (display, selection_symbol);
   Atom type_atom;
-  int count;
+  int speccount;
 
   if (CONSP (target_type))
     type_atom = symbol_to_x_atom (display, XCONS (target_type)->car);
@@ -968,7 +1031,7 @@ x_get_foreign_selection (selection_symbol, target_type)
   reading_which_selection = selection_atom;
   selection_reply_timed_out = 0;
 
-  count = specpdl_ptr - specpdl;
+  speccount = specpdl_depth ();
 
   /* add a timeout handler */
   if (x_selection_timeout > 0)
@@ -985,7 +1048,7 @@ x_get_foreign_selection (selection_symbol, target_type)
   if (selection_reply_timed_out)
     error ("timed out waiting for reply from selection owner");
 
-  unbind_to (count, Qnil);
+  unbind_to (speccount, Qnil);
 
   /* otherwise, the selection is waiting for us on the requested property. */
   return
@@ -1176,18 +1239,15 @@ x_get_window_property_as_lisp_data (display, window, property, target_type,
       there_is_a_selection_owner =
 	XGetSelectionOwner (display, selection_atom);
       UNBLOCK_INPUT;
-      while (1) /* don't let debugger return here */
-	Fsignal (Qerror,
-		 there_is_a_selection_owner ?
-		 Fcons (build_string ("selection owner couldn't convert"),
-			actual_type
-			? Fcons (target_type,
-				 Fcons (x_atom_to_symbol (display, actual_type),
-					Qnil))
-			: Fcons (target_type, Qnil))
-		 : Fcons (build_string ("no selection"),
-			  Fcons (x_atom_to_symbol (display, selection_atom),
-				 Qnil)));
+      signal_error (Qerror,
+        (there_is_a_selection_owner
+	 ? Fcons (build_string ("selection owner couldn't convert"),
+		  (actual_type
+		   ? list2 (target_type,
+			    x_atom_to_symbol (display, actual_type))
+		   : list1 (target_type)))
+	 : list2 (build_string ("no selection"),
+		  x_atom_to_symbol (display, selection_atom))));
     }
   
   if (actual_type == Xatom_INCR)
@@ -1210,7 +1270,7 @@ x_get_window_property_as_lisp_data (display, window, property, target_type,
   val = selection_data_to_lisp_data (display, data, bytes,
 				     actual_type, actual_format);
   
-  xfree ((char *) data);
+  xfree (data);
   return val;
 }
 
@@ -1266,9 +1326,11 @@ selection_data_to_lisp_data (display, data, size, type, format)
 	return x_atom_to_symbol (display, *((Atom *) data));
       else
 	{
-	  Lisp_Object v = Fmake_vector (size / sizeof (Atom), 0);
+	  Lisp_Object v = Fmake_vector (make_number (size / sizeof (Atom)),
+					Qzero);
 	  for (i = 0; i < size / sizeof (Atom); i++)
-	    Faset (v, i, x_atom_to_symbol (display, ((Atom *) data) [i]));
+	    Faset (v, make_number (i),
+		   x_atom_to_symbol (display, ((Atom *) data) [i]));
 	  return v;
 	}
     }
@@ -1301,22 +1363,22 @@ selection_data_to_lisp_data (display, data, size, type, format)
   else if (format == 16)
     {
       int i;
-      Lisp_Object v = Fmake_vector (size / 4, 0);
+      Lisp_Object v = make_vector (size / 4, Qzero);
       for (i = 0; i < size / 4; i++)
 	{
 	  int j = (int) ((unsigned short *) data) [i];
-	  Faset (v, i, make_number (j));
+	  Faset (v, make_number (i), make_number (j));
 	}
       return v;
     }
   else
     {
       int i;
-      Lisp_Object v = Fmake_vector (size / 4, 0);
+      Lisp_Object v = make_vector (size / 4, Qzero);
       for (i = 0; i < size / 4; i++)
 	{
 	  unsigned long j = ((unsigned long *) data) [i];
-	  Faset (v, i, long_to_cons (j));
+	  Faset (v, make_number (i), long_to_cons (j));
 	}
       return v;
     }
@@ -1406,10 +1468,10 @@ lisp_data_to_selection_data (display, obj,
 	      (*(Atom **) data_ret) [i] =
 		symbol_to_x_atom (display, XVECTOR (obj)->contents [i]);
 	    else
-	      Fsignal (Qerror, /* Qselection_error */
-		       Fcons (build_string
+              signal_error (Qerror, /* Qselection_error */
+                            list2 (build_string
 		   ("all elements of the vector must be of the same type"),
-			      Fcons (obj, Qnil)));
+                                   obj));
 	}
 #if 0 /* #### MULTIPLE doesn't work yet */
       else if (VECTORP (XVECTOR (obj)->contents [0]))
@@ -1425,10 +1487,10 @@ lisp_data_to_selection_data (display, obj,
 	      {
 		Lisp_Object pair = XVECTOR (obj)->contents [i];
 		if (XVECTOR (pair)->size != 2)
-		  Fsignal (Qerror,
-			   Fcons (build_string 
+		  signal_error (Qerror,
+                                list2 (build_string 
        ("elements of the vector must be vectors of exactly two elements"),
-				  Fcons (pair, Qnil)));
+				  pair));
 		
 		(*(Atom **) data_ret) [i * 2] =
 		  symbol_to_x_atom (display, XVECTOR (pair)->contents [0]);
@@ -1436,11 +1498,10 @@ lisp_data_to_selection_data (display, obj,
 		  symbol_to_x_atom (display, XVECTOR (pair)->contents [1]);
 	      }
 	    else
-	      Fsignal (Qerror,
-		       Fcons (build_string
+	      signal_error (Qerror,
+                            list2 (build_string
 		   ("all elements of the vector must be of the same type"),
-			      Fcons (obj, Qnil)));
-	  
+                                   obj));
 	}
 #endif
       else
@@ -1453,10 +1514,10 @@ lisp_data_to_selection_data (display, obj,
 	    if (CONSP (XVECTOR (obj)->contents [i]))
 	      *format_ret = 32;
 	    else if (!FIXNUMP (XVECTOR (obj)->contents [i]))
-	      Fsignal (Qerror, /* Qselection_error */
-		       Fcons (build_string
+	      signal_error (Qerror, /* Qselection_error */
+                            list2 (build_string
 	("all elements of the vector must be integers or conses of integers"),
-			      Fcons (obj, Qnil)));
+                                   obj));
 
 	  *data_ret = (unsigned char *) xmalloc (*size_ret * (*format_ret/8));
 	  for (i = 0; i < *size_ret; i++)
@@ -1469,9 +1530,9 @@ lisp_data_to_selection_data (display, obj,
 	}
     }
   else
-    Fsignal (Qerror, /* Qselection_error */
-	     Fcons (build_string ("unrecognised selection data"),
-		    Fcons (obj, Qnil)));
+    signal_error (Qerror, /* Qselection_error */
+                  list2 (build_string ("unrecognised selection data"),
+                         obj));
 
   *type_ret = symbol_to_x_atom (display, type);
 }
@@ -1503,7 +1564,7 @@ clean_local_selection_data (obj)
       Lisp_Object copy;
       if (size == 1)
 	return clean_local_selection_data (XVECTOR (obj)->contents [0]);
-      copy = Fmake_vector (size, Qnil);
+      copy = make_vector (size, Qnil);
       for (i = 0; i < size; i++)
 	XVECTOR (copy)->contents [i] =
 	  clean_local_selection_data (XVECTOR (obj)->contents [i]);
@@ -1722,8 +1783,8 @@ initialize_cut_buffers (display, window)
 	!EQ((symbol),QCUT_BUFFER2) && !EQ((symbol),QCUT_BUFFER3) &&	\
 	!EQ((symbol),QCUT_BUFFER4) && !EQ((symbol),QCUT_BUFFER5) &&	\
 	!EQ((symbol),QCUT_BUFFER6) && !EQ((symbol),QCUT_BUFFER7))	\
-      Fsignal(Qerror, Fcons (build_string ("doesn't name a cutbuffer"),	\
-			     Fcons ((symbol), Qnil)));			\
+      signal_error (Qerror, list2 (build_string ("doesn't name a cutbuffer"), \
+                                   (symbol))); \
   }
 
 DEFUN ("x-get-cutbuffer-internal", Fx_get_cutbuffer_internal,
@@ -1750,10 +1811,11 @@ DEFUN ("x-get-cutbuffer-internal", Fx_get_cutbuffer_internal,
   if (!data) return Qnil;
   
   if (format != 8 || type != XA_STRING)
-    Fsignal (Qerror,
-	     Fcons (build_string ("cut buffer doesn't contain 8-bit data"),
-		    Fcons (x_atom_to_symbol (display, type),
-			   Fcons (make_number (format), Qnil))));
+    signal_error (Qerror,
+                  list3 (build_string
+			 ("cut buffer doesn't contain 8-bit data"),
+                         x_atom_to_symbol (display, type),
+                         make_number (format)));
 
   ret = (bytes ? make_string ((char *) data, bytes) : Qnil);
   xfree (data);
@@ -1900,36 +1962,36 @@ A value of 0 means wait as long as necessary.  This is initialized from the\n\
   x_selection_timeout = 0;
 
   /* Unfortunately, timeout handlers must be lisp functions. */
-  Qx_selection_reply_timeout_internal =
-    intern ("x-selection-reply-timeout-internal");
+  defsymbol (&Qx_selection_reply_timeout_internal,
+             "x-selection-reply-timeout-internal");
   defsubr (&Sx_selection_reply_timeout_internal);
 
-  QPRIMARY   = intern ("PRIMARY");	staticpro (&QPRIMARY);
-  QSECONDARY = intern ("SECONDARY");	staticpro (&QSECONDARY);
-  QSTRING    = intern ("STRING");	staticpro (&QSTRING);
-  QINTEGER   = intern ("INTEGER");	staticpro (&QINTEGER);
-  QCLIPBOARD = intern ("CLIPBOARD");	staticpro (&QCLIPBOARD);
-  QTIMESTAMP = intern ("TIMESTAMP");	staticpro (&QTIMESTAMP);
-  QTEXT      = intern ("TEXT"); 	staticpro (&QTEXT);
-  QTIMESTAMP = intern ("TIMESTAMP");	staticpro (&QTIMESTAMP);
-  QDELETE    = intern ("DELETE");	staticpro (&QDELETE);
-  QMULTIPLE  = intern ("MULTIPLE");	staticpro (&QMULTIPLE);
-  QINCR      = intern ("INCR");		staticpro (&QINCR);
-  QEMACS_TMP = intern ("_EMACS_TMP_");	staticpro (&QEMACS_TMP);
-  QTARGETS   = intern ("TARGETS");	staticpro (&QTARGETS);
-  QATOM	     = intern ("ATOM");		staticpro (&QATOM);
-  QATOM_PAIR = intern ("ATOM_PAIR");	staticpro (&QATOM_PAIR);
-  QNULL	     = intern ("NULL");		staticpro (&QNULL);
-
+  defsymbol (&QPRIMARY, "PRIMARY");
+  defsymbol (&QSECONDARY, "SECONDARY");
+  defsymbol (&QSTRING, "STRING");
+  defsymbol (&QINTEGER, "INTEGER");
+  defsymbol (&QCLIPBOARD, "CLIPBOARD");
+  defsymbol (&QTIMESTAMP, "TIMESTAMP");
+  defsymbol (&QTEXT, "TEXT");
+  defsymbol (&QTIMESTAMP, "TIMESTAMP");
+  defsymbol (&QDELETE, "DELETE");
+  defsymbol (&QMULTIPLE, "MULTIPLE");
+  defsymbol (&QINCR, "INCR");
+  defsymbol (&QEMACS_TMP, "_EMACS_TMP_");
+  defsymbol (&QTARGETS, "TARGETS");
+  defsymbol (&QATOM, "ATOM");
+  defsymbol (&QATOM_PAIR, "ATOM_PAIR");
+  defsymbol (&QNULL, "NULL");
+  
 #ifdef CUT_BUFFER_SUPPORT
-  QCUT_BUFFER0 = intern ("CUT_BUFFER0"); staticpro (&QCUT_BUFFER0);
-  QCUT_BUFFER1 = intern ("CUT_BUFFER1"); staticpro (&QCUT_BUFFER1);
-  QCUT_BUFFER2 = intern ("CUT_BUFFER2"); staticpro (&QCUT_BUFFER2);
-  QCUT_BUFFER3 = intern ("CUT_BUFFER3"); staticpro (&QCUT_BUFFER3);
-  QCUT_BUFFER4 = intern ("CUT_BUFFER4"); staticpro (&QCUT_BUFFER4);
-  QCUT_BUFFER5 = intern ("CUT_BUFFER5"); staticpro (&QCUT_BUFFER5);
-  QCUT_BUFFER6 = intern ("CUT_BUFFER6"); staticpro (&QCUT_BUFFER6);
-  QCUT_BUFFER7 = intern ("CUT_BUFFER7"); staticpro (&QCUT_BUFFER7);
+  defsymbol (&QCUT_BUFFER0, "CUT_BUFFER0");
+  defsymbol (&QCUT_BUFFER1, "CUT_BUFFER1");
+  defsymbol (&QCUT_BUFFER2, "CUT_BUFFER2");
+  defsymbol (&QCUT_BUFFER3, "CUT_BUFFER3");
+  defsymbol (&QCUT_BUFFER4, "CUT_BUFFER4");
+  defsymbol (&QCUT_BUFFER5, "CUT_BUFFER5");
+  defsymbol (&QCUT_BUFFER6, "CUT_BUFFER6");
+  defsymbol (&QCUT_BUFFER7, "CUT_BUFFER7");
 #endif
 
 }

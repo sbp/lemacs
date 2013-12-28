@@ -65,11 +65,22 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
  *
  */
 
+/* Modified to support SysVr3 shared libraries by James Van Artsdalen
+ * of Dell Computer Corporation.  james@bigtex.cactus.org.
+ */
+
 /* There are several compilation parameters affecting unexec:
 
 * COFF
 
 Define this if your system uses COFF for executables.
+
+* COFF_ENCAPSULATE
+
+Define this if you are using the GNU coff encapsulated a.out format.
+This is closer to a.out than COFF. You should *not* define COFF if
+you define COFF_ENCAPSULATE
+
 Otherwise we assume you use Berkeley format.
 
 * NO_REMAP
@@ -190,7 +201,13 @@ pointer looks like an int) but not on all machines.
 
 #ifndef CANNOT_UNEXEC /* most of rest of file */
 
+#ifdef COFF_ENCAPSULATE
+int need_coff_header = 1;
+#include <coff-encap/a.out.encap.h> /* The location might be a poor assumption */
+#else
 #include <a.out.h>
+#endif
+
 /* Define getpagesize () if the system does not.
    Note that this may depend on symbols defined in a.out.h
  */
@@ -198,18 +215,14 @@ pointer looks like an int) but not on all machines.
 
 #ifndef makedev			/* Try to detect types.h already loaded */
 #include <sys/types.h>
-#endif
+#endif /* makedev */
 #include <stdio.h>
 #include <sys/stat.h>
 #include <errno.h>
 
 extern char *start_of_text ();		/* Start of text */
 
-#ifdef __STDC__
 extern void *start_of_data ();		/* Start of initialized data */
-#else
-extern char *start_of_data ();		/* Start of initialized data */
-#endif
 
 #ifdef COFF
 static long block_copy_start;		/* Old executable start point */
@@ -230,7 +243,9 @@ static long data_scnptr;
 typedef long ptrdiff_t;
 #endif
 #endif
+#ifndef HPUX
 extern void *sbrk (ptrdiff_t);
+#endif /* HPUX */
 #else
 extern void *sbrk ();
 #endif
@@ -257,7 +272,7 @@ static EXEC_HDR_TYPE hdr, ohdr;
 
 #else /* not HPUX */
 
-#if defined (USG) && !defined (IBMAIX) && !defined (IRIS)
+#if defined (USG) && !defined (IBMAIX) && !defined (IRIS) && !defined (COFF_ENCAPSULATE) && !defined (LINUX)
 static struct bhdr hdr, ohdr;
 #define a_magic fmagic
 #define a_text tsize
@@ -280,6 +295,11 @@ static EXEC_HDR_TYPE hdr, ohdr;
 static int unexec_text_start;
 static int unexec_data_start;
 
+#ifdef COFF_ENCAPSULATE
+/* coffheader is defined in the GNU a.out.encap.h file.  */
+struct coffheader coffheader;
+#endif
+
 #endif /* not COFF */
 
 static int pagemask;
@@ -294,11 +314,11 @@ static int pagemask;
 
 #ifdef emacs
 
-extern void error();
+extern void error (const char *fmt, ...);
 
 static void
 report_error (file, fd)
-     char *file;
+     const char *file;
      int fd;
 {
   if (fd)
@@ -314,7 +334,7 @@ report_error (file, fd)
 static void
 report_error_1 (fd, msg, a1, a2)
      int fd;
-     char *msg;
+     const char *msg;
      int a1, a2;
 {
   close (fd);
@@ -353,7 +373,7 @@ unexec (new_name, a_name, data_start, bss_start, entry_address)
     }
 
   if (make_hdr (new, a_out, data_start, bss_start, entry_address, a_name, new_name) < 0
-      || copy_text_and_data (new) < 0
+      || copy_text_and_data (new, a_out) < 0
       || copy_sym (new, a_out, a_name, new_name) < 0
 #ifdef COFF
 #ifndef COFF_BSD_SYMBOLS
@@ -387,6 +407,7 @@ make_hdr (new, a_out, data_start, bss_start, entry_address, a_name, new_name)
      char *a_name;
      char *new_name;
 {
+  int tem;
 #ifdef COFF
   auto struct scnhdr f_thdr;		/* Text section header */
   auto struct scnhdr f_dhdr;		/* Data section header */
@@ -394,7 +415,11 @@ make_hdr (new, a_out, data_start, bss_start, entry_address, a_name, new_name)
   auto struct scnhdr scntemp;		/* Temporary section header */
   register int scns;
 #endif /* COFF */
+#ifdef USG_SHARED_LIBRARIES
+  extern unsigned int bss_end;
+#else
   unsigned int bss_end;
+#endif
 
   pagemask = getpagesize () - 1;
 
@@ -487,7 +512,21 @@ make_hdr (new, a_out, data_start, bss_start, entry_address, a_name, new_name)
   /* Now we alter the contents of all the f_*hdr variables
      to correspond to what we want to dump.  */
 
+#ifdef USG_SHARED_LIBRARIES
+
+  /* The amount of data we're adding to the file is distance from the
+   * end of the original .data space to the current end of the .data
+   * space.
+   */
+
+  bias = bss_start - (f_ohdr.data_start + f_dhdr.s_size);
+
+#endif
+
   f_hdr.f_flags |= (F_RELFLG | F_EXEC);
+#ifdef TPIX
+  f_hdr.f_nscns = 3;
+#endif
 #ifdef EXEC_MAGIC
   f_ohdr.magic = EXEC_MAGIC;
 #endif
@@ -516,6 +555,9 @@ make_hdr (new, a_out, data_start, bss_start, entry_address, a_name, new_name)
   f_thdr.s_scnptr
     = (f_thdr.s_scnptr + SECTION_ALIGNMENT) & ~SECTION_ALIGNMENT;
 #endif /* SECTION_ALIGNMENT */
+#ifdef TPIX
+  f_thdr.s_scnptr = 0xd0;
+#endif
   text_scnptr = f_thdr.s_scnptr;
 #ifdef ADJUST_TEXTBASE
   text_scnptr = sizeof (f_hdr) + sizeof (f_ohdr) + (f_hdr.f_nscns) * (sizeof (f_thdr));
@@ -545,7 +587,9 @@ make_hdr (new, a_out, data_start, bss_start, entry_address, a_name, new_name)
   f_bhdr.s_vaddr = f_ohdr.data_start + f_ohdr.dsize;
   f_bhdr.s_size = f_ohdr.bsize;
   f_bhdr.s_scnptr = 0L;
+#ifndef USG_SHARED_LIBRARIES
   bias = f_dhdr.s_scnptr + f_dhdr.s_size - block_copy_start;
+#endif
 
   if (f_hdr.f_symptr > 0L)
     {
@@ -571,6 +615,8 @@ make_hdr (new, a_out, data_start, bss_start, entry_address, a_name, new_name)
       PERROR (new_name);
     }
 
+#ifndef USG_SHARED_LIBRARIES
+
   if (write (new, &f_thdr, sizeof (f_thdr)) != sizeof (f_thdr))
     {
       PERROR (new_name);
@@ -585,6 +631,54 @@ make_hdr (new, a_out, data_start, bss_start, entry_address, a_name, new_name)
     {
       PERROR (new_name);
     }
+
+#else /* USG_SHARED_LIBRARIES */
+
+  /* The purpose of this code is to write out the new file's section
+   * header table.
+   *
+   * Scan through the original file's sections.  If the encountered
+   * section is one we know (.text, .data or .bss), write out the
+   * correct header.  If it is a section we do not know (such as
+   * .lib), adjust the address of where the section data is in the
+   * file, and write out the header.
+   *
+   * If any section precedes .text or .data in the file, this code
+   * will not adjust the file pointer for that section correctly.
+   */
+
+  lseek (a_out, sizeof (f_hdr) + sizeof (f_ohdr), 0);
+
+  for (scns = f_hdr.f_nscns; scns > 0; scns--)
+    {
+      if (read (a_out, &scntemp, sizeof (scntemp)) != sizeof (scntemp))
+	PERROR (a_name);
+
+      if (!strcmp (scntemp.s_name, f_thdr.s_name))	/* .text */
+	{
+	  if (write (new, &f_thdr, sizeof (f_thdr)) != sizeof (f_thdr))
+	    PERROR (new_name);
+	}
+      else if (!strcmp (scntemp.s_name, f_dhdr.s_name))	/* .data */
+	{
+	  if (write (new, &f_dhdr, sizeof (f_dhdr)) != sizeof (f_dhdr))
+	    PERROR (new_name);
+	}
+      else if (!strcmp (scntemp.s_name, f_bhdr.s_name))	/* .bss */
+	{
+	  if (write (new, &f_bhdr, sizeof (f_bhdr)) != sizeof (f_bhdr))
+	    PERROR (new_name);
+	}
+      else
+	{
+	  if (scntemp.s_scnptr)
+	    scntemp.s_scnptr += bias;
+	  if (write (new, &scntemp, sizeof (scntemp)) != sizeof (scntemp))
+	    PERROR (new_name);
+	}
+    }
+#endif /* USG_SHARED_LIBRARIES */
+
   return (0);
 
 #else /* if not COFF */
@@ -592,6 +686,16 @@ make_hdr (new, a_out, data_start, bss_start, entry_address, a_name, new_name)
   /* Get symbol table info from header of a.out file if given one. */
   if (a_out >= 0)
     {
+#ifdef COFF_ENCAPSULATE
+      if (read (a_out, &coffheader, sizeof coffheader) != sizeof coffheader)
+	{
+	  PERROR(a_name);
+	}
+      if (coffheader.f_magic != COFF_MAGIC)
+	{
+	  ERROR1("%s doesn't have legal coff magic number\n", a_name);
+	}
+#endif
       if (read (a_out, (char *) &ohdr, sizeof hdr) != sizeof hdr)
 	{
 	  PERROR (a_name);
@@ -599,13 +703,20 @@ make_hdr (new, a_out, data_start, bss_start, entry_address, a_name, new_name)
 
       if (N_BADMAG (ohdr))
 	{
-	  ERROR1 ("invalid magic number in %s", (int)a_name);
+	  ERROR1 ("invalid magic number in %s", a_name);
 	}
       hdr = ohdr;
     }
   else
     {
+#ifdef COFF_ENCAPSULATE
+      /* We probably could without too much trouble. The code is in gld
+       * but I don't have that much time or incentive.
+       */
+      ERROR0 ("can't build a COFF file from scratch yet");
+#else
       memset ((void *)&hdr, 0, sizeof hdr);
+#endif
     }
 
   unexec_text_start = (long) start_of_text ();
@@ -634,6 +745,32 @@ make_hdr (new, a_out, data_start, bss_start, entry_address, a_name, new_name)
 
 #endif /* not NO_REMAP */
 
+#ifdef COFF_ENCAPSULATE
+  /* We are encapsulating BSD format within COFF format.  */
+  {
+    struct coffscn *tp, *dp, *bp;
+    tp = &coffheader.scns[0];
+    dp = &coffheader.scns[1];
+    bp = &coffheader.scns[2];
+    tp->s_size = hdr.a_text + sizeof(struct exec);
+    dp->s_paddr = data_start;
+    dp->s_vaddr = data_start;
+    dp->s_size = hdr.a_data;
+    bp->s_paddr = dp->s_vaddr + dp->s_size;
+    bp->s_vaddr = bp->s_paddr;
+    bp->s_size = hdr.a_bss;
+    coffheader.tsize = tp->s_size;
+    coffheader.dsize = dp->s_size;
+    coffheader.bsize = bp->s_size;
+    coffheader.text_start = tp->s_vaddr;
+    coffheader.data_start = dp->s_vaddr;
+  }
+  if (write (new, &coffheader, sizeof coffheader) != sizeof coffheader)
+    {
+      PERROR(new_name);
+    }
+#endif /* COFF_ENCAPSULATE */
+
   if (write (new, (char *) &hdr, sizeof hdr) != sizeof hdr)
     {
       PERROR (new_name);
@@ -656,13 +793,70 @@ static void write_segment (int, char *, char *);
  * Copy the text and data segments from memory to the new a.out
  */
 static int
-copy_text_and_data (new)
-     int new;
+copy_text_and_data (new, a_out)
+     int new, a_out;
 {
   register char *end;
   register char *ptr;
 
 #ifdef COFF
+#ifdef USG_SHARED_LIBRARIES
+
+  int scns;
+  struct scnhdr scntemp;		/* Temporary section header */
+
+  /* The purpose of this code is to write out the new file's section
+   * contents.
+   *
+   * Step through the section table.  If we know the section (.text,
+   * .data) do the appropriate thing.  Otherwise, if the section has
+   * no allocated space in the file (.bss), do nothing.  Otherwise,
+   * the section has space allocated in the file, and is not a section
+   * we know.  So just copy it.
+   */
+
+  lseek (a_out, sizeof (struct filehdr) + sizeof (struct aouthdr), 0);
+
+  for (scns = f_hdr.f_nscns; scns > 0; scns--)
+    {
+      if (read (a_out, &scntemp, sizeof (scntemp)) != sizeof (scntemp))
+	PERROR ("temacs");
+
+      if (!strcmp (scntemp.s_name, ".text"))
+	{
+	  lseek (new, (long) text_scnptr, 0);
+	  ptr = (char *) f_ohdr.text_start;
+	  end = ptr + f_ohdr.tsize;
+	  write_segment (new, ptr, end);
+	}
+      else if (!strcmp (scntemp.s_name, ".data"))
+	{
+	  lseek (new, (long) data_scnptr, 0);
+	  ptr = (char *) f_ohdr.data_start;
+	  end = ptr + f_ohdr.dsize;
+	  write_segment (new, ptr, end);
+	}
+      else if (!scntemp.s_scnptr)
+	; /* do nothing - no data for this section */
+      else
+	{
+	  char page[BUFSIZ];
+	  int size, n;
+	  long old_a_out_ptr = lseek (a_out, 0, 1);
+
+	  lseek (a_out, scntemp.s_scnptr, 0);
+	  for (size = scntemp.s_size; size > 0; size -= sizeof (page))
+	    {
+	      n = size > sizeof (page) ? sizeof (page) : size;
+	      if (read (a_out, page, n) != n || write (new, page, n) != n)
+		PERROR ("emacs");
+	    }
+	  lseek (a_out, old_a_out_ptr, 0);
+	}
+    }
+
+#else /* COFF, but not USG_SHARED_LIBRARIES */
+
   lseek (new, (long) text_scnptr, 0);
   ptr = (char *) f_ohdr.text_start;
 #ifdef HEADER_INCL_IN_TEXT
@@ -676,6 +870,8 @@ copy_text_and_data (new)
   ptr = (char *) f_ohdr.data_start;
   end = ptr + f_ohdr.dsize;
   write_segment (new, ptr, end);
+
+#endif /* USG_SHARED_LIBRARIES */
 
 #else /* if not COFF */
 
@@ -792,7 +988,7 @@ copy_sym (new, a_out, a_name, new_name)
 /* ****************************************************************
  * mark_x
  *
- * After succesfully building the new a.out, mark it executable
+ * After successfully building the new a.out, mark it executable
  */
 static void
 mark_x (name)
@@ -845,7 +1041,7 @@ adjust_lnnoptrs (writedesc, readdesc, new_name)
 {
   register int nsyms;
   register int new;
-#ifdef amdahl_uts
+#if defined (amdahl_uts) || defined (pfa)
   SYMENT symentry;
   AUXENT auxentry;
 #else
@@ -870,7 +1066,8 @@ adjust_lnnoptrs (writedesc, readdesc, new_name)
 	{
 	  read (new, &auxentry, AUXESZ);
 	  nsyms++;
-	  if (ISFCN (symentry.n_type)) {
+	  if (ISFCN (symentry.n_type) || symentry.n_type == 0x2400)
+          {
 	    auxentry.x_sym.x_fcnary.x_fcn.x_lnnoptr += bias;
 	    lseek (new, -AUXESZ, 1);
 	    write (new, &auxentry, AUXESZ);

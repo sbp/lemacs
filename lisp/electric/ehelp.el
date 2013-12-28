@@ -1,4 +1,11 @@
-;; Copyright (C) 1986, 1992 Free Software Foundation, Inc.
+;;; ehelp.el --- bindings for electric-help mode
+
+;; Copyright (C) 1986 Free Software Foundation, Inc.
+
+;; Author: Richard Mlynarik <mly@ai.mit.edu>
+
+;; Maintainer: FSF
+;; Keywords: help, extensions
 
 ;; This file is part of GNU Emacs.
 
@@ -16,14 +23,20 @@
 ;; along with GNU Emacs; see the file COPYING.  If not, write to
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
-;; Written by Richard Mlynarik
+;;; Commentary:
+
+;; This package provides a pre-packaged `Electric Help Mode' for
+;; browsing on-line help screens.  There is one entry point,
+;; `with-electric-help'; All you have to give it is a no-argument
+;; function that generates the actual text of the help into the urrent
+;; buffer.
+
+;;; Code:
 
 (require 'electric)
-(provide 'ehelp) 
 
 (defvar electric-help-map nil
-  "Keymap defining commands available whilst scrolling
-through a buffer in electric-help-mode")
+  "Keymap defining commands available in `electric-help-mode'.")
 
 (put 'electric-help-undefined 'suppress-keymap t)
 (if electric-help-map
@@ -53,8 +66,7 @@ through a buffer in electric-help-mode")
    
 (defun electric-help-mode ()
   "`with-electric-help' temporarily places its buffer in this mode.
-\(On exit from `with-electric-help', the buffer is put in
- `default-major-mode')"
+\(On exit from `with-electric-help', the buffer is put in `default-major-mode'.\)"
   (setq buffer-read-only t)
   (setq mode-name "Help")
   (setq major-mode 'help)
@@ -125,8 +137,7 @@ BUFFER is put into `default-major-mode' (or `fundamental-mode') when we exit."
     (if (pos-visible-in-window-p (point-max))
 	(progn (message "<<< Press Space to bury the help buffer >>>")
 	       (if (eq (event-to-character
-			(setq unread-command-event
-			      (next-command-event (allocate-event))))
+			(setq unread-command-event (next-command-event)))
 		       ?\ )
 		   (progn (setq unread-command-event nil)
 			  (throw 'exit t)))))
@@ -322,3 +333,7 @@ will select it.)"
 
 
 ;; Do (define-key global-map "\C-h" 'ehelp-command) if you want to win
+
+(provide 'ehelp) 
+
+;;; ehelp.el ends here

@@ -245,7 +245,7 @@ resource_widget_value (XlwMenuWidget mw, widget_value* val)
       if (!resourced_name)
 	resourced_name = val->name;
       if (!val->value)
-	complete_name = strdup (resourced_name);
+	complete_name = (char *) strdup (resourced_name);
       else
 	{
 	  int complete_length =
@@ -688,9 +688,7 @@ remap_menubar (XlwMenuWidget mw)
 {
   int i;
   int last_same;
-  XPoint size;
   XPoint selection_position;
-  int redraw;
   int old_depth = mw->menu.old_depth;
   int new_depth = mw->menu.new_depth;
   widget_value** old_stack;
@@ -973,7 +971,6 @@ XlwMenuInitialize (Widget request, Widget new, ArgList args,
   XlwMenuWidget mw = (XlwMenuWidget)new;
   
   XSetWindowAttributes xswa;
-  XPoint size;
   int mask;
   
   Window window = RootWindowOfScreen (DefaultScreenOfDisplay (XtDisplay (mw)));
@@ -1231,7 +1228,6 @@ pop_up_menu (XlwMenuWidget mw, XButtonPressedEvent* event)
   int		h;
   int		borderwidth = mw->menu.shadow_thickness;
   Screen*	screen = XtScreen (mw);
-  XPoint	size;
 
   XtCallCallbackList ((Widget)mw, mw->menu.open, NULL);
 

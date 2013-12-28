@@ -1,146 +1,15 @@
 ;;; -*- Mode:Emacs-Lisp -*-
 ;;; Copyright © 1991-1993 by Lucid, Inc.  All Rights Reserved.
 
-(require 'gdb)
-(require 'compile)
-(or (and (fboundp 'ask-user-about-lock)
-	 (not (eq 'autoload
-		  (car-safe (symbol-function 'ask-user-about-lock)))))
-    (load-library "userlock"))
-
-;;; Energize advised functions
-
-(defun energize-next-error (&optional arg)
-  "If the current buffer is an Energize buffer, the server is consulted.
-In this case, a prefix argument means ``previous error''.  Otherwise,
-use the original definition of next-error."
-  (interactive "P")
-  (cond ((and (boundp 'compilation-error-list)
-	      (boundp 'compilation-error-buffer)
-	      compilation-error-list
-	      compilation-error-buffer
-	      (bufferp compilation-error-buffer)
-	      (buffer-name compilation-error-buffer))
-	 (energize-orig-next-error arg))
-	(t
-	 (energize-execute-command (if arg "previouserror" "nexterror"))))
-;  (if (energize-buffer-p (current-buffer))
-;      (energize-execute-command (if arg "previouserror" "nexterror"))
-;    (energize-orig-next-error arg))
-  )
-
-;(defun energize-previous-error (&optional arg)
-;  "If the current buffer is an Energize buffer, the server is consulted.
-;In this case, a prefix argument means ``next error''.  Otherwise,
-;use the original definition of previous-error."
-;  (interactive "P")
-;  (if (energize-buffer-p (current-buffer))
-;      (energize-execute-command (if arg "nexterror" "previouserror"))
-;    (energize-orig-previous-error arg)))
-
-(defun energize-set-visited-file-name (filename)
-  "This is illegal for Energize buffers."
-  (interactive "FSet visited file name: ")
-  (if (and (energize-write-file-buffer-p)
-	   (not (equal filename buffer-file-name)))
-      (error "Can't change the name associated with an Energize buffer.")
-    (energize-orig-set-visited-file-name filename)
-    (if (energize-buffer-p (current-buffer))
-	(energize-mode-internal))))
-
-
-(defun energize-find-file-noselect (filename &optional nowarn)
-  "When connected to Energize, if the visited file is one that
-Energize knows about, it will be correctly annotated."
-  (if (and (connected-to-energize-p)
-	   (not (file-directory-p filename))
-	   (energize-query-buffer filename t))
-      ;; after-find-file and abbreviate-file-name are called from
-      ;; energize-buffer-creation-hook-function, which is run from
-      ;; editorside.c (way down under energize-query-buffer).
-      ;; This is a mess...
-      (energize-query-buffer filename)
-    (energize-orig-find-file-noselect filename nowarn)))
-
-
-(defun energize-ask-user-about-lock (fn opponent)
-  "Energize buffers do this by asking the server."
-  (if (energize-buffer-p (current-buffer))
-      t
-    (energize-orig-ask-user-about-lock fn opponent)))
-
-(defun energize-init ()
-  (if (= 0 (energize-bits 1024))
-      (energize-announce (get 'energize 'energize))))
 
 ;; true if current-buffer is an energize buffer that does not support
 ;; the real write-file and so has to do the special energize way of doing
 ;; write-file that loses the annotations.
 (defun energize-write-file-buffer-p ()
-;;  (and (energize-buffer-p (current-buffer)
-;;       (not (eq major-mode 'energize-project-mode)))
+  ;;  (and (energize-buffer-p (current-buffer)
+  ;;       (not (eq major-mode 'energize-project-mode)))
   (energize-buffer-p (current-buffer)))
 
-(defun energize-write-file (filename)
-  "When executed on an Energize buffer, this will cause all 
-annotations to be lost (that is, the buffer will become a normal
-buffer, not one that the Energize server knows about.)"
-  (interactive
-   (list (let ((prompt (if (energize-write-file-buffer-p)
-			   "Write Energize buffer to file: "
-			 "Write file: ")))
-	   (if buffer-file-name
-	       (read-file-name prompt nil nil nil nil)
-	     (read-file-name prompt (cdr (assq 'default-directory
-					       (buffer-local-variables)))
-			     nil nil (buffer-name))))))
-  (if (not (energize-write-file-buffer-p))
-      (energize-orig-write-file filename)
-    ;; else...
-    (if (and (file-exists-p filename)
-	     (not
-	      (yes-or-no-p (format "File %s already exists.  Overwrite it? "
-				   filename))))
-	(error "Aborted"))
-    (write-region (point-min) (point-max) filename nil nil)
-    (if buffer-file-name
-	(revert-buffer t t)) ; revert this buffer from the Energize server
-    (kill-buffer nil) ; kill the current buffer, to lose Energize properties
-    (set-window-buffer ; and now visit the "new" file, and all that entails
-     (selected-window)
-     (find-file-noselect filename))))
-
-
-(defun energize-gdb-break (arg)
-  "If the current buffer is an Energize buffer, then this works by talking 
-to the server."
-  (interactive "P")
-  (if (not (energize-buffer-p (current-buffer)))
-      (energize-orig-gdb-break arg)
-    (energize-execute-command "setbreakpoint")))
-
-(defun energize-gdb-step (arg)
-  "If the current buffer is an Energize buffer, then this works by talking to
-the server."
-  (interactive "p")
-  (if (not (energize-buffer-p (current-buffer)))
-      (energize-orig-gdb-step arg)
-    (while (> arg 0)
-      (energize-execute-command "steponce")
-      (setq arg (1- arg)))))
-
-(defun energize-gdb-stepi (arg)
-  "If the current buffer is an Energize buffer, then this works by talking to
-the server."
-  (interactive "p")
-  (if (not (energize-buffer-p (current-buffer)))
-      (energize-orig-gdb-step arg)
-    ;; there's no energize command for this, so do it this way...
-    (save-excursion
-      (set-buffer "*Debugger*")
-      (goto-char (point-max))
-      (insert (format "stepi %d" arg))
-      (comint-send-input))))
 
 (defun energize-beginning-of-defun (&optional arg)
   "Move point to the beginning of the current top-level form.
@@ -148,7 +17,6 @@ With a numeric argument, move back that many forms."
   (interactive "p")
   (or arg (setq arg 1))
   (if (not (energize-buffer-p (current-buffer)))
-      ;;(energize-orig-beginning-of-defun arg)
       (error "Not an Energize buffer")
     (if (< arg 0)
 	(energize-end-of-defun (- arg))
@@ -171,7 +39,6 @@ With a numeric argument, move forward over that many forms."
   (interactive "p")
   (or arg (setq arg 1))
   (if (not (energize-buffer-p (current-buffer)))
-      ;;(energize-orig-end-of-defun arg)
       (error "Not an Energize buffer")
     (if (< arg 0)
 	(energize-beginning-of-defun (- arg))
@@ -187,15 +54,6 @@ With a numeric argument, move forward over that many forms."
 		  (goto-char pos))))
            (current-buffer) (point) (point) nil t))
         (setq arg (1- arg))))))
-
-(defun energize-normal-mode (&optional find-file)
-"If this is an Energize buffer, then the Energize modes are turned on as well."
-  (interactive)
-  (energize-orig-normal-mode find-file)
-  (if (and (energize-buffer-p (current-buffer))
-	   (not inside-energize-buffer-creation-hook-function))
-      (funcall energize-create-buffer-hook (current-buffer))))
-
 
 
 ;;; Patching Energize into file I/O via the standard hooks.
@@ -234,34 +92,6 @@ With a numeric argument, move forward over that many forms."
       (energize-request-kill-buffer (current-buffer))
       (error "energize-kill-buffer-hook called on a non-energize buffer"))
   t)
-
-
-; 
-; ;;; An importing version of find-file.
-; 
-; (fset 'find-file-in-energize 'energize-find-file)
-; (defun energize-find-file (name)
-;   "When connected to energize, energize will know about this file."
-;   (interactive (list (read-file-name 
-; 		      (if (connected-to-energize-p)
-; 			  "Energize find file: "
-; 			"Find file: "))))
-;   (if (and (connected-to-energize-p)
-; 	   (not (file-directory-p name))
-; 	   (or (energize-query-buffer name t)
-; 	       (y-or-n-p (format "Import \"%s\" into Energize? " name))))
-;       (let ((buffer (energize-query-buffer name))) ; create if necessary
-; 	(or (bufferp buffer) (error "couldn't import %s" name))
-; 	;; change name, as energize might have trunamed it.
-; 	(setq name (or (buffer-file-name buffer) (error "no name?")))
-; 	;; if it was in a buffer already, give it the energize keybindings.
-; 	(save-excursion
-; 	  (set-buffer buffer)
-; 	  (if (not energize-source-mode)
-; 	      (energize-source-minor-mode)))
-; 	))
-;   ;; find-file will switch to the buffer if we created it above.
-;   (find-file name))
 
 
 ;;; 
@@ -419,8 +249,6 @@ otherwise, the minibuffer is used."
 
 (defvar energize-map nil "*Parent keymap for all Energize buffers")
 (defvar energize-top-level-map nil "*Keymap for the Energize top-level buffer")
-(defvar energize-user-input-map nil
-  "*Parent keymap for Energize input buffers")
 (defvar energize-debugger-map nil "*Keymap for Energize debugger buffers")
 (defvar energize-breakpoint-map nil "*Keymap for Energize breakpoint-lists")
 (defvar energize-browser-map nil "*Keymap for Energize browser buffers")
@@ -537,16 +365,6 @@ otherwise, the minibuffer is used."
 ;;  (define-key energize-source-map "\M-\C-a" 'energize-beginning-of-defun)
 ;;  (define-key energize-source-map "\M-\C-e" 'energize-end-of-defun)
  )
-
-(if energize-user-input-map
-    nil
-  (setq energize-user-input-map (copy-keymap comint-mode-map))
-  (if (keymap-parent comint-mode-map) (error "comint-mode-map has a parent?"))
-  (set-keymap-parent energize-user-input-map energize-map)
-  (define-key energize-user-input-map "\M-\t" 'comint-dynamic-complete)
-  (define-key energize-user-input-map "\M-?" 'comint-dynamic-list-completions)
-  )
-
 
 (defvar energize-menu-state nil
   "State of the energize menu items of the buffer.  
@@ -698,18 +516,6 @@ In addition to the normal editing commands, the following keys are bound:
 	  (append minor-mode-alist
 		  '((energize-source-mode " Energize")))))
 
-;;; add a function to the find-file-hooks that turns on the energize minor
-;;; mode if this is an Energize buffer.  This happens both with find-file and
-;;; with revert-buffer.
-;;;
-;(add-hook 'find-file-hooks 'maybe-turn-on-energize-minor-mode t)
-
-(fmakunbound 'maybe-turn-on-energize-minor-mode)
-;(defun maybe-turn-on-energize-minor-mode ()
-;  (if (and (energize-buffer-p (current-buffer))
-;	   (eq (energize-buffer-type (current-buffer))
-;	       'energize-source-buffer))
-;      (energize-source-minor-mode)))
 
 (defun energize-source-minor-mode ()
   "Minor mode for adding additional keybindings to Energize source buffers.
@@ -756,6 +562,24 @@ turn it off."
   (recenter 1))
 
 (define-key global-map "\M-\C-r" 'recenter-definition)
+
+(defun energize-hide-error-glyphs-in-form ()
+  "Hides the error icons in the current toplevel form.
+You cannot get them back until you recompile the file."
+  (interactive)
+  (save-excursion
+    (save-restriction
+      (let ((start (progn (energize-beginning-of-defun) (point)))
+	    (end (progn (energize-end-of-defun) (point)))
+	    e)
+	(narrow-to-region start end)
+	(goto-char (point-min))
+	(setq e (extent-at (point)))
+	(while (and e
+		    (< (extent-end-position e) (point-max)))
+	  (if (memq 'begin-glyph (extent-attributes e))
+	      (set-extent-begin-glyph e ()))
+	  (setq e (next-extent e)))))))
 
 ;;; Dired-like commands
 
@@ -857,3 +681,32 @@ turn it off."
 
 (defun energize-project-edit-file () (interactive)
   (energize-top-execute-command "editfile"))
+
+
+(defun energize-project-prune-unused-rules ()
+  "Deletes all unused rules from the Rules: part of a Project buffer."
+  (interactive)
+  (save-excursion
+    (goto-char (point-min))
+    (search-forward " Rules:")
+    (forward-line 1)
+    (let ((rules-regexp "^[ \t]*\\(\\.[a-zA-Z]+\\(([0-9]+)\\)?\\):")
+	  p rule eor)
+      (save-excursion
+	(while (looking-at rules-regexp)
+	  (while (progn (end-of-line) (= (preceding-char) ?\\))
+	    (forward-line 1))
+	  (forward-line 1))
+	(setq eor (point)))
+      (while (looking-at rules-regexp)
+	(while (looking-at rules-regexp)
+	  (setq p (point))
+	  (setq rule (buffer-substring (match-beginning 1) (match-end 1)))
+	  (while (progn (end-of-line) (= (preceding-char) ?\\))
+	    (forward-line 1))
+	  (forward-line 1)
+	  (or (save-excursion
+		(goto-char eor)
+		(re-search-forward (concat "^[ \t]+" (regexp-quote rule) ":")
+				   nil t))
+	      (delete-region p (point))))))))

@@ -98,6 +98,8 @@
     "\\[scroll-up] = page forward;\\[scroll-down] = page back;\
  \\[view-mode-describe] = help; \\[view-quit] = quit.")))
 
+(defvar view-last-mode)
+
 (defun view-mode (&optional p)
   "Mode for viewing text, with bindings like `less'.
 Commands are:
@@ -140,6 +142,8 @@ More precisely:
   (let ((map (copy-keymap view-mode-map)))
     (set-keymap-parent map (current-local-map))
     (use-local-map map))
+  ;; save previous major-mode
+  (set (make-local-variable 'view-last-mode) major-mode)
   (setq mode-name "View")
   (setq major-mode 'view-mode)
   (if p (cleanup-backspaces))
@@ -269,11 +273,20 @@ negative of the last prefix arg."
 If the buffer being viewed had not been in a buffer already, it is killed.
 With a prefix arg, it will be buried instead of killed."
   (interactive "P")
-  (let ((b (current-buffer)))
+  (let ((b (current-buffer))
+	(old-mode (and (boundp 'view-last-mode) view-last-mode)))
     (if (and view-kill-on-exit (not p))
 	(kill-buffer b)
       (kill-all-local-variables)
       (normal-mode)
+      ;; this might not be a file buffer; if normal-mode didn't put us
+      ;; in some sensible mode, switch to the previous mode if possible.
+      (if (and old-mode
+	       (eq major-mode (or default-major-mode 'fundamental-mode))
+	       (not (eq old-mode major-mode)))
+	  (condition-case nil
+	      (funcall old-mode)
+	    (error nil)))
       (switch-to-buffer (other-buffer b))
       (bury-buffer b))))
 

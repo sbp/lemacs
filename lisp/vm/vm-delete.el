@@ -159,6 +159,7 @@ all marked messages are undeleted, other messages are ignored."
 	   (progn
 	     (vm-clear-expunge-invalidated-undos)
 	     (vm-set-buffer-modified-p t)
+	     (setq vm-folder-type (vm-get-folder-type))
 	     (setq vm-message-order-changed vm-message-order-stuffed)
 	     (cond ((and vm-last-message-pointer
 			 (vm-deleted-flag (car vm-last-message-pointer)))

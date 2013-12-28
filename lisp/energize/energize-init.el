@@ -299,7 +299,8 @@ Has to be called after Emacs has been connected to Energize"
 		     (remove-hook 'write-file-data-hooks
 				  'energize-write-data-hook)
 		     (setq revert-buffer-insert-file-contents-function nil)
-		     (energize-orig-normal-mode))
+		     (ad-Orig-normal-mode) ; #### necessary?
+		     )
 		    (t ; non-source-file Energize buffers
 		     (set-buffer-modified-p nil)
 		     (if (eq (other-buffer buffer) buffer)
@@ -397,7 +398,9 @@ Has to be called after Emacs has been connected to Energize"
       (if buffer-file-name
 	  (setq buffer-file-name (abbreviate-file-name
 				  (expand-file-name buffer-file-name))
-		default-directory (file-name-directory buffer-file-name)))
+		default-directory (file-name-directory buffer-file-name))
+	(setq default-directory
+	      (abbreviate-file-name (expand-file-name default-directory))))
 
       (if buffer-file-name (set-buffer-modtime buffer))
 
@@ -427,7 +430,6 @@ Has to be called after Emacs has been connected to Energize"
 		   ;;(null type)
 		   )
 	       (compute-buffer-file-truename)
-	       ;; energize-source-minor-mode is run by find-file-hooks
 	       (if (buffer-file-name buffer)
 		   (after-find-file nil t)
 		 (funcall default-major-mode))
@@ -445,10 +447,10 @@ Has to be called after Emacs has been connected to Energize"
 
 ;;; Buffer modified hook
 
-(defun notify-send-buffer-modified-request (start end)
-  (send-buffer-modified-request t start end))
+(defun energize-send-buffer-modified-1 (start end)
+  (energize-send-buffer-modified t start end))
 
-(setq before-change-function 'notify-send-buffer-modified-request)
+(setq before-change-function 'energize-send-buffer-modified-1)
 
 ;;; Energize kernel busy hook
 
@@ -460,7 +462,7 @@ Has to be called after Emacs has been connected to Energize"
 
 ;;; set-buffer-modified-p hook
 
-(setq energize-buffer-modified-hook 'send-buffer-modified-request)
+(setq energize-buffer-modified-hook 'energize-send-buffer-modified)
 
 ;;; hook in editorside.c
 
@@ -469,13 +471,16 @@ Has to be called after Emacs has been connected to Energize"
 
 ;; command line
 
-(defvar energize-args '(("-context"	. command-line-process-energize)
-			("-energize"	. command-line-process-energize)
-			("-beam-me-up"	. command-line-process-energize)))
+(defconst energize-args '(("-energize"	 . command-line-process-energize)
+			  ("-context"	 . command-line-process-energize-1)
+			  ("-beam-me-up" . command-line-process-energize-1)))
 
 (setq command-switch-alist (append command-switch-alist energize-args))
 
-(defun command-line-process-energize (arg)
+(fset 'command-line-process-energize 'command-line-process-energize-1)
+(put 'command-line-process-energize-1 'undocumented t)
+(defun command-line-process-energize-1 (arg)
+  "Connect to the Energize server at $ENERGIZE_PORT."
   (let ((e-arg (car command-line-args-left))
 	(e-host (getenv "ENERGIZE_PORT"))) ; maybe nil
     (if (and e-arg (string-match "\\`[0-9a-fA-F]+[,][0-9a-fA-F]+\\'" e-arg))

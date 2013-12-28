@@ -102,33 +102,33 @@
 ;;;
 ;;; To automatically load gnus-hide when starting gnus, 
 ;;; put this into your .emacs::
-;;; (setq gnus-Startup-hook 
+;;; (setq gnus-startup-hook 
 ;;;   '(lambda ()
 ;;;	(require 'gnus-hide)))
 ;;;
 ;;; If you want gnus to do quote hiding automatically when you select
 ;;; an article:
-;;; (setq  gnus-Article-prepare-hook 'gnus-Article-hide-quote)
+;;; (setq  gnus-article-prepare-hook 'gnus-article-hide-quote)
 ;;;
 ;;; If you want gnus to do signature hiding automatically when you select
 ;;; an article:
-;;; (setq  gnus-Article-prepare-hook 'gnus-Article-hide-sig)
+;;; (setq  gnus-article-prepare-hook 'gnus-article-hide-sig)
 ;;;
 ;;; If you want gnus to do reference hiding automatically when you select
 ;;; an article:
-;;; (setq  gnus-Article-prepare-hook 'gnus-Article-simplify-references)
+;;; (setq  gnus-article-prepare-hook 'gnus-article-simplify-references)
 ;;;
 ;;; To use a couple or all three of these, put the names in a list like this:
 ;;;
-;;; (setq gnus-Article-prepare-hook 
-;;;	'(gnus-Article-hide-quote 
-;;;	  gnus-Article-hide-sig
-;;;	  gnus-Article-simplify-references))
+;;; (setq gnus-article-prepare-hook 
+;;;	'(gnus-article-hide-quote 
+;;;	  gnus-article-hide-sig
+;;;	  gnus-article-simplify-references))
 ;;;
 ;:|
 ;:: Variables
 ;;;
-;;; -- To use aggressive quote prefixes in gnus-Article-hide-quote
+;;; -- To use aggressive quote prefixes in gnus-article-hide-quote
 ;;; 	(setq gnus-hide-hookified-be-aggressive t)
 ;;;
 ;;; -- To turn off aggressive signature hiding:
@@ -177,6 +177,8 @@
 ;;;		o made into awefold 1.0 file
 ;;;		Tim Lambert, J. Zawinski, Dave Brennan and Dan Jacobson
 ;;;		o added/improved code, suggestions, bug fixes
+;;;  10-jun-93  Vivek Khera <khera@cs.duke.edu>
+;;;		o updated naming convention to work with GNUS 3.15
 ;;;
 ;;;  Feel free to contact the authors to make suggestions, or bug fixes.
 ;;;
@@ -187,15 +189,15 @@
 
 ;::		KEY DEFINITIONS
 
-(define-key gnus-Subject-mode-map "S"    'gnus-Subject-hide-sig)
-(define-key gnus-Subject-mode-map "h"    'gnus-Subject-hide-quote)
-(define-key gnus-Subject-mode-map "H"    'gnus-Subject-unhide)
-(define-key gnus-Subject-mode-map "\C-c\C-r" 'gnus-Subject-simplify-references)
-(define-key gnus-Subject-mode-map "{"    'gnus-Subject-hide-sig)
-(define-key gnus-Subject-mode-map "}"    'gnus-Subject-simplify-references)
-(define-key gnus-Subject-mode-map "["    'gnus-Subject-hide-quote)
-(define-key gnus-Subject-mode-map "]"    'gnus-Subject-unhide)
-(define-key gnus-Subject-mode-map "'" 	 'gnus-hide-autohide-toggle)
+(define-key gnus-summary-mode-map "S"    'gnus-summary-hide-sig)
+(define-key gnus-summary-mode-map "h"    'gnus-summary-hide-quote)
+(define-key gnus-summary-mode-map "H"    'gnus-summary-unhide)
+(define-key gnus-summary-mode-map "\C-c\C-r" 'gnus-summary-simplify-references)
+(define-key gnus-summary-mode-map "{"    'gnus-summary-hide-sig)
+(define-key gnus-summary-mode-map "}"    'gnus-summary-simplify-references)
+(define-key gnus-summary-mode-map "["    'gnus-summary-hide-quote)
+(define-key gnus-summary-mode-map "]"    'gnus-summary-unhide)
+(define-key gnus-summary-mode-map "'" 	 'gnus-hide-autohide-toggle)
 
 ;:|
 
@@ -232,7 +234,7 @@ Default: nil")
       "^[\(#%;]"		;; "comment" chars...
      )
  "Regexps for last-resort hiding. By default, these are not 
-used in hookified calling (gnus-Article-hide-{quote/sig}).
+used in hookified calling (gnus-article-hide-{quote/sig}).
 See gnus-hide-hookified-be-aggressive and gnus-possible-quote-prefixes.")
 
 
@@ -283,19 +285,19 @@ hidden, to give some context.")
   "If t, put ellipsis on new line when gnus-hide-show-first-line is nil")
 
 
-(defun gnus-Article-is-followupp ()
+(defun gnus-article-is-followupp ()
   "Is current article a followup?"
   (string-match "^[Rr][Ee][:\^] "
 		(gnus-fetch-field "Subject")))
 
-(defun gnus-Article-hide-quote (&optional prefix-string)
+(defun gnus-article-hide-quote (&optional prefix-string)
   "Hide quotations in current article.
-For use with gnus-Article-prepare-hook."
+For use with gnus-article-prepare-hook."
   (if 	gnus-hide-autohide-toggle
   (progn
   (setq prefix-string (or prefix-string 
 			  (and (or (not gnus-autohide-only-on-followup)
-				   (gnus-Article-is-followup))
+				   (gnus-article-is-followupp))
 			  (gnus-identify-quote-prefix 
 					gnus-hide-hookified-be-aggressive))))
     (if prefix-string
@@ -313,11 +315,11 @@ For use with gnus-Article-prepare-hook."
 		 prefix-string))))))
 
 
-(defun gnus-Subject-hide-quote (&optional prefix-string)
+(defun gnus-summary-hide-quote (&optional prefix-string)
   "Hide quotations in current article."
   (interactive (list
 		 (let* ((default (gnus-eval-in-buffer-window 
-				   gnus-Article-buffer
+				   gnus-article-buffer
 				   (gnus-identify-quote-prefix t)))
 			(string (if (or current-prefix-arg (not default))
 				    (read-from-minibuffer
@@ -333,8 +335,8 @@ For use with gnus-Article-prepare-hook."
 		       string))))
   (if (string= prefix-string "") (error "empty string"))
   (let ((gnus-hide-autohide-toggle t))
-  (gnus-eval-in-buffer-window gnus-Article-buffer
-			      (gnus-Article-hide-quote prefix-string)))
+  (gnus-eval-in-buffer-window gnus-article-buffer
+			      (gnus-article-hide-quote prefix-string)))
 )
 
       
@@ -472,8 +474,8 @@ point in the buffer (handles internet and uucp addresses)."
 ;:: The Signature Hiding Functions
 
 
-(defun gnus-Article-hide-sig ()
-  "Signature hiding for use with gnus-Article-prepare-hook."
+(defun gnus-article-hide-sig ()
+  "Signature hiding for use with gnus-article-prepare-hook."
   (if 	gnus-hide-autohide-toggle
   (save-excursion
     (let ((buffer-read-only nil))
@@ -483,10 +485,10 @@ point in the buffer (handles internet and uucp addresses)."
     (setq selective-display t))))
 
 
-(defun gnus-Subject-hide-sig ()
+(defun gnus-summary-hide-sig ()
   "Hide signature."
   (interactive)
-  (gnus-eval-in-buffer-window gnus-Article-buffer
+  (gnus-eval-in-buffer-window gnus-article-buffer
     (save-excursion
       (let ((buffer-read-only nil))
 	(if (not (= 1 (gnus-find-sig-position)))
@@ -571,7 +573,7 @@ point in the buffer (handles internet and uucp addresses)."
 	(goto-char  Start)
 	(insert String)))
 
-(defun gnus-Article-simplify-references ()
+(defun gnus-article-simplify-references ()
  "Simplify all references in current buffer."
  (if gnus-hide-autohide-toggle
  (save-excursion 
@@ -580,12 +582,12 @@ point in the buffer (handles internet and uucp addresses)."
  	(set-buffer-modified-p nil)))))
 
 
-(defun gnus-Subject-simplify-references ()
+(defun gnus-summary-simplify-references ()
  "Simplify all references in current article."
   (interactive)
   (let ((gnus-hide-autohide-toggle t))	
-  (gnus-eval-in-buffer-window gnus-Article-buffer
-	(gnus-Article-simplify-references))))
+  (gnus-eval-in-buffer-window gnus-article-buffer
+	(gnus-article-simplify-references))))
 
 
 ;:|
@@ -593,10 +595,10 @@ point in the buffer (handles internet and uucp addresses)."
 ;:: 		UNHIDE
 
 
-(defun gnus-Subject-unhide ()
+(defun gnus-summary-unhide ()
   "Show signature and quotations in current article."
   (interactive)
-  (gnus-eval-in-buffer-window gnus-Article-buffer
+  (gnus-eval-in-buffer-window gnus-article-buffer
       (let ((buffer-read-only nil))
 	(subst-char-in-region (point-min) (point-max) ?\C-M ?\n)
 	(set-buffer-modified-p nil))))
@@ -637,10 +639,10 @@ saving articles that use auto reference simplification."
 
 (defvar gnus-hide-overload-functions
   '((mail-yank-original       	 sc-mail-yank-original) 
-    (gnus-Subject-save-in-rmail  gnus-hide-Subject-save-in-rmail)
-    (gnus-Subject-save-in-mail 	 gnus-hide-Subject-save-in-mail)
-    (gnus-Subject-save-in-file 	 gnus-hide-Subject-save-in-file)
-    (gnus-Subject-save-in-folder gnus-hide-Subject-save-in-folder)
+    (gnus-summary-save-in-rmail  gnus-hide-summary-save-in-rmail)
+    (gnus-summary-save-in-mail 	 gnus-hide-summary-save-in-mail)
+    (gnus-summary-save-in-file 	 gnus-hide-summary-save-in-file)
+    (gnus-summary-save-in-folder gnus-hide-summary-save-in-folder)
     )
   "*Functions to be overloaded by gnus-hide.
 It is a list of '(original overload)', where original is the original
@@ -711,7 +713,7 @@ Expects point and mark to be set to the region to cite.")
 
 
 
-(defvar gnus-save-article-prepare-hook '(lambda () (gnus-Subject-unhide))
+(defvar gnus-save-article-prepare-hook '(lambda () (gnus-summary-unhide))
  "Hook to prepare article buffer for saving, (o,C-o)
   eg. undoing things that are done by gnus-article-prepare-hook."
 )
@@ -721,16 +723,16 @@ Expects point and mark to be set to the region to cite.")
 
 
 ;:: Rmail Save 
-(defun gnus-hide-Subject-save-in-rmail (&optional filename)
+(defun gnus-hide-summary-save-in-rmail (&optional filename)
   "Append this article to Rmail file.
 Optional argument FILENAME specifies file name.
 Directory to save to is default to `gnus-article-save-directory' which
 is initialized from the SAVEDIR environment variable."
   (interactive)
-  (gnus-Subject-select-article
+  (gnus-summary-select-article
    (not (null gnus-save-all-headers)) gnus-save-all-headers)
   (run-hooks 'gnus-save-article-prepare-hook)
-  (gnus-eval-in-buffer-window gnus-Article-buffer
+  (gnus-eval-in-buffer-window gnus-article-buffer
     (save-excursion
       (save-restriction
 	(widen)
@@ -758,16 +760,16 @@ is initialized from the SAVEDIR environment variable."
 ;:|
 ;:: Unix Mail Save
 
-(defun gnus-Subject-save-in-mail (&optional filename)
+(defun gnus-summary-save-in-mail (&optional filename)
   "Append this article to Unix mail file.
 Optional argument FILENAME specifies file name.
 Directory to save to is default to `gnus-article-save-directory' which
 is initialized from the SAVEDIR environment variable."
   (interactive)
-  (gnus-Subject-select-article
+  (gnus-summary-select-article
    (not (null gnus-save-all-headers)) gnus-save-all-headers)
   (run-hooks 'gnus-save-article-prepare-hook)
-  (gnus-eval-in-buffer-window gnus-Article-buffer
+  (gnus-eval-in-buffer-window gnus-article-buffer
     (save-excursion
       (save-restriction
 	(widen)
@@ -796,16 +798,16 @@ is initialized from the SAVEDIR environment variable."
 ;:|
 ;:: Gnus File Save
 
-(defun gnus-hide-Subject-save-in-file (&optional filename)
+(defun gnus-hide-summary-save-in-file (&optional filename)
   "Append this article to file.
 Optional argument FILENAME specifies file name.
 Directory to save to is default to `gnus-article-save-directory' which
 is initialized from the SAVEDIR environment variable."
   (interactive)
-  (gnus-Subject-select-article
+  (gnus-summary-select-article
    (not (null gnus-save-all-headers)) gnus-save-all-headers)
   (run-hooks 'gnus-save-article-prepare-hook)
-  (gnus-eval-in-buffer-window gnus-Article-buffer
+  (gnus-eval-in-buffer-window gnus-article-buffer
     (save-excursion
       (save-restriction
 	(widen)
@@ -833,14 +835,14 @@ is initialized from the SAVEDIR environment variable."
 ;:|
 ;:: MH Folder Save
 
-(defun gnus-hide-Subject-save-in-folder (&optional folder)
+(defun gnus-hide-summary-save-in-folder (&optional folder)
   "Save this article to MH folder (using `rcvstore' in MH library).
 Optional argument FOLDER specifies folder name."
   (interactive)
-  (gnus-Subject-select-article
+  (gnus-summary-select-article
    (not (null gnus-save-all-headers)) gnus-save-all-headers)
   (run-hooks 'gnus-save-article-prepare-hook)
-  (gnus-eval-in-buffer-window gnus-Article-buffer
+  (gnus-eval-in-buffer-window gnus-article-buffer
     (save-restriction
       (widen)
       ;; Thanks to yuki@flab.Fujitsu.JUNET and ohm@kaba.junet.

@@ -57,7 +57,7 @@ to FILE and returns the concatenation of the results."
 			 file)))
 	     transformers nil))
 
-(defvar dired-trans-re-ext "\\.[^.]*\\(\\.Z\\)?$"
+(defvar dired-trans-re-ext "\\.[^.]*\\(\\.\\(\\(g?z\\)\\|Z\\)\\)?$"
   "The part of a filename matching this regexp will be viewed as extension")
 
 (defun dired-trans-init ()
@@ -72,7 +72,7 @@ b  returns the Basename of a filename, i.e., the name of the file without
 e  returns the Extension of a filename (i.e., whatever
    dired-trans-re-ext splits off)
 v  returns a file without directory and without ,v suffixes if any.
-z  returns a file without directory and without .Z suffixes if any."
+z  returns a file without directory and without .Z .z .gz suffixes if any."
   (dired-trans-define
    "*" file)
   (dired-trans-define
@@ -92,7 +92,7 @@ z  returns a file without directory and without .Z suffixes if any."
        (substring file 0 (string-match ",v$" file)))
   (dired-trans-define
    "z" (setq file (dired-trans-run "n" file))
-       (substring file 0 (string-match "\\.Z$" file)))
+       (substring file 0 (string-match "\\.\\(\\(g?z\\)\\|Z\\)$" file)))
   )
 
 (dired-trans-init)

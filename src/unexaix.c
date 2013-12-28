@@ -838,7 +838,8 @@ unrelocate_symbols (new, a_out, a_name, new_name)
 
 	  lseek (a_out, orig_data_scnptr + ldrel->l_vaddr, 0);
 
-	  if (read (a_out, (void *) &orig_int, sizeof (orig_int)) != sizeof (orig_int))
+	  if (read (a_out, (void *) &orig_int, sizeof (orig_int))
+	      != sizeof (orig_int))
 	    {
 	      PERROR (a_name);
 	    }

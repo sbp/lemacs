@@ -1,23 +1,28 @@
-;;; NNTP (RFC977) Interface for GNU Emacs
-;; Copyright (C) 1987, 1988, 1989 Fujitsu Laboratories LTD.
-;; Copyright (C) 1987, 1988, 1989, 1990 Masanobu UMEDA
+;;; nntp.el --- NNTP (RFC977) Interface for GNU Emacs
+
+;; Copyright (C) 1987, 1988, 1989, 1990, 1992, 1993 Free Software Foundation, Inc.
+
+;; Author: Masanobu UMEDA <umerin@flab.flab.fujitsu.junet>
+;; Keywords: news
 
 ;; This file is part of GNU Emacs.
 
-;; GNU Emacs is distributed in the hope that it will be useful,
-;; but WITHOUT ANY WARRANTY.  No author or distributor
-;; accepts responsibility to anyone for the consequences of using it
-;; or for whether it serves any particular purpose or works at all,
-;; unless he says so in writing.  Refer to the GNU Emacs General Public
-;; License for full details.
+;; GNU Emacs is free software; you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation; either version 2, or (at your option)
+;; any later version.
 
-;; Everyone is granted permission to copy, modify and redistribute
-;; GNU Emacs, but only under the conditions described in the
-;; GNU Emacs General Public License.   A copy of this license is
-;; supposed to have been given to you along with GNU Emacs so you
-;; can know your rights and responsibilities.  It should be in a
-;; file named COPYING.  Among other things, the copyright notice
-;; and this notice must be preserved on all copies.
+;; GNU Emacs is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+
+;; You should have received a copy of the GNU General Public License
+;; along with GNU Emacs; see the file COPYING.  If not, write to
+;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+
+
+;;; Commentary:
 
 ;; This implementation is tested on both 1.2a and 1.5 version of the
 ;; NNTP package.
@@ -41,7 +46,7 @@
 ;;  system, please send me the diffs. I'll include some of them in the
 ;;  future releases.
 
-(provide 'nntp)
+;;; Code:
 
 (defvar nntp-server-hook nil
   "*Hooks for the NNTP server.
@@ -76,11 +81,12 @@ doesn't work properly.")
 If Emacs hangs up while retrieving headers, set the variable to a
 lower value.")
 
-(defvar nntp-debug-read t
-  "*If non-nil, show the current status about reading the NNTP server output.")
+(defvar nntp-debug-read 10000
+  "*Display '...' every 10Kbytes of a message being received if it is non-nil.
+If it is a number, dots are displayed per the number.")
 
 
-(defconst nntp-version "NNTP 3.10"
+(defconst nntp-version "NNTP 3.12"
   "Version numbers of this version of NNTP.")
 
 (defvar nntp-server-name nil
@@ -162,7 +168,7 @@ instead call function `nntp-status-message' to get status message.")
   (` (aset (, header) 6 (, id))))
 
 (defmacro nntp-header-references (header)
-  "Return references in HEADER."
+  "Return references (or in-reply-to) in HEADER."
   (` (aref (, header) 7)))
 
 (defmacro nntp-set-header-references (header ref)
@@ -173,9 +179,10 @@ instead call function `nntp-status-message' to get status message.")
   "Return list of article headers specified by SEQUENCE of article id.
 The format of list is
  `([NUMBER SUBJECT FROM XREF LINES DATE MESSAGE-ID REFERENCES] ...)'.
+If there is no References: field, In-Reply-To: field is used instead.
 Reader macros for the vector are defined as `nntp-header-FIELD'.
 Writer macros for the vector are defined as `nntp-set-header-FIELD'.
-News group must be selected before calling me."
+Newsgroup must be selected before calling this."
   (save-excursion
     (set-buffer nntp-server-buffer)
     (erase-buffer)
@@ -215,8 +222,8 @@ News group must be selected before calling me."
 		(and (numberp nntp-large-newsgroup)
 		     (> number nntp-large-newsgroup)
 		     (zerop (% received 20))
-		     (message "NNTP: %d%% of headers received."
-			      (/ (* received 100) number)))
+		     (gnus-lazy-message "NNTP: Receiving headers... %d%%"
+					(/ (* received 100) number)))
 		(nntp-accept-response))
 	      ))
 	)
@@ -230,7 +237,7 @@ News group must be selected before calling me."
 	    (nntp-accept-response)))
       (and (numberp nntp-large-newsgroup)
 	   (> number nntp-large-newsgroup)
-	   (message "NNTP: 100%% of headers received."))
+	   (message "NNTP: Receiving headers... done"))
       ;; Now all of replies are received.
       (setq received number)
       ;; First, fold continuation lines.
@@ -262,7 +269,7 @@ News group must be selected before calling me."
 	       ;; Thanks go to mly@AI.MIT.EDU (Richard Mlynarik)
 	       (while (and (not (eobp))
 			   (not (memq (following-char) '(?2 ?3))))
-		 (if (looking-at "\\(From\\|Subject\\|Date\\|Lines\\|Xref\\|References\\):[ \t]+\\([^ \t\n]+.*\\)\r$")
+		 (if (looking-at "\\(From\\|Subject\\|Date\\|Lines\\|Xref\\|References\\|In-Reply-To\\):[ \t]+\\([^ \t\n]+.*\\)\r$")
 		     (let ((s (buffer-substring
 			       (match-beginning 2) (match-end 2)))
 			   (c (char-after (match-beginning 0))))
@@ -279,6 +286,11 @@ News group must be selected before calling me."
 			      (setq xref s))
 			     ((char-equal c ?R)	;References:
 			      (setq references s))
+			     ;; In-Reply-To: should be used only when
+			     ;; there is no References: field.
+			     ((and (char-equal c ?I) ;In-Reply-To:
+				   (null references))
+			      (setq references s))
 			     )))
 		 (forward-line 1))
 	       ;; Finished to parse one header.
@@ -286,10 +298,13 @@ News group must be selected before calling me."
 		   (setq subject "(None)"))
 	       (if (null from)
 		   (setq from "(Unknown User)"))
-	       (setq headers
-		     (cons (vector article subject from
-				   xref lines date
-				   message-id references) headers))
+	       ;; Collect valid article only.
+	       (and article
+		    message-id
+		    (setq headers
+			  (cons (vector article subject from
+					xref lines date
+					message-id references) headers)))
 	       )
 	      (t (forward-line 1))
 	      )
@@ -297,8 +312,8 @@ News group must be selected before calling me."
 	(and (numberp nntp-large-newsgroup)
 	     (> number nntp-large-newsgroup)
 	     (zerop (% received 20))
-	     (message "NNTP: Parsing headers... %d%%"
-		      (/ (* received 100) number)))
+	     (gnus-lazy-message "NNTP: Parsing headers... %d%%"
+				(/ (* received 100) number)))
 	)
       (and (numberp nntp-large-newsgroup)
 	   (> number nntp-large-newsgroup)
@@ -404,9 +419,23 @@ If the stream is opened, return T, otherwise return NIL."
   (nntp-send-command "^[23].*$" "GROUP" group))
 
 (defun nntp-request-list ()
-  "List valid newsgoups."
+  "List active newsgroups."
   (prog1
       (nntp-send-command "^\\.\r$" "LIST")
+    (nntp-decode-text)
+    ))
+
+(defun nntp-request-list-newsgroups ()
+  "List newsgroups (defined in NNTP2)."
+  (prog1
+      (nntp-send-command "^\\.\r$" "LIST NEWSGROUPS")
+    (nntp-decode-text)
+    ))
+
+(defun nntp-request-list-distributions ()
+  "List distributions (defined in NNTP2)."
+  (prog1
+      (nntp-send-command "^\\.\r$" "LIST DISTRIBUTIONS")
     (nntp-decode-text)
     ))
 
@@ -421,7 +450,7 @@ in the current news group."
 
 (defun nntp-request-post ()
   "Post a new news in current buffer."
-  ;; Some hosts take fuckin' forever to post, so I added more status msgs.
+  ;; Some hosts take forever to post, so I added more status msgs. -- jwz
   (message "NNTP: awaiting POST connection...")
   (if (nntp-send-command "^[23].*\r$" "POST")
       (progn
@@ -520,7 +549,10 @@ in the current news group."
   "Wait for server response which matches REGEXP."
   (save-excursion
     (let ((status t)
-	  (wait t))
+	  (wait t)
+	  (dotnum 0)			;Number of "." being displayed.
+	  (dotsize			;How often "." displayed.
+	   (if (numberp nntp-debug-read) nntp-debug-read 10000)))
       (set-buffer nntp-server-buffer)
       ;; Wait for status response (RFC977).
       ;; 1xx - Informative message.
@@ -556,11 +588,18 @@ in the current news group."
 	      (if (looking-at regexp)
 		  (setq wait nil)
 		(if nntp-debug-read
-		    (message "NNTP: Reading..."))
+		    (let ((newnum (/ (buffer-size) dotsize)))
+		      (if (not (= dotnum newnum))
+			  (progn
+			    (setq dotnum newnum)
+			    (gnus-lazy-message "NNTP: Reading %s"
+					       (make-string dotnum ?.))))))
 		(nntp-accept-response)
-		(if nntp-debug-read
-		    (message ""))
+		;;(if nntp-debug-read (message ""))
 		))
+	    ;; Remove "...".
+	    (if (and nntp-debug-read (> dotnum 0))
+		(message ""))
 	    ;; Successfully received server response.
 	    t
 	    ))
@@ -575,12 +614,12 @@ in the current news group."
   "Send list of STRINGS to news server as command and its arguments."
   (let ((cmd (car strings))
 	(strings (cdr strings)))
-    ;; Command and each argument must be separeted by one or more spaces.
+    ;; Command and each argument must be separated by one or more spaces.
     (while strings
       (setq cmd (concat cmd " " (car strings)))
       (setq strings (cdr strings)))
     ;; Command line must be terminated by a CR-LF.
-    (process-send-string nntp-server-process (concat cmd "\n"))
+    (process-send-string nntp-server-process (concat cmd "\r\n"))
     ))
 
 (defun nntp-send-region-to-server (begin end)
@@ -602,8 +641,8 @@ in the current news group."
 	(narrow-to-region begin end)
 	(goto-char begin)
 	(while (not (eobp))
-	  (message "NNTP: got POST connection; sending text...(%d%%)"
-		   (/ (* 100 sent) total))
+	  (gnus-lazy-message "NNTP: got POST connection; sending text...(%d%%)"
+			     (/ (* 100 sent) total))
 	  (setq sent (+ sent 1))
 	  ;;(setq last (min end (+ (point) size)))
 	  ;; NEmacs gets confused if character at `last' is Kanji.
@@ -631,7 +670,7 @@ in the current news group."
     ;; Initialize communication buffer.
     (setq nntp-server-buffer (get-buffer-create " *nntpd*"))
     (set-buffer nntp-server-buffer)
-    (buffer-disable-undo (current-buffer))
+    (buffer-flush-undo (current-buffer))
     (erase-buffer)
     (kill-all-local-variables)
     (setq case-fold-search t)		;Should ignore case.
@@ -641,7 +680,8 @@ in the current news group."
     (setq nntp-server-name host)
     ;; It is possible to change kanji-fileio-code in this hook.
     (run-hooks 'nntp-server-hook)
-    ;; Kill this process without complaint when exiting Emacs.
+    ;; Kill this process without complaint when exiting Emacs
+    ;; (the .newsrc file is the interesting part, not the connection.)
     (process-kill-without-query nntp-server-process)
     ;; Return the server process.
     nntp-server-process
@@ -670,7 +710,7 @@ defining this function as macro."
       (progn
 	;; We cannot use `accept-process-output'.
 	;; Fujitsu UTS requires messages during sleep-for. I don't know why.
-	(message "NNTP: Reading...")
+	(gnus-lazy-message "NNTP: Reading...")
 	(sleep-for 1)
 	(message ""))
     (condition-case errorcode
@@ -684,3 +724,7 @@ defining this function as macro."
 	      (signal (car errorcode) (cdr errorcode))))
        ))
     ))
+
+(provide 'nntp)
+
+;;; nntp.el ends here

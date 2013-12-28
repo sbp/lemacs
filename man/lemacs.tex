@@ -7,7 +7,7 @@
 This file documents the GNU Emacs editor.
 
 Copyright (C) 1985, 1986, 1988 Richard M. Stallman.
-Copyright @copyright{} 1991, 1992 Lucid, Inc.
+Copyright @copyright{} 1991, 1992, 1993 Lucid, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -1860,7 +1860,7 @@ Prints version information.  This implies @samp{-batch}.
 
 @example
 % emacs -version
-GNU Emacs 19.4 Lucid of Mon Dec 28 1992 on thalidomide (berkeley-unix)
+GNU Emacs 19.6 Lucid of Thu Apr  1 1993 on thalidomide (berkeley-unix)
 @end example
 
 @item -help
@@ -10138,11 +10138,11 @@ For example:
 
 @example
   (setq tag-table-alist
-	(("/usr/src/public/perl/" . "/usr/src/public/perl/perl-3.0/")
-	 ("\\.el$" . "/usr/local/emacs/src/")
-	 ("/jbw/gnu/" . "/usr15/degree/stud/jbw/gnu/")
-	 ("" . "/usr/local/emacs/src/")
-	 ))
+	'(("/usr/src/public/perl/" . "/usr/src/public/perl/perl-3.0/")
+	  ("\\.el$" . "/usr/local/emacs/src/")
+	  ("/jbw/gnu/" . "/usr15/degree/stud/jbw/gnu/")
+	  ("" . "/usr/local/emacs/src/")
+	  ))
 @end example
 
 The example defines the tag table alist in the following way:
@@ -14984,7 +14984,7 @@ to rebind keys under program control.
 @item  @code{(global-set-key @var{keys} @var{cmd})}
 Defines @var{keys} globally to run @var{cmd}.
 @item @code{(define-key @var{keymap} @var{keys} @var{def})}
-Defines @var{keys} to run @var{cmd} in the keymap @var{keymap}.
+Defines @var{keys} to run @var{def} in the keymap @var{keymap}.
 @end table
  
 @var{keymap} is a keymap object.
@@ -15672,6 +15672,12 @@ which the sound should be played, from 0 to 100.
 
 If an element of this alist begins with the symbol @code{default}, that
 sound is used when no other sound is appropriate.
+
+@vindex bell-volume
+The variable @code{bell-volume} should be an integer from 0 to 100,
+with 100 being loudest, which controls how loud the sounds emacs makes
+should be.  Elements of the @code{sound-alist} may override this value.
+This variable applies to the standard X bell sound as well as sound files.
 
 @page
 If the symbol @code{t} is in place of a sound-string, Emacs uses the

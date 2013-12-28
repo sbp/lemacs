@@ -1,5 +1,5 @@
 ;;; minibuf.el
-;; Copyright (C) 1992-1993 Free Software Foundation, Inc.
+;; Copyright (C) 1992, 1993 Free Software Foundation, Inc.
  
 ;; This file is part of GNU Emacs.
  
@@ -57,6 +57,8 @@ More precisely, this variable makes a difference when the minibuffer window
 is the selected window.  If you are in some other window, minibuffer commands
 are allowed even if a minibuffer is active.")
 
+(defvar minibuffer-setup-hook nil
+  "Normal hook run just after entry to minibuffer.")
 
 (defvar minibuffer-help-form nil
   "Value that `help-form' takes on inside the minibuffer.")
@@ -104,18 +106,21 @@ are allowed even if a minibuffer is active.")
 
 (define-key minibuffer-local-map "\M-n" 'next-history-element)
 (define-key minibuffer-local-map "\M-p" 'previous-history-element)
-(define-key minibuffer-local-map [next] 'next-history-element)
-(define-key minibuffer-local-map [prior] 'previous-history-element)
+(define-key minibuffer-local-map '[next]  "\M-n")
+(define-key minibuffer-local-map '[prior] "\M-p")
 (define-key minibuffer-local-map "\M-r" 'previous-matching-history-element)
 (define-key minibuffer-local-map "\M-s" 'next-matching-history-element)
+(define-key minibuffer-local-must-match-map [next] 
+  'next-complete-history-element)
+(define-key minibuffer-local-must-match-map [prior]
+  'previous-complete-history-element)
 
 (defvar read-expression-map (let ((map (make-sparse-keymap)))
                               (set-keymap-parent map minibuffer-local-map)
 			      (set-keymap-name map 'read-expression-map)
+                              (define-key map "\M-\t" 'lisp-complete-symbol)
                               map)
   "Minibuffer keymap used for reading Lisp expressions.")
-
-(define-key read-expression-map "\M-\t" 'lisp-complete-symbol)
 
 (defvar read-shell-command-map
   (let ((map (make-sparse-keymap)))
@@ -126,6 +131,21 @@ are allowed even if a minibuffer is active.")
     (define-key map "\M-?" 'comint-dynamic-list-completions)
     map)
   "Minibuffer keymap used by shell-command and related commands.")
+
+;;;>>>> Are the next/previous-window args correct for lemacs??
+(defun minibuffer-window-active-p (window)
+  "Return t if WINDOW (a minibuffer window) is now active."
+  ;; nil nil means include WINDOW's frame
+  ;; and other frames using WINDOW as minibuffer,
+  ;; and include minibuffer if active.
+  (let ((prev (previous-window window nil nil)))
+    ;; If PREV equals WINDOW, WINDOW must be on a minibuffer-only frame
+    ;; and it's not currently being used.  So return nil.
+    (and (not (eq window prev))
+	 (let ((should-be-same (next-window prev nil nil)))
+	   ;; If next-window doesn't reverse previous-window,
+	   ;; WINDOW must be outside the cycle specified by nil nil.
+	   (eq should-be-same window)))))
 
 ;;;; Guts of minibuffer invocation
 
@@ -218,43 +238,50 @@ Fifth arg HISTORY, if non-nil, specifies a history list
          (buffer (if (eq (minibuffer-depth) 0)
                      (window-buffer window)
                      (get-buffer-create (format " *Minibuf-%d"
-                                                (minibuffer-depth))))))
-    (save-window-excursion
-      (set-buffer buffer)
-      (reset-buffer buffer)
-      (setq default-directory dir)
-      (make-local-variable 'print-escape-newlines)
-      (setq print-escape-newlines t)
-      (make-local-variable 'mode-motion-hook)
-      (setq mode-motion-hook 'minibuf-mouse-tracker) ;>>>disgusting
-      (set-window-buffer window buffer)
-      (select-window window)
-      (set-window-hscroll window 0)
-      (erase-buffer)
-      (buffer-enable-undo buffer)
-      (message nil)
-      (if initial-contents
-          (if (consp initial-contents)
-              (progn
-                (insert (car initial-contents))
-                (goto-char (cdr initial-contents)))
-              (insert initial-contents)))
-      (use-local-map (or keymap minibuffer-local-map))
-      (let ((mouse-grabbed-buffer (current-buffer))
-            (current-prefix-arg current-prefix-arg)
-            (help-form minibuffer-help-form)
-            (minibuffer-history-variable (cond ((not history)
-                                                'minibuffer-history)
-                                               ((consp history)
-                                                (car history))
-                                               (t
-                                                history)))
-            (minibuffer-history-position (cond ((consp history)
-                                                (cdr history))
-                                               (t
-                                                0)))
-            (minibuffer-scroll-window owindow))
-        (unwind-protect
+                                                (minibuffer-depth)))))
+         (screen (window-screen window))
+         (mconfig (if (eq screen (selected-screen)) 
+                      nil (current-window-configuration screen)))
+         (oconfig (current-window-configuration)))
+    (unwind-protect
+         (progn
+           (set-buffer buffer)
+           (reset-buffer buffer)
+           (setq default-directory dir)
+           ;(redirect-screen-focus (selected-scren) screen)
+           (make-local-variable 'print-escape-newlines)
+           (setq print-escape-newlines t)
+           (make-local-variable 'mode-motion-hook)
+           (setq mode-motion-hook 'minibuf-mouse-tracker) ;>>>disgusting
+           (set-window-buffer window buffer)
+           (select-window window)
+           (set-window-hscroll window 0)
+           (erase-buffer)
+           (buffer-enable-undo buffer)
+           (message nil)
+           (if initial-contents
+               (if (consp initial-contents)
+                   (progn
+                     (insert (car initial-contents))
+                     (goto-char (cdr initial-contents)))
+                   (insert initial-contents)))
+           (use-local-map (or keymap minibuffer-local-map))
+           (let ((mouse-grabbed-buffer (current-buffer))
+                 (current-prefix-arg current-prefix-arg)
+                 (help-form minibuffer-help-form)
+                 (minibuffer-history-variable (cond ((not history)
+                                                     'minibuffer-history)
+                                                    ((consp history)
+                                                     (car history))
+                                                    (t
+                                                     history)))
+                 (minibuffer-history-position (cond ((consp history)
+                                                     (cdr history))
+                                                    (t
+                                                     0)))
+                 (minibuffer-scroll-window owindow))
+             (if minibuffer-setup-hook
+                 (run-hooks 'minibuffer-setup-hook))
              (if (eq 't
                      (catch 'exit
                        (if (> (recursion-depth) (minibuffer-depth))
@@ -265,25 +292,30 @@ Fifth arg HISTORY, if non-nil, specifies a history list
                  ;; Translate an "abort" (throw 'exit 't)
                  ;;  into a real quit
                  (signal 'quit '())
-                 ;; return value
-                 (let ((val (progn (set-buffer buffer) (buffer-string)))
-		       (list (symbol-value minibuffer-history-variable)))
-                   ;; Add the value to the appropriate history list unless
-		   ;; it's already the most recent element, or it's only
-		   ;; two characters long.
-		   (or (eq list t)
-		       (null val)
-		       (equal val (car list))
-		       (and (stringp val) (< (length val) 3))
-		       (set minibuffer-history-variable (cons val list)))
-                   (if readp
-                       (car (read-from-string val))
-                       val)))
-          ;; stupid display code requires this for some reason
-          (set-buffer buffer)
-          (buffer-disable-undo buffer)
-          (setq buffer-read-only nil)
-          (erase-buffer))))))
+               ;; return value
+               (let ((val (progn (set-buffer buffer) (buffer-string)))
+                     (list (symbol-value minibuffer-history-variable)))
+                 ;; Add the value to the appropriate history list unless
+                 ;; it's already the most recent element, or it's only
+                 ;; two characters long.
+                 (or (eq list t)
+                     (null val)
+                     (equal val (car list))
+                     (and (stringp val) (< (length val) 3))
+                     (set minibuffer-history-variable (cons val list)))
+                 (if readp
+                     (car (read-from-string val))
+                     val)))))
+      ;; stupid display code requires this for some reason
+      (set-buffer buffer)
+      (buffer-disable-undo buffer)
+      (setq buffer-read-only nil)
+      (erase-buffer)
+
+      ;; restore screen configurations
+      (if mconfig (set-window-configuration mconfig))
+      (set-window-configuration oconfig))))
+
 
 
 ;;;; Guts of minibuffer completion
@@ -321,13 +353,12 @@ Fifth arg HISTORY, if non-nil, specifies a history list
                    (and (string-equal buffer-string "nil")
                         ;; intern-soft loses for 'nil
                         (catch 'found
-                          (mapatoms
-                           (function (lambda (s)
-                             (if (string-equal
-                                  (symbol-name s)
-                                  buffer-string)
-                                 (throw 'found t))))
-                           minibuffer-completion-table)
+                          (mapatoms #'(lambda (s)
+					(if (string-equal
+					     (symbol-name s)
+					     buffer-string)
+					    (throw 'found t)))
+				    minibuffer-completion-table)
                           nil)))
                (if minibuffer-completion-predicate
                    (funcall minibuffer-completion-predicate
@@ -525,7 +556,7 @@ a repetition of this command will exit."
 (defun self-insert-and-exit ()
   "Terminate minibuffer input."
   (interactive)
-  (self-insert-command)
+  (self-insert-command 1)
   (throw 'exit nil))
 
 (defun exit-minibuffer ()
@@ -553,18 +584,16 @@ the character in question must be typed again)."
       (temp-minibuffer-message (if completion
                                    " [incomplete; confirm]"
                                    " [no completions; confirm]"))
-      (let ((event (allocate-event)))
-        (let ((inhibit-quit t))
-          (next-command-event event)
-          (setq quit-flag nil))
+      (let ((event (let ((inhibit-quit t))
+		     (prog1
+			 (next-command-event)
+		       (setq quit-flag nil)))))
         (cond ((equal event last-command-event)
                (throw 'exit nil))
-              ((equal interrupt-char (event-to-character event nil))
-               (deallocate-event event)
+              ((equal interrupt-char (event-to-character event))
                ;; Minibuffer abort.
                (throw 'exit t)))
-        (dispatch-event event)
-        (deallocate-event event)))))
+        (dispatch-event event)))))
 
 ;;;; minibuffer-complete-word
 
@@ -592,18 +621,18 @@ is added, provided that matches some possible completion."
           (t
            (cond ((or (eq status 'uncompleted)
                       (eq status 'exact))
-                  (let ((foo (function (lambda (s)
-                               (condition-case nil
-                                   (if (try-completion
-                                        (concat buffer-string s)
-                                        minibuffer-completion-table
-                                        minibuffer-completion-predicate)
-                                       (progn
-                                         (goto-char (point-max))
-                                         (insert s)
-                                         t)
+                  (let ((foo #'(lambda (s)
+				 (condition-case nil
+				     (if (try-completion
+					  (concat buffer-string s)
+					  minibuffer-completion-table
+					  minibuffer-completion-predicate)
+					 (progn
+					   (goto-char (point-max))
+					   (insert s)
+					   t)
                                        nil)
-                                   (error nil)))))
+                                   (error nil))))
                         (char last-command-char))
                     ;; Try to complete by adding a word-delimiter
                     (or (and (integerp char) (> char 0)
@@ -727,7 +756,9 @@ or may be a list of two strings to be printed as if concatenated."
                                 (setq column (+ column (length elt)))))))
                     (setq tail2 (nthcdr rows tail2)))
                   (setq tail (cdr tail)
-                        r (1+ r)))))))))
+                        r (1+ r))))
+              ;; RMSmacs
+              (run-hooks 'completion-setup-hook))))))
     (if bufferp
         (set-buffer old-buffer))))
 
@@ -744,8 +775,7 @@ or may be a list of two strings to be printed as if concatenated."
           (ding nil 'no-completion)
           (temp-minibuffer-message " [No completions]"))
         (with-output-to-temp-buffer "*Completions*"
-          (display-completion-list (sort completions 
-                                         (function string-lessp)))))))
+          (display-completion-list (sort completions #'string-lessp))))))
 
 ;;;; Minibuffer History
 
@@ -757,13 +787,13 @@ list is specified.")
 ;; Some other history lists:
 ;;
 (defvar minibuffer-history-search-history '())
-(defvar minibuffer-sexp-history '())
-(defvar minibuffer-command-history '())
-(defvar minibuffer-function-history '())
-(defvar minibuffer-variable-history '())
-(defvar minibuffer-buffer-history '())
-(defvar minibuffer-shell-command-history '())
-(defvar minibuffer-file-name-history '())
+(defvar function-history '())
+(defvar variable-history '())
+(defvar buffer-history '())
+(defvar shell-command-history '())
+(defvar file-name-history '())
+
+(defvar read-expression-history nil)
 
 (defvar minibuffer-history-sexp-flag nil ;weird RMS Emacs kludge
   "Non-nil when doing history operations on `command-history'.
@@ -867,6 +897,22 @@ If N is negative, find the previous or Nth previous match."
   (interactive "p")
   (next-history-element (- n)))
 
+(defun next-complete-history-element (n)
+  "\
+Get previous element of history which is a completion of minibuffer contents."
+  (interactive "p")
+  (let ((point-at-start (point)))
+    (next-matching-history-element
+     (concat "^" (regexp-quote (buffer-substring (point-min) (point)))) n)
+    ;; next-matching-history-element always puts us at (point-min).
+    ;; Move to the position we were at before changing the buffer contents.
+    ;; This is still sensical, because the text before point has not changed.
+    (goto-char point-at-start)))
+
+(defun previous-complete-history-element (n)
+  "Get next element of history which is a completion of minibuffer contents."
+  (interactive "p")
+  (next-complete-history-element (- n)))
 
 ;;;; reading various things from a minibuffer
 
@@ -879,7 +925,7 @@ Third arg HISTORY, if non-nil, specifies a history list."
                         initial-contents
                         minibuffer-local-map
                         t
-			(or history 'minibuffer-sexp-history)))
+			(or history 'read-expression-history)))
 
 (defun read-string (prompt &optional initial-contents history)
   "Return a string from the minibuffer, prompting with string PROMPT.
@@ -912,20 +958,23 @@ Third arg HISTORY, if non-nil, specifies a history list."
   "Read the name of a command and return as a symbol.
 Prompts with PROMPT."
   (intern (completing-read prompt obarray 'commandp t nil
-			   'minibuffer-command-history)))
+			   ;; 'command-history is not right here: that's a
+			   ;; list of evalable forms, not a history list.
+			   nil
+			   )))
 
 (defun read-function (prompt)
   "Read the name of a function and return as a symbol.
 Prompts with PROMPT."
   (intern (completing-read prompt obarray 'fboundp t nil
-			   'minibuffer-function-history)))
+			   'function-history)))
 
 (defun read-variable (prompt)
   "Read the name of a user variable and return it as a symbol.
 Prompts with PROMPT.
 A user variable is one whose documentation starts with a `*' character."
   (intern (completing-read prompt obarray 'user-variable-p t nil
-			   'minibuffer-variable-history)))
+			   'variable-history)))
 
 (defun read-buffer (prompt &optional default require-match)
   "Read the name of a buffer and return as a string.
@@ -938,13 +987,12 @@ only existing buffer names are allowed."
                                        (buffer-name default)
                                        default))
                     prompt))
-        (alist (mapcar (function (lambda (b)
-                         (cons (buffer-name b) b)))
+        (alist (mapcar #'(lambda (b) (cons (buffer-name b) b))
                        (buffer-list)))
         result)
     (while (progn
              (setq result (completing-read prompt alist nil require-match
-					   nil 'minibuffer-buffer-history))
+					   nil 'buffer-history))
              (cond ((not (equal result ""))
                     nil)
                    ((not require-match)
@@ -979,7 +1027,7 @@ only existing buffer names are allowed."
   "Just like read-string, but uses read-shell-command-map:
 \\{read-shell-command-map}"
   (read-from-minibuffer prompt initial-input read-shell-command-map
-			nil 'minibuffer-shell-command-history))
+			nil 'shell-command-history))
 
 
 ;;; This read-file-name stuff probably belongs in files.el
@@ -1067,10 +1115,10 @@ Fourth arg MUST-MATCH non-nil means require existing file's name.
  Non-nil and non-t means also require confirmation after completion.
 Fifth arg INITIAL-CONTENTS specifies text to start with.
 Sixth arg HISTORY specifies the history list to use.  Default is
- `minibuffer-file-name-history'.
+ `file-name-history'.
 DIR defaults to current buffer's directory default."
   (read-file-name-1
-   (or history 'minibuffer-file-name-history)
+   (or history 'file-name-history)
    prompt dir (or default buffer-file-name) must-match initial-contents
    ;; A separate function (not an anonymous lambda-expression)
    ;; and passed as a symbol because of disgusting kludges in various
@@ -1081,7 +1129,7 @@ DIR defaults to current buffer's directory default."
                             &optional dir default must-match initial-contents)
   ;;>>> document me
   (read-file-name-1 
-    'minibuffer-file-name-history
+    'file-name-history
     prompt dir (or default default-directory) must-match initial-contents
     'read-directory-name-internal))
 
@@ -1117,13 +1165,13 @@ DIR defaults to current buffer's directory default."
                nil)
               ((eq action 't)
                ;; all completions
-               (mapcar (function (lambda (p)
-                         (if (and (> (length p) 0)
-                                  ;;>>> Unix-specific
-                                  ;;>>>  -- need absolute-pathname-p
-                                  (/= (aref p 0) ?/))
-                             (concat "$" p)
-                             (concat head "$" p))))
+               (mapcar #'(lambda (p)
+			   (if (and (> (length p) 0)
+				    ;;>>> Unix-specific
+				    ;;>>>  -- need absolute-pathname-p
+				    (/= (aref p 0) ?/))
+			       (concat "$" p)
+                             (concat head "$" p)))
                        (all-completions env (getenv t))))
               (t ;; 'nil
                ;; complete
@@ -1145,8 +1193,8 @@ DIR defaults to current buffer's directory default."
 
 (defun read-file-name-internal (string dir action)
   (read-file-name-internal-1 
-    string dir action
-    (function (lambda (action orig string specdir dir name)
+   string dir action
+   #'(lambda (action orig string specdir dir name)
       (cond ((eq action 'lambda)
              (if (not orig)
                  nil
@@ -1159,7 +1207,7 @@ DIR defaults to current buffer's directory default."
                      (file-exists-p sstring)))))
             ((eq action 't)
              ;; all completions
-             (mapcar (function un-substitute-in-file-name)
+             (mapcar #'un-substitute-in-file-name
                      (file-name-all-completions name dir)))
             (t;; 'nil
              ;; complete
@@ -1181,19 +1229,19 @@ DIR defaults to current buffer's directory default."
                      (if (not (equal tem orig))
                          ;; substitute-in-file-name did something
                          tem
-                         val))))))))))
+                         val)))))))))
 
 
 (defun read-directory-name-internal (string dir action)
   (read-file-name-internal-1 
-    string dir action
-    (function (lambda (action orig string specdir dir name)
+   string dir action
+   #'(lambda (action orig string specdir dir name)
       (let* (;; This looks better in a possibilities list than ""
              ;;>>>> Un*x-specific >>
              (standin "./")
-             (dirs (function (lambda (fn)
-                     (let ((l (if (equal name "")
-                                  (cons standin (directory-files
+             (dirs #'(lambda (fn)
+		      (let ((l (if (equal name "")
+				  (cons standin (directory-files
                                                  dir
                                                  nil
                                                  ""
@@ -1210,7 +1258,7 @@ DIR defaults to current buffer's directory default."
                                       l)
                                      (t
                                       ;; Wretched unix
-                                      (delete "." (delete ".." l))))))))))
+                                      (delete "." (delete ".." l)))))))))
         (cond ((eq action 'lambda)
                ;; complete?
                (if (not orig)
@@ -1220,21 +1268,21 @@ DIR defaults to current buffer's directory default."
                         (equal string (file-name-as-directory string)))))
               ((eq action 't)
                ;; all completions
-               (funcall dirs (function (lambda (n)
-                               (un-substitute-in-file-name 
-                                (if (equal n standin) 
-                                    standin
-                                    (file-name-as-directory n)))))))
+               (funcall dirs #'(lambda (n)
+				 (un-substitute-in-file-name 
+				  (if (equal n standin) 
+				      standin
+                                    (file-name-as-directory n))))))
               (t
                ;; complete
                (let ((val (try-completion
                            name
                            (funcall dirs
-                                    (function (lambda (n)
-                                      (if (equal n standin)
-                                          (list standin)
+                                    #'(lambda (n)
+					(if (equal n standin)
+					    (list standin)
                                           (list (file-name-as-directory
-                                                 n)))))))))
+                                                 n))))))))
                  (if (stringp val)
                      (un-substitute-in-file-name (if specdir
                                                      (concat specdir val)
@@ -1243,91 +1291,4 @@ DIR defaults to current buffer's directory default."
                        (if (not (equal tem orig))
                            ;; substitute-in-file-name did something
                            tem
-                           val)))))))))))
-
-;;;; Stuff which has ended up here for want of a better place
-
-(defun execute-extended-command (prefix-arg)
-  (interactive "P")
-  ;; Note:  This doesn't hack "this-command-keys"
-  (let ((prefix-arg prefix-arg))
-    (setq this-command (read-command
-                        ;; Note: this has the hard-wired
-                        ;;  "C-u" and "M-x" string bug in common
-                        ;;  with all GNU Emacs's.
-                        (cond ((eq prefix-arg '-)
-                               "- M-x ")
-                              ((equal prefix-arg '(4))
-                               "C-u M-x ")
-                              ((integerp prefix-arg)
-                               (format "%d M-x " prefix-arg))
-                              ((and (consp prefix-arg)
-                                    (integerp (car prefix-arg)))
-                               (format "%d M-x " (car prefix-arg)))
-                              (t
-                               "M-x ")))))
-  (command-execute this-command t))
-
-(defun y-or-n-p-minibuf (prompt)
-  "Ask user a \"y or n\" question.  Return t if answer is \"y\".
-Takes one argument, which is the string to display to ask the question.
-It should end in a space; `y-or-n-p' adds `(y or n) ' to it.
-No confirmation of the answer is requested; a single character is enough.
-Also accepts Space to mean yes, or Delete to mean no."
-  (let* ((prompt (format "%s(y or n) " prompt))
-         (p prompt)
-         (event (allocate-event)))
-    (while (stringp p)
-      (if (let ((cursor-in-echo-area t)
-                (inhibit-quit t))
-            (message "%s" p)
-            (next-command-event event)
-            (prog1 quit-flag (setq quit-flag nil)))
-          (progn
-            (message "%s%s" p (single-key-description event))
-            (deallocate-event event)
-            (setq quit-flag nil)
-            (signal 'quit '())))
-      (let* ((key (and (key-press-event-p event) (event-key event)))
-             (char (and key (event-to-character event))))
-        (if char (setq char (downcase char)))
-        (cond ((or (eq char ?y) (eq char ? ))
-               (message "%sYes" p)
-               (setq p t))
-              ((or (eq char ?n) (eq key 'delete))
-               (message "%sNo" p)
-               (setq p nil))
-	      ((button-release-event-p event) ; ignore them
-	       nil)
-              (t
-               (message "%s%s" p (single-key-description event))
-               (ding nil 'y-or-n-p)
-               (discard-input)
-               (if (eq p prompt)
-                   (setq p (concat "Please answer y or n.  " prompt)))))))
-    (deallocate-event event)
-    p))
-
-(defun yes-or-no-p-minibuf (prompt)
-  "Ask user a yes-or-no question.  Return t if answer is yes.
-Takes one argument, which is the string to display to ask the question.
-It should end in a space; `yes-or-no-p' adds `(yes or no) ' to it.
-The user must confirm the answer with RET,
-and can edit it until it as been confirmed."
-  (let ((p (concat prompt "(yes or no) ")))
-    (while (stringp p)
-      (setq p (downcase (read-string p nil t))) ;no history
-      (cond ((string-equal p "yes")
-             (setq p 't))
-            ((string-equal p "no")
-             (setq p 'nil))
-            (t
-             (ding nil 'yes-or-no-p)
-             (discard-input)
-             (message "Please answer yes or no.")
-             (sleep-for 2))))
-    p))
-
-;; these may be redefined later, but make the original def easily encapsulable
-(fset 'yes-or-no-p 'yes-or-no-p-minibuf)
-(fset 'y-or-n-p 'y-or-n-p-minibuf)
+                           val))))))))))

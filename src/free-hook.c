@@ -53,6 +53,8 @@
 void *malloc (unsigned long);
 #endif
 
+#include <stdio.h>
+
 #include "hash.h"
 #include "blockio.h"
 
@@ -64,12 +66,16 @@ void *malloc (unsigned long);
 
 #include <sys/types.h>
 
-void free (void *);
+#ifndef __lucid
+# define SAVE_STACK
+#endif
+
+extern void free (void *);
 
 c_hashtable pointer_table;
 
-void (*__free_hook)();
-void *(*__malloc_hook)();
+extern void (*__free_hook)();
+extern void *(*__malloc_hook)();
 
 void *check_malloc (unsigned long);
 
@@ -88,13 +94,16 @@ typedef struct {
 typedef struct {
   void *address;
   unsigned long length;
+#ifdef SAVE_STACK
   fun_entry backtrace[TRACE_LIMIT];
+#endif
 } free_queue_entry;
 
 free_queue_entry free_queue[FREE_QUEUE_LIMIT];
 
 int current_free;
 
+#ifdef SAVE_STACK
 static void
 init_frame (FRAME *fptr)
 {
@@ -146,7 +155,7 @@ save_backtrace (FRAME *current_frame_ptr, fun_entry *table)
 #endif
       i++;
     }
-  bzero ((void *)&table[i], sizeof (fun_entry) * (TRACE_LIMIT - i));
+  memset (&table[i], 0, sizeof (fun_entry) * (TRACE_LIMIT - i));
 }
 
 free_queue_entry *
@@ -160,6 +169,7 @@ find_backtrace (void *ptr)
 
   return 0;
 }
+#endif /* SAVE_STACK */
 
 int strict_free_check;
 
@@ -169,7 +179,9 @@ check_free (void* ptr)
   FRAME start_frame;
   
   BLOCK_INPUT;
+#ifdef SAVE_STACK
   init_frame (&start_frame);
+#endif
 
   __free_hook = 0;
   __malloc_hook = 0;
@@ -227,8 +239,10 @@ check_free (void* ptr)
 #endif
       free_queue[current_free].address = ptr;
       free_queue[current_free].length = size;
+#ifdef SAVE_STACK
       save_backtrace (&start_frame,
 		      free_queue[current_free].backtrace);
+#endif
       current_free++;
       if (current_free >= FREE_QUEUE_LIMIT)
 	current_free = 0;
@@ -286,7 +300,7 @@ check_malloc (unsigned long size)
   return result;
 }
 
-void *(*__realloc_hook)();
+extern void *(*__realloc_hook)();
 
 #ifdef MIN
 #undef MIN
@@ -468,7 +482,9 @@ struct block_input_history_struct {
   int line;
   blocktype type;
   int value;
+#ifdef SAVE_STACK
   fun_entry backtrace[TRACE_LIMIT];
+#endif
 };
 
 typedef struct block_input_history_struct block_input_history;
@@ -486,7 +502,7 @@ block_input_history blhist[BLHISTLIMIT];
 note_block_input (char *file, int line)
 {
   note_block (file, line, block_type);
-  if (x_input_blocked > 2) abort();
+  if (interrupt_input_blocked > 2) abort();
 }
 
 note_unblock_input (char* file, int line)
@@ -503,15 +519,19 @@ note_block (char *file, int line, blocktype type)
 {
   FRAME start_frame;
 
+#ifdef SAVE_STACK
   init_frame (&start_frame);
+#endif
   
   blhist[blhistptr].file = file;
   blhist[blhistptr].line = line;
   blhist[blhistptr].type = type;
-  blhist[blhistptr].value = x_input_blocked;
+  blhist[blhistptr].value = interrupt_input_blocked;
 
+#ifdef SAVE_STACK
   save_backtrace (&start_frame,
 		  blhist[blhistptr].backtrace);
+#endif
 
   blhistptr++;
   if (blhistptr >= BLHISTLIMIT)
@@ -544,12 +564,16 @@ log_gcpro (char *file, int line, struct gcpro *value, blocktype type)
       abort ();
     OK:;
     }
+#ifdef SAVE_STACK
   init_frame (&start_frame);
+#endif
   gcprohist[gcprohistptr].file = file;
   gcprohist[gcprohistptr].line = line;
   gcprohist[gcprohistptr].type = type;
   gcprohist[gcprohistptr].value = (int) value;
+#ifdef SAVE_STACK
   save_backtrace (&start_frame, gcprohist[gcprohistptr].backtrace);
+#endif
   gcprohistptr++;
   if (gcprohistptr >= GCPROHISTLIMIT)
     gcprohistptr = 0;
@@ -603,6 +627,28 @@ debug_ungcpro (char *file, int line, struct gcpro *gcpro1)
 {
   log_gcpro (file, line, gcpro1, ungcpro_type);
   gcprolist = gcpro1->next;
+}
+
+void
+show_gcprohist ()
+{
+  int i, j;
+  for (i = 0, j = gcprohistptr;
+       i < GCPROHISTLIMIT;
+       i++, j++)
+    {
+      if (j >= GCPROHISTLIMIT)
+	j = 0;
+      printf ("%3d  %s		%d	%s	0x%x\n",
+	      j, gcprohist[j].file, gcprohist[j].line,
+	      (gcprohist[j].type == gcpro1_type ? "GCPRO1" :
+	       gcprohist[j].type == gcpro2_type ? "GCPRO2" :
+	       gcprohist[j].type == gcpro3_type ? "GCPRO3" :
+	       gcprohist[j].type == gcpro4_type ? "GCPRO4" :
+	       gcprohist[j].type == ungcpro_type ? "UNGCPRO" : "???"),
+	      gcprohist[j].value);
+    }
+  fflush (stdout);
 }
 
 #endif

@@ -28,7 +28,7 @@
 (defconst ps-tab-stop-list (ps-make-tabs ps-tab-width)
   "*Tab stop list for PostScript mode")
 
-(defconst ps-postscript-command "gs -"
+(defconst ps-postscript-command '("gs" "-")
   "*Command used to invoke with a printer spooler or NeWS server.")
 
 (defvar ps-mode-map nil
@@ -37,7 +37,58 @@
 (defvar ps-mode-syntax-table nil
   "PostScript mode syntax table")
 
-(defun postscript-mode nil
+(defvar ps-balanced-string-syntax-p
+  (let ((b (current-buffer))
+        (loser (generate-new-buffer "x")))
+    (unwind-protect
+         (progn
+           (set-buffer loser)
+           (set-syntax-table (copy-syntax-table))
+           (modify-syntax-entry ?\(  "\"\)")
+           (insert "((")
+           (let ((v (parse-partial-sexp (point-min) (point-max))))
+             (if (elt v 3)
+                 ;; New syntax code think's we're still inside a string
+                 t
+                 nil)))
+      (set-buffer b)
+      (kill-buffer loser))))
+
+
+(if ps-mode-syntax-table
+    nil
+  (let ((i 0))
+    (setq ps-mode-syntax-table (copy-syntax-table nil))
+    (while (< i 256)
+      (or (= (char-syntax i ps-mode-syntax-table) ?w)
+          (modify-syntax-entry i  "_"     ps-mode-syntax-table))
+      (setq i (1+ i)))
+    (modify-syntax-entry ?\   " "     ps-mode-syntax-table)
+    (modify-syntax-entry ?\t  " "     ps-mode-syntax-table)
+    (modify-syntax-entry ?\f  " "     ps-mode-syntax-table)
+    (modify-syntax-entry ?\r  " "     ps-mode-syntax-table)
+    (modify-syntax-entry ?\%  "<"     ps-mode-syntax-table)
+    (modify-syntax-entry ?\n  ">"     ps-mode-syntax-table)
+    (modify-syntax-entry ?\\  "\\"    ps-mode-syntax-table)
+    (if ps-balanced-string-syntax-p
+        (progn
+          (modify-syntax-entry ?\(  "\"\)"  ps-mode-syntax-table)
+          (modify-syntax-entry ?\)  "\"\(" ps-mode-syntax-table))
+        (progn
+          ;; This isn't correct, but Emacs syntax stuff
+          ;;  has no way to deal with string syntax which uses
+          ;;  different open and close characters.  Sigh.
+          (modify-syntax-entry ?\(  "("     ps-mode-syntax-table)
+          (modify-syntax-entry ?\)  ")"     ps-mode-syntax-table)))
+    (modify-syntax-entry ?\[  "(\]"   ps-mode-syntax-table)
+    (modify-syntax-entry ?\]  ")\["   ps-mode-syntax-table)
+    (modify-syntax-entry ?\{  "\(\}"  ps-mode-syntax-table)
+    (modify-syntax-entry ?\}  "\)\}"  ps-mode-syntax-table)
+    (modify-syntax-entry ?/   "' p"   ps-mode-syntax-table)
+    ))
+
+
+(defun postscript-mode ()
   "Major mode for editing PostScript files.
 
 \\[ps-execute-buffer] will send the contents of the buffer to the NeWS
@@ -57,19 +108,7 @@ with no args, if that value is non-nil."
   (interactive)
   (kill-all-local-variables)
   (use-local-map ps-mode-map)
-  (if ps-mode-syntax-table
-      (set-syntax-table ps-mode-syntax-table)
-      (progn
-	(setq ps-mode-syntax-table (make-syntax-table))
-	(set-syntax-table ps-mode-syntax-table)
-	(modify-syntax-entry ?\( "(")
-	(modify-syntax-entry ?\) ")")
-	;(modify-syntax-entry ?\( "<")
-	;(modify-syntax-entry ?\) ">")
-	(modify-syntax-entry ?\[ "(\]")
-	(modify-syntax-entry ?\] ")\[")
-	(modify-syntax-entry ?\% "<")
-	(modify-syntax-entry ?\n ">")))
+  (set-syntax-table ps-mode-syntax-table)
   (make-local-variable 'comment-start)
   (make-local-variable 'comment-start-skip)
   (make-local-variable 'comment-column)
@@ -96,7 +135,7 @@ with no args, if that value is non-nil."
     (save-excursion
       (ps-indent-line))))
 
-(defun ps-indent-line nil
+(defun ps-indent-line ()
   "Indents a line of PostScript code."
   (interactive)
   (beginning-of-line)
@@ -110,9 +149,9 @@ with no args, if that value is non-nil."
 	    (ps-indent-end)		; indent end token
 	  (ps-indent-in-block)))))	; indent line after open delimiter
   
-(defun ps-open nil
-  (interactive)
-  (insert last-command-char))
+;(defun ps-open ()
+;  (interactive)
+;  (insert last-command-char))
 
 (defun ps-insert-d-char (arg)
   "Awful hack to make \"end\" and \"cdef\" keywords indent themselves."
@@ -125,7 +164,7 @@ with no args, if that value is non-nil."
 	  (delete-horizontal-space)
 	  (ps-indent-end)))))
 
-(defun ps-close nil
+(defun ps-close ()
   "Inserts and indents a close delimiter."
   (interactive)
   (insert last-command-char)
@@ -134,7 +173,7 @@ with no args, if that value is non-nil."
   (forward-char 1)
   (blink-matching-open))
 
-(defun ps-indent-close nil
+(defun ps-indent-close ()
   "Internal function to indent a line containing a an array close delimiter."
   (if (save-excursion (skip-chars-backward " \t") (bolp))
       (let (x (oldpoint (point)))
@@ -149,7 +188,7 @@ with no args, if that value is non-nil."
 	  (delete-horizontal-space)
 	  (indent-to x)))))
 
-(defun ps-indent-end nil
+(defun ps-indent-end ()
   "Indent an \"end\" token or array close delimiter."
   (let ((goal (ps-block-start)))
     (if (not goal)
@@ -158,7 +197,7 @@ with no args, if that value is non-nil."
 		   (goto-char goal) (back-to-indentation) (current-column)))
       (indent-to goal))))
 
-(defun ps-indent-in-block nil
+(defun ps-indent-in-block ()
   "Indent a line which does not open or close a block."
   (let ((goal (ps-block-start)))
     (setq goal (save-excursion
@@ -171,8 +210,7 @@ with no args, if that value is non-nil."
     (indent-to goal)))
 
 ;;; returns nil if at top-level, or char pos of beginning of current block
-
-(defun ps-block-start nil
+(defun ps-block-start ()
   "Returns the character position of the character following the nearest
 enclosing `[' `{' or `begin' keyword."
   (save-excursion
@@ -200,7 +238,7 @@ character number of the character following `begin' or START if not found."
 	(forward-word 1)
 	(point)))))
 
-(defun ps-top-level-p nil
+(defun ps-top-level-p ()
   "Awful test to see whether we are inside some sort of PostScript block."
   (and (condition-case nil
 	   (not (scan-lists (point) -1 1))
@@ -211,18 +249,21 @@ character number of the character following `begin' or START if not found."
 (if (null ps-mode-map)
     (progn
       (setq ps-mode-map (make-sparse-keymap))
-      (define-key ps-mode-map "d" 'ps-insert-d-char)
-      (define-key ps-mode-map "f" 'ps-insert-d-char)
-      (define-key ps-mode-map "{" 'ps-open)
-      (define-key ps-mode-map "}" 'ps-close)
-      (define-key ps-mode-map "[" 'ps-open)
-      (define-key ps-mode-map "]" 'ps-close)
+      (set-keymap-name ps-mode-map 'ps-mode-map)
+      ;;(define-key ps-mode-map "d" 'ps-insert-d-char)
+      ;;(define-key ps-mode-map "f" 'ps-insert-d-char)
+      ;;(define-key ps-mode-map "{" 'ps-open)
+      ;;(define-key ps-mode-map "}" 'ps-close)
+      ;;(define-key ps-mode-map "[" 'ps-open)
+      ;;(define-key ps-mode-map "]" 'ps-close)
       (define-key ps-mode-map "\t" 'ps-tab)
       (define-key ps-mode-map "\C-c\C-c" 'ps-execute-buffer)
       (define-key ps-mode-map "\C-c|" 'ps-execute-region)
-      (define-key ps-mode-map "\C-c!" 'ps-shell)))
+      ;; make up yout mind! -- the below or the above?
+      (define-key ps-mode-map "\C-c!" 'ps-shell)
+      ))
 
-(defun ps-execute-buffer nil
+(defun ps-execute-buffer ()
   "Send the contents of the buffer to a printer or NeWS server."
   (interactive)
   (save-excursion
@@ -238,14 +279,21 @@ PostScript text to be executed in that process."
 	(end (max (point) (mark))))
     (condition-case nil
 	(process-send-string "PostScript" (buffer-substring start end))
-      (error (shell-command-on-region start end ps-postscript-command nil)))))
+      (error (shell-command-on-region 
+              start end
+              (mapconcat 'identity ps-postscript-command " ")
+              nil)))))
 
-(defun ps-shell nil
+(defun ps-shell ()
   "Start a shell communicating with a PostScript printer or NeWS server."
   (interactive)
   (require 'shell)
   (switch-to-buffer-other-window
-    (make-shell "PostScript" ps-postscript-command))
+    (apply 'make-comint
+           "PostScript"
+           (car ps-postscript-command)
+           nil
+           (cdr ps-postscript-command)))
   (make-local-variable 'shell-prompt-pattern)
 ;  (setq shell-prompt-pattern "PS>")
   (setq shell-prompt-pattern "GS>")

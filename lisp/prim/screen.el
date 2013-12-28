@@ -1,5 +1,5 @@
 ;; Multi-screen management that is independent of window systems.
-;; Copyright (C) 1990-1993 Free Software Foundation, Inc.
+;; Copyright (C) 1990, 1992, 1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -196,7 +196,7 @@ For values specific to the first emacs screen, you must use X resources.")
 ;;; It would be nice if existing icons were removed and restored by
 ;;; iconifying the emacs process, but I couldn't make that work yet.
 
-(defvar icon-name (concat "emacs @ " system-name))
+(defvar icon-name nil) ; set this at run time, not load time.
 
 (defvar iconification-data nil)
 
@@ -218,6 +218,8 @@ For values specific to the first emacs screen, you must use X resources.")
       (or (eq screen me) (make-screen-invisible screen))
       (setq rest (cdr rest)))
     (or (boundp 'map-screen-hook) (setq map-screen-hook nil))
+    (or icon-name
+	(setq icon-name (concat invocation-name " @ " (system-name))))
     (setq iconification-data
 	    (list screen-icon-title-format map-screen-hook screens)
 	  screen-icon-title-format icon-name
@@ -310,22 +312,18 @@ Also delete all windows but the selected one on SCREEN."
 ;;
 ;; Convenience functions for dynamically changing screen parameters
 ;;
-(defun set-screen-height (h)
-  (interactive "NHeight: ")
-  (let* ((screen (selected-screen))
-	 (width (cdr (assoc 'width (screen-parameters (selected-screen))))))
-    (set-screen-size (selected-screen) width h)))
+; these are in screen.c
+;(defun set-screen-height (h)
+;  (interactive "NHeight: ")
+;  (let* ((screen (selected-screen))
+;	 (width (cdr (assoc 'width (screen-parameters (selected-screen))))))
+;    (set-screen-size (selected-screen) width h)))
 
-(defun set-screen-width (w)
-  (interactive "NWidth: ")
-  (let* ((screen (selected-screen))
-	 (height (cdr (assoc 'height (screen-parameters (selected-screen))))))
-    (set-screen-size (selected-screen) w height)))
-
-(defun set-default-font (font-name)
-  (interactive "sFont name: ")
-  (modify-screen-parameters (selected-screen)
-			    (list (cons 'font font-name))))
+;(defun set-screen-width (w)
+;  (interactive "NWidth: ")
+;  (let* ((screen (selected-screen))
+;	 (height (cdr (assoc 'height (screen-parameters (selected-screen))))))
+;    (set-screen-size (selected-screen) w height)))
 
 (defun set-screen-background (color-name)
   (interactive "sColor: ")
@@ -439,8 +437,8 @@ If the screen-name symbol has a 'screen-defaults property, then that is
 prepended to the `screen-default-alist' when creating a screen for the
 first time.
 
-This function may be used as the value of `pre-display-buffer-hook', to 
-cause the display-buffer function and its callers to exhibit the above
+This function may be used as the value of `pre-display-buffer-function', 
+to cause the display-buffer function and its callers to exhibit the above
 behavior."
   (if (or on-screen (eq (selected-window) (minibuffer-window)))
       ;; don't switch screens if a screen was specified, or to list
@@ -460,15 +458,14 @@ behavior."
 	;; fully visible screens come before occluded screens.
 	(setq screens
 	      (sort screens
-		    (function
-		     (lambda (s1 s2)
-		       (cond ((screen-totally-visible-p s2)
-			      nil)
-			     ((not (screen-visible-p s2))
-			      (screen-visible-p s1))
-			     ((not (screen-totally-visible-p s2))
-			      (and (screen-visible-p s1)
-				   (screen-totally-visible-p s1))))))))
+		    #'(lambda (s1 s2)
+			(cond ((screen-totally-visible-p s2)
+			       nil)
+			      ((not (screen-visible-p s2))
+			       (screen-visible-p s1))
+			      ((not (screen-totally-visible-p s2))
+			       (and (screen-visible-p s1)
+				    (screen-totally-visible-p s1)))))))
 	;; but the selected screen should come first, even if it's occluded,
 	;; to minimize thrashing.
 	(setq screens (cons (selected-screen)

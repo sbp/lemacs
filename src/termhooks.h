@@ -1,6 +1,6 @@
 /* Hooks by which low level terminal operations
    can be made to call other routines.
-   Copyright (C) 1985-1993 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -21,31 +21,58 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #ifndef _EMACS_TERMHOOKS_H_
 #define _EMACS_TERMHOOKS_H_
 
-extern void (*cursor_to_hook) ();
-extern void (*raw_cursor_to_hook) ();
+struct window;
+struct line_header;
+struct char_block;
+struct font_standin_struct;
 
-extern void (*clear_to_end_hook) ();
-extern void (*clear_screen_hook) ();
-extern void (*clear_end_of_line_hook) ();
+extern int  (*text_width_hook) (Lisp_Object font,
+                                const unsigned char *s, int l);
+extern void (*clear_window_end_hook) ();
+extern void (*update_line_hook) (struct window *w, 
+                                 struct line_header *l,
+                                 struct char_block *start, 
+                                 struct char_block *end,
+                                 char clear, int line_type);
+extern void (*insert_chars_hook) (struct window *w, 
+                                  struct line_header *l,
+                                  struct char_block *new,
+                                  struct char_block *cb, 
+                                  struct char_block *end, 
+                                  char clear);
+extern void (*shift_region_hook) (struct window *,
+                                  struct line_header *start,
+                                  struct line_header *end);
 
-extern void (*ins_del_lines_hook) ();
+extern void (*cursor_to_hook) (struct line_header *,
+                               struct char_block *, 
+                               int row, int col, 
+                               struct window *, struct screen *);
+/* extern void (*raw_cursor_to_hook) (); */
 
-extern void (*change_line_highlight_hook) ();
-extern void (*reassert_line_highlight_hook) ();
+extern void (*clear_to_end_hook) (void);
+extern void (*clear_screen_hook) (void);
+extern void (*clear_end_of_line_hook) (void);
 
-extern void (*insert_glyphs_hook) ();
-extern void (*write_glyphs_hook) ();
-extern void (*delete_glyphs_hook) ();
+extern void (*ins_del_lines_hook) (int vpos, int n);
 
-extern void (*ring_bell_hook) ();
+/* extern void (*change_line_highlight_hook) (); */
+/* extern void (*reassert_line_highlight_hook) (); */
 
-extern void (*reset_terminal_modes_hook) ();
-extern void (*set_terminal_modes_hook) ();
-extern void (*update_begin_hook) ();
-extern void (*update_end_hook) ();
-extern void (*set_terminal_window_hook) ();
+/* extern void (*insert_glyphs_hook) (); */
+/* extern void (*write_glyphs_hook) (); */
+/* extern void (*delete_glyphs_hook) (); */
 
-extern Lisp_Object (*read_socket_hook) ();
+extern void (*ring_bell_hook) (Lisp_Object);
+extern void (*beep_hook) (int vol);
+
+extern void (*reset_terminal_modes_hook) (void);
+extern void (*set_terminal_modes_hook) (void);
+extern void (*update_begin_hook) (struct screen *);
+extern void (*update_end_hook) (struct screen *);
+extern void (*set_terminal_window_hook) (int size);
+
+extern int read_socket_hook;
 
 /* If nonzero, send all terminal output characters to this stream also.  */
 

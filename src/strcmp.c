@@ -19,8 +19,8 @@ strcmp (const char *x, const char *y)
     return 0;
   else if (ALIGNED (x) && ALIGNED (y))
     {
-      register unsigned long *x1 = (unsigned long *) x;
-      register unsigned long *y1 = (unsigned long *) y;
+      register const unsigned long *x1 = (const unsigned long *) x;
+      register const unsigned long *y1 = (const unsigned long *) y;
       register unsigned long c;
       register unsigned long magic = MAGIC;
       register unsigned long not_magic = ~magic;
@@ -34,8 +34,8 @@ strcmp (const char *x, const char *y)
                 return 0;
               else
                 {
-                  x = (char *) x1;
-                  y = (char *) y1;
+                  x = (const char *) x1;
+                  y = (const char *) y1;
                   goto slow_loop;
                 }
             }
@@ -44,8 +44,8 @@ strcmp (const char *x, const char *y)
           y1++;
         }
 
-      x = (char *) x1;
-      y = (char *) y1;
+      x = (const char *) x1;
+      y = (const char *) y1;
       goto slow_loop;
     }
   else
@@ -72,8 +72,8 @@ strncmp (const char *x, const char *y, size_t n)
     return 0;
   else if (ALIGNED (x) && ALIGNED (y))
     {
-      register unsigned long *x1 = (unsigned long *) x;
-      register unsigned long *y1 = (unsigned long *) y;
+      register const unsigned long *x1 = (const unsigned long *) x;
+      register const unsigned long *y1 = (const unsigned long *) y;
       register unsigned long c;
       register unsigned long magic = MAGIC;
       register unsigned long not_magic = ~magic;
@@ -91,8 +91,8 @@ strncmp (const char *x, const char *y, size_t n)
                 return 0;
               else
                 {
-                  x = (char *) x1;
-                  y = (char *) y1;
+                  x = (const char *) x1;
+                  y = (const char *) y1;
                   goto slow_loop;
                 }
             }
@@ -101,8 +101,8 @@ strncmp (const char *x, const char *y, size_t n)
           y1++;
         }
 
-      x = (char *) x1;
-      y = (char *) y1;
+      x = (const char *) x1;
+      y = (const char *) y1;
       goto slow_loop;
     }
   else

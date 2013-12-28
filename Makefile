@@ -56,7 +56,7 @@ install: all mkdir lockdir
 			(rm -rf ${LIBDIR}/$$i/RCS; \
 			 rm -f ${LIBDIR}/$$i/\#*; \
 			 rm -f ${LIBDIR}/$$i/*~); \
-		done \
+		done; \
 	else true; \
 	fi
 	$(INSTALL) -c -s etc/emacsclient ${BINDIR}/emacsclient
@@ -141,4 +141,4 @@ lockdir:
 FRC:
 
 tags:	etc
-	cd src; ../etc/etags *.[ch] ../lisp/*.el ../lisp/term/*.el
+	cd src; ../etc/etags *.[ch] ../lisp/*.el ../lisp/*/*.el

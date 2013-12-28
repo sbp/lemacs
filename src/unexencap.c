@@ -66,7 +66,7 @@ unsigned data_start, bss_start, entry_address;
 	setbuf(original, stdin_buf);
 	fclose(stdout);
 	unlink(save_file);
-	n = open(save_file, O_CREAT|O_WRONLY, 0777);
+	n = open (save_file, O_CREAT|O_WRONLY, 0777);
 	if (n != 1 || (save = fdopen(n, "w")) != stdout) {
 		fprintf(stderr, "unexec: Can't open the save file.\n");
 		exit(1);

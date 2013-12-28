@@ -1,8 +1,8 @@
-;;;; Id: elib-node.el,v 1.1 1992/03/14 20:45:31 ceder Exp 
+;;;; Id: elib-node.el,v 0.5 1992/08/19 01:57:39 ceder Exp 
 ;;;; This file implements the nodes used in binary trees and
 ;;;; doubly linked lists
 ;;;;
-;;;; Copyright (C) 1991 Inge Wallin
+;;;; Copyright (C) 1991, 1992 Free Software Foundation
 ;;;;
 ;;;; This file is part of the GNU Emacs lisp library, Elib.
 ;;;;
@@ -39,51 +39,61 @@
 
 
 (defmacro elib-node-create (left right data)
-  "Create a tree node from LEFT, RIGHT and DATA."
+
+  ;; Create a tree node from LEFT, RIGHT and DATA.
   (` (vector (, left) (, right) (, data))))
 
 
 (defmacro elib-node-left (node)
-  "Return the left pointer of NODE."
+
+  ;; Return the left pointer of NODE.
   (` (aref (, node) 0)))
 
 
 (defmacro elib-node-right (node)
-  "Return the right pointer of NODE."
+
+  ;; Return the right pointer of NODE.
   (` (aref (, node) 1)))
 
 
 (defmacro elib-node-data (node)
-  "Return the data of NODE."
+
+  ;; Return the data of NODE.
   (` (aref (, node) 2)))
 
 
 (defmacro elib-node-set-left (node newleft)
-  "Set the left pointer of NODE to NEWLEFT."
+
+  ;; Set the left pointer of NODE to NEWLEFT.
   (` (aset (, node) 0 (, newleft))))
 
 
 (defmacro elib-node-set-right (node newright)
-  "Set the right pointer of NODE to NEWRIGHT."
+
+  ;; Set the right pointer of NODE to NEWRIGHT.
   (` (aset (, node) 1 (, newright))))
 
 
 (defmacro elib-node-set-data (node newdata)
-  "Set the data of NODE to NEWDATA."
+  ;; Set the data of NODE to NEWDATA.
   (` (aset (, node) 2 (, newdata))))
 
 
 
 (defmacro elib-node-branch (node branch)
-  "Get value of a branch of a node.
-NODE is the node, and BRANCH is the branch.
-0 for left pointer, 1 for right pointer and 2 for the data."
+
+  ;; Get value of a branch of a node.
+  ;; 
+  ;; NODE is the node, and BRANCH is the branch.
+  ;; 0 for left pointer, 1 for right pointer and 2 for the data."
   (` (aref (, node) (, branch))))
 
 
 (defmacro elib-node-set-branch (node branch newval)
-  "Set value of a branch of a node.
-NODE is the node, and BRANCH is the branch.
-0 for left pointer, 1 for the right pointer and 2 for the data.
-NEWVAL is new value of the branch."
+
+  ;; Set value of a branch of a node.
+  ;;
+  ;; NODE is the node, and BRANCH is the branch.
+  ;; 0 for left pointer, 1 for the right pointer and 2 for the data.
+  ;; NEWVAL is new value of the branch."
   (` (aset (, node) (, branch) (, newval))))

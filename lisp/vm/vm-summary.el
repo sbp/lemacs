@@ -221,7 +221,7 @@ mandatory."
 (defun vm-follow-summary-cursor ()
   (and vm-follow-summary-cursor (eq major-mode 'vm-summary-mode)
        (let ((point (point))
-	     message-pointer message-list)
+	     message-pointer message-list mp)
 	 (save-excursion
 	   (set-buffer vm-mail-buffer)
 	   (setq message-pointer vm-message-pointer
@@ -257,15 +257,17 @@ mandatory."
     (eval (get format-variable 'vm-format-sexp))))
 
 (defun vm-compile-format (format-variable)
+  (if (null vm-uninteresting-senders) ; jwz: added this.
+      (setq vm-uninteresting-senders (concat "\\b" (user-login-name) "\\b")))
   (let ((format (symbol-value format-variable))
 	sexp sexp-fmt conv-spec last-match-end case-fold-search)
     (store-match-data nil)
-    (while (string-match
-"%\\(-\\)?\\([0-9]\\)*\\(\\.\\([0-9]+\\)\\)?\\([aAcdfFhilmMnstTwyz*%]\\)"
+    (while (string-match   ; jwz: added "uUH".
+"%\\(-\\)?\\([0-9]+\\)?\\(\\.\\([0-9]+\\)\\)?\\([aAcdfFhHilmMnstTuUwyz*%]\\)"
 	    format (match-end 0))
       (setq conv-spec (aref format (match-beginning 5)))
-      (if (memq conv-spec '(?a ?A ?c ?d ?f ?F ?h ?i ?l ?M
-			    ?m ?n ?s ?t ?T ?w ?y ?z ?*))
+      (if (memq conv-spec '(?a ?A ?c ?d ?f ?F ?h ?H ?i ?l ?M
+			    ?m ?n ?s ?t ?T ?u ?U ?w ?y ?z ?*)) ; jwz: ?[uUH]
 	  (progn
 	    (cond ((= conv-spec ?a)
 		   (setq sexp (cons (list 'vm-su-attribute-indicators
@@ -288,6 +290,10 @@ mandatory."
 		  ((= conv-spec ?h)
 		   (setq sexp (cons (list 'vm-su-hour
 					  'vm-su-message) sexp)))
+		  ;; jwz: added this.
+		  ((= conv-spec ?H)
+		   (setq sexp (cons (list 'vm-su-hour-short
+					  'vm-su-message) sexp)))
 		  ((= conv-spec ?i)
 		   (setq sexp (cons (list 'vm-su-message-id
 					  'vm-su-message) sexp)))
@@ -304,13 +310,23 @@ mandatory."
 		   (setq sexp (cons (list 'vm-su-message-number
 					  'vm-su-message) sexp)))
 		  ((= conv-spec ?s)
-		   (setq sexp (cons (list 'vm-su-subject
+		   (setq sexp (cons (list (if vm-summary-no-newlines-in-subject
+					      'vm-su-subject-no-newlines
+					      'vm-su-subject)
 					  'vm-su-message) sexp)))
 		  ((= conv-spec ?T)
 		   (setq sexp (cons (list 'vm-su-to-names
 					  'vm-su-message) sexp)))
 		  ((= conv-spec ?t)
 		   (setq sexp (cons (list 'vm-su-to
+					  'vm-su-message) sexp)))
+		  ;; jwz: added this.
+		  ((= conv-spec ?U)
+		   (setq sexp (cons (list 'vm-su-dwim-user-name
+					  'vm-su-message) sexp)))
+		  ;; jwz: added this.
+		  ((= conv-spec ?u)
+		   (setq sexp (cons (list 'vm-su-dwim-user
 					  'vm-su-message) sexp)))
 		  ((= conv-spec ?w)
 		   (setq sexp (cons (list 'vm-su-weekday
@@ -447,12 +463,24 @@ mandatory."
       (progn (vm-su-do-date m) (vm-month-number-of m))))
 
 (defun vm-su-year (m)
-  (or (vm-year-of m)
-      (progn (vm-su-do-date m) (vm-year-of m))))
+  ;; always return a 2-digit year
+  (let ((year (or (vm-year-of m)
+		  (progn (vm-su-do-date m) (vm-year-of m)))))
+    (if (string-match "\\`[0-9][0-9][0-9][0-9]\\'" year)
+	(substring year 2 4)
+      year)))
 
 (defun vm-su-hour (m)
   (or (vm-hour-of m)
       (progn (vm-su-do-date m) (vm-hour-of m))))
+
+(defun vm-su-hour-short (m)
+  (let ((string (vm-su-hour m)))
+    (cond ((eq 8 (length string))
+	   (substring string 0 5))
+	  ((eq 7 (length string))
+	   (concat "0" (substring string 0 4)))
+	  (t string))))
 
 (defun vm-su-zone (m)
   (or (vm-zone-of m)
@@ -474,7 +502,8 @@ mandatory."
 	    (buffer-substring (match-beginning 1) (match-end 1)))))))
 
 (defun vm-su-do-date (m)
-  (let (date)
+  (let (date
+	(case-fold-search t))
     (setq date (or (vm-get-header-contents m "Date") (vm-grok-From_-date m)))
     (cond
      ((null date)
@@ -484,58 +513,142 @@ mandatory."
       (vm-set-month-number-of m "")
       (vm-set-year-of m "")
       (vm-set-hour-of m "")
-      (vm-set-zone-of m ""))
+      (vm-set-zone-of m "")
+      nil)
      ((string-match
 ;; The date format recognized here is the one specified in RFC 822.
 ;; Some slop is allowed e.g. dashes between the monthday, month and year
 ;; because such malformed headers have been observed.
-"\\(\\([a-z][a-z][a-z]\\),\\)?[ \t\n]*\\([0-9][0-9]?\\)[ \t\n---]*\\([a-z][a-z][a-z]\\)[ \t\n---]*\\([0-9]*[0-9][0-9]\\)[ \t\n]*\\([0-9:]+\\)[ \t\n]*\\([a-z][a-z]?[a-z]?\\|[---+][0-9][0-9][0-9][0-9]\\)"
+;; jwz: added some more slop - dashes between time and zone.
+;; Also allow DOTW to be at end, optionally in parens.
+;;
+;; Handles:
+;;     Mon, 3 dec 90 15:25:36 PST
+;;     Mon 3 dec 90 15:25:36 PST
+;;     03-dec-90 15:25:36 PST
+;;     Mon, 3 dec 90 15:25:36-PST
+;;     3 Dec 90 15:25 PST (Mon)
+"\\(\\([a-z][a-z][a-z]\\),?\\)?[ \t\n]*0?\\([0-9][0-9]?\\)[ \t\n---]*\\([a-z][a-z][a-z]\\)[ \t\n---]*\\([0-9]*[0-9][0-9]\\)[ \t\n]*\\([0-9:]+\\)[- \t\n]*\\([a-z][a-z]?[a-z]?\\|[---+][0-9][0-9][0-9][0-9]\\)[ \t\n]*(?\\([a-z][a-z][a-z]\\)?)?"
        date)
       (if (match-beginning 2)
 	  (vm-set-weekday-of m (substring date (match-beginning 2)
 					  (match-end 2)))
-	(vm-set-weekday-of m ""))
+	  (if (match-beginning 8)
+	      (vm-set-weekday-of m (substring date (match-beginning 8)
+					      (match-end 8)))
+	      (vm-set-weekday-of m "")))
       (vm-set-monthday-of m (substring date (match-beginning 3) (match-end 3)))
       (vm-su-do-month m (substring date (match-beginning 4) (match-end 4)))
       (vm-set-year-of m (substring date (match-beginning 5) (match-end 5)))
       (vm-set-hour-of m (substring date (match-beginning 6) (match-end 6)))
-      (vm-set-zone-of m (substring date (match-beginning 7) (match-end 7))))
+      (vm-set-zone-of m (substring date (match-beginning 7) (match-end 7)))
+      t)
      ((string-match
 ;; UNIX ctime(3) format, with slop allowed in the whitespace, and we allow for
 ;; the possibility of a timezone at the end.
-"\\([a-z][a-z][a-z]\\)[ \t\n]*\\([a-z][a-z][a-z]\\)[ \t\n]*\\([0-9][0-9]?\\)[ \t\n]*\\([0-9:]+\\)[ \t\n]*[0-9][0-9]\\([0-9][0-9]\\)[ \t\n]*\\([a-z][a-z]?[a-z]?\\|[---+][0-9][0-9][0-9][0-9]\\)?"
+;; jwz: more slop - allow a comma after the weekday.
+;; Handles:
+;;     Tue Dec 11 00:13:13 1990
+;;     Mon Sep  2 10:42:17 1991
+;;     Tue, Dec 11 00:13:13 90 PST
+ "\\([a-z][a-z][a-z]\\)[ \t\n,]+\\([a-z][a-z][a-z]\\)[ \t\n]+\\([0-9][0-9]?\\)[ \t\n]*\\([0-9:]+\\)[ \t\n]*[0-9][0-9]\\([0-9][0-9]\\)[ \t\n]*\\([a-z][a-z]?[a-z]?\\|[---+][0-9][0-9][0-9][0-9]\\)?"
        date)
       (vm-set-weekday-of m (substring date (match-beginning 1) (match-end 1)))
       (vm-su-do-month m (substring date (match-beginning 2) (match-end 2)))
       (vm-set-monthday-of m (substring date (match-beginning 3) (match-end 3)))
       (vm-set-hour-of m (substring date (match-beginning 4) (match-end 4)))
       (vm-set-year-of m (substring date (match-beginning 5) (match-end 5)))
-      (if (match-beginning 6)
-	  (vm-set-zone-of m (substring date (match-beginning 6)
-				       (match-end 6)))))
+      ;; jwz: don't allow nil in the zone slot.
+      (vm-set-zone-of m (if (match-beginning 6)
+			    (substring date (match-beginning 6)
+				       (match-end 6))
+			    ""))
+      t)
+     ((string-match
+;; This piece of crap handles:
+;;    Aug 29, 1991 08:51 EDT
+;;    Aug 29 1991, 08:51-EDT
+ "\\`[ \t]*\\([a-z][a-z][a-z]\\)[ \t\n]+\\([0-9][0-9]?\\)[ \t\n,]*\\([0-9]?[0-9]?[0-9][0-9]\\)[- \t,]*\\([0-9:]+\\)[- \t]*\\([a-z][a-z][a-z]\\)?"
+	date)
+      (vm-su-do-month m (substring date (match-beginning 1) (match-end 1)))
+      (vm-set-monthday-of m (substring date (match-beginning 2) (match-end 2)))
+      (vm-set-year-of m (substring date (match-beginning 3) (match-end 3)))
+      (vm-set-hour-of m (substring date (match-beginning 4) (match-end 4)))
+      (vm-set-zone-of m (if (match-beginning 5)
+			    (substring date (match-beginning 5)
+				       (match-end 5))
+			    ""))
+      t)
+     ((string-match
+;; YASTF: Yet Another Sucky Time Format.  Dan Jacobson found this one.
+;; Handles:
+;;    Tue, Dec 11 12:11:45 CST 1990
+;;    Tue Dec 11 12:11 CST 1990
+"\\`[ \t]*\\([a-z][a-z][a-z]\\)[ \t\n,]*\\([a-z][a-z][a-z]\\)[ \t\n]*\\([0-9][0-9]?\\)[ \t\n]*\\([0-9:]+\\)[ \t\n]*\\([a-z][a-z][a-z]\\|[-+]?[0-9][0-9][0-9][0-9]\\)[ \t\n]*\\([0-9]?[0-9]?[0-9][0-9]\\)?"
+       date)
+      (vm-set-weekday-of m (substring date (match-beginning 1) (match-end 1)))
+      (vm-su-do-month m (substring date (match-beginning 2) (match-end 2)))
+      (vm-set-monthday-of m (substring date (match-beginning 3) (match-end 3)))
+      (vm-set-hour-of m (substring date (match-beginning 4) (match-end 4)))
+      (vm-set-zone-of m (if (match-beginning 5)
+			    (substring date (match-beginning 5)
+				       (match-end 5))
+			    ""))
+      (vm-set-year-of m (if (match-beginning 6)
+			    (substring date (match-beginning 6) (match-end 6))
+			    ""))
+      t)
+     ((string-match
+;; jwz: this one is for
+;;    Tue, 7 Jan  08:46:34 1992
+ "\\`[ \t]*\\([a-z][a-z][a-z]\\)[ \t\n,]+\\([0-9][0-9]?\\)[ \t\n]+\\([a-z][a-z][a-z]\\)[ \t\n]+\\([0-9:]+\\)[ \t\n]*\\([0-9]?[0-9]?[0-9][0-9]\\)?"
+	date)
+      (vm-set-weekday-of m (substring date (match-beginning 1) (match-end 1)))
+      (vm-set-monthday-of m (substring date (match-beginning 2) (match-end 2)))
+      (vm-su-do-month m (substring date (match-beginning 3) (match-end 3)))
+      (vm-set-hour-of m (substring date (match-beginning 4) (match-end 4)))
+      (vm-set-year-of m (if (match-beginning 5)
+			    (substring date (match-beginning 5)
+				       (match-end 5))
+			  ""))
+      (vm-set-zone-of m "")
+      t)
+     ((string-match
+;; jwz: I've seen dates of the form "13-AUG-1990 16:11:21.26" from VMS.
+	"\\`[ \t]*\\([0-9]+\\)[- \t]*\\([A-Z][A-Z][A-Z]+\\)[- \t]*\\([0-9][0-9][0-9]?[0-9]?\\)[ \t]+\\([0-9:]+\\)\\(\\.[0-9]+\\)?"
+	date)
+      (vm-set-weekday-of m "")
+      (vm-set-monthday-of m (substring date (match-beginning 1) (match-end 1)))
+      (vm-su-do-month m (substring date (match-beginning 2) (match-end 2)))
+      (vm-set-year-of m (substring date (match-beginning 3) (match-end 3)))
+      (vm-set-hour-of m (substring date (match-beginning 4) (match-end 4)))
+      (vm-set-zone-of m "")
+      t)
      (t
+      ;; otherwise, punt.
       (vm-set-weekday-of m "")
       (vm-set-monthday-of m "")
       (vm-set-month-of m "")
       (vm-set-month-number-of m "")
       (vm-set-year-of m "")
       (vm-set-hour-of m "")
-      (vm-set-zone-of m "")))))
+      (vm-set-zone-of m "")
+      nil))))
+
+(defconst vm-su-month-sym-jan '("January" "1"))
+(defconst vm-su-month-sym-feb '("February" "2"))
+(defconst vm-su-month-sym-mar '("March" "3"))
+(defconst vm-su-month-sym-apr '("April" "4"))
+(defconst vm-su-month-sym-may '("May" "5"))
+(defconst vm-su-month-sym-jun '("June" "6"))
+(defconst vm-su-month-sym-jul '("July" "7"))
+(defconst vm-su-month-sym-aug '("August" "8"))
+(defconst vm-su-month-sym-sep '("September" "9"))
+(defconst vm-su-month-sym-oct '("October" "10"))
+(defconst vm-su-month-sym-nov '("November" "11"))
+(defconst vm-su-month-sym-dec '("December" "12"))
 
 (defun vm-su-do-month (m month-abbrev)
-  (if (not (boundp 'vm-su-month-sym-jan))
-      (setq vm-su-month-sym-jan '("January" "1")
-	    vm-su-month-sym-feb '("February" "2")
-	    vm-su-month-sym-mar '("March" "3")
-	    vm-su-month-sym-apr '("April" "4")
-	    vm-su-month-sym-may '("May" "5")
-	    vm-su-month-sym-jun '("June" "6")
-	    vm-su-month-sym-jul '("July" "7")
-	    vm-su-month-sym-aug '("August" "8")
-	    vm-su-month-sym-sep '("September" "9")
-	    vm-su-month-sym-oct '("October" "10")
-	    vm-su-month-sym-nov '("November" "11")
-	    vm-su-month-sym-dec '("December" "12")))
   (condition-case ()
       (let ((val (symbol-value (intern (concat "vm-su-month-sym-"
 					       (downcase month-abbrev))))))
@@ -566,6 +679,22 @@ mandatory."
 	(if (looking-at "From \\([^ \t\n]+\\)")
 	    (buffer-substring (match-beginning 1) (match-end 1)))))))
 
+;;; There are many systems where the user's real name is encoded in the
+;;; user id.  This version of vm-su-do-author parses the user-id to extract
+;;; the real name, so that the %F directive does what you want more of the
+;;; time.  It handles the following forms of addresses:
+;;;
+;;;	Jamie.Zawinski@somehost		--> "Jamie Zawinski"
+;;;	Jamie_Zawinski@somehost		--> "Jamie Zawinski"
+;;;	Jamie_W._Zawinski@somehost	--> "Jamie W. Zawinski"
+;;;	Jamie.W.Zawinski@somehost	--> "Jamie W Zawinski"
+;;;	"Jamie Zawinski"@somehost	--> "Jamie Zawinski"
+;;; also
+;;;	jwz ("Jamie Zawinski")		--> "Jamie Zawinski"
+;;;	jwz (Jamie Zawinski (comment))	--> "Jamie Zawinski"
+;;;	jwz (Jamie Zawinski -- comment)	--> "Jamie Zawinski"
+;;; and likewise in the "name <uid>" form.
+
 (defun vm-su-do-author (m)
   (let (full-name from)
     (setq full-name (vm-get-header-contents m "Full-Name"))
@@ -576,11 +705,14 @@ mandatory."
 	       (setq full-name "???")))
 	  ((string-match "^\\([^< \t\n]+\\([ \t\n]+[^< \t\n]+\\)*\\)?[ \t\n]*\\(<\\([^>]+\\)>\\)"
 			 from)
+	   ;; Matches "Real Name <uid>"
 	   (if (and (match-beginning 1) (null full-name))
 	       (setq full-name
 		     (substring from (match-beginning 1) (match-end 1))))
 	   (setq from (substring from (match-beginning 4) (match-end 4))))
-	  ((string-match "[\000-\177]*(\\([^)]+\\))[\000-\177]*" from)
+	  ((string-match "^[^(]*(\\(.*\\))[^)]*$" from)
+	   ;; Matches "uid (Real Name)" as well as "uid (real (really) name)"
+	   ;; and "uid (real name (comment))"
 	   (if (null full-name)
 	       (setq full-name (substring from (match-beginning 1)
 					  (match-end 1))))
@@ -603,10 +735,45 @@ mandatory."
 	       (substring from (match-beginning 1)
 			  (or (match-end 2) (match-end 1)))
 	       (if (match-end 2) "" ".UUCP"))))
-    (if (or (null full-name) (string-match "^[ \t\n]*$" full-name))
+    (if (or (null full-name) (string-match "^[ \t]*$" full-name))
 	(setq full-name from))
+    ;; derive username from address if address is of the form "User.Name@Host"
+    ;; or "User_Name@Host" or "\"User Name\"@Host".
+    (if (or (string-match "^[^!@%]+[._][^._%@]*[^@%][@%]" full-name)
+	    (string-match "^[^!@%]*\"[^!@%]+ [^ %@]*[^@%][@%]" full-name))
+	(setq full-name (substring full-name 0 (1- (match-end 0)))))
+    (setq full-name (vm-clean-username full-name))
     (vm-set-full-name-of m full-name)
     (vm-set-from-of m from)))
+
+(defun vm-clean-username (string)
+  "Strips garbage from the user full name string."
+  (if (string-match "[%@!]" string)  ; this ain't no user name!  It's an address!
+      string
+    (let ((case-fold-search t))
+      ;; take off leading and trailing non-alpha chars (quotes, parens, digits, etc)
+      (if (string-match "\\`[^a-z]+" string)
+	  (setq string (substring string (match-end 0))))
+      (if (string-match "[^a-z]+\\'" string)
+	  (setq string (substring string 0 (match-beginning 0))))
+      ;; replace tabs, multiple spaces, dots, and underscores with a single space.
+      ;; but don't replace ". " with " " because that could be an initial.
+      (while (string-match "\\(\t\\|  +\\|\\(\\.\\)[^ \t_]\\|_+\\)" string)
+	(setq string (concat (substring string 0
+					(or (match-beginning 2)
+					    (match-beginning 1)))
+			     " "
+			     (substring string (or (match-end 2)
+						   (match-end 1))))))
+      ;; If the string contains trailing parenthesized comments, nuke 'em.
+      ;; (As in "John Doe -- Pinhead" or "John Doe (Pinhead)".)
+      (if (string-match "[^ \t]\\([ \t]*\\((\\| --\\)\\)" string)
+	  (progn
+	    (setq string (substring string 0 (match-beginning 1)))
+	    ;; lose any non-alpha rubbish this may have exposed.
+	    (if (string-match "[^a-z]+\\'" string)
+		(setq string (substring string 0 (match-beginning 0))))))
+      string)))
 
 (autoload 'rfc822-addresses "rfc822")
 
@@ -643,6 +810,7 @@ mandatory."
 			 names)))
 	    (t (setq names (cons (car list) names))))
       (setq list (cdr list)))
+    (setq names (nreverse names)) ; added by jwz for fixed vm-parse-addresses
     (if vm-gargle-uucp
 	(while list
 	  (if (string-match
@@ -673,6 +841,27 @@ mandatory."
 (defun vm-su-to-names (m)
   (or (vm-to-names-of m) (progn (vm-su-do-recipients m) (vm-to-names-of m))))
 				  
+(defun vm-su-dwim-user (m)
+  (let ((from (vm-su-from m)))
+    (if (string-match vm-uninteresting-senders from)
+	(concat vm-uninteresting-arrow 
+	  (let ((to (vm-su-to m)))
+	    (if (string= to (user-login-name)) ; vm-do-recipients returns this
+		(or (vm-get-header-contents m "Newsgroups") ; if there's no To:
+		    to)
+		to)))
+	from)))
+
+(defun vm-su-dwim-user-name (m)
+  (if (string-match vm-uninteresting-senders (vm-su-from m))
+      (concat vm-uninteresting-arrow 
+	(let ((to (vm-su-to-names m)))
+	  (if (string= to (user-login-name)) ;; vm-do-recipients returns this
+	      (or (vm-get-header-contents m "Newsgroups")  ;; if there's no To:
+		  to)
+	      to)))
+      (vm-su-full-name m)))
+
 (defun vm-su-message-id (m)
   (or (vm-message-id-of m)
       (vm-set-message-id-of m
@@ -696,3 +885,10 @@ mandatory."
   (or (vm-subject-of m)
       (vm-set-subject-of m
 			 (or (vm-get-header-contents m "Subject") ""))))
+
+(defun vm-su-subject-no-newlines (m)
+  (let ((s (vm-su-subject m)))
+    (while (string-match "[ \t]*\n[ \t\n]*" s)
+      (setq s (concat (substring s 0 (match-beginning 0)) " "
+		      (substring s (match-end 0)))))
+    s))

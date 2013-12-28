@@ -24,7 +24,7 @@
 ;; >> otherwise you can't use this file.  It will only work on the
 ;; >> internet with this address.
 
-(defvar bug-gnu-emacs "bug-gnu-emacs@lucid.com"
+(defvar bug-gnu-emacs "bug-lucid-emacs@lucid.com"
   "Address of site maintaining mailing list for Gnu emacs bugs.")
 
 (defun report-emacs-bug (topic)

@@ -1,10 +1,12 @@
 ;;; -*-Emacs-Lisp-*-
 ;;;%Header
+;;;
+;;; Rcs_Info: completer.el,v 3.23 1993/09/03 02:05:07 ivan Rel $
+;;;
 ;;; Partial completion mechanism for GNU Emacs.  Version 3.03
 ;;; Copyright (C) 1990, 1991, 1992 Chris McConnell, ccm@cs.cmu.edu.
 ;;; Thanks to Bjorn Victor for suggestions, testing, and patches for
 ;;; file completion. 
-;;; hacked for Lucid GNU Emacs
 
 ;;; This file is part of GNU Emacs.
 
@@ -135,10 +137,10 @@ string that matches the pattern will be used.")
 	(inhibit-quit t))
     (sit-for 2)
     (delete-region point end)
-    (or (string-match emacs-version "Lucid")
-	(if quit-flag
-	    (setq quit-flag nil
-		  unread-command-char 7)))))
+    (if (and quit-flag 
+	     (not (eq 'lucid-19 ilisp-emacs-version-id)))
+	(setq quit-flag nil
+	      unread-command-char 7))))
 
 ;;;
 (defun completer-deleter (regexp choices &optional keep)
@@ -515,8 +517,8 @@ for exit."
 	   (eq pred completer-pred)
 	   (not file-p)
 	   (or (eq mode completer-mode)
-	       (memq table '(read-file-name-internal
-			     read-directory-name-internal))))
+	       (not (memq table '(read-file-name-internal
+				  read-directory-name-internal)))))
       completer-result
       (setq 
        completer-string ""
@@ -901,8 +903,8 @@ twice in a row.  If called with a prefix, undo the last completion."
   (interactive "P")
   (if undo
       (completer-undo)
-    ;; added by jwz: don't cache completions in shell buffer!
-    (setq completer-string nil)
+      ;; added by jwz: don't cache completions in shell buffer!
+      (setq completer-string nil)
       (completer-complete-goto 
        "^ \t\n\""
        completer-words

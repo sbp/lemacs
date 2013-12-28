@@ -1,11 +1,11 @@
 /* Communication subprocess for GNU Emacs acting as server.
-   Copyright (C) 1986, 1987 Free Software Foundation, Inc.
+   Copyright (C) 1986, 1987, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -30,7 +30,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #undef write
 #undef open
 #undef close
-
+#undef signal
 
 #if !defined(HAVE_SOCKETS) && !defined(HAVE_SYSVIPC)
 #include <stdio.h>
@@ -47,8 +47,8 @@ main ()
 #if ! defined (HAVE_SYSVIPC)
 /* BSD code is very different from SYSV IPC code */
 
-#include <sys/file.h>
 #include <sys/types.h>
+#include <sys/file.h>
 #include <sys/socket.h>
 #include <sys/signal.h>
 #include <sys/un.h>
@@ -57,11 +57,12 @@ main ()
 
 extern int errno;
 
+void
 main ()
 {
+  char system_name[256];
   int s, infd, fromlen;
   struct sockaddr_un server, fromunix;
-  char *homedir;
   char *str, string[BUFSIZ], code[BUFSIZ];
   FILE *infile;
   FILE **openfiles;
@@ -85,22 +86,35 @@ main ()
       exit (1);
     }
   server.sun_family = AF_UNIX;
-  homedir = getenv ("HOME");
-  if (homedir == NULL)
+#ifndef SERVER_HOME_DIR
+  gethostname (system_name, sizeof (system_name));
+  sprintf (server.sun_path, "/tmp/esrv%d-%s", geteuid (), system_name);
+
+  if (unlink (server.sun_path) == -1 && errno != ENOENT)
+    {
+      perror ("unlink");
+      exit (1);
+    }
+#else  
+  {
+    char *homedir;
+
+    if ((homedir = getenv ("HOME")) ==  NULL)
     {
       fprintf (stderr,"No home directory\n");
       exit (1);
     }
-  sprintf (server.sun_path, "/tmp/esrv%d", geteuid ());
-
+    sprintf (server.sun_path, "/tmp/esrv%d", geteuid ());
 #if 0
-  strcpy (server.sun_path, homedir);
-  strcat (server.sun_path, "/.emacs_server");
+    strcpy (server.sun_path, homedir);
+    strcat (server.sun_path, "/.emacs_server");
 #endif
+    /* Delete anyone else's old server.  */
+    unlink (server.sun_path);
+  }
+#endif /* SERVER_HOME_DIR */
 
-  /* Delete anyone else's old server.  */
-  unlink (server.sun_path);
-  if (bind (s, &server, strlen (server.sun_path) + 2) < 0)
+  if (bind (s, (struct sockaddr *) &server, strlen (server.sun_path) + 2) < 0)
     {
       perror ("bind");
       exit (1);
@@ -127,7 +141,7 @@ main ()
 	{
 	  fromlen = sizeof (fromunix);
 	  fromunix.sun_family = AF_UNIX;
-	  infd = accept (s, &fromunix, &fromlen); /* open socket fd */
+	  infd = accept (s, (struct sockaddr *) &fromunix, &fromlen); /* open socket fd */
 	  if (infd < 0)
 	    {
 	      if (errno == EMFILE || errno == ENFILE)
@@ -179,7 +193,14 @@ main ()
       else if (rmask & 1) /* emacs sends codeword, fd, and string message */
 	{
 	  /* Read command codeword and fd */
+	  clearerr (stdin);
 	  scanf ("%s %d%*c", code, &infd);
+
+	  if (ferror (stdin) || feof (stdin))
+	    {
+	      fprintf (stderr, "server: error reading from standard input\n");
+	      exit (1);
+	    }
 
 	  /* Transfer text from Emacs to the client, up to a newline.  */
 	  infile = openfiles[infd];
@@ -215,6 +236,7 @@ main ()
 
 jmp_buf msgenv;
 
+SIGTYPE
 msgcatch ()
 {
   longjmp (msgenv, 1);
@@ -288,6 +310,7 @@ main ()
       if ((fromlen = msgrcv (s, msgp, BUFSIZ - 1, 1, 0)) < 0)
         {
 	  perror ("msgrcv");
+	  exit (1);
         }
       else
         {

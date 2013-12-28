@@ -1,5 +1,13 @@
 ;;; -*-Emacs-Lisp-*-
 ;;;%Header
+;;;
+;;; Send mail to ilisp-bug@darwin.bu.edu if you have problems.
+;;;
+;;; Send mail to ilisp-request@darwin.bu.edu if you want to be on the
+;;; ilisp mailing list.
+;;;
+;;; Rcs_Info: ilisp-ext.el,v 1.20 1993/09/03 02:05:07 ivan Rel $
+;;;
 ;;; Lisp mode extensions from the ILISP package.
 ;;; Copyright (C) 1990, 1991, 1992 Chris McConnell, ccm@cs.cmu.edu.
 
@@ -61,243 +69,7 @@
 (modify-syntax-entry ?\[ "(]" lisp-mode-syntax-table)
 (modify-syntax-entry ?\] ")[" lisp-mode-syntax-table)
 
-;;;%Globals
-(defvar ilisp-ext-load-hook nil "Hook to run when extensions are loaded.")
-(defvar left-delimiter "\(" "*Left delimiter for find-unbalanced.")
-(defvar right-delimiter "\)" "*Right delimiter for find-unbalanced.")
 
-;;; Copies of ilisp var definitions
-(defvar ilisp-complete nil "T when ilisp is in completion mode.")
-(defvar ilisp-modes '(ilisp-mode) "List of all inferior ilisp modes.")
-
-;;;%Utils
-;;; This should be in emacs, but it isn't.
-(defun lisp-mem (item list &optional elt=)
-  "Test to see if ITEM is equal to an item in LIST.
-Option comparison function ELT= defaults to equal."
-  (let ((elt= (or elt= (function equal)))
-	(done nil))
-    (while (and list (not done))
-      (if (funcall elt= item (car list))
-	  (setq done list)
-	  (setq list (cdr list))))
-    done))
-
-;;;
-(defun lisp-defun-begin ()
-  "Go to the start of the containing defun and return point."
-  (let (begin)
-    (if (memq major-mode ilisp-modes)
-	(lisp-input-start)
-	(if (or (eobp) (not (and (bolp) (= (char-after (point)) ?\())))
-	    (beginning-of-defun))
-	(point))))
-
-;;;
-(defun lisp-defun-end (&optional no-errorp at-beginp)
-  "Go to the end of the containing defun and return point or nil if
-there is no end."
-  (if (not at-beginp) (lisp-defun-begin))
-  (condition-case ()
-      (progn
-	(lisp-skip (point-max))		;To skip comments on defun-end
-	(forward-sexp)
-	(point))
-    (error (if no-errorp nil (error "Unbalanced parentheses")))))
-
-;;;
-(defun lisp-find-next-start ()
-  "Find the start of the next line at the left margin that starts with
-a character besides whitespace, a \) or ;;; and return the
-point."
-  (if (eobp)
-      (point-max)
-      (save-excursion
-	(forward-char)
-	(if (re-search-forward "^\\(\\(;;;\\)\\|\\([^ \t\n\);]\\)\\)" nil t)
-	    (match-beginning 0)
-	    (point-max)))))
-
-;;;
-(defun lisp-end-defun-text (&optional at-start)
-  "Go the end of the text associated with the current defun and return
-point.  The end is the last character before whitespace leading to
-a left paren or ;;; at the left margin unless it is in a string."
-  (if (not at-start) (lisp-defun-begin))
-  (let ((point (point))
-	(boundary (lisp-find-next-start))
-	(final (save-excursion
-		 (condition-case ()
-		     (progn (forward-sexp) (point))
-		   (error (point-max))))))
-    ;; Find the next line starting at the left margin and then check
-    ;; to see if it is in a string. 
-    (while (progn
-	     (skip-chars-forward "^\"" boundary) ;To the next string
-	     (if (= (point) boundary)	
-		 nil			;No quote found and at limit
-		 (let ((string-boundary ;Start of next defun
-			(save-excursion
-			  (if (re-search-forward "^\(\\|^;;;" nil t)
-			      (match-beginning 0)
-			      (point-max)))))
-		   (if (condition-case ()
-			   (progn (forward-sexp) t)
-			 (error (goto-char string-boundary) nil))
-		       (if (>= (point) boundary)
-			   ;; Boundary was in string
-			   (if (> (point) string-boundary)
-			       (progn	;String ended in next defun
-				 (goto-char string-boundary)
-				 nil)
-			       (if (> (setq boundary
-					    (lisp-find-next-start))
-				      final)
-				   ;; Normal defun
-				   (progn (goto-char final) nil)
-				   t))
-			   t)
-		       ;; Unclosed string
-		       nil)))))
-    (re-search-backward  "^[^; \t\n]\\|^[^;\n][ \t]*[^ \t\n]" point t)
-    (end-of-line)
-    (skip-chars-backward " \t")
-    (if (< (point) point)
-	(goto-char point)
-	(if (save-excursion
-	      (let ((point (point)))
-		(beginning-of-line)
-		(if comment-start (search-forward comment-start point t))))
-	    (progn (next-line 1) (indent-line-ilisp)))
-	(point))))
-
-;;;
-(defun lisp-in-comment (test)
-  "Return T if you are in a comment."
-  (beginning-of-line)
-  (and (looking-at test)
-       (not (= (match-end 0)
-	       (progn (end-of-line) (point))))))
-
-;;;
-(defun lisp-in-string (&optional begin end)
-  "Return the string region that immediately follows/precedes point or
-that contains point in optional region BEGIN to END.  If point is in
-region, T will be returned as well."
-  (save-excursion
-    (if (not begin)
-	(save-excursion
-	  (setq end (lisp-end-defun-text)
-		begin (lisp-defun-begin))))
-    (let* ((point (progn (skip-chars-forward " \t") (point)))
-	   (done nil))
-      (goto-char begin)
-      (while (and (< (point) end) (not done))
-	(skip-chars-forward "^\"" end)
-	(setq begin (point))
-	(if (< begin end)
-	    (if (and (not (bobp)) (= (char-after (1- begin)) ??))
-		(forward-char)
-		(if (condition-case () (progn (forward-sexp) (<= (point) end))
-		      (error nil))
-		    (progn		;After string
-		      (skip-chars-forward " \t")
-		      (if (or (= begin point) (= point (point)))
-			  (setq done (list begin (point) nil))
-			  (if (and (< begin point) (< point (point)))
-			      (setq done (list begin (point) t)))))
-		    ;; In string at end of buffer
-		    (setq done (list begin end t))))))
-      done)))
-
-;;;%Indentation
-(defun indent-line-ilisp (&optional whole-exp)
-  "Indent current line as Lisp code.
-With argument, indent any additional lines of the same expression
-rigidly along with this one.  This is restricted to the current buffer input."
-  (interactive "P")
-  (save-restriction
-    (if (memq major-mode ilisp-modes)
-	(narrow-to-region (save-excursion (lisp-input-start)) (point-max)))
-    (lisp-indent-line whole-exp)))
-
-;;;
-(defun indent-sexp-ilisp ()
-  "Indent each line of the list starting just after point."
-  (interactive)
-  (save-restriction
-    (if (memq major-mode ilisp-modes)
-	(narrow-to-region (save-excursion (lisp-input-start)) (point-max)))
-    (indent-sexp)))
-
-;;;%Unbalanced parentheses
-(defun lisp-skip (end)
-  "Skip past whitespace, comments, backslashed characters and strings
-in the current buffer as long as you are before END.  This does move
-the point."
-  (if (< (point) end)
-      (let ((comment (and comment-start (string-to-char comment-start)))
-	    (done nil)
-	    char)
-	(while (and (< (point) end)
-		    (not done))
-	  (skip-chars-forward "\n\t " end)
-	  (setq char (char-after (point)))
-	  (cond ((eq char ?\")
-		 (forward-sexp))
-		((eq char comment)
-		 (forward-char)
-		 (skip-chars-forward "^\n" end))
-		((eq char ?\\)
-		 (forward-char 2))
-		(t (setq done t)))))))
-
-;;;
-(defun lisp-count-pairs (begin end left-delimiter right-delimiter)
-  "Return the number of top-level pairs of LEFT-DELIMITER and
-RIGHT-DELIMITER between BEGIN and END.  If they don't match, the point
-will be placed on the offending entry."
-  (let ((old-point (point))
-	(sexp 0)
-	left)
-    (goto-char begin)
-    (lisp-skip end)
-    (while (< (point) end)
-      (let ((char (char-after (point))))
-	(cond ((or (eq char left-delimiter)
-		   ;; For things other than lists
-		   (eq (char-after (1- (point))) ?\n))
-	       (setq sexp (1+ sexp))
-	       (if (condition-case ()
-		       (progn (forward-sexp) nil)
-		     (error t))
-		   (error "Extra %s" (char-to-string left-delimiter))))
-	      ((eq char right-delimiter)
-	       (error "Extra %s" (char-to-string right-delimiter)))
-	      ((< (point) end) (forward-char))))
-      (lisp-skip end))
-    (goto-char old-point)
-    sexp))
-
-;;;
-(defun find-unbalanced-region-lisp (start end)
-  "Go to the point in region where LEFT-DELIMITER and RIGHT-DELIMITER
-become unbalanced.  Point will be on the offending delimiter."
-  (interactive "r")
-  (lisp-count-pairs start end
-		    (string-to-char left-delimiter)
-		    (string-to-char right-delimiter))
-  (if (not ilisp-complete) (progn (beep) (message "Delimiters balance"))))
-
-;;;
-(defun find-unbalanced-lisp (arg)
-  "Go to the point in buffer where LEFT-DELIMITER and RIGHT-DELIMITER
-become unbalanced.  Point will be on the offending delimiter.  If
-called with a prefix, use the current region."
-  (interactive "P")
-  (if arg
-      (call-interactively 'find-unbalanced-region-lisp)
-      (find-unbalanced-region-lisp (point-min) (point-max))))
 
 ;;;%Superbrackets
 (defun close-all-lisp (arg)
@@ -387,8 +159,6 @@ brackets will be replaced with left parentheses."
 				       nil))))))))))))
 
 ;;;%Reindentation
-(defvar lisp-fill-marker (make-marker)
-  "Keeps track of point so that it does not move during a reindent-lisp.")
 
 ;;;
 (defun reindent-lisp ()
@@ -442,8 +212,6 @@ block."
   (message "Done")))
 
 ;;;%Comment region
-(defvar ilisp-comment-marker (make-marker)
-  "Marker for end of a comment region.")
 (defun comment-region-lisp (start end prefix)
   "If prefix is positive, insert prefix copies of comment-start at the
 start and comment-end at the end of each line in region.  If prefix is

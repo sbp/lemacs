@@ -1,11 +1,15 @@
-;; Lisp editing commands for Emacs
-;; Copyright (C) 1985, 1986 Free Software Foundation, Inc.
+;;; lisp.el --- Lisp editing commands for Emacs
+
+;; Copyright (C) 1985, 1986, 1993 Free Software Foundation, Inc.
+
+;; Maintainer: FSF
+;; Keywords: lisp, languages
 
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -17,27 +21,33 @@
 ;; along with GNU Emacs; see the file COPYING.  If not, write to
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
+;;; Commentary:
+
+;; Lisp editing commands to go with Lisp major mode.
+
+;;; Code:
 
 (defvar defun-prompt-regexp nil
   "Non-nil => regexp to ignore, before the `(' that starts a defun.")
+
+(defvar parens-require-spaces t
+  "Non-nil => `insert-parentheses' should insert whitespace as needed.")
 
 (defun forward-sexp (&optional arg)
   "Move forward across one balanced expression (sexp).
 With argument, do it that many times.
 Negative arg -N means move backward across N balanced expressions."
-  (interactive "p")
+  (interactive "_p")
   (or arg (setq arg 1))
   (goto-char (or (scan-sexps (point) arg) (buffer-end arg)))
-  (setq zmacs-region-stays t)
   (if (< arg 0) (backward-prefix-chars)))
 
 (defun backward-sexp (&optional arg)
   "Move backward across one balanced expression (sexp).
 With argument, do it that many times.
 Negative arg -N means move forward across N balanced expressions."
-  (interactive "p")
+  (interactive "_p")
   (or arg (setq arg 1))
-  (setq zmacs-region-stays t)
   (forward-sexp (- arg)))
 
 (defun mark-sexp (arg)
@@ -48,25 +58,24 @@ with the same argument."
   (push-mark
     (save-excursion
       (forward-sexp arg)
-      (point)))
-  (zmacs-activate-region))
+      (point))
+    nil
+    t))
 
 (defun forward-list (&optional arg)
   "Move forward across one balanced group of parentheses.
 With argument, do it that many times.
 Negative arg -N means move backward across N groups of parentheses."
-  (interactive "p")
+  (interactive "_p")
   (or arg (setq arg 1))
-  (setq zmacs-region-stays t)
   (goto-char (or (scan-lists (point) arg 0) (buffer-end arg))))
 
 (defun backward-list (&optional arg)
   "Move backward across one balanced group of parentheses.
 With argument, do it that many times.
 Negative arg -N means move forward across N groups of parentheses."
-  (interactive "p")
+  (interactive "_p")
   (or arg (setq arg 1))
-  (setq zmacs-region-stays t)
   (forward-list (- arg)))
 
 (defun down-list (arg)
@@ -74,8 +83,7 @@ Negative arg -N means move forward across N groups of parentheses."
 With argument, do this that many times.
 A negative argument means move backward but still go down a level.
 In Lisp programs, an argument is required."
-  (interactive "p")
-  (setq zmacs-region-stays t)
+  (interactive "_p")
   (let ((inc (if (> arg 0) 1 -1)))
     (while (/= arg 0)
       (goto-char (or (scan-lists (point) inc -1) (buffer-end arg)))
@@ -94,8 +102,7 @@ In Lisp programs, an argument is required."
 With argument, do this that many times.
 A negative argument means move backward but still to a less deep spot.
 In Lisp programs, an argument is required."
-  (interactive "p")
-  (setq zmacs-region-stays t)
+  (interactive "_p")
   (let ((inc (if (> arg 0) 1 -1)))
     (while (/= arg 0)
       (goto-char (or (scan-lists (point) inc 1) (buffer-end arg)))
@@ -127,8 +134,7 @@ Normally a defun starts when there is an char with open-parenthesis
 syntax at the beginning of a line.  If `defun-prompt-regexp' is
 non-nil, then a string which matches that regexp may precede the
 open-parenthesis."
-  (interactive "p")
-  (setq zmacs-region-stays t)
+  (interactive "_p")
   (and arg (< arg 0) (forward-char 1))
   (and (re-search-backward (if defun-prompt-regexp
 			       (concat "^\\s(\\|"
@@ -146,8 +152,7 @@ Negative argument -N means move back to Nth preceding end of defun.
 
 An end of a defun occurs right after the close-parenthesis that matches
 the open-parenthesis that starts a defun; see `beginning-of-defun'."
-  (interactive "p")
-  (setq zmacs-region-stays t)
+  (interactive "_p")
   (if (or (null arg) (= arg 0)) (setq arg 1))
   (let ((first t))
     (while (and (> arg 0) (< (point) (point-max)))
@@ -188,30 +193,28 @@ The defun marked is the one that contains point or follows point."
   (interactive)
   (push-mark (point))
   (end-of-defun)
-  (push-mark (point))
+  (push-mark (point) nil t)
   (beginning-of-defun)
-  (re-search-backward "^\n" (- (point) 1) t)
-  (zmacs-activate-region))
+  (re-search-backward "^\n" (- (point) 1) t))
 
 (defun insert-parentheses (arg)
   "Put parentheses around next ARG sexps.  Leave point after open-paren.
-No argument is equivalent to zero: just insert () and leave point between."
+No argument is equivalent to zero: just insert `()' and leave point between.
+This command also sometimes inserts a space before and after,
+depending on the surrounding characters."
   (interactive "P")
-  (if arg (skip-chars-forward " \t"))
-  (and (memq (char-syntax (preceding-char)) '(?w ?_ ?\) ))
+  (setq arg (if arg (prefix-numeric-value arg) 0))
+  (or (eq arg 0) (skip-chars-forward " \t"))
+  (and parens-require-spaces
+       (memq (char-syntax (preceding-char)) '(?w ?_ ?\) ))
        (insert " "))
-;    (or (memq (char-syntax (preceding-char)) '(?\  ?> ?\( ))
-;	(insert " ")))
   (insert ?\()
   (save-excursion
-    (if arg
-	(forward-sexp (prefix-numeric-value arg)))
+    (or (eq arg 0) (forward-sexp arg))
     (insert ?\))
-;    (or (memq (char-syntax (following-char)) '(?\  ?> ?\( ))
-;	(insert " "))
-  (and (memq (char-syntax (following-char)) '(?w ?_ ?\( ))
-       (insert " "))
-  ))
+  (and parens-require-spaces
+       (memq (char-syntax (following-char)) '(?w ?_ ?\( ))
+       (insert " "))))
 
 (defun move-past-close-and-reindent ()
   "Move past next `)', delete indentation before it, then indent after it."
@@ -240,8 +243,8 @@ or properties are considered."
 	 (buffer-syntax (syntax-table))
 	 (beg (unwind-protect
 		  (save-excursion
-		    (if lisp-mode-syntax-table
-			(set-syntax-table lisp-mode-syntax-table))
+		    (if emacs-lisp-mode-syntax-table
+			(set-syntax-table emacs-lisp-mode-syntax-table))
 		    (backward-sexp 1)
 		    (while (= (char-syntax (following-char)) ?\')
 		      (forward-char 1))
@@ -251,9 +254,9 @@ or properties are considered."
 	 (predicate
 	  (if (eq (char-after (1- beg)) ?\()
 	      'fboundp
-	    (function (lambda (sym)
-			(or (boundp sym) (fboundp sym)
-			    (symbol-plist sym))))))
+	    #'(lambda (sym)
+		(or (boundp sym) (fboundp sym)
+		    (symbol-plist sym)))))
 	 (completion (try-completion pattern obarray predicate)))
     (cond ((eq completion t))
 	  ((null completion)
@@ -277,3 +280,5 @@ or properties are considered."
 	     (with-output-to-temp-buffer "*Help*"
 	       (display-completion-list list)))
 	   (message "Making completion list...%s" "done")))))
+
+;;; lisp.el ends here

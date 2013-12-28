@@ -5,6 +5,11 @@
 
 (load "c++-mode")
 (load "view-less")
+(load "userlock")
+(load "comint")
+(load "shell")
+(load "compile")
+(load "gdb")
 (load "evi")
 (load "energize/energize-init")
 (load "energize/energize-windows")
@@ -13,7 +18,8 @@
 (load "energize/energize-shell")
 (load "energize/energize-visit-use")
 (load "energize/energize-vi")
-(load "energize/energize-advise")
+(load "energize/energize-advice")
+(load "energize/energize-font-lock")
 
 (if (fboundp (intern-soft "initialize-backtrace-logging-internal"))
     (load "energize/backtrace-logging"))

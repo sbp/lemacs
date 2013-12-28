@@ -67,9 +67,19 @@ replace the original, use C-c C-]."
 	    (funcall (or vm-edit-message-mode 'text-mode))
 	    (setq vm-message-pointer mp
 		  vm-mail-buffer folder-buffer)
-	    (use-local-map (copy-keymap (or (current-local-map)
-					    (make-sparse-keymap))))
-	    (vm-overlay-keymap vm-edit-message-mode-map (current-local-map))
+	    (cond
+	     ((vm-fsf-emacs-19-p)
+	      (use-local-map (append vm-edit-message-mode-map
+				     (or (current-local-map)
+					 (make-sparse-keymap)))))
+	     ((vm-lucid-emacs-p)
+	      (let ((m (copy-keymap vm-edit-message-mode-map)))
+		(set-keymap-parent m (current-local-map))
+		(use-local-map m)))
+	     (t (use-local-map (copy-keymap (or (current-local-map)
+						(make-sparse-keymap))))
+		(vm-overlay-keymap vm-edit-message-mode-map
+				   (current-local-map))))
 	    (message "Type C-c ESC to end edit, C-c C-] to abort with no change."))
 	(switch-to-buffer edit-buf)))))
 
@@ -178,6 +188,7 @@ to the message's folder."
 	(mp vm-message-pointer))
     (if (buffer-modified-p)
 	(let ((inhibit-quit t))
+	  (widen)
 	  (save-excursion
 	    (set-buffer (marker-buffer (vm-start-of (car mp))))
 	    (if (not (memq (car mp) vm-message-list))

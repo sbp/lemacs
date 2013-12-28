@@ -1,11 +1,14 @@
-;; Edit Options command for Emacs.
-;; Copyright (C) 1985 Free Software Foundation, Inc.
+;;; options.el --- edit Options command for Emacs.
+
+;; Copyright (C) 1985, 1993 Free Software Foundation, Inc.
+
+;; Maintainer: FSF
 
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -18,6 +21,9 @@
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
 
+;;; Code:
+
+;;;###autoload
 (defun list-options ()
   "Display a list of Emacs user options, with values and documentation."
   (interactive)
@@ -26,9 +32,9 @@
     (Edit-options-mode))
   (with-output-to-temp-buffer "*List Options*"
     (let (vars)
-      (mapatoms (function (lambda (sym)
-			    (if (user-variable-p sym)
-				(setq vars (cons sym vars))))))
+      (mapatoms #'(lambda (sym)
+		    (if (user-variable-p sym)
+			(setq vars (cons sym vars)))))
       (setq vars (sort vars 'string-lessp))
       (while vars
 	(let ((sym (car vars)))
@@ -37,13 +43,14 @@
 	  (princ ":\n\t")
 	  (if (boundp sym)
 	      (prin1 (symbol-value sym))
-	    (princ "<unbound>"))
+              (princ "#<unbound>"))
 	  (terpri)
 	  (princ (substitute-command-keys 
 		  (documentation-property sym 'variable-documentation)))
 	  (princ "\n;;\n"))
 	(setq vars (cdr vars))))))
 
+;;;###autoload
 (defun edit-options ()
   "Edit a list of Emacs user option values.
 Selects a buffer containing such a list,
@@ -69,16 +76,17 @@ Type \\[describe-mode] in that buffer for a list of commands."
 (put 'Edit-options-mode 'mode-class 'special)
 
 (defun Edit-options-mode ()
-  "Major mode for editing Emacs user option settings.
+  "\\<Edit-options-mode-map>\
+Major mode for editing Emacs user option settings.
 Special commands are:
-s -- set variable point points at.  New value read using minibuffer.
-x -- toggle variable, t -> nil, nil -> t.
-1 -- set variable to t.
-0 -- set variable to nil.
+\\[Edit-options-set] -- set variable point points at.  New value read using minibuffer.
+\\[Edit-options-toggle] -- toggle variable, t -> nil, nil -> t.
+\\[Edit-options-t] -- set variable to t.
+\\[Edit-options-nil] -- set variable to nil.
 Changed values made by these commands take effect immediately.
 
 Each variable description is a paragraph.
-For convenience, the characters p and n move back and forward by paragraphs."
+For convenience, the characters \\[backward-paragraph] and \\[forward-paragraph] move back and forward by paragraphs."
   (kill-all-local-variables)
   (set-syntax-table emacs-lisp-mode-syntax-table)
   (use-local-map Edit-options-mode-map)
@@ -88,7 +96,8 @@ For convenience, the characters p and n move back and forward by paragraphs."
   (setq paragraph-start "^\t")
   (setq truncate-lines t)
   (setq major-mode 'Edit-options-mode)
-  (setq mode-name "Options"))
+  (setq mode-name "Options")
+  (run-hooks 'Edit-options-mode-hook))
 
 (defun Edit-options-set () (interactive)
   (Edit-options-modify
@@ -106,7 +115,7 @@ For convenience, the characters p and n move back and forward by paragraphs."
 (defun Edit-options-modify (modfun)
   (save-excursion
    (let (var pos)
-     (re-search-backward "^;; ")
+     (re-search-backward "^;; \\|\\`")
      (forward-char 3)
      (setq pos (point))
      (save-restriction
@@ -121,3 +130,4 @@ For convenience, the characters p and n move back and forward by paragraphs."
      (kill-sexp 1)
      (prin1 (symbol-value var) (current-buffer)))))
 
+;;; options.el ends here

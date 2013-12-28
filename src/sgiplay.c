@@ -205,7 +205,7 @@ static Lisp_Object
 close_sound_file (closure)
      Lisp_Object closure;
 {
-  close (XFASTINT (closure));
+  emacs_close (XFASTINT (closure));
   return Qnil;
 }
 
@@ -214,7 +214,7 @@ play_sound_file (sound_file, volume)
      char * sound_file;
      int volume;
 {
-  int count = specpdl_ptr - specpdl;
+  int count = specpdl_depth ();
   int input_fd;
   unsigned char buffer[CHUNKSIZE];
   int bytes_read;
@@ -229,7 +229,7 @@ play_sound_file (sound_file, volume)
 
   record_unwind_protect (close_sound_file, make_number (input_fd));
 
-  while ((bytes_read = read (input_fd, buffer, CHUNKSIZE)) > 0)
+  while ((bytes_read = emacs_read (input_fd, buffer, CHUNKSIZE)) > 0)
     {
       if (ac == (AudioContext) 0)
 	{
@@ -273,7 +273,7 @@ play_sound_data (data, length, volume)
      int length;
      int volume;
 {
-  int count = specpdl_ptr - specpdl;
+  int count = specpdl_depth ();
   AudioContext ac;
 
   ac = audio_initialize (data, length, volume);

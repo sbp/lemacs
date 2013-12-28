@@ -1,8 +1,116 @@
 ;;; -*-Emacs-Lisp-*-
 ;;;%Header
+;;;
+;;; Send mail to ilisp-bug@darwin.bu.edu if you have problems.
+;;;
+;;; Send mail to ilisp-request@darwin.bu.edu if you want to be on the
+;;; ilisp mailing list.
+;;;
 ;;; Inferior LISP interaction package source submodule.
 ;;; Copyright (C) 1990, 1991, 1992 Chris McConnell, ccm@cs.cmu.edu.
-
+;;;
+;;; Rcs_Info: ilisp-src.el,v 1.29 1993/09/03 02:05:07 ivan Rel $
+;;;
+;;; Rcs_Info: ilisp-src.el,v $
+;;; Revision 1.29  1993/09/03  02:05:07  ivan
+;;; "Deposit for Release 5.5"
+;;;
+;;; Revision 1.28  1993/08/31  09:45:22  ivan
+;;; "Deposit for Release 5.5"
+;;;
+;;; Revision 1.27  1993/08/31  09:07:17  ivan
+;;; "Deposit for Release 5.5"
+;;;
+;;; Revision 1.26  1993/08/31  01:50:03  ivan
+;;; "Deposit for Release 5.5"
+;;;
+;;; Revision 1.25  1993/08/31  01:37:44  ivan
+;;; "Deposit for Release 5.5"
+;;;
+;;; Revision 1.24  1993/08/29  09:35:48  ivan
+;;; "Deposit for Release 5.5"
+;;;
+;;; Revision 1.23  1993/08/25  20:37:50  ivan
+;;; "Deposit for release ILISP_FIVE_O_FOUR"
+;;;
+;;; Revision 1.22  1993/08/18  22:48:20  ivan
+;;; Fixed definition regexp in ilisp-locate-ilisp to be able to match
+;;;
+;;; (def-foreign-function (send-header(:language :c)
+;;;                                   ^ no space!
+;;;
+;;; Revision 1.21  1993/06/29  06:13:12  ivan
+;;; "Deposit for release ILISP_FIVE_O_THREE"
+;;;
+;;; Revision 1.20  1993/06/28  20:30:00  ivan
+;;; "Deposit for release ILISP_FIVE_O_2"
+;;;
+;;; Revision 1.19  1993/06/28  19:35:05  ivan
+;;; "Deposit for release ILISP_FIVE_O_2"
+;;;
+;;; Revision 1.18  1993/06/28  16:44:02  ivan
+;;; "Deposit for release ILISP_FIVE_O_1"
+;;;
+;;; Revision 1.17  1993/06/28  03:26:07  ivan
+;;; "Deposit for release ILISP_FIVE_O"
+;;;
+;;; Revision 1.16  1993/06/28  03:12:44  ivan
+;;; "Deposit for release ILISP_FIVE_O"
+;;;
+;;; Revision 1.15  1993/06/28  01:00:24  ivan
+;;; "Deposit for release ILISP_FIVE_O"
+;;;
+;;; Revision 1.14  1993/06/28  00:59:02  ivan
+;;; Deposit
+;;;
+;;; Revision 1.13  1993/06/28  00:41:52  ivan
+;;; Deposit for release ILISP_FIVE_O
+;;;
+;;; Revision 1.12  1993/06/28  00:39:28  ivan
+;;; Deposit for release
+;;;
+; Revision 1.11  1993/06/26  18:24:58  ivan
+; Use ilisp-temp-buffer-show-function.
+;
+; Revision 1.10  1993/06/10  01:02:29  ivan
+; Undid ilisp-send mod in edit-definitions-lisp.  Ugh.
+;
+; Revision 1.9  1993/06/07  07:57:16  ivan
+; Hacked edit-definitions-lisp so that it would deal better with
+; ILISP:SOURCE-FILE causing some sort of error.  Really only made the
+; ilisp-send call pass along 'call as its AND-GO.
+;
+; Revision 1.8  1993/05/03  18:11:30  ivan
+; Made fix-source-filenames not crap out when
+; ilisp-source-directory-fixup-alist is null. Just doesn't do anything.
+;
+; Revision 1.7  1993/05/03  17:34:13  ivan
+; Made edit-definitions-lisp know about lemacs' different find-tag
+; invocation.
+;
+; Revision 1.6  1993/05/03  17:31:18  ivan
+; Added error message for when ilisp-source-directory-fixup-alist hasn't been
+; set to fix-source-filenames.
+;
+; Revision 1.5  1993/05/03  17:11:13  ivan
+; let'ed result to avoid compilation warning.
+; /
+;
+; Revision 1.4  1993/03/16  10:44:34  ivan
+; Removed reference to my-result.
+;
+; Revision 1.3  1993/03/16  09:29:31  ivan
+; Added file doesn't exist message to lisp-locate-definition so user
+; will know when lisp can't find a definition and when it can't find a
+; file.
+;
+; Revision 1.2  1993/03/16  09:15:35  ivan
+; Moved ilisp-source-directory-fixup-alist to ilisp.el.
+;
+;;; Revision 1.1  1993/03/16  08:17:35  ivan
+;;; Initial revision
+;;;
+;;;
 ;;; See ilisp.el for more information.
 
 ;;;%Source file operations
@@ -66,6 +174,23 @@ either case set tags-file-name to nil so that tags are not used."
 	  (error "%s is not a directory" directory))))
 
 ;;;%%Utilities
+
+(defun fix-source-filenames ()
+  "Apply the ilisp-source-directory-fixup-alist to the current buffer
+   (which will be *Edit-Definitions*) to change any pre-compiled
+   source-file locations to point to local source file locations.  
+   See ilisp-source-directory-fixup-alist."
+  (let ((alist (ilisp-value 'ilisp-source-directory-fixup-alist t))
+	cons)
+    (if alist
+	(save-excursion
+	  (while alist
+	    (setq cons (car alist))
+	    (goto-char (point-min))
+	    (if (re-search-forward (car cons) (point-max) t)
+		(replace-match (cdr cons)))
+	    (setq alist (cdr alist)))))))
+
 (defun lisp-setup-edit-definitions (message edit-files)
   "Set up *Edit-Definitions* with MESSAGE. If EDIT-FILES is T, insert
 all buffer filenames that are in one of lisp-source-modes into the
@@ -93,7 +218,8 @@ insert those in the buffer.  If it is a string put that in the buffer."
 	    (if (stringp edit-files)
 		(progn (insert edit-files)
 		       	;; Remove garbage collection messages
-		       (replace-regexp "^;[^\n]*\n" ""))
+		       (replace-regexp "^;[^\n]*\n" "")
+		       (fix-source-filenames))
 		(let ((files edit-files))
 		  (while files
 		    (insert ?\")
@@ -114,49 +240,55 @@ insert those in the buffer.  If it is a string put that in the buffer."
   "Use LOCATOR to find the next DEFINITION (symbol . type) in FILE
 starting at POINT, optionally BACKWARDS and POP to buffer.  Return T
 if successful."
-  (if (and file (file-exists-p file))
-      (let* ((symbol (car definition))
-	     (type (cdr definition))
-	     (first (not (eq lisp-last-file file)))
-	     (buffer (current-buffer))
-	     name)
-	(lisp-find-file file pop)
-	(if first (setq lisp-first-point (point)))
-	(if back
-	    (if first
-		(goto-char (point-max))
+  (if file 
+      (if (not (file-exists-p file))
+	  (progn
+	    (message "File %s doesn't exist!" file)
+	    (sit-for 1)
+	    nil)
+	  (let* ((symbol (car definition))
+		 (type (cdr definition))
+		 (first (not (eq lisp-last-file file)))
+		 (buffer (current-buffer))
+		 name)
+	    (lisp-find-file file pop)
+	    (if first (setq lisp-first-point (point)))
+	    (if back
+		(if first
+		    (goto-char (point-max))
+		    (goto-char point)
+		    (forward-line -1) 
+		    (end-of-line))
 		(goto-char point)
-		(forward-line -1) 
-		(end-of-line))
-	    (goto-char point)
-	    (if (not first) 
-		(progn (forward-line 1) (beginning-of-line))))
-	(if (eq type 't)
-	    (message "Search %s for %s" file symbol)
-	    (message "Searching %s for %s %s" file type
-		     (setq name (lisp-buffer-symbol symbol))))
-	(if (funcall locator symbol type first back)
-	    (progn
-	      (setq lisp-last-file file
-		    lisp-last-point (point))
-	      (if (bolp)
-		  (forward-line -1)
-		  (beginning-of-line))
-	      (recenter 0)
-	      (if name 
-		  (message "Found %s %s definition" type name)
-		  (message "Found %s"))
-	      t)
-	    (if first 
-		(goto-char lisp-first-point)
-		(set-buffer buffer)
-		(goto-char point))
-	    nil))))
+		(if (not first) 
+		    (progn (forward-line 1) (beginning-of-line))))
+	    (if (eq type 't)
+		(message "Search %s for %s" file symbol)
+		(message "Searching %s for %s %s" file type
+			 (setq name (lisp-buffer-symbol symbol))))
+	    (if (funcall locator symbol type first back)
+		(progn
+		  (setq lisp-last-file file
+			lisp-last-point (point))
+		  (if (bolp)
+		      (forward-line -1)
+		      (beginning-of-line))
+		  (recenter 0)
+		  (if name 
+		      (message "Found %s %s definition" type name)
+		      (message "Found %s"))
+		  t)
+		(if first 
+		    (goto-char lisp-first-point)
+		    (set-buffer buffer)
+		    (goto-char point))
+		nil)))))
 
 ;;;
 (defun lisp-next-file (back)
   "Return the next filename in *Edit-Definitions*, or nil if none."
-  (let ((file t))
+  (let ((file t) 
+	result)
     (set-buffer (get-buffer-create "*Edit-Definitions*"))
     (if back 
 	(progn (forward-line -1)
@@ -228,6 +360,7 @@ prefix and optionally POPPING or call tags-loop-continue if using tags."
 		   (error "No more %s %s definitions" type name)
 		   (message "Done")))))))
 
+
 ;;;%%Edit-definitions
 (defun edit-definitions-lisp (symbol type &optional stay search locator)
   "Find the source files for the TYPE definitions of SYMBOL.  If STAY,
@@ -267,27 +400,30 @@ first type in ilisp-source-types."
 		       (lisp-symbol-package symbol)
 		       type)
 	       (concat "Finding " type " " name " definitions")
-	       'source)
+	       'source )
 	      "nil"))
-	 (result (lisp-last-line source))
-	 (case-fold-search t)
+	 (result (and source (lisp-last-line source)))
 	 (source-ok (not (or (ilisp-value 'comint-errorp t)
+			     (null result)
 			     (string-match "nil" (car result)))))
+	 (case-fold-search t)
 	 (tagged nil))
     (unwind-protect
-	 (if (and tags-file-name (not source-ok))
-	     (progn (setq lisp-using-tags t)
-		    (find-tag symbol-name nil stay)
-		    (setq tagged t)))
-      (if (not tagged)
-	  (progn
-	    (setq lisp-last-definition (cons symbol type)
-		  lisp-last-file nil
-		  lisp-last-locator (or locator (ilisp-value 'ilisp-locator)))
-	    (lisp-setup-edit-definitions
-	     (format "%s %s definitions:" type name)
-	     (if source-ok (cdr result) lisp-edit-files))
-	    (next-definition-lisp nil t))))))
+       (if (and tags-file-name (not source-ok))
+	   (progn (setq lisp-using-tags t)
+		  (if (string-match "Lucid" emacs-version)
+		      (find-tag symbol-name stay)
+		      (find-tag symbol-name nil stay))
+		  (setq tagged t)))
+       (if (not tagged)
+	   (progn
+	     (setq lisp-last-definition (cons symbol type)
+		   lisp-last-file nil
+		   lisp-last-locator (or locator (ilisp-value 'ilisp-locator)))
+	     (lisp-setup-edit-definitions
+	      (format "%s %s definitions:" type name)
+	      (if source-ok (cdr result) lisp-edit-files))
+	     (next-definition-lisp nil t))))))
 
 ;;;%%Searching
 (defun lisp-locate-search (pattern type first back)
@@ -412,8 +548,8 @@ and show it unless NO-SHOW is T.  Return T if successful."
 	    (goto-char (point-min))
 	    (forward-line 2)
 	    (if (not no-show) 
-		(if temp-buffer-show-hook
-		    (funcall temp-buffer-show-hook 
+		(if (ilisp-temp-buffer-show-function)
+		    (funcall (ilisp-temp-buffer-show-function)
 			     (get-buffer "*All-Callers*"))
 		    (view-buffer "*All-Callers*")))
 	    t)
@@ -480,7 +616,7 @@ at the start of the current defun."
 successful.  A definition is of the form
 \(def<whitespace>(?name<whitespace>."
   (lisp-re back
-	   "^[ \t\n]*(def[^ \t\n]*[ \t\n]+(?%s[ \t\n]+" 
+	   "^[ \t\n]*(def[^ \t\n]*[ \t\n]+(?%s[ \t\n(]+" 
 	   (regexp-quote (lisp-symbol-name symbol))))
 
 ;;;
@@ -584,3 +720,4 @@ is T to go backwards."
      ;; Give up!
      )))
 
+(provide 'ilisp-src )

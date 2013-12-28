@@ -1,5 +1,5 @@
 /* Interfaces to subprocesses on VMS.
-   Copyright (C) 1988, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1988 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -388,10 +388,8 @@ child_setup (in, out, err, new_argv, env)
      char **env;
 {
   /* ??? I suspect that maybe this shouldn't be done on VMS.  */
-#ifdef subprocesses
   /* Close Emacs's descriptors that this process should not have.  */
   close_process_descs ();
-#endif
 
   if (STRINGP (current_buffer->directory))
     chdir (XSTRING (current_buffer->directory)->data);
@@ -431,7 +429,7 @@ if you quit, the process is killed.")
   int filefd;
   register int pid;
   char buf[1024];
-  int count = specpdl_ptr - specpdl;
+  int speccount = specpdl_depth ();
   register unsigned char **new_argv;
   struct buffer *old = current_buffer;
 
@@ -449,8 +447,7 @@ if you quit, the process is killed.")
     buffer = tem = args[2];
     if (nargs <= 2)
       buffer = Qnil;
-    else if (!(EQ (tem, Qnil) || EQ (tem, Qt)
-	       || XFASTINT (tem) == 0))
+    else if (!(EQ (tem, Qnil) || EQ (tem, Qt) || EQ (tem, Qzero))
       {
 	buffer = Fget_buffer (tem);
 	CHECK_BUFFER (buffer, 2);
@@ -519,7 +516,7 @@ if you quit, the process is killed.")
     vs->outputChan = outchannel;
   }
 
-  filefd = open (XSTRING (args[1])->data, O_RDONLY, 0);
+  filefd = emacs_open (XSTRING (args[1])->data, O_RDONLY, 0);
   if (filefd < 0)
     {
       sys$dassgn (inchannel);
@@ -528,7 +525,7 @@ if you quit, the process is killed.")
       report_file_error ("Opening process input file", Fcons (args[1], Qnil));
     }
   else
-    close (filefd);
+    emacs_close (filefd);
 
   din.l = XSTRING (args[1])->size;
   din.a = XSTRING (args[1])->data;
@@ -615,9 +612,7 @@ if you quit, the process is killed.")
 
   set_current_buffer (old);
 
-  unbind_to (count);
-
-  return Qnil;
+  return unbind_to (speccount, Qnil);
 }
 
 create_process (process, new_argv)
@@ -715,9 +710,9 @@ create_process (process, new_argv)
   /* Record this as an active process, with its channels.
      As a result, child_setup will close Emacs's side of the pipes.  */
   chan_process[inchannel] = process;
-  XFASTINT (XPROCESS (process)->infd) = inchannel;
-  XFASTINT (XPROCESS (process)->outfd) = outchannel;
-  XFASTINT (XPROCESS (process)->flags) = RUNNING;
+  XPROCESS (process)->infd = make_number (inchannel);
+  XPROCESS (process)->outfd = make_number (outchannel);
+  XPROCESS (process)->flags = make_number (RUNNING);
 
   /* Delay interrupts until we have a chance to store
      the new fork's pid in its process structure */
@@ -731,7 +726,7 @@ create_process (process, new_argv)
     */
   write_to_vms_process (vs, NO_ECHO, strlen (NO_ECHO));
 
-  XFASTINT (XPROCESS (process)->pid) = pid;
+  XPROCESS (process)->pid = make_number (pid);
   sys$setast (1);
 }
 
@@ -750,7 +745,7 @@ child_sig (vs)
     {
       proc = XCONS (XCONS (tail)->car)->cdr;
       p = XPROCESS (proc);
-      if (EQ (p->childp, Qt) && XFASTINT (p->pid) == pid)
+      if (EQ (p->childp, Qt) && XINT (p->pid) == pid)
 	break;
     }
 
@@ -758,16 +753,18 @@ child_sig (vs)
     return;
 
   child_changed++;
-  XFASTINT (p->flags) = EXITED | CHANGED;
+  p->flags = make_number (EXITED | CHANGED);
   /* Truncate the exit status to 24 bits so that it fits in a FASTINT */
-  XFASTINT (p->reason) = (vs->exitStatus) & 0xffffff;
+  p->reason = make_number ((vs->exitStatus) & 0xffffff);
 }
 
+void
 syms_of_vmsproc ()
 {
   defsubr (&Scall_process);
 }
 
+void
 init_vmsproc ()
 {
   char *malloc ();

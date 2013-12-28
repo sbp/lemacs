@@ -54,7 +54,7 @@
 ;; Improved formatting some more, and added Lucid GNU Emacs font and mouse
 ;; support (mostly cannibalized from webster-ucb.el.)
 
-(defvar webster-host "129.79.254.192"
+(defvar webster-host "agate.berkeley.edu" ;"129.79.254.192"
   "The host to use as a webster server.")
 
 (defvar webster-port "2627"
@@ -110,9 +110,9 @@ definitions as crossreferences.)")
 	   (goto-char 1)
 	   (message "Closing webster connection...Done."))
 	  ((string-match "SPELLING 0" string)
-	   (insert-string "...Word not found in webster\n"))
+	   (insert "...Word not found in webster\n"))
 	  ((string-match "SPELLING 1" string)
-	   (insert-string "...Spelled correctly\n"))
+	   (insert "...Spelled correctly\n"))
 	  ((let ((end-def-message (or (string-match "\200" string)
 				      (string-match "\0" string))))
 	     (if end-def-message
@@ -443,6 +443,8 @@ Communication with host is recorded in a buffer *webster*."
    (message "Closing connection to %s...done" webster-host)
    (bury-buffer))
 
+(defvar webster-mode-map nil)
+
 (defun webster-mode ()
   "Major mode for interacting with on-line Webster's dictionary.
 \\{webster-mode-map}
@@ -454,7 +456,6 @@ Use webster-mode-hook for customization."
   (use-local-map webster-mode-map)
   (run-hooks 'webster-mode-hook))
 
-(defvar webster-mode-map nil)
 (if webster-mode-map
     nil
   (setq webster-mode-map (make-sparse-keymap))

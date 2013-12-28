@@ -469,8 +469,7 @@ At any time while reading mail in the primary inbox you can type @kbd{g}
 (@code{vm-get-new-mail}) to check to see if new mail has arrived.  If new
 mail has arrived it will be moved from the system spool area and merged into
 the primary inbox.  If you are not in the middle of another message, VM
-will also jump to the first new message, if you are not in the midst of
-reading another message.
+will also jump to the first new message.
 
 If @code{vm-get-new-mail} is given a prefix argument, it will prompt for
 another file from which to gather messages instead of the usual spool
@@ -710,7 +709,7 @@ visible headers in this case.  Headers not matched by
 displayed last.@refill
 
 If you change the value of either @code{vm-visible-headers} or
-@code{vm-invisible-header-regexp} is the middle of a VM sesssion the
+@code{vm-invisible-header-regexp} in the middle of a VM sesssion the
 effects will not be immediate.  You will need to use the command
 @code{vm-discard-cached-data} on each message (bound to @kbd{j} by
 default) to force VM rearrange the message headers.  A good way to do
@@ -731,7 +730,7 @@ To have VM preview only those messages that have not been read, set the
 value of @code{vm-preview-read-messages} to @code{nil}.
 
 @findex vm-expose-hidden-headers
-Typing @kbd{t} (@code{vm-expose-hidden-headers}) causes VM toggle
+Typing @kbd{t} (@code{vm-expose-hidden-headers}) makes VM toggle
 between exposing and hiding headers that would ordinarily be hidden.@refill
 
 @node Paging,, Previewing, Reading Messages
@@ -808,7 +807,7 @@ However, of the above commands, only @key{C-c y}
 require a parent folder.@refill
 
 If you send a message and it is returned by the mail system because it
-was undeliverable, you an easily resend the message by typing @kbd{C-r}
+was undeliverable, you an easily resend the message by typing @kbd{M-r}
 (@code{vm-resend-bounced-message}).  VM will extract the old message and
 its pertinent headers from the returned message, and place you in a
 @samp{*mail*} buffer.  You can then change the recipient addresses or do

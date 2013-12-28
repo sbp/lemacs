@@ -21,6 +21,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "lisp.h"
 
 #include <stdio.h>
+#include <sys/time.h>
 #include <X11/Xlib.h>
 #include <X11/Xmu/Error.h>
 #include <X11/IntrinsicP.h>	/* CoreP.h needs this */
@@ -28,9 +29,18 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 				   window inside a widget instead of one 
 				   that Xt creates... */
 #include "EmacsShellP.h"
-#include "ScreenWidget.h"
+#include "EmacsScreen.h"
+#include "EmacsScreenP.h"	/* to get cursor foreground, sigh */
 
 #include "hash.h"
+
+#include "dispextern.h"
+#include "dispmisc.h"
+#include "faces.h"
+
+#if 1
+#include "xgccache.h"
+#endif
 
 extern XtAppContext Xt_app_con;
 extern Widget Xt_app_shell;
@@ -43,6 +53,7 @@ extern Widget Xt_app_shell;
 /* This may include sys/types.h, and that somehow loses
    if this is not done before the other system files.  */
 #include "xterm.h"
+#include "xobjs.h"
 
 #include "lwlib.h"
 
@@ -64,7 +75,9 @@ extern Widget Xt_app_shell;
 #include <sys/ioctl.h>
 #include <strings.h>
 #else
+#ifndef HPUX
 #include <sys/termio.h>
+#endif /* HPUX */
 #include <string.h>
 #endif
 #include <sys/stat.h>
@@ -81,7 +94,7 @@ extern Widget Xt_app_shell;
 
 #include "events.h"
 
-extern void emacs_Xt_make_event_stream ();
+#include "sysdep.h"             /* old_fcntl_owner */
 
 
 #define min(a,b) ((a)<(b) ? (a) : (b))
@@ -89,19 +102,25 @@ extern void emacs_Xt_make_event_stream ();
 #define focus_cursor_p(s) \
 	(((s) == selected_screen) && ((s)->display.x->focus_p))
 
+#define NO_CURSOR	0
+#define NORMAL_CURSOR	1
+#define THIN_CURSOR	2
+
 
 /* Nonzero after BLOCK_INPUT; prevents input events from being
    processed until later.  */
-int x_input_blocked;
+int interrupt_input_blocked;
 
+/*
 #if defined (SIGIO) && defined (FIONREAD)
 int BLOCK_INPUT_mask;
 #endif
+*/
 
 
 /* Stuff for dealing with the title. */
-extern Lisp_Object Vinvocation_name;
-static char *hostname, *id_name;
+static char *hostname;
+static char *id_name;
 
 /* This is the X connection that we are using.  */
 Display *x_current_display;
@@ -117,7 +136,7 @@ int x_file_descriptor;
    XT functions.  It is zero while not inside an update.
    In that case, the XT functions assume that `selected_screen'
    is the screen to apply to.  */
-static struct screen *updating_screen;
+extern struct screen *updating_screen;
 
 /* During an update, maximum vpos which ins/del of lines
    may affect.  This is  specified by higher levels.
@@ -132,98 +151,54 @@ static int update_height;
 /* Number of pixels below each line. */
 int x_interline_space;
 
-/* Tells if a window manager is present or not. */
-extern Lisp_Object Vx_no_window_manager;
-
-/* Timestamp that we requested selection data was made. */
-extern Time requestor_time;
-
-/* ID of the window requesting selection data. */
-extern Window requestor_window;
-
 /* Nonzero enables some debugging for the X interface code. */
 extern int _Xdebug;
 
-extern int errno;
-
-extern Lisp_Object Vglobal_minibuffer_screen;
-
-extern Display *XOpenDisplay ();
-extern Window XCreateWindow ();
-
-extern Cursor XCreateCursor ();
-extern FONT_TYPE *XOpenFont ();
-
-void
-x_lower_screen (struct screen* s);
-void
-x_make_screen_visible (struct screen *s);
-
-void
-x_raise_screen (struct screen* s, int force);
+Lisp_Object Vlucid_logo;
 
 #ifdef LINE_INFO_COLUMN
 void x_draw_lineinfo_border(), x_clear_lineinfo_glyph();
 #endif
 
-extern struct screen *
-x_any_window_to_screen (Window);
-
-static int x_display_cursor ();
-
 /* Remember if the last cursor displayed was a bar or a box */
-static Lisp_Object last_bar_cursor;
+/* static Lisp_Object Vlast_bar_cursor; */
 
-extern Lisp_Object Vbar_cursor;
+extern find_window (struct window *w, Lisp_Object win);
 
-
-static void
-erase_screen_cursor_if_needed (s)
-     struct screen *s;
-{
-  if (!s->cursor_erased)
-    {
-      s->cursor_erased = 1;
-      s->cursor_erased =
-	x_display_cursor (s, 0);
-    }
-}
-
-static void
-erase_cursor_if_needed ()
-{
-  erase_screen_cursor_if_needed (updating_screen
-				 ? updating_screen
-				 : selected_screen);
-}
-
-#define UP_TO_EOL ~0
-
-static void
-erase_screen_cursor_if_needed_and_in_region (s, x, y, n)
-     struct screen *s;
-     int x, y, n;
-{
-  if (!s->cursor_erased && s->phys_cursor_y == y
-      && x <= s->phys_cursor_x
-      && (n == UP_TO_EOL || s->phys_cursor_x <= x + n))
-    {
-      s->cursor_erased = 1;
-      s->cursor_erased =
-	x_display_cursor (s, 0);
-    }
-}
-
-static void
-draw_screen_cursor_if_needed (s)
-     struct screen *s;
-{
-  if (s->cursor_erased)
-    {
-      s->cursor_erased =
-	!x_display_cursor (s, 1);
-    }
-}
+static int CursorToggle (struct screen *s);
+static void ClearCursor (struct screen *s);
+static void dump_windows (Lisp_Object window, 
+                          int top, int left, int rows, int cols);
+static void dump_window (Lisp_Object window, 
+                         int top, register left, int rows, int cols);
+static void PlotTextLine (struct window *w, struct line_header *l,
+                          struct char_block *start, struct char_block *end,
+                          char clear, int line_type);
+static void ShipOutTextBlock (unsigned char *str, int count, 
+                              int x, int y, int a, int d,
+                              int cursor, struct face *face, 
+                              struct window *w);
+static void ShipOutGlyphBlock (GLYPH index, int x, int y, int a, int d,
+                               int cursor, struct face *face, 
+                               struct window *w);
+static Bool ShipOutBlankBlock (Bool margin, int width, int x, int y, int a,
+			       int d, int cursor, struct face *face, 
+                               struct window *w);
+static void XTcolor_area (struct screen *s, unsigned long color, int x, int y,
+			  int width, int height);
+static void XTclear_window_end (struct window *w, int ypos1, int ypos2);
+static void XTshift_region (struct window *w, struct line_header *start,
+                            struct line_header *end);
+static void XTcursor_to (struct line_header *l, struct char_block *cb, 
+                         int row, int col, 
+                         struct window *win, struct screen *s);
+static void InsertChar (struct window *w, struct line_header *l, 
+                        struct char_block *new,
+                        struct char_block *cb, struct char_block *end, 
+                        char clear);
+/* Get it past C type-check */
+static int XTtext_width (Lisp_Object, const unsigned char *,
+			 int);
 
 /* These hooks are called by update_screen at the beginning and end
    of a screen update.  We record in `updating_screen' the identity
@@ -232,27 +207,33 @@ draw_screen_cursor_if_needed (s)
    should never be called except during an update, the only exceptions
    being XTcursor_to, and XTwrite_glyphs.  */
 
-static void
-XTupdate_begin (s)
-     struct screen *s;
+void
+CXTupdate_begin (w)
+     struct window *w;
 {	
+  SCREEN_PTR s = XSCREEN(w->screen);
+
   updating_screen = s;
-  update_height = s->height;
+  update_height = SCREEN_HEIGHT(updating_screen);
 
-  if (last_bar_cursor != Vbar_cursor)
-    s->cursor_erased = x_display_cursor (s, 0);
-
-#ifdef ENERGIZE
   BLOCK_INPUT;
-#if 0
- *  xc_begin_note_update (s->display.x->edit_widget);
-#endif
+  if (!s->cursor_erased && w == XWINDOW(s->selected_window))
+    {
+      CursorToggle (s);
+    }
   UNBLOCK_INPUT;
-#endif
+
+/*
+  if (!EQ (Vlast_bar_cursor, Vbar_cursor))
+    s->cursor_erased = x_display_cursor (s, 0);
+*/
 }
 
-extern Lisp_Object text_part_sym;
-extern Lisp_Object modeline_part_sym;
+static void
+XTupdate_begin (struct screen *s) /* >>> arg ignored */
+{
+  CXTupdate_begin (XWINDOW (selected_window));
+}
 
 enum window_type
 {
@@ -263,945 +244,1093 @@ enum window_type
 /* Nonzero when emacs is garbage-collecting. */
 extern int gc_in_progress;
 
-static void
-XTupdate_end (s)
-     struct screen *s;
-{	
-  BLOCK_INPUT;
-#ifdef ENERGIZE
-#if 0
- *  xc_flush_note_update (s->display.x->edit_widget);
-#endif
-#endif
-  /*  adjust_scrollbars (s);*/
+void
+CXTupdate_end (w)
+     struct window *w;
+{
+  SCREEN_PTR s = XSCREEN(w->screen);
 
-  draw_screen_cursor_if_needed (s);
+  BLOCK_INPUT;
+
+  if (!s->cursor_erased && s == selected_screen &&
+      w == XWINDOW(s->selected_window))
+    {
+      CursorToggle (s);
+    }
   updating_screen = 0;
 
   XFlushQueue ();
   UNBLOCK_INPUT;
 }
-
-/* Set the nominal cursor position of the screen:
-   where display update commands will take effect.
-   This does not affect the place where the cursor-box is displayed.  */
 
 static void
-XTcursor_to (row, col)
-     int row, col;
+XTupdate_end (struct screen *s) /* >>> ignores arg */
 {
-  struct screen* s = updating_screen ? updating_screen : selected_screen;
-
-  if (s->phys_cursor_x != col || s->phys_cursor_y != row)
-    {
-      if (updating_screen == 0)
-	{
-	  erase_screen_cursor_if_needed (s);
-	  s->cursor_x = col;
-	  s->cursor_y = row;
-	  s->phys_cursor_x = col;
-	  s->phys_cursor_y = row;
-	  draw_screen_cursor_if_needed (s);
-	  BLOCK_INPUT;
-	  XFlushQueue ();
-	  UNBLOCK_INPUT;
-	}
-      else
-	{	
-	  erase_screen_cursor_if_needed (s);
-	  s->phys_cursor_x = col;
-	  s->phys_cursor_y = row;
-	}
-    }
+  CXTupdate_end (XWINDOW(selected_window));
 }
 
 
 
-#ifdef ENERGIZE
-static void
-notify_note_update (Widget parent, int x, int y, int width, int height)
+/*
+ * Fastmove_cursor - called from output_for_insert().  Note:  in this case,
+ * a character has just been inserted (overwriting past cursor), and cursor
+ * needs to be redrawn in its new spot.
+ */
+void
+Fastmove_cursor(struct screen *s)
 {
-#if 0
- *  disable_strict_free_check ();
- *  BLOCK_INPUT;
- *  xc_note_xywh_updated (parent, x, y, width, height);
- *  UNBLOCK_INPUT;
- *  enable_strict_free_check ();
-#endif
-}
-#endif /* ENERGIZE */
+  /* Fudge so we are toggling the cursor BACK into existence. */
 
-
-static int really_abort;
-static void
-maybe_abort ()
-{
-  if (really_abort) abort();
+  s->cursor_erased = 1;
+  s->phys_cursor_x = s->cursor_x;
+  BLOCK_INPUT;
+  CursorToggle(s);
+  XFlushQueue ();
+  UNBLOCK_INPUT;
 }
 
-int
-x_write_glyphs (s, left, top, n, force_gc, box_p)
-     struct screen *s;
-     int left, top, n;
-     GC force_gc;
-     int box_p;
+
+
+/*
+ * XTcursor_to moves the cursor to the correct location and checks whether an
+ * update is in progress in order to toggle it on.
+ */
+void
+XTcursor_to (struct line_header *l, struct char_block *cb, int row,
+	     int col, struct window *win, struct screen *s)
 {
-  Widget widget = s->display.x->edit_widget;
-  Window x_win = XtWindow (widget);
-  int pix_x = s->current_glyphs->top_left_x[top];
-  int pix_y = s->current_glyphs->top_left_y[top];
-#if 0
-  int line_height = (s->current_glyphs->pix_height[top]);
-#else
-  int line_height = s->display.x->text_height;
-#endif
-  int max_ascent = s->current_glyphs->max_ascent[top];
-  struct run *face_list = s->current_glyphs->face_list[top];
-  int this_run;
-  int run_len;
-  int this_run_len, this_pix_len;
-  XFontStruct *this_font;
-  GC drawing_gc;
-  GLYPH *gp;
-  char *buf;
-  char *cp;
-
-  /* don't do anything if nothing needs to be drawn */
-  if (n <= 0)
-    return 0;
-
-  if (top >= s->height
-      || top < 0
-      || s->current_glyphs->used[top] == 0
-      || s->current_glyphs->enable[top] == 0
-      || left >= s->current_glyphs->used[top]
-      || n < 0
-      || !face_list)
-    /* calling abort () here maks emacs19 unusable under Energize.
-       I try it in a mode where the bug is plainly ignored by returning 
-       instead */
-    return 0;
-
-  erase_screen_cursor_if_needed_and_in_region (s, left, top, n);
-
-  buf = (char *) alloca (s->current_glyphs->used[top] + 1);
-  cp = buf;
-
-  /* Advance to the correct run. */
-  this_run = run_len = 0;
-  while (left >= run_len + face_list[this_run].length)
-    {
-      run_len += face_list[this_run].length;
-      pix_x += face_list[this_run].pix_length;
-      this_run++;
-
-      /* check for end of runs */
-      if (this_run >= s->current_glyphs->nruns [top])
-	return 0;
-    }
-
-  /* If we're starting at the beginning of the line, don't skip over the
-     lineinfo run. */
-#if 0
- *  if (this_run > 0 &&
- *      left == 0 &&
- *      /* !force_gc && */
- *      face_list[this_run-1].type == column_glyph &&
- *      pix_x == s->current_glyphs->top_left_x[top])
- *    this_run--;
-#endif
-
-  this_run_len = face_list[this_run].length;
-  this_pix_len = face_list[this_run].pix_length;
-  this_font = face_list[this_run].faceptr->font;
-  if (! this_font)
-    this_font = SCREEN_NORMAL_FACE (s).font;
+  /* #### kludge; this can be called from reset_sys_modes after the X
+     display has gone away because of KillClient... */
+  if (x_current_display == 0) return;
 
   BLOCK_INPUT;
 
-/*
-  if (this_run == 0 || this_run == 1) 
-    x_clear_lineinfo_glyph (s, top);
-*/
-
-  if (force_gc)
+  if (updating_screen)
     {
-      drawing_gc = force_gc;
-      XSetFont (x_current_display, drawing_gc, this_font->fid);
+      /* Cursor is already dead.  Now put it in its place. */
+      s->cur_w = win;
+      s->cur_line = l;
+      s->cur_char = cb;
+      s->phys_cursor_x = col;
+      s->phys_cursor_y = row;       
+      if (!s->cursor_erased)
+	CursorToggle (s);
+      UNBLOCK_INPUT;
+      return;
+      /* Generally, XTmove_cursor will be invoked
+       * when InUpdate with !CursorExists 
+       * so that wasteful XFlush is not called
+       */
+    }
+  if (s->cur_w &&
+      (s->new_cur_w != s->cur_w &&
+       s->cur_w != XWINDOW(s->minibuffer_window)) &&
+      find_window(s->cur_w,s->root_window))
+    {
+      unsigned char a[2];
+      struct face *face = s->cur_char->char_b ? &SCREEN_NORMAL_FACE(s)
+	: &SCREEN_LEFT_MARGIN_FACE(s);
+      a[0] = s->cur_char->ch == 0 ? ' ' : s->cur_char->ch;
+      a[1] = 0;
+	  
+      /* UGLY:  Cursor's previous position may be in another window
+       * still being displayed; this will result in a blank or stray
+       * cursor left in that other window.  Find the window, and
+       * erase the old cursor
+       */
+      if (s->cur_char->char_b)
+	ShipOutTextBlock(a,1,
+			 s->cur_char->xpos,s->cur_line->ypos,
+			 s->cur_line->ascent,s->cur_line->descent,NO_CURSOR,
+			 s->cur_char->face ? s->cur_char->face : face,
+			 s->cur_w);
+      else 
+	ShipOutGlyphBlock(s->cur_char->glyph,
+			  s->cur_char->xpos,s->cur_line->ypos,
+			  s->cur_line->ascent,s->cur_line->descent,NO_CURSOR,
+			  s->cur_char->face ? s->cur_char->face : face,
+			  s->cur_w);
+
+      s->cursor_erased = 1;
+      s->cur_w = win;
+      s->cur_line = l;
+      s->cur_char = cb;
+      s->phys_cursor_x = col;
+      s->phys_cursor_y = row;
+      CursorToggle(s);
+      UNBLOCK_INPUT;
+      return;
+    }     
+  if ((row == s->phys_cursor_y) && (col == s->phys_cursor_x))
+    {
+      s->cur_w = win;
+      s->cur_line = l;
+      s->cur_char = cb;
+      if (s->cursor_erased)
+	CursorToggle (s);
+      XFlushQueue ();
+      UNBLOCK_INPUT;
+      return;
+    }
+  /*
+   * First remove cursor from where it is
+   */
+  if (!s->cursor_erased)
+    CursorToggle (s);
+  /*
+   * Now update ptrs to where cursor actually is
+   */
+  s->cur_w = win;
+  s->cur_line = l;
+  s->cur_char = cb;  
+  s->phys_cursor_x = col;
+  s->phys_cursor_y = row;
+  /*
+   * Now plot it
+   */
+  if (s->cursor_erased)
+    CursorToggle (s);
+  XFlushQueue();
+  UNBLOCK_INPUT;
+
+}
+
+
+
+/*
+ * Used for Expose events.  Have to get the text
+ * back into the newly blank areas.
+ */
+void
+Cdumprectangle (register int top, register int left, register int rows,
+		register int cols, struct screen *s)
+{
+  if (s == selected_screen) ClearCursor(s);
+  
+  dump_windows (s->root_window,top,left,rows,cols);
+
+  if (!updating_screen && s == selected_screen && s->cursor_erased)
+    CursorToggle(s);
+
+  return;
+}
+
+
+
+void
+dump_windows (Lisp_Object window, register int top, register int left,
+	      register int rows, register int cols)
+{
+  for (; !NILP(window); window = XWINDOW(window)->next)
+    dump_window (window,top,left,rows,cols);
+}
+
+
+void
+dump_window (Lisp_Object window, register int top, register int left,
+	     register int rows, register int cols)
+{
+  struct window *w = XWINDOW(window);
+  struct screen *s = XSCREEN(w->screen);
+  struct line_header *l;
+  struct char_block *cb,*end;
+  int pixright = w->pixleft + w->pixwidth;
+  int pixbot = w->pixtop + w->pixheight;
+  int startx,starty,endx,endy,margin_x;
+
+  if (!NILP(w->vchild))
+    {
+      dump_windows (w->vchild,top,left,rows,cols);
+      return;
+    }
+  if (!NILP(w->hchild))
+    {
+      dump_windows (w->hchild,top,left,rows,cols);
+      return;
+    }
+  if (NILP(w->buffer))
+    abort();			/* No buffer...we're screwed */
+
+  if (SCREENP(Vglobal_minibuffer_screen) && EQ(window,s->minibuffer_window)
+      && s != XSCREEN(Vglobal_minibuffer_screen))
+    return;
+
+  /*
+   * Find out if expose region intersects this window; if not, return.
+   */
+  if (left > pixright || (left + cols) < w->pixleft
+      || top > pixbot || (top + rows) < w->pixtop)
+    return;
+
+  /*
+   * Calc top and left of expose region for this window.
+   */
+  startx = max (w->pixleft, left);
+  endx = min (pixright, left + cols);
+  starty = max (w->pixtop, top);
+  endy = min (pixbot, top + rows);
+  margin_x = w->pixleft + LEFT_MARGIN (XBUFFER (w->buffer), s);
+
+  /*
+   * Clear the margin area to reset its background.
+   */
+  if (startx < margin_x)
+    XTcolor_area (s, FACE_BG_PIXEL (&SCREEN_LEFT_MARGIN_FACE(s)),
+		  startx, starty,
+		  (min (margin_x, endx) - startx), (endy - starty));
+
+  /*
+   * Find starting line corresponding to this start ypos
+   */
+  l = w->lines;
+  while (l && (l->ypos + l->descent) < starty)
+    l = l->next;
+
+  while (l && (l->ypos - l->ascent) <= endy)
+    {
+      if (l->in_display == -1)
+	{
+	  /* Line is being layed-out in redisplay process, so give it
+	   * the left edge of expose region
+	   */
+	  l->in_display = startx;
+	}
+      else if (l->ypos)		/* Does line have vertical position? */
+	{
+	  cb = l->body;
+	  while (cb && cb != l->end && (cb->xpos + cb->width) < startx)
+	    cb = cb->next;
+	  if (cb != l->end)
+	    {
+	      end = cb;
+	      while (end && end != l->end && (end->xpos) <= endx)
+		end = end->next;
+
+	      /*
+	       * Note we will not clear to the end of line here.  If
+	       * expose event doesn't cover end of line, no need to plot
+	       * (clear) it; if it does, it is clear anyway.
+	       */
+	      PlotTextLine (w,l,cb,end,0,BODY); /* Replot the line */
+	    }
+	  cb = l->margin_start;
+	  while (cb && cb != l->margin_end && (cb->xpos + cb->width) < startx)
+	    cb = cb->next;
+	  if (cb != l->margin_end)
+	    {
+	      end = cb;
+	      while (end && end != l->margin_end && (end->xpos <= endx))
+		end = end->next;
+
+	      PlotTextLine (w,l,cb,end,0,MARGIN); /* Replot the margin */
+	    }
+	}
+      l = l->next;
+    }
+  /*
+   * Check modeline for window
+   */
+  if (!EQ(window,s->minibuffer_window) && w->modeline)
+    {
+      l = w->modeline;
+
+      if (l)
+	{
+	  cb = l->body;
+	  while (cb && cb != l->end && (cb->xpos + cb->width) < startx)
+	    cb = cb->next;
+	  if (cb != l->end)
+	    {
+	      end = cb;
+	      while (end && end != l->end && (end->xpos) <= endx)
+		end = end->next;
+	      PlotTextLine (w,l,cb,end,0,BODY); /* Replot the mode line */
+	    }
+	}
+    }
+  return;
+}
+
+
+
+/*
+ * Artificially creating a cursor is hard, the actual position on the
+ * screen (either where it is or last was) is tracked with vix_x,y.
+ * Gnu Emacs code tends to assume a cursor exists in hardward at ws->cursor_x,y
+ * and that output text will appear there.  During updates, the cursor is
+ * supposed to be blinked out and will only reappear after the update
+ * finishes.
+ */
+int
+CursorToggle (struct screen *s)
+{
+  unsigned char a[2];
+  int wid;
+  struct window *w = XWINDOW(s->selected_window);
+  Widget widget = s->display.x->edit_widget;
+  Window x_win = XtWindow (widget);
+  struct Lisp_Font *font = XFONT (SCREEN_DEFAULT_FONT (s));
+  struct face *face = &SCREEN_NORMAL_FACE (s);
+
+  if (!s->visible)
+    {
+      s->cursor_erased = 1;
+      return 0;
+      /* Currently the return values are not
+       * used, but I could anticipate using
+       * them in the future.
+       */
+    }
+
+  if (s->phys_cursor_y < 0)
+    {
+      /* Not much can be done */
+      XFlushQueue ();
+      s->cursor_erased = 1;
+      return 0;
+    }
+
+  /*
+   * This may get called before any layout is done.  Blow if off in that
+   * case.
+   */
+
+  if (!s->cur_line || !s->cur_char
+      || s->cur_char->xpos < w->pixleft
+      || s->cur_char->xpos > w->pixleft + w->pixwidth)
+    {
+      XFlushQueue ();
+      s->cursor_erased = 1;
+      return 0;
+    }
+
+  a[1] = 0;
+  /* Epoch:
+   * Potential problem:  cursors in minibuffer screen and current edit
+   * screen.  If we are toggling cursor on screen other than current screen,
+   * force it to not exist.
+   */
+  if (s != selected_screen) s->cursor_erased = 0;
+  /* Die a horrible death, cursor */
+
+  if (s->phys_cursor_x <= s->cur_line->chars)
+    {
+      a[0] = s->cur_char->ch == 0 ? ' ' : s->cur_char->ch;
+      if (s->cur_char->face)
+	face = s->cur_char->face;
+      else if (s->cur_char->ch == 0 && s->cur_char->prev != 0)
+	if (s->cur_char->prev->face)
+	  face = s->cur_char->prev->face;
+      if (face == &SCREEN_MODELINE_FACE(s))
+	face = &SCREEN_NORMAL_FACE(s);
+      font = XFONT (FACE_FONT (face));
+      if (s->cur_char->char_b)
+	wid = XTextWidth (font->font, (char *) a,1);
+      else
+	wid = XPIXMAP (glyph_to_pixmap (s->cur_char->glyph))->width;
+      if (!s->cursor_erased)
+	{
+	  if (s->cur_char->char_b)
+	    ShipOutTextBlock(a,1,
+			     s->cur_char->xpos,s->cur_line->ypos,
+			     s->cur_line->ascent,s->cur_line->descent,
+			     NO_CURSOR, face,s->cur_w);
+	  else 
+	    ShipOutGlyphBlock(s->cur_char->glyph,
+			      s->cur_char->xpos,s->cur_line->ypos,
+			      s->cur_line->ascent,s->cur_line->descent,
+			      NO_CURSOR, face,s->cur_w);
+	}
+      else
+	{
+	  /* ShipOutTextBlock worries about solid/hollow cursor */
+	  if (s->cur_char->char_b)
+	    ShipOutTextBlock(a,1,
+			     s->cur_char->xpos,s->cur_line->ypos,
+			     s->cur_line->ascent,s->cur_line->descent,
+			     (s->cur_char->next == NULL ?
+			      THIN_CURSOR : NORMAL_CURSOR),
+			     face,s->cur_w);
+	  else 
+	    ShipOutGlyphBlock(s->cur_char->glyph,
+			      s->cur_char->xpos,s->cur_line->ypos,
+			      s->cur_line->ascent,s->cur_line->descent,
+			      (s->cur_char->next == NULL ?
+			       THIN_CURSOR : NORMAL_CURSOR),
+			      face,s->cur_w);
+	}
     }
   else
-    if (! (drawing_gc = face_list[this_run].faceptr->facegc))
-      if (face_list[this_run].faceptr->hilited)
-	drawing_gc = s->display.x->reverse_gc;
+    {
+      a[0] = s->cur_char->ch == 0 ? ' ' : s->cur_char->ch;
+      if (s->cur_char->face)
+	face = s->cur_char->face;
+      else if (s->cur_char->ch == 0 && s->cur_char->prev != 0)
+	if (s->cur_char->prev->face)
+	  face = s->cur_char->prev->face;
+      if (face == &SCREEN_MODELINE_FACE(s))
+	face = &SCREEN_NORMAL_FACE(s);
+      font = XFONT (FACE_FONT (face));
+      if (s->cur_char->char_b)
+	wid = XTextWidth (font->font, (char *) a, 1);
       else
-	drawing_gc = s->display.x->normal_gc;
-
-  /* If we're starting in the middle of a run, get to the proper offset. */
-  if (face_list[this_run].type == font && left > run_len)
-    {
-      int len = left - run_len;
-      int l = len;
-
-      gp = &s->current_glyphs->glyphs[top][run_len];
-      cp = buf;
-      while (l--)
-	if (*gp == TABGLYPH)
-	  {
-	    *cp++ = ' ';
-	    gp++;
-	  }
-	else
-	  *cp++ = 0377 & *gp++;
-      this_run_len -= len;
-      pix_x += XTextWidth (this_font, buf, len);
-    }
-
-   while (1)
-    {
-      switch (face_list[this_run].type)
+	wid = XPIXMAP (glyph_to_pixmap (s->cur_char->glyph))->width;
+      if (!s->cursor_erased)
 	{
-	case font:
-	  {
-	    int len = min (this_run_len, n);
-	    int l = len;
-	    
-	    gp = &s->current_glyphs->glyphs[top][left];
-	    cp = buf;
-	    while (l--)
-	      if (*gp == TABGLYPH)
-		{
-		  *cp++ = ' ';
-		  gp++;
-		}
-	      else
-		*cp++ = 0377 & *gp++;
-	    
-	    left += len;
-	    n -= len;
-	    this_run_len -= len;
+	  int height = s->cur_line->ascent ?
+	    (s->cur_line->ascent + s->cur_line->descent) : font->height;
 
-	    this_pix_len = XTextWidth (this_font, buf, len);
-
-	    if ((this_font->ascent + this_font->descent) < line_height)
-	      XClearArea (x_current_display, x_win, pix_x, pix_y, this_pix_len,
-			  line_height, False);
-
-	    if (face_list[this_run].faceptr->back_pixmap &&
-		face_list[this_run].faceptr->back_pixmap != (~0))
-	      {
-		if (force_gc)
-		  {
-		    if (box_p)
-		      {		/* The hollow cursor with a stipple */
-			XGCValues values;
-
-			if (! XGetGCValues (x_current_display, drawing_gc,
-					    GCBackground | GCForeground,
-					    &values))
-			  abort ();
-			XDrawString (x_current_display, x_win,
-					  (face_list[this_run].faceptr->facegc
-					   ? face_list[this_run].faceptr->facegc
-					   : (face_list[this_run].faceptr->hilited
-					      ? s->display.x->reverse_gc
-					      : s->display.x->normal_gc)),
-					  pix_x, pix_y + max_ascent, buf, len);
-			XSetForeground (x_current_display, drawing_gc,
-					values.background);
-			XDrawRectangle (x_current_display, x_win,
-					drawing_gc,
-					pix_x, pix_y,
-					this_pix_len - 1, line_height - 1);
-			XSetForeground (x_current_display, drawing_gc,
-					values.foreground);
-		      }
-		    else
-		      {		/* The solid cursor with a stipple */
-			XGCValues old_values, new_values;
-
-			if (! XGetGCValues (x_current_display, drawing_gc,
-					    GCStipple | GCFillStyle,
-					    &old_values))
-			  abort ();
-			if (!XGetGCValues (x_current_display,
-					   face_list[this_run].faceptr->facegc,
-					   GCStipple | GCFillStyle,
-					   &new_values))
-			  abort ();
-			XSetFillStyle (x_current_display, drawing_gc,
-				       FillOpaqueStippled);
-			XSetStipple (x_current_display, drawing_gc,
-				     new_values.stipple);
-			XFillRectangle (x_current_display, x_win, drawing_gc,
-					pix_x, pix_y, this_pix_len,
-					line_height);
-			XSetStipple (x_current_display, drawing_gc,
-				     old_values.stipple);
-			XSetFillStyle (x_current_display, drawing_gc,
-				       old_values.fill_style);
-			XDrawString (x_current_display, x_win,
-				     drawing_gc,
-				     pix_x, pix_y + max_ascent, buf, len);
-		      }
-		  }
-		else
-		  {		/* The non cursor stipple with text */
-		    XGCValues old_values;
-
-		    if (! XGetGCValues (x_current_display, drawing_gc,
-					GCStipple | GCFillStyle, &old_values))
-		      abort ();
-		    XSetFillStyle (x_current_display, drawing_gc,
-				   FillOpaqueStippled);
-		    XFillRectangle (x_current_display, x_win, drawing_gc,
-				    pix_x, pix_y, this_pix_len, line_height);
-		    XSetFillStyle (x_current_display, drawing_gc,
-				   old_values.fill_style);
-		    XDrawString (x_current_display, x_win,
-				 drawing_gc, pix_x, pix_y + max_ascent,
-				 buf, len);
-		  }
-	      }
-	    else
-	      {
-		if (box_p)
-		  {		/* The hollow cursor, no stipple */
-		    XGCValues values;
-
-		    if (! XGetGCValues (x_current_display, drawing_gc,
-					GCBackground | GCForeground,
-					&values))
-		      abort ();
-		    XDrawImageString (x_current_display, x_win,
-				      (face_list[this_run].faceptr->facegc
-				       ? face_list[this_run].faceptr->facegc
-				       : (face_list[this_run].faceptr->hilited
-					  ? s->display.x->reverse_gc
-					  : s->display.x->normal_gc)),
-				      pix_x, pix_y + max_ascent, buf, len);
-		    XSetForeground (x_current_display, drawing_gc,
-				    values.background);
-		    XDrawRectangle (x_current_display, x_win,
-				    drawing_gc,
-				    pix_x, pix_y,
-				    this_pix_len - 1, line_height - 1);
-		    XSetForeground (x_current_display, drawing_gc,
-				    values.foreground);
-		  }
-		else		/* Plain or cursor, no stipple */
-		  XDrawImageString (x_current_display, x_win,
-				    drawing_gc,
-				    pix_x,
-				    pix_y + max_ascent, buf, len);
-	      }
-
-#if 0	/* first stab at implementing boxing; doesn't work well enough yet */
-
-/*	    if (face_list[this_run].faceptr->boxed)  #### */
-	    if (face_list[this_run].faceptr->underline)
-	      {
-		int box_ascent;
-		int box_descent;
-		unsigned int uthick;
-		if (!XGetFontProperty (this_font, XA_STRIKEOUT_ASCENT,
-				       (unsigned long *) &box_ascent))
-		  box_ascent = max_ascent;
-		if (!XGetFontProperty (this_font, XA_STRIKEOUT_DESCENT,
-				       (unsigned long *) &box_descent))
-		  box_descent = line_height - max_ascent - 1;
-		if (!XGetFontProperty (this_font, XA_UNDERLINE_THICKNESS,
-				       (unsigned long *) &uthick))
-		  uthick = 1;
-		/* top line */
-		if (face_list[this_run].faceptr->underline && (1<<1))
-		  XFillRectangle (x_current_display, x_win, drawing_gc,
-				  pix_x, pix_y + max_ascent - box_ascent,
-				  this_pix_len, uthick);
-		/* bottom line */
-		if (face_list[this_run].faceptr->underline && (1<<2))
-		  XFillRectangle (x_current_display, x_win, drawing_gc,
-				  pix_x, pix_y + max_ascent + box_descent,
-				  this_pix_len, uthick);
-
-		/* left line */
-#if 0
-		if (this_run == 0 ||
-		    face_list[this_run-1].type != font ||
-		    ! face_list[this_run-1].faceptr->underline) /* #### */
-#else
-		if (face_list[this_run].faceptr->underline && (1<<3))
-#endif
-		  XFillRectangle (x_current_display, x_win, drawing_gc,
-				  pix_x, pix_y + max_ascent - box_ascent,
-				  uthick, box_ascent + box_descent);
-		/* right line */
-#if 0
-		if (this_run >= s->current_glyphs->nruns [top] ||
-		    face_list[this_run+1].type != font ||
-		    ! face_list[this_run+1].faceptr->underline) /* #### */
-#else
-		if (face_list[this_run].faceptr->underline && (1<<4))
-#endif
-		  XFillRectangle (x_current_display, x_win, drawing_gc,
-				  pix_x + this_pix_len,
-				  pix_y + max_ascent - box_ascent,
-				  uthick, box_ascent + box_descent);
-	      }
-
-	    else
-
-#endif /* 0 */
-
-	    if (face_list[this_run].faceptr->underline)
-	      {
-		int upos;
-		unsigned int uthick;
-		if (!XGetFontProperty (this_font, XA_UNDERLINE_POSITION,
-				       (unsigned long *) &upos))
-		  upos = 0;
-		if (!XGetFontProperty (this_font, XA_UNDERLINE_THICKNESS,
-				       (unsigned long *) &uthick))
-		  uthick = 1;
-		XFillRectangle (x_current_display, x_win, drawing_gc,
-				pix_x, pix_y + max_ascent + upos,
-				this_pix_len, uthick);
-	      }
-	  }
-	  break;
-
-#ifdef LINE_INFO_COLUMN
-	case column_glyph:
-	  {
-	    int index = face_list[this_run].lineinfo_glyph_index;
-	    int width, height;
-	    int bitmap_y_offset = 0;
-	    int y = pix_y;
-	    int ibw = s->display.x->internal_border_width;
-	    left += 1;
-	    
-	    if (index == -1)
-	      {
-		/* just clears the lineinfo column */
-		x_clear_lineinfo_glyph (s, top);
-	      }
-	    else
-	      {
-		width = s->display.x->line_info_column_width-(ibw+1);
-		height = line_height;
-		
-		if (!width || !height) 
-                  {
-                    maybe_abort ();
-		    break;
-                  }
-		
-		/* Center the glyph vertically in the display line. */
-		if (height < line_height)
-		  y += ((line_height - height) / 2);
-		else if (height > line_height)
-		  {
-		    bitmap_y_offset += ((height - line_height) / 2);
-		    height -= (height - line_height);
-		  }
-		
-		XCopyPlane (x_current_display,
-			    x_bitmaps[index].image,
-			    x_win,
-			    s->display.x->normal_gc,
-			    0, bitmap_y_offset, width, height,
-			    s->display.x->internal_border_width+1, y, 1L);
-		x_draw_lineinfo_border (s, top);
-	      }
-	  }
-	  break;
-#endif
-
-	case glyph:
-	  {
-	    GLYPH index = s->current_glyphs->glyphs[top][left];
-	    struct x_pixmap *p = glyph_to_x_pixmap (index);
-	    int height = (p ? p->height : 0);
-	    int bitmap_y_offset = 0;
-	    int y = pix_y;
-#ifdef LINE_INFO_WIDGET
-	    int use_lineinfo = (s->display.x->lineinfo_widget &&
-				XtIsManaged (s->display.x->lineinfo_widget));
-#endif
-	    int real_pix_x = pix_x;
-	    struct face *face = 0;
-
-	    if (! p)	/* #### KLUDGE */
-	      break;
-
-	    if (!p->width || !p->height)
-	      abort ();
-
-	    if (height < line_height || p->mask)
-	      {
-		if (face_list[this_run].faceptr->back_pixmap &&
-		    face_list[this_run].faceptr->back_pixmap != (~0))
-		  {
-		    XGCValues old_values;
-		    if (! XGetGCValues (x_current_display, drawing_gc,
-					GCStipple | GCFillStyle, &old_values))
-		      abort ();
-		    XSetFillStyle (x_current_display, drawing_gc,
-				   FillOpaqueStippled);
-		    XFillRectangle (x_current_display, x_win, drawing_gc,
-				    pix_x, pix_y, this_pix_len, line_height);
-		    XSetFillStyle (x_current_display, drawing_gc,
-				   old_values.fill_style);
-		  }
-		else if (face_list[this_run].faceptr->background != ~0 &&
-			 face_list[this_run].faceptr->background !=
-			 SCREEN_NORMAL_FACE(s).background)
-		  {
-		    XGCValues old_values;
-		    if (! XGetGCValues (x_current_display, drawing_gc,
-					GCForeground, &old_values))
-		      abort ();
-		    XSetForeground (x_current_display, drawing_gc,
-				    face_list[this_run].faceptr->background);
-		    XFillRectangle (x_current_display, x_win, drawing_gc,
-				    pix_x, pix_y, this_pix_len, line_height);
-		    XSetForeground (x_current_display, drawing_gc,
-				    old_values.foreground);
-		  }
-		else
-		  XClearArea (x_current_display, x_win,
-			      pix_x, pix_y, this_pix_len,
-			      line_height, False);
-	      }
-	    
-	    /* Center the glyph vertically in the display line. */
-	    bitmap_y_offset = (height - line_height) / 2;
-	    if (height > line_height)
-	      height = line_height;
-
-	    /* ## warning, assumes x_pixmap->face_id is unsigned short... */
-	    if (p->face_id != (unsigned short) ~0)
-	      face = s->faces [p->face_id];
-
-	    if (face && face->foreground == ~0 && face->background == ~0)
-	      face = 0;
-
-	    if (p->mask)
-	      {
-		XSetFunction (x_current_display, drawing_gc, GXcopy);
-		XSetClipMask (x_current_display, drawing_gc, p->mask);
-		XSetClipOrigin (x_current_display, drawing_gc,
-				pix_x, y - bitmap_y_offset);
-	      }
-
-	    /* depth of 0 means it's a bitmap, not a pixmap, and we should
-	       use XCopyPlane (1 = current foreground color, 0 = background)
-	       instead of XCopyArea, which means that the bits in the pixmap
-	       are actual pixel values, instead of symbolic of fg/bg.
-	     */
-	    if (p->depth > 0 && p->depth == widget->core.depth)
-	      XCopyArea (x_current_display, p->pixmap, x_win, drawing_gc,
-			 0, bitmap_y_offset, this_pix_len, height,
-			 pix_x, y);
-	    else if (! face)
-	      XCopyPlane (x_current_display, p->pixmap, x_win, drawing_gc,
-			  0, bitmap_y_offset < 0 ? 0 : bitmap_y_offset,
-			  this_pix_len, height,
-			  pix_x, bitmap_y_offset < 0 ? y - bitmap_y_offset : y,
-			  1L);
-	    else /* face */
-	      {
-		XGCValues values, old_values;
-		int change_p;
-		unsigned long fg = face->foreground;
-		unsigned long bg = face->background;
-
-		memset (&old_values, 0xDEADBEEF, sizeof(old_values));
-		/* this shouldn't cause a server trip; Xlib caches this. */
-		if (! XGetGCValues (x_current_display, drawing_gc,
-			      GCForeground | GCBackground, &old_values))
-		  abort ();
-		/* we don't get here if both fg and bg are unspecified */
-		if (fg == ~0) fg = old_values.foreground;
-		if (bg == ~0) bg = old_values.background;
-		values.foreground = fg;
-		values.background = bg;
-
-		change_p = (values.background != old_values.background ||
-			    values.foreground != old_values.foreground);
-
-		if (change_p)
-		  XChangeGC (x_current_display, drawing_gc,
-			     GCForeground | GCBackground,
-			     &values);
-		XCopyPlane (x_current_display,
-			    p->pixmap,
-			    x_win, drawing_gc,
-			    0, bitmap_y_offset, this_pix_len, height,
-			    pix_x, y, 1L);
-		if (change_p)
-		  XChangeGC (x_current_display, drawing_gc,
-			     GCForeground | GCBackground,
-			     &old_values);
-	      }
-
-	    if (p->mask)
-	      XSetClipMask (x_current_display, drawing_gc, None);
-
-	    n--;
-	    left++;
-
-	    pix_x = real_pix_x;
-	  }
-	  break;
-
-	case space:
-	  {
-	    XGCValues ovalues, values;
-	    int height;
-	    if (face_list[this_run].faceptr &&
-		face_list[this_run].faceptr->font &&
-		face_list[this_run].faceptr->font != (XFontStruct *) (~0))
-	      height = (face_list[this_run].faceptr->font->ascent +
-			face_list[this_run].faceptr->font->descent);
-	    else
-	      height = line_height;
-
-	    if (! XGetGCValues (x_current_display, drawing_gc,
-				GCFillStyle | GCForeground | GCBackground,
-				&ovalues))
-	      abort ();
-	    values.foreground = ovalues.background;
-	    values.background = ovalues.foreground;
-	    values.fill_style = FillSolid;
-	    XChangeGC (x_current_display, drawing_gc,
-		       GCFillStyle | GCForeground | GCBackground,
-		       &values);
-	    XFillRectangle (x_current_display, x_win, drawing_gc,
-			    pix_x, pix_y, this_pix_len, height);
-	    XChangeGC (x_current_display, drawing_gc,
-		       GCFillStyle | GCForeground | GCBackground,
-		       &ovalues);
-	    n--;
-	    left++;
-	  }
-	  break;
-
-	case window:
-	  break;
-
-	default:
-          {
-            maybe_abort();
-	    break;
-          }
-	}
-
-#ifdef ENERGIZE	    
-      notify_note_update (s->display.x->edit_widget, pix_x, pix_y,
-			    this_pix_len, line_height);
-#endif
-      if (n == 0) goto ALL_DONE;
-
-      pix_x += face_list[this_run].pix_length;
-      this_run++;
-
-      /* check if finished */
-      if (this_run >= s->current_glyphs->nruns [top])
-	goto ALL_DONE;
-
-      if (face_list[this_run].type == unused_run) goto ALL_DONE;
-
-      if (! force_gc)
-	if (! (drawing_gc = face_list[this_run].faceptr->facegc))
-	  if (face_list[this_run].faceptr->hilited)
-	    drawing_gc = s->display.x->reverse_gc;
+          if (!SCREENP(Vglobal_minibuffer_screen)
+	      && s->cur_w == XWINDOW(s->minibuffer_window))
+	    {
+	      ;
+	    }
 	  else
-	    drawing_gc = s->display.x->normal_gc;
+	    {
+	      XClearArea(x_current_display, x_win,
+			 s->cur_char->xpos,
+			 s->cur_line->ypos - s->cur_line->ascent,
+			 wid,
+			 height,0);
+	    }
+	}
+      else if (!focus_cursor_p(s))
+	{
+#if 0
+	  XGCValues values;
 
-      this_run_len = face_list[this_run].length;
-      this_pix_len = face_list[this_run].pix_length;
-      this_font = face_list[this_run].faceptr->font;
-      if (!this_font)
-	this_font = SCREEN_NORMAL_FACE (s).font;
+	  if (! XGetGCValues (x_current_display, s->display.x->cursor_gc,
+			      GCBackground | GCForeground, &values))
+	    abort();
+	  XSetForeground (x_current_display, s->display.x->cursor_gc,
+			  values.background);
+	  XDrawRectangle (x_current_display, x_win, s->display.x->cursor_gc,
+		       s->cur_char->xpos,
+		       s->cur_line->ypos - s->cur_line->ascent,
+		       wid - 1,
+		       s->cur_line->ascent + s->cur_line->descent -1);
+	  XSetForeground (x_current_display, s->display.x->cursor_gc,
+			  values.foreground);
+#endif
+      }
+      else
+	{
+	  if (s->cur_char->char_b)
+	    ShipOutTextBlock(a,1,
+			     s->cur_char->xpos,s->cur_line->ypos,
+			     s->cur_line->ascent,s->cur_line->descent,
+			     (s->cur_char->next == NULL ?
+			      THIN_CURSOR : NORMAL_CURSOR),
+			     face, s->cur_w);
+	  else 
+	    ShipOutGlyphBlock(s->cur_char->glyph,
+			      s->cur_char->xpos,s->cur_line->ypos,
+			      s->cur_line->ascent,s->cur_line->descent,
+			      (s->cur_char->next == NULL ?
+			       THIN_CURSOR : NORMAL_CURSOR),
+			      face, s->cur_w);
+	}
     }
- ALL_DONE:
-  UNBLOCK_INPUT;
+
+  s->cursor_erased = !s->cursor_erased;
+
+  if (!updating_screen)
+    XFlushQueue();
+
   return 1;
 }
 
-void
-x_clear_display_line_end (vpos)
-     int vpos;
-{
-  struct screen_glyphs *current_screen
-    = SCREEN_CURRENT_GLYPHS (updating_screen);
-  int pix_x = (current_screen->top_left_x[vpos] +
-	       current_screen->pix_width[vpos]);
-  int pix_y = current_screen->top_left_y[vpos];
-  int pix_width = (PIXEL_WIDTH (updating_screen)
-		   - current_screen->pix_width[vpos]
-		   - updating_screen->display.x->internal_border_width);
-  int pix_height = current_screen->pix_height[vpos];
-
-  erase_screen_cursor_if_needed_and_in_region (updating_screen, 0,
-					       vpos, UP_TO_EOL);
-
-  BLOCK_INPUT;
-  XClearArea (x_current_display,
-	      XtWindow (updating_screen->display.x->edit_widget),
-	      pix_x, pix_y, pix_width, pix_height, False);
-#ifdef ENERGIZE	    
-  notify_note_update (updating_screen->display.x->edit_widget, pix_x, pix_y,
-			pix_width, pix_height);
-#endif
-  UNBLOCK_INPUT;
-}
-
-void
-x_clear_display_line (vpos, pix_width)
-     int vpos, pix_width;
-{
-  struct screen_glyphs *current_screen
-    = SCREEN_CURRENT_GLYPHS (updating_screen);
-  int pix_x = current_screen->top_left_x[vpos];
-  int pix_y = current_screen->top_left_y[vpos];
-  int pix_height = current_screen->pix_height[vpos];
-
-  /* utter kludge to prevent characters with negative left-bearing from
-     leaving turds down the left side of the screen... */
-  if (pix_x == updating_screen->display.x->internal_border_width)
-    pix_x = 0, pix_width += updating_screen->display.x->internal_border_width;
-
-  erase_screen_cursor_if_needed_and_in_region (updating_screen, 0,
-					       vpos, UP_TO_EOL);
-
-  BLOCK_INPUT;
-  XClearArea (x_current_display,
-	      XtWindow (updating_screen->display.x->edit_widget),
-	      pix_x, pix_y, pix_width, pix_height, False);
-
-#ifdef ENERGIZE	    
-  notify_note_update (updating_screen->display.x->edit_widget, pix_x, pix_y,
-			pix_width, pix_height);
-#endif
-  UNBLOCK_INPUT;
-}
-
-#ifdef LINE_INFO_COLUMN
-
-void x_draw_lineinfo_border (screen, vpos)
-     struct screen* screen;
-     int vpos;
-{
-  struct screen_glyphs *current_screen = SCREEN_CURRENT_GLYPHS (screen);
-  int ibw = screen->display.x->internal_border_width;
-  int pix_x = screen->display.x->internal_border_width;
-  int pix_y = current_screen->top_left_y[vpos];
-  int pix_width  = screen->display.x->line_info_column_width - ibw;
-  int pix_height = current_screen->pix_height[vpos];
-  GC gc = screen->display.x->line_info_gc;
-
-  if (pix_width <= 0) return;
-
-  BLOCK_INPUT;
-  XDrawLine (x_current_display, XtWindow (screen->display.x->edit_widget), gc,
-	     pix_x + pix_width - 1, pix_y,
-	     pix_x + pix_width - 1, pix_y + pix_height);
-  
-  XDrawLine (x_current_display, XtWindow (screen->display.x->edit_widget), gc,
-	     pix_x, pix_y,
-	     pix_x, pix_y + pix_height);
-  
-#if 0
-  if (vpos == 0)
-#else
-  if (vpos == 0 || (vpos && !current_screen->bufp[vpos-1]))
-#endif
-    XDrawLine (x_current_display, XtWindow (screen->display.x->edit_widget), gc,
-	       pix_x, pix_y,
-	       pix_x + pix_width - 1, pix_y);
-#if 0
-  if (vpos == screen->height - 1)
-#else
-  if (vpos == screen->height - 1 || ! current_screen->bufp[vpos+1])
-#endif
-    XDrawLine (x_current_display, XtWindow (screen->display.x->edit_widget), gc,
-	       pix_x, pix_y + pix_height,
-	       pix_x + pix_width, pix_y + pix_height);
-  UNBLOCK_INPUT;
-}
-
-void x_clear_lineinfo_glyph (screen, vpos)
-     struct screen* screen;
-     int vpos;
-{
-  struct screen_glyphs *current_screen = SCREEN_CURRENT_GLYPHS (screen);
-  int ibw = screen->display.x->internal_border_width;
-  int pix_x = screen->display.x->internal_border_width;
-  int pix_y = current_screen->top_left_y[vpos];
-  int pix_width  = screen->display.x->line_info_column_width - ibw;
-  int pix_height = current_screen->pix_height[vpos];
-
-  if (pix_width > 0) {
-#if 1
-  if (current_screen->bufp[vpos] &&
-      !(screen->has_minibuffer &&
-	vpos >= screen->height - XWINDOW(screen->minibuffer_window)->height)
-      )
-    {
-#endif
-    XGCValues gcv;
-    GC gc = screen->display.x->line_info_gc;
-    unsigned long ofg;
-
-    BLOCK_INPUT;
-    XFillRectangle (x_current_display, XtWindow (screen->display.x->edit_widget),
-		    screen->display.x->reverse_gc,
-		    pix_x+pix_width, pix_y, ibw, pix_height);
-
-    if (! XGetGCValues (x_current_display, gc, GCForeground|GCBackground,&gcv))
-      abort ();
-    ofg = gcv.foreground;
-    gcv.foreground = gcv.background;
-    XChangeGC (x_current_display, gc, GCForeground, &gcv);
-    XFillRectangle (x_current_display, XtWindow (screen->display.x->edit_widget),
-		    gc, pix_x, pix_y, pix_width, pix_height);
-    gcv.foreground = ofg;
-    XChangeGC (x_current_display, gc, GCForeground, &gcv);
-    x_draw_lineinfo_border (screen, vpos);
-    UNBLOCK_INPUT;
-#if 1
-    }
-  else if (screen->has_minibuffer &&
-	   vpos >= screen->height -
-	   XWINDOW(screen->minibuffer_window)->height)
-    {
-      GC gc = screen->display.x->reverse_gc;
-      BLOCK_INPUT;
-      XFillRectangle (x_current_display, XtWindow (screen->display.x->edit_widget),
-		      gc, pix_x, pix_y, pix_width+ibw, pix_height);
-      UNBLOCK_INPUT;
-    }
-  else
-    {
-      BLOCK_INPUT;
-      XFillRectangle (x_current_display, XtWindow (screen->display.x->edit_widget),
-		      screen->display.x->normal_gc,
-		      pix_x, pix_y, pix_width+ibw,
-		      pix_height - x_interline_space);
-      XFillRectangle (x_current_display, XtWindow (screen->display.x->edit_widget),
-		      screen->display.x->reverse_gc,
-		      pix_x, pix_y + pix_height - x_interline_space,
-		      pix_width+ibw, x_interline_space);
-      XFillRectangle (x_current_display, XtWindow (screen->display.x->edit_widget),
-		      screen->display.x->reverse_gc,
-		      pix_x, pix_y - x_interline_space,
-		      pix_width+ibw, x_interline_space);
-      XDrawLine (x_current_display, XtWindow (screen->display.x->edit_widget),
-		 screen->display.x->normal_gc,
-		 pix_x, pix_y - (x_interline_space + 1),
-		 pix_x + pix_width - 1, pix_y - (x_interline_space + 1));
-
-      UNBLOCK_INPUT;
-    }
-#endif
-  }
-}
-#endif
-
 
 
-/* Output some text at the nominal screen cursor position,
-   advancing the cursor over the text.
-   Output LEN glyphs at START.  */
-
-static void
-XTwrite_glyphs (hpos, vpos, len)
-     int hpos, vpos, len;
+/*
+ * This routine is used by routines which are called to paint regions 
+ * designated by Expose events.  If the cursor may be in the exposed
+ * region, this routine makes sure it is gone so that dumprectangle can 
+ * toggle it back into existance if dumprectangle is invoked when not in
+ * the midst of a screen update.
+ */
+void
+ClearCursor(struct screen *s)
 {
-  struct screen *s;
-
-  if (updating_screen == 0)
-    {
-      s = selected_screen;
-      erase_screen_cursor_if_needed (s);
-    }
-  else
-    s = updating_screen;
-
-  if (hpos != s->cursor_x || vpos != s->cursor_y)
-    /* abort ();   fuck this */
-    return;
-
-  x_write_glyphs (s, hpos, vpos, len, 0, 0);
-  s->cursor_x += len;
-
-  if (updating_screen == 0)
-    {
-      draw_screen_cursor_if_needed (s);
-      s->cursor_x -= len;
-      BLOCK_INPUT;
-      XFlushQueue ();
-      UNBLOCK_INPUT;
-    }
-}
-
-/* Erase the current text line from the nominal cursor position (inclusive)
-   to column FIRST_UNUSED (exclusive).  The idea is that everything
-   from FIRST_UNUSED onward is already erased.  */
-
-static void
-XTclear_end_of_line (first_unused)
-     int first_unused;
-{
-  struct screen *s = updating_screen;
-  int pix_x, pix_y, pix_width, pix_height;
-  struct glyph_dimensions *dimensions;
-
-  if (s == 0)
-    /* abort ();   fuck this */
-    return;
-
-  if (s->cursor_y < 0 || s->cursor_y >= s->height || first_unused <= 0)
-    return;
-
+  char a[1];
+  int wid,height;
+  struct Lisp_Font *font = XFONT (SCREEN_DEFAULT_FONT (s));
+  
   BLOCK_INPUT;
-  pix_height = s->current_glyphs->pix_height[s->cursor_y];
-  dimensions = get_glyph_dimensions (s, s->cursor_x, s->cursor_y);
-  if (!dimensions)
-    goto cancel;
-
-  pix_x = dimensions->top_left_x;
-  pix_y = dimensions->top_left_y;
-
-  if (first_unused >= s->width
-      || first_unused > s->current_glyphs->used[s->cursor_y])
+  if (!s->visible)
     {
-      pix_width = (PIXEL_WIDTH (s)
-		   - s->display.x->internal_border_width
-		   - pix_x);
+      s->cursor_erased = 1;
+      UNBLOCK_INPUT;
+      return;
     }
-  else
+	
+  if (s->phys_cursor_x >= s->width || s->phys_cursor_y < 0 ||
+      s->phys_cursor_y >= s->height || !s->new_cur_char || !s->new_cur_line)
     {
-      dimensions = get_glyph_dimensions (s, first_unused - 1, s->cursor_y);
-      if (!dimensions)
-	goto cancel;
-
-      pix_width = pix_x + dimensions->top_left_x - 1;
+      /* Not much can be done */
+      s->cursor_erased= 1;
+      UNBLOCK_INPUT;
+      return;
     }
 
-  erase_screen_cursor_if_needed (s);
+  a[0] = ' ';
+  if (s->new_cur_char->face)
+    font = XFONT (FACE_FONT (s->new_cur_char->face));
+  wid = s->new_cur_char->ch == 0 ? XTextWidth (font->font, a, 1) : 
+    s->new_cur_char->width;
+  height = s->new_cur_line->ascent ?
+    (s->new_cur_line->ascent + s->new_cur_line->descent) : font->height;
+
   XClearArea (x_current_display, XtWindow (s->display.x->edit_widget),
-	      pix_x, pix_y, pix_width, pix_height, False);
-#ifdef ENERGIZE	    
-  notify_note_update (s->display.x->edit_widget, pix_x, pix_y,
-			pix_width, pix_height);
-#endif
-
- cancel:
+	      s->new_cur_char->xpos,
+	      s->new_cur_line->ypos - s->new_cur_line->ascent,wid,
+	      height,0);
+  s->cursor_erased = 1;
   UNBLOCK_INPUT;
 }
 
+
+
+/*
+ * Plot a line L (or portion of line from START to END) of text in window W.
+ * START and END are considered, if non-zero
+ */
+void
+PlotTextLine (struct window *w, struct line_header *l,
+	      struct char_block *start, struct char_block *end, char clear,
+	      int line_type)
+{
+  struct screen *s = XSCREEN(w->screen);
+  unsigned char buf[1000];	/* Buffer for constructing string. */
+  unsigned char *pos;		/* Position in buf */
+  struct char_block *cb;	/* Current char in line */
+  struct face *f;		/* Current style for plotting */
+  int n = 0;			/* char count for current region */
+  int xpos;			/* left pixel position of a block */
+  struct char_block *start_block,*end_block;
+
+  if (line_type == BODY)
+    {
+      start_block = l->body;
+      end_block = l->end;
+    }
+  else
+    {
+      start_block = l->margin_start;
+      end_block = l->margin_end;
+    }
+
+  if (l == 0 || l->ypos == 0) abort();
+  pos = buf;
+  cb = start ? start : start_block;
+  while (cb != start_block && cb->prev->ch == ' ')
+    cb = cb->prev;
+  xpos = cb->xpos;
+  f = cb->face;
+
+  BLOCK_INPUT;
+  while (cb && cb != end_block)
+    {
+      if (cb->face == f && n < 999 && cb->char_b && !cb->blank)
+	{
+	  *pos++ = cb->ch;
+	  /* Update attributes */
+	  cb->changed = cb->new = 0;
+	  n++;
+	  if (cb == end) break;	  
+	  cb = cb->next;
+	}
+      else
+	{
+	  /* Time to ship out a block */
+	  ShipOutTextBlock(buf,n,xpos,l->ypos,l->ascent,l->descent,
+			   NO_CURSOR, f, w);
+	  if (cb->blank)
+	    {
+	      cb->changed = cb->new = 0;
+	      ShipOutBlankBlock (True, cb->width, cb->xpos, l->ypos,
+				 l->ascent, l->descent, NO_CURSOR,
+				 cb->face, w);
+	      cb = cb->next;
+	    }
+	  else if (!cb->char_b)
+	    {
+	      cb->changed = cb->new = 0;
+	      ShipOutGlyphBlock(cb->glyph,cb->xpos,l->ypos,l->ascent,
+				l->descent, NO_CURSOR, cb->face, w);
+	      cb = cb->next;
+	    }
+	  if (cb)
+	    {
+	      f = cb->face;
+	      xpos = cb->xpos;
+	    }
+	  n = 0;
+	  pos = buf;
+	}
+    }
+  /* Ship out dangling stuff (can only have dangling text) */
+  if (n)
+    ShipOutTextBlock(buf,n,xpos,l->ypos,l->ascent,l->descent,
+		     NO_CURSOR, f, w);
+  if (line_type == BODY && clear && (l->ascent + l->descent > 0))
+    if (l->lwidth < (w->pixleft + w->pixwidth - 1))
+      {
+	XClearArea(x_current_display, XtWindow (s->display.x->edit_widget),
+		   end_block->xpos,(l->ypos - l->ascent),
+		   (w->pixleft + w->pixwidth - l->lwidth),
+		   (l->ascent + l->descent),0);
+      }
+  if (!l->modeline
+      && l->mwidth < (w->pixleft + LEFT_MARGIN (XBUFFER (w->buffer), s)))
+    {
+      int width = (w->pixleft + LEFT_MARGIN (XBUFFER (w->buffer), s)
+		   - l->mwidth);
+      
+      if (width)
+	XTcolor_area (s, FACE_BG_PIXEL (&SCREEN_LEFT_MARGIN_FACE(s)),
+		      l->mwidth,(l->ypos - l->ascent),
+		      width, (l->ascent + l->descent));
+    }
+
+  UNBLOCK_INPUT;
+}
+
+/* Returns whether it actually cleared anything.
+   (It doesn't need to if the font/glyph to be drawn exactly fills the
+   target area.)
+ */
+Bool
+ShipOutBlankBlock (Bool margin, int width, int x, int y, int a, int d,
+		   int cursor, struct face *face, struct window *w)
+{
+  Display *dpy = x_current_display;
+  struct screen *s = XSCREEN(w->screen);
+  Window x_win = XtWindow (s->display.x->edit_widget);
+  GC gc;
+  XGCValues gcv;
+  unsigned long bg_mask;
+  struct face *f;
+  struct Lisp_Font *font;
+  Bool clear_rect_p;
+
+  memset (&gcv, ~0, sizeof (XGCValues)); /* initialize all slots to ~0 */
+  gcv.graphics_exposures = False;
+
+  f = face ? face :
+    (margin ? &SCREEN_LEFT_MARGIN_FACE(s) : &SCREEN_NORMAL_FACE(s));
+  font = XFONT (FACE_FONT (f));
+
+  /*
+   * There are three possible ways to blank an area.
+   *  - drawing a rectangle in the background color
+   *    (which we do implicitly, by using XDrawImageString instead
+   *     of XDrawString)
+   *  - blitting in a bitmap, whose fg and bg match that of the text
+   *  - blitting in a pixmap, which carries its colors with it
+   * The gcv that is used for these operations doesn't have its font
+   * specified, to maximize its reusability.
+   */
+  
+  bg_mask = GCGraphicsExposures;
+  if (NILP (f->back_pixmap))
+    {
+      clear_rect_p = False;
+    }
+  else if (XPIXMAP (f->back_pixmap)->depth == 0)
+    {
+      if (cursor && focus_cursor_p (s))
+	{
+	  gcv.foreground = FACE_BG_PIXEL (f);
+	  gcv.background = FACE_FG_PIXEL (f);
+	}
+      else
+	{
+	  gcv.foreground = FACE_FG_PIXEL (f);
+	  gcv.background = FACE_BG_PIXEL (f);
+	}
+      gcv.fill_style = FillOpaqueStippled;
+      gcv.stipple    = XPIXMAP (f->back_pixmap)->pixmap;
+      bg_mask |= (GCForeground | GCBackground | GCStipple | GCFillStyle);
+      clear_rect_p = True;
+    }
+  else if (!cursor || !focus_cursor_p (s))
+    {
+      /* If the cursor is over tiled area, don't draw the tile, because
+	 then the cursor wouldn't be visible (we can't invert colors when
+	 there is a tile, because it carries its colors inside it.)
+	 */
+      gcv.fill_style = FillTiled;
+      gcv.tile = XPIXMAP (f->back_pixmap)->pixmap;
+      bg_mask |= (GCTile | GCFillStyle);
+      clear_rect_p = True;
+    }
+  else
+    {
+      clear_rect_p = False;
+    }
+
+  if (!clear_rect_p && (margin
+			|| (cursor == THIN_CURSOR)
+			|| (!cursor
+			    && (font->ascent < a || font->descent < d))))
+    {
+    /* If the height of the selected font is less than the line being
+       redisplayed, then calling XDrawImageString won't clear the area
+       completely.
+       */
+      gcv.foreground = FACE_BG_PIXEL (f);
+      gcv.fill_style = FillSolid;
+      bg_mask |= (GCForeground | GCFillStyle);
+      clear_rect_p = True;
+    }
+
+  if (clear_rect_p)
+    {
+      /* Get a GC and draw the rectangle.
+       */
+      gc = gc_cache_lookup (the_gc_cache, &gcv, bg_mask);
+      XFillRectangle (dpy, x_win, gc, x, y - a, width, a + d);
+    }
+
+  return clear_rect_p;
+}
+
+
+void
+ShipOutGlyphBlock (GLYPH index, int x, int y, int a, int d,
+		   int cursor, struct face *face, struct window *w)
+{
+  struct screen *s = XSCREEN(w->screen);
+  Display *dpy = x_current_display;
+  Window x_win = XtWindow (s->display.x->edit_widget);
+  GC gc;
+  XGCValues gcv;
+  unsigned long glyph_mask;
+  struct face *f;
+  struct Lisp_Font *font;
+  Lisp_Object p = glyph_to_pixmap (index);
+  int bitmap_y_offset = 0;
+  int width, height;
+
+  if (NILP (p))
+    abort ();
+
+  width = XPIXMAP (p)->width;
+  height = XPIXMAP (p)->height;
+
+  memset (&gcv, ~0, sizeof (XGCValues)); /* initialize all slots to ~0 */
+  gcv.graphics_exposures = False;
+
+  f = face ? face : &SCREEN_LEFT_MARGIN_FACE(s);
+  font = XFONT (FACE_FONT (f));
+
+  /*
+   * First we need to erase the area where the glyph is going to be
+   * drawn.
+   */
+  ShipOutBlankBlock (True, min(width, (w->pixleft + w->pixwidth - x)),
+		     x, y, a, d, cursor, face, w);
+
+  glyph_mask = GCForeground | GCBackground | GCGraphicsExposures;
+  gcv.foreground = FACE_FG_PIXEL (f);
+  gcv.background = FACE_BG_PIXEL (f);
+
+  bitmap_y_offset = (height - (a+d)) / 2;
+  if (height > (a+d))
+    height = a+d;
+
+  if (XPIXMAP (p)->mask)
+    {
+      gcv.function = GXcopy;
+      gcv.clip_mask = XPIXMAP (p)->mask;
+      gcv.clip_x_origin = x;
+      gcv.clip_y_origin = y - a - bitmap_y_offset;
+      glyph_mask |= GCFunction | GCClipMask | GCClipXOrigin | GCClipYOrigin;
+    }
+
+  gc = gc_cache_lookup (the_gc_cache, &gcv, glyph_mask);
+
+  /* depth of 0 means it's a bitmap, not a pixmap, and we should
+     use XCopyPlane (1 = current foreground color, 0 = background)
+     instead of XCopyArea, which means that the bits in the pixmap
+     are actual pixel values, instead of symbolic of fg/bg.
+     */
+  if (XPIXMAP (p)->depth > 0 /* &&     I think this is always true -- jwz
+      XPIXMAP (p)->depth == s->display.x->edit_widget->core.depth */ )
+    XCopyArea (dpy, XPIXMAP (p)->pixmap, x_win, gc, 0, bitmap_y_offset,
+	       width, height, x, y-a);
+  else
+    XCopyPlane (dpy, XPIXMAP (p)->pixmap, x_win, gc, 0,
+		bitmap_y_offset < 0 ? 0 : bitmap_y_offset, width, height,
+		x, bitmap_y_offset < 0 ? y - bitmap_y_offset - a : y-a, 1L);
+}
+
+void
+ShipOutTextBlock (unsigned char *str, int count, int x, int y, int a,
+		  int d, int cursor, struct face *face, struct window *w)
+{
+  struct screen *s = XSCREEN(w->screen);
+  Display *dpy = x_current_display;
+  Window x_win = XtWindow (s->display.x->edit_widget);
+  GC gc;
+  XGCValues gcv;
+  unsigned long text_mask;
+  struct face *f;
+  struct Lisp_Font *font;
+  short wid;
+  Bool clear_rect_p;
+
+  memset (&gcv, ~0, sizeof (XGCValues)); /* initialize all slots to ~0 */
+  gcv.graphics_exposures = False;
+
+  if (count < 1) return;	/* allow calling with 0 counts */
+
+  f = face ? face : &SCREEN_NORMAL_FACE(s);
+  font = XFONT (FACE_FONT (f));
+
+  wid = min (XTextWidth (font->font, (char *) str, count),
+	     (w->pixleft + w->pixwidth - x));
+
+  /*
+   * First we need to erase the area where the string is going to be
+   * drawn.
+   */
+  clear_rect_p =
+    ShipOutBlankBlock (False, wid, x, y, a, d, cursor, face, w);
+
+  text_mask = GCForeground | GCBackground | GCFont | GCGraphicsExposures;
+  gcv.foreground = FACE_FG_PIXEL (f);
+  gcv.background = FACE_BG_PIXEL (f);
+  gcv.font = font->font->fid;
+
+  /* The focus cursor is done by drawing the character in its background
+     on top of a background of the cursor color, unless Vbar_cursor is
+     non-nil.  In that case it is a line drawn immediately before the
+     character in the cursor color.
+   */
+  if (focus_cursor_p (s) && NILP (Vbar_cursor))
+    {
+      EmacsScreen ew = (EmacsScreen) s->display.x->edit_widget;
+
+      if (cursor == NORMAL_CURSOR)
+	{
+	  gcv.foreground = FACE_BG_PIXEL (f);
+	  gcv.background = ew->emacs_screen.cursor_color;
+	}
+      else if (cursor == THIN_CURSOR)
+	{
+	  gcv.foreground = ew->emacs_screen.cursor_color;
+	  gcv.background = FACE_BG_PIXEL (f);
+	}
+    }
+
+  /* Now get the GC and draw the string. */
+  gc = gc_cache_lookup (the_gc_cache, &gcv, text_mask);
+  if (cursor != THIN_CURSOR)
+    {
+      if (clear_rect_p)
+	XDrawString (dpy, x_win, gc, x, y, (char *) str, count);
+      else
+	XDrawImageString (dpy, x_win, gc, x, y, (char *) str, count);
+    }
+  else if (cursor == THIN_CURSOR && focus_cursor_p (s) && NILP (Vbar_cursor))
+    /* A thin cursor can only occur at eol where there is no character. */
+    XFillRectangle (dpy, x_win, gc, x, y-a, EOL_CURSOR_WIDTH, a+d-1);
+
+  if (cursor && focus_cursor_p (s) && !NILP (Vbar_cursor))
+    {
+      EmacsScreen ew = (EmacsScreen) s->display.x->edit_widget;
+
+      gcv.foreground = ew->emacs_screen.cursor_color;
+      gc = gc_cache_lookup (the_gc_cache, &gcv, GCForeground);
+
+      XDrawLine (dpy, x_win, gc, x, y-a, x, y+d-1);
+    }
+
+  /* Draw underlining in same colors as the text.  We can use the same GC. */
+  if (f->underline)
+    {
+      unsigned long upos;
+      unsigned long uthick;
+      if (!XGetFontProperty (font->font, XA_UNDERLINE_POSITION, &upos))
+	upos = 0;
+      if (!XGetFontProperty (font->font, XA_UNDERLINE_THICKNESS, &uthick))
+	uthick = 1;
+      if (uthick <= 1)
+	XDrawLine (dpy, x_win, gc, x, y + upos, x + wid, y + upos);
+      else
+	XFillRectangle (dpy, x_win, gc, x, y + upos, wid, uthick);
+    }
+
+  /* The non-focus cursor is done by drawing a rectangle around the character
+     after it has been drawn normally.  We need a new GC for this, since the
+     cursor color isn't necessarily the same as the foreground of the text.
+   */
+  if (cursor && !focus_cursor_p (s))
+    {
+      EmacsScreen ew = (EmacsScreen) s->display.x->edit_widget;
+
+      gcv.foreground = ew->emacs_screen.cursor_color;
+      gc = gc_cache_lookup (the_gc_cache, &gcv, GCForeground);
+      if (NILP(Vbar_cursor))
+	{
+	  if (cursor == NORMAL_CURSOR)
+	    XDrawRectangle (dpy, x_win, gc, x, y-a, wid-1, a+d-1);
+	  else
+	    XDrawRectangle (dpy, x_win, gc, x, y-a, EOL_CURSOR_WIDTH, a+d-1);
+	}
+    }
+}
+
+
+/*
+ * Color an area.
+ */
+static void
+XTcolor_area (struct screen *s, unsigned long color, int x, int y,
+	      int width, int height)
+{
+  GC gc;
+  XGCValues gcv;
+  unsigned long bg_mask;
+
+  BLOCK_INPUT;
+
+  memset (&gcv, ~0, sizeof (XGCValues));
+  gcv.graphics_exposures = False;
+  gcv.foreground = FACE_BG_PIXEL (&SCREEN_LEFT_MARGIN_FACE(s));
+  gcv.fill_style = FillSolid;
+  bg_mask = GCGraphicsExposures | GCForeground | GCFillStyle;
+  gc = gc_cache_lookup (the_gc_cache, &gcv, bg_mask);
+
+  XFillRectangle(x_current_display, XtWindow(s->display.x->edit_widget),
+		 gc,x,y,width,height);
+
+  UNBLOCK_INPUT;
+}
+
+/*
+ * Clear region from ypos1 to ypos2, for entire window width
+ */
+void
+XTclear_window_end (struct window *w, int ypos1, int ypos2)
+{
+  struct screen *s = XSCREEN(w->screen);
+  struct buffer *b = XBUFFER(w->buffer);
+  int left_margin = LEFT_MARGIN(b,s);
+
+  BLOCK_INPUT;
+
+  XClearArea (x_current_display, XtWindow(s->display.x->edit_widget),
+	      w->pixleft + left_margin, ypos1,
+	      w->pixwidth - left_margin, (ypos2 - ypos1), 0);
+  XTcolor_area (s, FACE_BG_PIXEL (&SCREEN_LEFT_MARGIN_FACE(s)),
+		w->pixleft, ypos1, left_margin, ypos2 - ypos1);
+  UNBLOCK_INPUT;
+}
+
+
+
+/*
+ * Shift region of lines according to scrolling info
+ */
+void
+XTshift_region (struct window *w, struct line_header *start,
+		struct line_header *end)
+{
+  struct screen *s = XSCREEN(w->screen);
+  register int old_top,new_top,length,i;
+  int margin_pixwidth = LEFT_MARGIN (XBUFFER (w->buffer), s);
+  int margin_pixleft = w->pixleft + margin_pixwidth;
+  Window x_win = XtWindow (s->display.x->edit_widget);
+
+  BLOCK_INPUT;
+  
+  old_top = start->prevy - start->ascent;
+  new_top = start->ypos - start->ascent;
+  length = end->ypos + end->descent - (start->ypos - start->ascent);
+
+  if (length > 0 && old_top != new_top)
+    {
+      XCopyArea (x_current_display,x_win, x_win, s->display.x->normal_gc,
+                 w->pixleft, old_top,
+                 w->pixwidth, length,
+                 w->pixleft, new_top);
+
+      if (new_top > old_top)
+	{
+	  /* Shifted region down */
+	  length = new_top - old_top;
+	  XClearArea (x_current_display, x_win,
+                      margin_pixleft, old_top,
+                      w->pixwidth - margin_pixwidth, length, 0);
+	  if (margin_pixwidth)
+	    XTcolor_area (s, FACE_BG_PIXEL (&SCREEN_LEFT_MARGIN_FACE(s)),
+			  w->pixleft, old_top,
+			  margin_pixwidth, length);
+	}
+      else
+	{
+	  /* Shifted region up */
+	  i = end->ypos + end->descent;
+	  length = old_top - new_top;
+	  XClearArea (x_current_display, x_win,
+                      margin_pixleft,i,
+                      w->pixwidth - margin_pixwidth, length, 0);
+	  if (margin_pixwidth)
+	    XTcolor_area (s, FACE_BG_PIXEL (&SCREEN_LEFT_MARGIN_FACE(s)),
+			  w->pixleft,i,
+			  margin_pixwidth, length);
+	}
+    }
+  UNBLOCK_INPUT;
+}
+
+
+
+/*
+ * Fast insert for char in middle of line.
+ * ASSUMPTIONS:  Remaining chars on line will be blt'ed.  No region needs 
+ *		 to be cleared at end of line.
+ */
+void
+InsertChar (struct window *w, struct line_header *l, struct char_block *new,
+	    struct char_block *cb, struct char_block *end, char clear)
+{
+  struct screen *s = XSCREEN(w->screen);
+  Window x_win = XtWindow (s->display.x->edit_widget);
+  unsigned char b[2];
+
+  b[1] = 0;
+  b[0] = new->ch;
+  BLOCK_INPUT;
+  XCopyArea(x_current_display,x_win,x_win,s->display.x->normal_gc,
+	    new->xpos,			/* start x */
+	    l->ypos - l->ascent, 	/* start y */
+	    end->xpos - cb->xpos,	/* width */
+	    l->ascent + l->descent,	/* height */
+	    cb->xpos,
+	    l->ypos - l->ascent);
+
+  ShipOutTextBlock(b,1,new->xpos,l->ypos,l->ascent,l->descent,0,
+		      new->face,w);
+  UNBLOCK_INPUT;  
+  return;
+}
+
+
+
+/*
+ * Real fcn to return width of text string displayed in FONT when under X.
+ */
+static int
+XTtext_width (Lisp_Object f, const unsigned char *s, int len)
+{
+  return (XTextWidth (XFONT(f)->font, (char *) s, len));
+}
+
+
 static void
 XTclear_screen ()
 {
@@ -1213,40 +1342,46 @@ XTclear_screen ()
     s = updating_screen;
 
   s->cursor_x = s->cursor_y = 0;
+  s->new_cur_line = s->cur_line = XWINDOW(s->selected_window)->lines;
+  s->new_cur_char = s->cur_char = XWINDOW(s->selected_window)->lines->body;
   s->phys_cursor_x = -1;
   BLOCK_INPUT;
   XClearWindow (x_current_display, XtWindow (s->display.x->edit_widget));
-#ifdef ENERGIZE	    
-  notify_note_update (s->display.x->edit_widget, 0, 0,
-		      s->display.x->pixel_width, s->display.x->pixel_height);
-#endif
+  CursorToggle (s);
+  if (!updating_screen)
+    XFlushQueue();
   UNBLOCK_INPUT;
 }
 
 /* briefly swap the foreground and background colors.
  */
 
-extern int select();
+extern int select ();
 
 static void
 XTflash (s)
      struct screen *s;
 {
-  unsigned long frob;
   struct face *face;
   Display *dpy;
   Window w;
+  XGCValues gcv;
+  GC gc;
 
   if (updating_screen != 0)
     return;
 
-  BLOCK_INPUT;
   face = &SCREEN_NORMAL_FACE (s);
-  frob = face->foreground ^ face->background;
   dpy = XtDisplay (s->display.x->widget);
   w = XtWindow (s->display.x->edit_widget);
-  XSetState (dpy, face->facegc, frob, face->background, GXxor, -1);
-  XFillRectangle (dpy, w, face->facegc, 0, 0, s->display.x->widget->core.width,
+  memset (&gcv, ~0, sizeof (XGCValues)); /* initialize all slots to ~0 */
+  gcv.foreground = (FACE_FG_PIXEL (face) ^ FACE_BG_PIXEL (face));
+  gcv.function = GXxor;
+  gcv.graphics_exposures = False;
+  gc = gc_cache_lookup (the_gc_cache, &gcv,
+			(GCForeground | GCFunction | GCGraphicsExposures));
+  BLOCK_INPUT;
+  XFillRectangle (dpy, w, gc, 0, 0, s->display.x->widget->core.width,
 		  s->display.x->widget->core.height);
   XSync (dpy, False);
   UNBLOCK_INPUT;
@@ -1261,10 +1396,8 @@ XTflash (s)
   }
 
   BLOCK_INPUT;
-  XFillRectangle (dpy, w, face->facegc, 0, 0, s->display.x->widget->core.width,
+  XFillRectangle (dpy, w, gc, 0, 0, s->display.x->widget->core.width,
 		  s->display.x->widget->core.height);
-  XSetState (dpy, face->facegc, face->foreground, face->background,
-	     GXcopy, -1);
   XSync (dpy, False);
   UNBLOCK_INPUT;
 }
@@ -1315,184 +1448,6 @@ XTset_terminal_window (n)
     update_height = n;
 }
 
-/* Perform an insert-lines operation, inserting N lines
-   at a vertical position s->cursor_y.  */
-
-static void
-stufflines (n)
-     int n;
-{
-  int width, copy_height, clear_height, from_x, from_y, to_x, to_y;
-  struct screen *s = updating_screen;
-  struct screen_glyphs *current_glyphs = s->current_glyphs;
-  int iborder = s->display.x->internal_border_width;
-  from_x = to_x = iborder;
-  from_y = current_glyphs->top_left_y[s->cursor_y];
-  to_y = current_glyphs->top_left_y[s->cursor_y + n];
-  to_y = min (to_y, current_glyphs->top_left_y[update_height]);
-
-  width = PIXEL_WIDTH (s) - (2 * iborder);
-  copy_height = current_glyphs->top_left_y[update_height - n] - from_y;
-  clear_height = to_y - from_y;
-
-  BLOCK_INPUT;
-  if (copy_height > 0)
-    {
-      XCopyArea (x_current_display, XtWindow (s->display.x->edit_widget),
-		 XtWindow (s->display.x->edit_widget), s->display.x->normal_gc,
-		 from_x, from_y, width, copy_height, to_x, to_y);
-#ifdef ENERGIZE
-#if 0
- *      xc_note_parent_scrolled (s->display.x->edit_widget,
- *			       from_x, from_y, width, copy_height, 
- *			       to_x - from_x, to_y - from_y);
-#endif
-#endif
-      XClearArea (x_current_display, XtWindow (s->display.x->edit_widget),
-		  from_x, from_y, width, clear_height, False);
-#ifdef ENERGIZE
-      notify_note_update (s->display.x->edit_widget, from_x, from_y,
-			  width, clear_height);
-
-#endif
-    }
-  UNBLOCK_INPUT;
-}
-
-/* Perform a delete-lines operation, deleting N lines
-   at a vertical position s->cursor_y.  */
-
-static void
-scraplines (n)
-     int n;
-{
-  struct screen *s = updating_screen;
-  struct screen_glyphs *current_glyphs = s->current_glyphs;
-  int top = s->cursor_y;
-  int width, height;
-  int iborder = s->display.x->internal_border_width;
-
-  BLOCK_INPUT;
-  if ((s->cursor_y + n) >= update_height
-      && (update_height >= (s->cursor_y + 1)))
-    {
-      width = PIXEL_WIDTH (s) - (2 * iborder);
-      height = (current_glyphs->top_left_y[update_height]
-		+ current_glyphs->pix_height[update_height]
-		- current_glyphs->top_left_y[top]);
-      XClearArea (x_current_display, XtWindow (s->display.x->edit_widget),
-		  current_glyphs->top_left_x[top],
-		  current_glyphs->top_left_y[top],
-		  width, height, False);
-#ifdef ENERGIZE
-      notify_note_update (s->display.x->edit_widget, 
-			  current_glyphs->top_left_x[top],
-			  current_glyphs->top_left_y[top],
-			  width, height);
-#endif
-    }
-  else
-    {
-      int from_x = iborder;
-      int from_y = current_glyphs->top_left_y[top + n];
-      int to_x = iborder;
-      int to_y = current_glyphs->top_left_y[top];
-
-      width = PIXEL_WIDTH (s) - (2 * iborder);
-      height = current_glyphs->top_left_y[update_height] - from_y;
-
-      /* Move lines under the deleted area upwards. */
-      XCopyArea (x_current_display, XtWindow (s->display.x->edit_widget),
-		 XtWindow (s->display.x->edit_widget), s->display.x->normal_gc,
-		 from_x, from_y, width, height, to_x, to_y);
-#ifdef ENERGIZE
-#if 0
- *      xc_note_parent_scrolled (s->display.x->edit_widget,
- *			       from_x, from_y, width, height, 
- *			       to_x - from_x, to_y - from_y);
-#endif
-#endif
-      to_y = to_y + height;
-      height = current_glyphs->top_left_y[update_height] - to_y;
-      /* Clear any lines below those just moved. */
-      XClearArea (x_current_display, XtWindow (s->display.x->edit_widget),
-		  from_x, to_y, width, height, False);
-#ifdef ENERGIZE	    
-      notify_note_update (s->display.x->edit_widget, from_x, to_y,
-			  width, height);
-#endif
-
-  UNBLOCK_INPUT;
-    }
-}
-
-/* Perform an insert-lines or delete-lines operation,
-   inserting N lines or deleting -N lines at vertical position VPOS.  */
-
-static void
-XTins_del_lines (vpos, n)
-     int vpos, n;
-{
-  if (updating_screen == 0)
-    /* abort ();   fuck this */
-    return;
-  if (vpos >= update_height)
-    return;
-
-  erase_cursor_if_needed ();
-
-  updating_screen->cursor_x = 0;
-  updating_screen->cursor_y = vpos;
-
-  if (n >= 0)
-    stufflines (n);
-  else
-    scraplines (-n);
-}
-
-/* Repaint all lines encompassed by an Expose region. */
-
-void
-repaint_lines (s, left, top, width, height)
-     struct screen *s;
-     int left, top, width, height;
-{
-  struct screen_glyphs *current_screen = SCREEN_CURRENT_GLYPHS (s);
-  int this_line;
-  int bottom = top + height;
-  int line_top;
-  int line_bottom;
-  int line_used; 
-
-  if (s->garbaged)
-    return;
-
-  erase_screen_cursor_if_needed (s);
-
-  for (this_line = 0; this_line < SCREEN_HEIGHT (s); this_line++)
-    if (current_screen->enable [this_line])
-      {
-	line_top = current_screen->top_left_y [this_line];
-	line_bottom = line_top + current_screen->pix_height [this_line];
-	line_used = current_screen->used [this_line];
-
-	if (line_top > bottom)
-	  break;
-	if (line_bottom >= top && line_used > 0)
-	  x_write_glyphs (s, 0, this_line, line_used, 0, 0);
-      }
-
-  draw_screen_cursor_if_needed (s);
-}
-
-void
-x_screen_redraw_cursor (screen)
-     struct screen *screen;
-{
-  erase_screen_cursor_if_needed (screen);
-  draw_screen_cursor_if_needed (screen);
-}
-
 /* Make SCREEN the current input screen.  */
 void
 x_new_selected_screen (screen)
@@ -1504,14 +1459,16 @@ x_new_selected_screen (screen)
     {
       selected_screen = screen;
 
-      if (previous_screen)
-	x_screen_redraw_cursor (previous_screen);
-      x_screen_redraw_cursor (screen);
+/*
+      if (previous_screen && previous_screen != XSCREEN(Vterminal_screen))
+	Fastmove_cursor (previous_screen);
+*/
+      update_cursor (screen, 1);
     }
 }
 
 
-static char *events[] =
+static const char *events[] =
 {
    "0: ERROR!",
    "1: REPLY",
@@ -1551,7 +1508,7 @@ static char *events[] =
    "LASTEvent"
 };
 
-char *
+const char *
 x_event_name (event_type)
      int event_type;
 {
@@ -1560,274 +1517,120 @@ x_event_name (event_type)
   return events [event_type];
 }
 
+/* Handling errors.
 
-static void
-x_display_bar_cursor (s, on)
-     struct screen *s;
-     int on;
-{
-  int x0, x1, y0, y1;
+   If an X error occurs which we are not expecting, we have no alternative
+   but to print it to stderr.  It would be nice to stuff it into a pop-up
+   buffer, or to print it in the minibuffer, but that's not possible, because
+   one is not allowed to do any I/O on the display connection from an error
+   handler. The guts of Xlib expect these functions to either return or exit.
 
-  if (! s->visible || (! on && s->phys_cursor_x < 0))
-    return;
 
-  if (s->phys_cursor_x >= 0 &&
-      (!on || s->phys_cursor_x != s->cursor_x
-       || s->phys_cursor_y != s->cursor_y))
-    {
-      if (s->phys_cursor_x < s->current_glyphs->used[s->phys_cursor_y])
-	{
-	  struct glyph_dimensions *dimensions
-	    = get_glyph_dimensions (s, s->phys_cursor_x, s->phys_cursor_y);
-	  if (!dimensions)
-	    return;
+   ####  The following is pretty dubious; I'm no longer sure it's worth the
+   ####  effort, but I'm not going to delete the code just yet...
 
-	  x0 = dimensions->top_left_x;
-	  x1 = x0;
-	  y0 = s->current_glyphs->top_left_y[s->phys_cursor_y];
-	  y1 = (y0 + s->current_glyphs->pix_height[s->phys_cursor_y]
-		- x_interline_space);
+   However, there are occasions when we might expect an error to reasonably
+   occur.  The interface to this is as follows:
 
-	  BLOCK_INPUT;
-	  XDrawLine (x_current_display, XtWindow (s->display.x->edit_widget),
-		     s->display.x->reverse_gc, x0, y0, x1, y1);
-	  UNBLOCK_INPUT;
-	  x_write_glyphs (s, s->phys_cursor_x, s->phys_cursor_y, 1, 0, 0);
-	}
-      else
-	{
-	  x0 = (s->current_glyphs->top_left_x[s->phys_cursor_y]
-		+ s->current_glyphs->pix_width[s->phys_cursor_y]);
-	  x1 = x0;
-	  y0 = s->current_glyphs->top_left_y[s->phys_cursor_y];
-	  y1 = y0 + s->current_glyphs->pix_height[s->phys_cursor_y];
+   Before calling some X routine which may error, call
+	expect_x_error (dpy);
 
-	  BLOCK_INPUT;
-	  XDrawLine (x_current_display, XtWindow (s->display.x->edit_widget),
-		     s->display.x->reverse_gc, x0, y0, x1, y1);
-	  UNBLOCK_INPUT;
-	}
-      s->phys_cursor_x = -1;
-    }
+   Just after calling the X routine, call either:
 
-  if (on && focus_cursor_p (s))
-    {
-      if (s->cursor_x < s->current_glyphs->used[s->cursor_y])
-	{
-	  struct glyph_dimensions *dimensions
-	    = get_glyph_dimensions (s, s->cursor_x, s->cursor_y);
-	  if (!dimensions)
-	    return;
+	x_error_occurred_p (dpy);
 
-	  x0 = dimensions->top_left_x;
-	  x1 = x0;
-	  y0 = s->current_glyphs->top_left_y[s->cursor_y];
-	  y1 = y0 + s->current_glyphs->pix_height[s->cursor_y];
-	}
-      else
-	{
-	  x0 = (s->current_glyphs->top_left_x[s->cursor_y]
-		+ s->current_glyphs->pix_width[s->cursor_y]);
-	  x1 = x0;
-	  y0 = s->current_glyphs->top_left_y[s->cursor_y];
-	  y1 = y0 + s->current_glyphs->pix_height[s->cursor_y];
-	}
+   to ask whether an error happened (and was ignored), or:
 
-      BLOCK_INPUT;
-      XDrawLine (x_current_display, XtWindow (s->display.x->edit_widget),
-		 s->display.x->cursor_gc, x0, y0, x1, y1);
-      UNBLOCK_INPUT;
-      s->phys_cursor_x = s->cursor_x;
-      s->phys_cursor_y = s->cursor_y;
-    }
-}
+	signal_if_x_error (dpy, resumable_p);
 
-/* Draw an empty box at the end of the line. */
+   which will call Fsignal() with args appropriate to the X error, if there
+   was one.  (Resumable_p is whether the debugger should be allowed to
+   continue from the call to signal.)
 
-static int
-x_draw_empty_box (s)
-     struct screen *s;
-{
-  int height, x, y;
-  XGCValues values;
-  
-  BLOCK_INPUT;
-  if (! XGetGCValues (x_current_display, s->display.x->cursor_gc,
-		      GCBackground | GCForeground, &values))
-    abort ();
-  height = s->current_glyphs->pix_height[s->phys_cursor_y] - x_interline_space;
-  x = s->current_glyphs->top_left_x[s->phys_cursor_y]
-    + s->current_glyphs->pix_width[s->phys_cursor_y];
-  y = s->current_glyphs->top_left_y[s->phys_cursor_y];
+   You must call one of these two routines immediately after calling the X
+   routine; think of them as bookends like BLOCK_INPUT and UNBLOCK_INPUT.
+ */
 
-  XClearArea (x_current_display, XtWindow (s->display.x->edit_widget),
-	      x, y, EOL_CURSOR_WIDTH, height, False);
-
-  XSetForeground (x_current_display, s->display.x->cursor_gc,
-		  values.background);
-  XDrawRectangle (x_current_display, XtWindow (s->display.x->edit_widget),
-		  s->display.x->cursor_gc,
-		  x, y,
-		  EOL_CURSOR_WIDTH - 1, height - 1);
-  XSetForeground (x_current_display, s->display.x->cursor_gc,
-		  values.foreground);
-  UNBLOCK_INPUT;
-  return 1;
-}
-
-/* Draw a square with the cursor gc at the end of the line. */
-
-static int
-x_draw_square (s)
-     struct screen *s;
-{
-  int height, x, y;
-  XGCValues values;
-  
-  BLOCK_INPUT;
-  if (! XGetGCValues (x_current_display, s->display.x->cursor_gc,
-		      GCBackground | GCForeground, &values))
-    abort ();
-  height = s->current_glyphs->pix_height[s->phys_cursor_y] - x_interline_space;
-  x = s->current_glyphs->top_left_x[s->phys_cursor_y]
-    + s->current_glyphs->pix_width[s->phys_cursor_y];
-  y = s->current_glyphs->top_left_y[s->phys_cursor_y];
-
-  XSetForeground (x_current_display, s->display.x->cursor_gc,
-		  values.background);
-  XFillRectangle (x_current_display, XtWindow (s->display.x->edit_widget),
-		  s->display.x->cursor_gc,
-		  x, y,
-		  EOL_CURSOR_WIDTH, height);
-  XSetForeground (x_current_display, s->display.x->cursor_gc,
-		  values.foreground);
-  UNBLOCK_INPUT;
-  return 1;
-}
-
-/* Erase the cursor square at the end of the line. */
-
-static int
-x_erase_square (s)
-     struct screen *s;
-{
-  int height, x, y;
-
-  height = s->current_glyphs->pix_height[s->phys_cursor_y];
-  x = s->current_glyphs->top_left_x[s->phys_cursor_y]
-    + s->current_glyphs->pix_width[s->phys_cursor_y];
-  y = s->current_glyphs->top_left_y[s->phys_cursor_y];
-
-  BLOCK_INPUT;
-  XClearArea (x_current_display, XtWindow (s->display.x->edit_widget),
-	      x, y,
-	      /* EOL_CURSOR_WIDTH, */
-	      PIXEL_WIDTH (s) - x,
-	      height, False);
-  UNBLOCK_INPUT;
-  return 1;
-}
-
-/* Turn the displayed cursor of screen S on or off according to ON.
-   If ON is nonzero, where to put the cursor is specified
-   by S->cursor_x and S->cursor_y.  Return 1 if it does something,
-   0 if it does nothing. */
-
-static int
-x_display_box_cursor (s, on)
-     struct screen *s;
-     int on;
-{
-  struct screen_glyphs *current_screen;
-  int value = 0;
-
-  if (! s->visible)
-    return 0;
-
-  if (!on && s->phys_cursor_x < 0)
-    return 1;
-
-  current_screen = SCREEN_CURRENT_GLYPHS (s);
-
-  if (! current_screen) return 0;  /* added by jwz */
-
-  if (on)
-    {
-      if (!s->cursor_erased
- 	  && ((s->phys_cursor_x != s->cursor_x)
- 	      || (s->phys_cursor_y != s->cursor_y)))
- 	x_display_box_cursor (s, 0);
-      s->phys_cursor_x = s->cursor_x;
-      s->phys_cursor_y = s->cursor_y;
-      
-      /* Case where cursor is in text. */
-      if (current_screen->enable[s->cursor_y])
-	{
-	  if (s->cursor_x < current_screen->used[s->cursor_y])
-	    {
-	      return x_write_glyphs (s, s->cursor_x, s->cursor_y,
-				     1, s->display.x->cursor_gc,
-				     ! focus_cursor_p (s));
-	    }
-	  else
-	    {
-	      /* No text here. */
-	      if (! focus_cursor_p (s))
-		return x_draw_empty_box (s);
-	      else
-		return x_draw_square (s);
-	    }
-	} else {
-	  return 0;
-	}
-    }
-
-  /* Turn cursor OFF. */
-  if (current_screen->enable[s->phys_cursor_y])
-    {
-      if (s->phys_cursor_x < current_screen->used[s->phys_cursor_y])
-	value = x_write_glyphs (s, s->phys_cursor_x, s->phys_cursor_y, 1, 0, 0);
-      else
-	value = x_erase_square (s);
-    }
-
-  s->phys_cursor_x = -1;
-  return value;
-}
-
-static int
-x_display_cursor (s, on)
-     struct screen *s;
-     int on;
-{
-  if (on)
-    last_bar_cursor = Vbar_cursor;
-  
-  if (EQ (last_bar_cursor, Qnil))
-    return x_display_box_cursor (s, on);
-  else
-    {
-      x_display_bar_cursor (s, on);
-      return 1;
-    }
-}
+#ifdef DUBIOUS_X_ERROR_HANDLING
+static int error_expected;
+static int error_occurred;
+static XErrorEvent last_error;
+#endif
 
 static int
 x_error_handler (disp, event)
      Display *disp;
      XErrorEvent *event;
 {
-  /* It would be nice to be able to signal a Lisp error here, but we can't,
-     because the guts of Xlib expect this function to either return or exit.
-     Also, we can't print things in the minibuffer with Fmessage(), because
-     this function isn't allowed to do IO on the display connection.  So all
-     we can do is write to stderr.
-   */
-  XmuPrintDefaultErrorMessage (disp, event, stderr);
+#ifdef DUBIOUS_X_ERROR_HANDLING
+  if (error_expected)
+    {
+      error_expected = 0;
+      error_occurred = 1;
+      last_error = *event;
+    }
+  else
+#endif
+    {
+      fprintf (stderr, "\n%s: ",
+	       (STRINGP (Vinvocation_name)
+		? (char *) XSTRING (Vinvocation_name)->data
+		: "lemacs"));
+      XmuPrintDefaultErrorMessage (disp, event, stderr);
+    }
   return 0;
 }
 
-extern char *sys_errlist[];
+
+#ifdef DUBIOUS_X_ERROR_HANDLING
+
+void
+expect_x_error (Display *dpy)
+{
+  if (error_expected) abort ();
+  XSync (dpy, 0);	/* handle pending errors before setting flag */
+  error_expected = 1;
+  error_occurred = 0;
+}
+
+int
+x_error_occurred_p (Display *dpy)
+{
+  int val;
+  XSync (dpy, 0);	/* handle pending errors before setting flag */
+  val = error_occurred;
+  error_expected = 0;
+  error_occurred = 0;
+  return val;
+}
+
+int
+signal_if_x_error (Display *dpy, int resumable_p)
+{
+  char buf [1024];
+  Lisp_Object data;
+  if (! x_error_occurred_p (dpy))
+    return 0;
+  data = Qnil;
+  sprintf (buf, "0x%X", (unsigned int) last_error.resourceid);
+  data = Fcons (build_string (buf), data);
+  {
+    char num [32];
+    sprintf (num, "%d", last_error.request_code);
+    XGetErrorDatabaseText (last_error.display, "XRequest", num, "",
+			   buf, sizeof (buf));
+    if (! *buf)
+      sprintf (buf, "Request-%d", last_error.request_code);
+    data = Fcons (build_string (buf), data);
+  }
+  XGetErrorText (last_error.display, last_error.error_code, buf, sizeof (buf));
+  data = Fcons (build_string (buf), data);
+ again:
+  Fsignal (Qx_error, data);
+  if (! resumable_p) goto again;
+  return 1;
+}
+#endif
 
 /* This is called when the display connection becomes hosed.
    It may not return.
@@ -1836,20 +1639,24 @@ static int
 x_IO_error_handler (disp)
      Display *disp;
 {
-  fprintf (stderr, "\nFatal I/O Error %d (%s) on display connection \"%s\"\n",
+  fprintf (stderr,
+	   "\n%s: Fatal I/O Error %d (%s) on display connection \"%s\"\n",
+	   (STRINGP (Vinvocation_name)
+	    ? (char *) XSTRING (Vinvocation_name)->data
+	    : "lemacs"),
 	   errno, sys_errlist [errno], DisplayString (disp));
   fprintf (stderr,
-      "after %lu requests (%lu known processed) with %d events remaining.\n",
+      "  after %lu requests (%lu known processed) with %d events remaining.\n",
 	   NextRequest (disp) - 1, LastKnownRequestProcessed (disp),
 	   QLength(disp));
   if (_Xdebug)
     abort ();
   else
     {
-      fprintf (stderr, "Autosaving and exiting...\n");
+      fprintf (stderr, "  Autosaving and exiting...\n");
       x_current_display = 0; /* it's dead! */
       Vwindow_system = Qnil; /* let it lie! */
-      Fset (intern ("kill-emacs-hook"), Qnil); /* too dangerous */
+      Fset (Qkill_emacs_hook, Qnil); /* too dangerous */
       Fkill_emacs (make_number (70));
     }
   return 0; /* not reached; suppress warnings */
@@ -1859,125 +1666,113 @@ x_IO_error_handler (disp)
 
 /* Pixmap cache */
 
-c_hashtable x_pixmap_table;
+GLYPH continuer_glyph, truncator_glyph, rarrow_glyph, lucid_glyph;
 
-struct x_pixmap builtin_continuer_pixmap;
-struct x_pixmap builtin_truncator_pixmap;
-struct x_pixmap builtin_rarrow_pixmap;
+/* Hashes pixmap name strings to glyph ids */
+static c_hashtable pixmap_table;
+/* Indexes glyph ids to pixmap Lisp objects */
+Lisp_Object *glyph_to_pixmaps_table;
+/* Size and fill pointer of above */
+static int glyph_to_pixmaps_size, max_pixmap_id;
 
-static int glyph_to_x_pixmaps_size, max_pixmap_id;
-struct x_pixmap **glyph_to_x_pixmaps_table;
-
-
-struct x_pixmap *
-glyph_to_x_pixmap (GLYPH g)
+void
+mark_glyph_pixmaps (void (*markobj) (Lisp_Object))
 {
-  struct x_pixmap *p;
-  if (g >= max_pixmap_id)
+  int i;
+  for (i = 0; i < max_pixmap_id; i++)
+    ((*markobj) (glyph_to_pixmaps_table [i]));
+}
+
+Lisp_Object
+glyph_to_pixmap (GLYPH g)
+{
+  Lisp_Object p;
+  if (g >= (GLYPH) max_pixmap_id)
 /*    abort (); */
-    return 0; /* #### KLUDGE */
-  p = glyph_to_x_pixmaps_table [g];
-  if (! p) abort ();
-  if (g != p->glyph_id) abort ();
+    return Qnil; /* #### KLUDGE */
+  p = glyph_to_pixmaps_table [g];
+  if (! PIXMAPP (p)) abort ();
   return p;
+}
+
+void 
+init_bitmap_tables_1 ()
+{
+  max_pixmap_id = 0;
+  glyph_to_pixmaps_size = 0;
+  glyph_to_pixmaps_table = 0;
+  pixmap_table = 0;
 }
 
 static void
 init_bitmap_tables ()
 {
   Display *dpy = x_current_display;
-  Window root = DefaultRootWindow (dpy);
+  Screen *screen = DefaultScreenOfDisplay (dpy);
 
-  glyph_to_x_pixmaps_size = 50;
-  glyph_to_x_pixmaps_table = (struct x_pixmap **)
-    xmalloc (glyph_to_x_pixmaps_size * sizeof (glyph_to_x_pixmaps_table[0]));
+  pixmap_table = make_strings_hashtable (20);
+
+  glyph_to_pixmaps_size = 50;
+  glyph_to_pixmaps_table = (Lisp_Object *)
+    xmalloc (glyph_to_pixmaps_size * sizeof (glyph_to_pixmaps_table[0]));
   max_pixmap_id = 0;
 
-  BLOCK_INPUT;
-  builtin_continuer_pixmap.glyph_id = max_pixmap_id++;
-  builtin_continuer_pixmap.width = continuer_width;
-  builtin_continuer_pixmap.height = continuer_height;
-  builtin_continuer_pixmap.depth = 0;
-  builtin_continuer_pixmap.pixmap =
-    XCreateBitmapFromData (dpy, root, (char *) continuer_bits,
-			   continuer_width, continuer_height);
-  builtin_continuer_pixmap.mask = builtin_continuer_pixmap.pixmap;
-  glyph_to_x_pixmaps_table [builtin_continuer_pixmap.glyph_id] =
-    &builtin_continuer_pixmap;
+#define MAKE_BUILTIN(NAME) 					\
+  NAME##_glyph = max_pixmap_id++;				\
+  glyph_to_pixmaps_table [NAME##_glyph] =			\
+    make_pixmap_from_data (screen, (char *) NAME##_bits,	\
+			   NAME##_width, NAME##_height);	\
+  XPIXMAP (glyph_to_pixmaps_table [NAME##_glyph])->mask =	\
+    XPIXMAP (glyph_to_pixmaps_table [NAME##_glyph])->pixmap
 
-  builtin_truncator_pixmap.glyph_id = max_pixmap_id++;
-  builtin_truncator_pixmap.width = truncator_width;
-  builtin_truncator_pixmap.height = truncator_height;
-  builtin_truncator_pixmap.depth = 0;
-  builtin_truncator_pixmap.pixmap =
-    XCreateBitmapFromData (dpy, root, (char *) truncator_bits,
-			   continuer_width, continuer_height);
-  builtin_truncator_pixmap.mask = builtin_truncator_pixmap.pixmap;
-  glyph_to_x_pixmaps_table [builtin_truncator_pixmap.glyph_id] =
-    &builtin_truncator_pixmap;
-
-  builtin_rarrow_pixmap.glyph_id = max_pixmap_id++;
-  builtin_rarrow_pixmap.width = rarrow_width;
-  builtin_rarrow_pixmap.height = rarrow_height;
-  builtin_rarrow_pixmap.depth = 0;
-  builtin_rarrow_pixmap.pixmap =
-    XCreateBitmapFromData (dpy, root, (char *) rarrow_bits,
-			   rarrow_width, rarrow_height);
-  builtin_rarrow_pixmap.mask = builtin_rarrow_pixmap.pixmap;
-  glyph_to_x_pixmaps_table [builtin_rarrow_pixmap.glyph_id] =
-    &builtin_rarrow_pixmap;
-  UNBLOCK_INPUT;
-
-  x_pixmap_table = make_strings_hashtable (20);
+  MAKE_BUILTIN (continuer);
+  MAKE_BUILTIN (truncator);
+  MAKE_BUILTIN (rarrow);
+  MAKE_BUILTIN (lucid);
+  Vlucid_logo = glyph_to_pixmaps_table [lucid_glyph];
+#undef MAKE_BUILTIN
 }
 
 
-extern Pixmap load_pixmap_1 (Display *, Window, Lisp_Object,
-			     unsigned int *, unsigned int *, unsigned int *,
-			     Pixmap *);
+extern char *strdup();
 
-
-struct x_pixmap *
+GLYPH
 x_get_pixmap (Lisp_Object lisp_name, char *hash_suffix)
 {
-  Display *dpy = x_current_display;
   char hash_buf [255];
   char *name = (char *) XSTRING (lisp_name)->data;
-  struct x_pixmap *value = 0;
-  struct x_pixmap dummy;
+  const void *hash_value; /* can't be GLYPH (16 bits) */
+  Lisp_Object pixmap;
+  GLYPH new;
 
   strcpy (hash_buf, name);
   if (hash_suffix)
     strcat (hash_buf, hash_suffix);
 
-  if (gethash ((void *) hash_buf, x_pixmap_table, (void *) &value))
-    if (value) return value;
+  if (gethash (hash_buf, pixmap_table, &hash_value))
+    /* #### What does it mean for this to be 0?  Bug? */
+    if (hash_value)
+      return ((GLYPH) ((int) hash_value));
 
-  dummy.pixmap = load_pixmap_1 (dpy, DefaultRootWindow (dpy), lisp_name,
-				&dummy.width, &dummy.height, &dummy.depth,
-				&dummy.mask);
-  /* we malloc after load_pixmap_1 has returned because that function
-     can signal a lisp error.  We could also use unwind-protect... */
-  name = strdup (name);
-  value = (struct x_pixmap *) xmalloc (sizeof (struct x_pixmap));
-  dummy.face_id = ~0;
-  memcpy (value, &dummy, sizeof (struct x_pixmap));
-  puthash ((void *) strdup (hash_buf), (void *) value, x_pixmap_table);
-  value->glyph_id = max_pixmap_id;
-  if (max_pixmap_id >= glyph_to_x_pixmaps_size)
+  /* #### shouldn't be using selected-screen here */
+  pixmap = Fmake_pixmap (lisp_name, Fselected_screen ());
+
+  if (max_pixmap_id >= glyph_to_pixmaps_size)
     {
-      glyph_to_x_pixmaps_size += 50;
-      glyph_to_x_pixmaps_table = (struct x_pixmap **)
-	xrealloc (glyph_to_x_pixmaps_table,
-		  glyph_to_x_pixmaps_size * sizeof (struct x_pixmap *));
+      glyph_to_pixmaps_size += 50;
+      glyph_to_pixmaps_table = (Lisp_Object *)
+	xrealloc (glyph_to_pixmaps_table,
+		  glyph_to_pixmaps_size * sizeof (Lisp_Object));
     }
-  glyph_to_x_pixmaps_table [max_pixmap_id] = value;
+  new = max_pixmap_id;
   max_pixmap_id++;
-  return value;
+  glyph_to_pixmaps_table [new] = pixmap;
+  puthash (xstrdup (hash_buf),
+           (void *) ((int) hash_value),
+           pixmap_table);
+  return new;
 }
 
-
-extern void (*beep_hook) ();
 
 static void
 make_argc_argv (argv_list, argc, argv)
@@ -1986,7 +1781,7 @@ make_argc_argv (argv_list, argc, argv)
      char*** argv;
 {
   Lisp_Object next;
-  int n = Flength (argv_list);
+  int n = XINT (Flength (argv_list));
   int i;
   *argv = (char**)xmalloc (n * sizeof (char*));
 
@@ -2011,14 +1806,14 @@ make_arg_list (argc, argv)
   return Fnreverse (result);
 }
 
-static XrmOptionDescRec 
-emacs_options[] =
-{
+static XrmOptionDescRec emacs_options[] = {
+  {"-geometry",	".geometry", XrmoptionSepArg, NULL},
+  {"-iconic",	".iconic", XrmoptionNoArg, (XtPointer) "yes"},
+
   {"-internal-border-width", "*EmacsScreen.internalBorderWidth",
      XrmoptionSepArg, NULL},
   {"-ib",	"*EmacsScreen.internalBorderWidth", XrmoptionSepArg, NULL},
-  {"-geometry",	"*EmacsScreen.initialGeometry", XrmoptionSepArg, NULL},
-  {"-iconic",	"*EmacsShell.iconic", XrmoptionNoArg, (XtPointer) "on"},
+
   {"-T",	"*EmacsShell.title", XrmoptionSepArg, (XtPointer) NULL},
   {"-wn",	"*EmacsShell.title", XrmoptionSepArg, (XtPointer) NULL},
   {"-title",	"*EmacsShell.title", XrmoptionSepArg, (XtPointer) NULL},
@@ -2031,10 +1826,6 @@ emacs_options[] =
 
 static void sanity_check_geometry_resource (Display *);
 extern void x_init_modifier_mapping (Display *);
-
-#ifdef SIGIO
-extern void init_sigio (void);
-#endif
 
 extern Lisp_Object Vx_emacs_application_class;
 extern int x_selection_timeout;
@@ -2057,6 +1848,11 @@ x_term_init (argv_list)
     app_class = "Emacs";
 
   make_argc_argv (argv_list, &argc, &argv);
+
+#ifdef DUBIOUS_X_ERROR_HANDLING
+  error_expected = 0;
+  error_occurred = 0;
+#endif
 
   Xt_app_shell = XtAppInitialize (&Xt_app_con, app_class,
 				  emacs_options, XtNumber(emacs_options),
@@ -2094,11 +1890,18 @@ x_term_init (argv_list)
 	memcpy (hostname, "Somewhere", 9);
 	hostname[10] = 0;
       }
-    id_name = (char *) xmalloc (XSTRING (Vinvocation_name)->size +
-				strlen (hostname) + 2);
+    id_name = (char *) xmalloc (string_length (XSTRING (Vinvocation_name))
+                                + strlen (hostname) + 2);
     sprintf (id_name, "%s@%s", XSTRING (Vinvocation_name)->data, hostname);
   }
   
+
+#ifdef HPUX
+  {
+    int owner = getpid ();
+    ioctl (x_file_descriptor, SIOCSPGRP, &owner);
+  }
+#else /* !HPUX */
 #ifdef F_SETOWN
   old_fcntl_owner = fcntl (x_file_descriptor, F_GETOWN, 0);
 #ifdef F_SETOWN_SOCK_NEG
@@ -2108,6 +1911,7 @@ x_term_init (argv_list)
   fcntl (x_file_descriptor, F_SETOWN, getpid ());
 #endif /* F_SETOWN_SOCK_NEG */
 #endif /* F_SETOWN */
+#endif /* !HPUX */
 
 #ifdef SIGIO
   init_sigio ();
@@ -2118,16 +1922,21 @@ x_term_init (argv_list)
      We cannot connect it to SIGINT.  */
   Fset_input_mode (Qt, Qnil, Qt);
 
+  clear_window_end_hook = XTclear_window_end;
+  shift_region_hook = XTshift_region;
+
+  update_line_hook = PlotTextLine;
+  insert_chars_hook = InsertChar;
+  text_width_hook = XTtext_width;
+
   clear_screen_hook = XTclear_screen;
-  clear_end_of_line_hook = XTclear_end_of_line;
-  ins_del_lines_hook = XTins_del_lines;
   ring_bell_hook = XTring_bell;
   beep_hook = XTsimple_beep;
-  write_glyphs_hook = XTwrite_glyphs;
   update_begin_hook = XTupdate_begin;
   update_end_hook = XTupdate_end;
   set_terminal_window_hook = XTset_terminal_window;
-  read_socket_hook = (int (*)())-1;
+
+  /* read_socket_hook = (Lisp_Object (*)())-1; */
   cursor_to_hook = XTcursor_to;
 
   scroll_region_ok = 1;		/* we'll scroll partial screens */
@@ -2139,7 +1948,8 @@ x_term_init (argv_list)
   baud_rate = 19200;
   x_interline_space = 0;
 
-  last_bar_cursor = Qnil;
+/*  Vlast_bar_cursor = Qnil;
+   staticpro (&Vlast_bar_cursor); */
 
   init_bitmap_tables ();
 
@@ -2207,6 +2017,18 @@ x_update_wm_hints (widget)
       hints.flags = USPosition;
     }
   XSetWMNormalHints (XtDisplay (widget), XtWindow (widget), &hints);
+
+  /* #### This is fucking insane.  This is the only way I could get the `x'
+     and `y' arguments to x-create-screen to be obeyed; it seems that no
+     usage of XtSetValues can cause the shell widget's idea of the USPosition
+     to be updated before the shell has been mapped.  So smash it. */
+  {
+    if (! XtIsSubclass (widget, wmShellWidgetClass)) abort ();
+    ((WMShellWidget) widget)->wm.size_hints.flags |= USPosition;
+    ((WMShellWidget) widget)->wm.size_hints.x = widget->core.x;
+    ((WMShellWidget) widget)->wm.size_hints.y = widget->core.y;
+  }
+
   UNBLOCK_INPUT;
 }
 
@@ -2273,30 +2095,14 @@ x_set_mouse_position (s, x, y)
      struct screen *s;
      int x, y;
 {
-  int pix_x, pix_y;
-  struct glyph_dimensions *dimensions;
+  struct Lisp_Font *font = XFONT (SCREEN_DEFAULT_FONT (s));
 
-  x_raise_screen (s, 0);
-
-  if (x >= 0)
-    dimensions = get_glyph_dimensions (s, s->phys_cursor_x, s->phys_cursor_y);
-  if (!dimensions)
-    return;
-
-  if (x < 0)
-    pix_x = PIXEL_WIDTH (s) / 2;
-  else
-    pix_x = dimensions->top_left_x + dimensions->width / 2;
-
-  if (y < 0)
-    pix_y = PIXEL_HEIGHT (s) / 2;
-  else
-    pix_y = (s->current_glyphs->top_left_y[y]
-	     + s->current_glyphs->pix_height[y] / 2);
+  x = INT_BORDER(s) + x * font->width + font->width / 2;
+  y = INT_BORDER(s) + y * font->height + font->height / 2;
 
   BLOCK_INPUT;
-  XWarpPointer (x_current_display, None, XtWindow (s->display.x->edit_widget),
-	       0, 0, 0, 0, pix_x, pix_y);
+  XWarpPointer (x_current_display, None, XtWindow(s->display.x->edit_widget),
+		0, 0, 0, 0, x, y);
   UNBLOCK_INPUT;
 }
 
@@ -2359,7 +2165,7 @@ x_raise_screen (s, force)
 				    DefaultScreen (x_current_display));
 	  ev.type = ConfigureRequest;
 	  ev.parent = root;
-	  ev.window = window;
+	  ev.window = emacs_window;
 	  ev.above = XtWindow (bottom_dialog);
 	  ev.value_mask = flags;
 	  XSendEvent (x_current_display, root, False,
@@ -2508,9 +2314,6 @@ x_focus_screen (s)
   UNBLOCK_INPUT;
 }
 
-extern Lisp_Object WM_COMMAND_screen; /* in xfns.c */
-extern Lisp_Object Vcommand_line_args;
-
 /* Called from xfns.c when screens are created */
 void
 maybe_store_wm_command (struct screen *s)
@@ -2524,7 +2327,7 @@ maybe_store_wm_command (struct screen *s)
       BLOCK_INPUT;
       XSetCommand (XtDisplay (w), XtWindow (w), argv, argc);
       xfree (argv);
-      XSET (WM_COMMAND_screen, Lisp_Screen, s);
+      XSETR (WM_COMMAND_screen, Lisp_Screen, s);
       UNBLOCK_INPUT;
     }
 }

@@ -14,6 +14,9 @@
  because you are having trouble, then you would be much better off arranging
  for those heuristics to succeed than defining the paths in this file.
 
+   **  Let me say that again.  If you're editing this file, you're making
+   **  a mistake.  Re-read the section on installation in ../etc/NEWS.
+
  If it defines anything, this file should define some subset of the following:
 
    PATH_LOADSEARCH	The default value of `load-path'.

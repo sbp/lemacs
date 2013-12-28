@@ -7,6 +7,10 @@
 ;;;
 ;;; This program is freely distributable under
 ;;;  the terms of the GNU Public license.
+;;;
+;;; Rcs_Info: cmulisp.lisp,v 1.29 1993/09/03 02:05:07 ivan Rel $
+;;;
+;;;
 
 
 (in-package "ILISP")
@@ -78,60 +82,83 @@
 	      ))))
     )
 
-;;;% Extensions to describe.
 
-;(in-package "LISP")
+;;;%% arglist/source-file utils.
 
-;;; Put these in the EXT package, but to define them we need access to
-;;; symbols in lisp's guts. 
+(defun get-correct-fn-object (sym)
+  "Deduce how to get the \"right\" function object and return it."
+  (let ((fun (or (macro-function sym)
+		 (and (fboundp sym) (symbol-function sym)))))
+    (cond (fun
+	   (when (and (= (lisp::get-type fun) #.vm:closure-header-type)
+		      (not (eval:interpreted-function-p fun)))
+	     (setq fun (lisp::%closure-function fun)))
+	   fun)
+	  (t
+	   (error "Unknown function ~a.  Check package." sym)
+	   nil))))
 
-;(import '(arglist source-file) (find-package "EXTENSIONS"))
-;(export '(arglist source-file) (find-package "EXTENSIONS"))
 
+
+(export '(arglist source-file cmulisp-trace))
 
 ;;;%% arglist - return arglist of function
 
-#+ignore
 (defun arglist (symbol package)
-  (ilisp:ilisp-errors
-   (let* ((x (ilisp:ilisp-find-symbol symbol package))
-	  (fun (symbol-function x)))
+  (ilisp-errors
+   (let* ((x (ilisp-find-symbol symbol package))
+	  (fun (get-correct-fn-object x)))
      (values
-      (read-from-string
-       (cond ((compiled-function-p fun)
-	      (system::%primitive header-ref fun %function-arg-names-slot)
-	      )
-	     ((desc-lambdap fun)	; (lambda (arglist) ..)  form
-	      (cadr fun))
-
-	     ;; this never happens.
-	     ;;((eq (car fun) '%compiled-closure%)
-	     ;;(describe-function-compiled (third x)))
-
-	     ((desc-lexical-closure-p fun)
-	      (cadadr fun))
-	     (t (error "Unknown type of function"))))))))
+      (cond ((eval:interpreted-function-p fun) 
+	     (eval:interpreted-function-arglist fun))
+	    ((= (lisp::get-type fun)
+		#.vm:funcallable-instance-header-type) 
+	     ;; generic function / method
+	     (pcl::generic-function-pretty-arglist fun))
+	    ((compiled-function-p fun)
+	     (let ((string-or-nil
+		    (#+CMU17 lisp::%function-arglist
+		     #-CMU17 lisp::%function-header-arglist
+		     fun)))
+	       (if string-or-nil
+		   (read-from-string string-or-nil)
+		   "No argument info.")))
+	    (t (error "Unknown type of function")))))))
 
 ;;;%% source-file
-;;;
-;;; For compiled functions only, since the compiler adds this information.
 
-#+ignore
 (defun source-file (symbol package type)
   (declare (ignore type))
-  (ilisp:ilisp-errors
-   (let ((fun (ilisp:ilisp-find-symbol symbol package)))
-     (and (fboundp fun)
-	  (compiled-function-p (symbol-function fun))
-	  (let* ((compiler-string
-		  (%primitive header-ref (symbol-function fun)
-			      %function-defined-from-slot))
-		 (def-string
-		     (subseq
-		      compiler-string 0 (position #\space compiler-string))))
-	    (if (string= def-string "Lisp") nil
-		(progn (print def-string)
-		       t)
-		))))))
-;(unless (compiled-function-p #'source-file)
-;  (format t "\"ILISP: File is not compiled, use M-x ilisp-compile-inits\""))
+  (ilisp-errors
+   (let* ((x (ilisp-find-symbol symbol package))
+	  (fun (get-correct-fn-object x)))
+     (when fun
+       (cond ((= (lisp::get-type fun)
+		 #.vm:funcallable-instance-header-type)
+	      ;; A PCL method! Uh boy!
+	      (dolist (method (pcl::generic-function-methods fun))
+		(print-simple-source-info
+		 (lisp::%closure-function (pcl::method-function method))))
+	      t)
+	     (t (print-simple-source-info fun)))))))
+
+
+(defun print-simple-source-info (fun)
+  (let ((info (#+CMU17 kernel:%code-debug-info
+	       #-CMU17 kernel:code-debug-info       
+	       (kernel:function-code-header fun))))
+    (when info
+      (let ((sources (c::compiled-debug-info-source info)))
+	(when sources
+	  (dolist (source sources)
+	    (let ((name (c::debug-source-name source)))
+	      (when (eq (c::debug-source-from source) :file)
+		(print (namestring name)))))
+	  t)))))
+
+(defun cmulisp-trace (symbol package breakp)
+  "Trace SYMBOL in PACKAGE."
+  (ilisp-errors
+   (let ((real-symbol (ilisp-find-symbol symbol package)))
+     (setq breakp (read-from-string breakp))
+     (when real-symbol (eval `(trace ,real-symbol :break ,breakp))))))

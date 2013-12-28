@@ -1,5 +1,5 @@
 /* GNU Emacs routines to deal with case tables.
-   Copyright (C) 1987, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1992, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -88,7 +88,8 @@ This is the one used for new buffers.")
 			      Fcons (Vascii_eqv_table, Qnil))));
 }
 
-Lisp_Object set_case_table (Lisp_Object, int);
+static Lisp_Object set_case_table (Lisp_Object table, int standard);
+
 
 DEFUN ("set-case-table", Fset_case_table, Sset_case_table, 1, 1, 0,
   "Select a new case table for the current buffer.\n\
@@ -121,7 +122,7 @@ See `set-case-table' for more info on case tables.")
   return set_case_table (table, 1);
 }
 
-Lisp_Object
+static Lisp_Object
 set_case_table (table, standard)
      Lisp_Object table;
      int standard;
@@ -233,8 +234,7 @@ init_casetab_once ()
 void
 syms_of_casetab ()
 {
-  Qcase_table_p = intern ("case-table-p");
-  staticpro (&Qcase_table_p);
+  defsymbol (&Qcase_table_p, "case-table-p");
   staticpro (&Vascii_downcase_table);
   staticpro (&Vascii_upcase_table);
   staticpro (&Vascii_canon_table);

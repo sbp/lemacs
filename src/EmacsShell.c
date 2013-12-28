@@ -1,3 +1,12 @@
+/* This is just like the regular Shell widget except that it knows how to
+   deal with managing itself on an externally-provided window which was
+   created by someone else (possibly another process).
+
+   This is not actually emacs-specific, and this extra feature is not
+   currently used (19.8).  A better name for this widget might be 
+   ExternalShell.  But perhaps it should advertise its name as "Shell"
+   to make user resources simpler.
+ */
 
 #include <stdio.h>
 #include <string.h>

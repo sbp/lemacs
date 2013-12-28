@@ -44,6 +44,8 @@
 
 ;; Customization (see also defvars in other sections below)
 
+;; user should define this as `nil' prior to loading dired-x in order that the 
+;; compression/decompression material of emacs19 is not overwritten.
 (defvar dired-mark-keys '("Z")
   "*List of keys (strings) that insert themselves as file markers.")
 
@@ -652,6 +654,10 @@ With an arg, and if omitting was on, turn it off but don't refresh the buffer."
 ;; This is sometimes let-bound to t if messages would be annoying,
 ;; e.g., in dired-awrh.el.
 (defvar dired-omit-silent nil)
+
+;; in emacs19 `(dired-do-kill)' is called `(dired-do-kill-lines)'
+(if (fboundp 'dired-do-kill-lines)
+    (fset 'dired-do-kill 'dired-do-kill-lines))
 
 (defun dired-omit-expunge (&optional regexp)
   "Erases all unmarked files matching REGEXP.
@@ -1418,30 +1424,70 @@ See variable `dired-local-variables-file'."
 GNU tar's `z' switch is used for compressed tar files.
 If you don't have GNU tar, set this to nil: a pipe using `zcat' is then used.")
 
+(defvar dired-make-gzip-quiet t
+  "*If non-nil, pass -q to shell commands involving gzip this will override
+GZIP environment variable.")
+
+(defvar dired-znew-switches nil
+  "*If non-nil, a string of switches that will be passed to `znew'
+example: \"-K\"")
+
 (defvar dired-auto-shell-command-alist-default
   (list
    (list "\\.tar$" (if dired-guess-have-gnutar
-		    (concat dired-guess-have-gnutar " xvf")
-		  "tar xvf"))
+                       (concat dired-guess-have-gnutar " xvf")
+                     "tar xvf"))
+
    ;; regexps for compressed archives must come before the .Z rule to
    ;; be recognized:
    (list "\\.tar\\.Z$" (if dired-guess-have-gnutar
-		      (concat dired-guess-have-gnutar " zxvf")
-		    (concat "zcat * | tar xvf -")))
+                           (concat dired-guess-have-gnutar " zxvf")
+                         (concat "zcat * | tar xvf -"))
+         ;; optional conversion to gzip (GNU zip) format
+         (concat "znew"
+                 (if dired-make-gzip-quiet " -q")
+                 " " dired-znew-switches))
+
+   ;; gzip'ed (GNU zip) archives
+   (list "\\.tar\\.g?z$" (if dired-guess-have-gnutar
+                             (concat dired-guess-have-gnutar " zxvf")
+                           ;; use `gunzip -qc' instead of `zcat' since some 
+                           ;; people don't install GNU zip's version of zcat
+                           (concat "gunzip -qc * | tar xvf -")))
    '("\\.shar.Z$" "zcat * | unshar")
+   ;; use `gunzip -c' instead of `zcat' 
+   '("\\.shar.g?z$" "gunzip -qc * | unshar")
+   '("\\.ps$" "ghostview" "xv" "lpr")
+   '("\\.ps.g?z$" "gunzip -qc * | ghostview -"
+     ;; optional decompression
+     (concat "gunzip" (if dired-make-gzip-quiet " -q")))
+   '("\\.ps.Z$" "zcat * | ghostview -" 
+     ;; optional conversion to gzip (GNU zip) format
+     (concat "znew"
+             (if dired-make-gzip-quiet " -q")
+             " " dired-znew-switches))
+   '("\\.dvi$" "xdvi" "dvips")
+   '("\\.au$" "play")                   ; play Sun audiofiles 
+   '("\\.mpg$" "mpeg_play")
    '("\\.uu$" "uudecode")
    '("\\.hqx$" "mcvert")
    '("\\.sh$" "sh")			; execute shell scripts
    '("\\.xbm$" "bitmap")		; view X11 bitmaps
    '("\\.gp$" "gnuplot")
+   '("\\.p[bgpn]m$" "xv")
    '("\\.gif$" "xv")			; view gif pictures
+   '("\\.tif$" "xv")
+   '("\\.jpg$" "xv")
    '("\\.fig$" "xfig")			; edit fig pictures
    '("\.tex$" "latex" "tex")
    '("\\.texi\\(nfo\\)?$" "makeinfo" "texi2dvi")
    (if (eq window-system 'x)		; under X, offer both...
        '("\\.dvi$"  "xtex" "dvips")	; ...preview and printing
      '("\\.dvi$" "dvips"))
-   '("\\.Z$" "uncompress")
+   '("\\.g?z$" (concat "gunzip" (if dired-make-gzip-quiet " -q" ""))) ; quiet?
+   '("\\.Z$" "uncompress"
+     ;; optional conversion to gzip (GNU zip) format
+     (concat "znew" (if dired-make-gzip-quiet " -q") " " dired-znew-switches))
    ;; some popular archivers:
    '("\\.zoo$" "zoo x//")
    '("\\.zip$" "unzip")
@@ -1449,7 +1495,7 @@ If you don't have GNU tar, set this to nil: a pipe using `zcat' is then used.")
    '("\\.arc$" "arc x")
    '("\\.shar$" "unshar")		; use "sh" if you don't have unshar
    )
-
+  
   "Default for variable `dired-auto-shell-command-alist' (which see).
 Set this to nil to turn off shell command guessing.")
 
@@ -1497,6 +1543,9 @@ rules for `.foo' and `.bar' files, write
       nil				; If more than one file, don't guess
     (let* ((file (car files))
 	   (alist dired-auto-shell-command-alist)
+           (case-fold-search nil) ; need search to be case-sensitive in order 
+                                  ; to distinguish between gzip'ed (`.z') and
+                                  ; compressed (`.Z') files
 	   elt re cmds)
       (while alist
 	(setq elt (car alist)

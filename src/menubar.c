@@ -1,10 +1,12 @@
 /* Implements an elisp-programmable menubar.
+   Copyright (C) 1993
+   Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -19,21 +21,26 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* created 16-dec-91 by jwz */
 
 #include "config.h"
-#include "lisp.h"
 
-#include <stdio.h>
+#include <stdio.h>	/* for sprintf */
+
+#include "lisp.h"
 
 #include <X11/Intrinsic.h>
 #include <X11/StringDefs.h>
 #include <X11/Xaw/Paned.h>
 
-#include "lwlib.h"
-
 #include "screen.h"
-#include "events.h"
 #include "xterm.h"
+#include "events.h"
 #include "window.h"
 #include "buffer.h"
+
+#include "commands.h"           /* zmacs_regions */
+
+#include "dispmisc.h"
+
+#include "lwlib.h"
 
 #ifdef LWLIB_USES_MOTIF
 /* right now there is only Motif support for dialog boxes */
@@ -43,12 +50,12 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* This variable is 1 if the menubar widget has to be updated. 
  It is set to 1 by set-menubar-dirty-flag and cleared when the widget
  has been indapted. */
-static int menubar_has_changed;
+int menubar_has_changed;
 
 Lisp_Object Qcurrent_menubar;
+Lisp_Object Qmenu_no_selection_hook;
 
-static void
-set_screen_menubar (struct screen *s, int deep_p);
+static void set_screen_menubar (struct screen *s, int deep_p);
 
 /* we need a unique id for each popup menu and dialog box */
 unsigned int popup_id_tick;
@@ -59,64 +66,125 @@ int dbox_up_p;
 
 int menubar_show_keybindings;
 
-/* This converts a lisp description of a menubar into a tree of widget_value
-   structures.  It allocates widget_values with malloc_widget_value() and
-   allocates other storage only for the `key' slot.  All other slots are 
-   filled with pointers to Lisp_String data.  We allocate a widget_value
-   description of the menu or menubar, and hand it to lwlib, which then 
-   makes a copy of it, which it manages internally.  We then immediately
-   free our version; it will not be referenced again.
+
+/* Converting Lisp menu tree descriptions to lwlib's `widget_value' form.
+
+   menu_item_descriptor_to_widget_value() converts a lisp description of a
+   menubar into a tree of widget_value structures.  It allocates widget_values
+   with malloc_widget_value() and allocates other storage only for the `key'
+   slot.  All other slots are filled with pointers to Lisp_String data.  We
+   allocate a widget_value description of the menu or menubar, and hand it to
+   lwlib, which then makes a copy of it, which it manages internally.  We then
+   immediately free our widget_value tree; it will not be referenced again.
+
+   This function is highly recursive (it follows the menu trees) and may call
+   eval.  The reason we keep pointers to lisp string data instead of copying
+   it and freeing it later is to avoid the speed penalty that would entail
+   (since this needs to be fast, in the simple cases at least.)  (The reason
+   we malloc/free the keys slot is because there's not a lisp string around
+   for us to use in that case.)
+
+   Since we keep pointers to lisp strings, and we call eval, we could lose if
+   GC relocates (or frees) those strings.  It's not easy to gc protect the
+   strings because of the recursive nature of this function, and the fact that
+   it returns a data structure that gets freed later.  So...  we do the
+   sleaziest thing possible and inhibit GC for the duration.  This is probably
+   not a big deal...
+ */
+
+#if 1
+  /* Eval the activep slot of the menu item */
+# define wv_set_enabled(wv,form)			\
+   do { Lisp_Object _f_ = (form);			\
+	  (wv)->enabled = (NILP (_f_) ? 0 : 		\
+			   EQ (_f_, Qt) ? 1 :		\
+			   !NILP (Feval (_f_)));	\
+      } while (0)
+#else
+  /* Treat the activep slot of the menu item as a boolean */
+# define wv_set_enabled(wv,form)			\
+      (wv)->enabled = (!NILP ((form)))
+#endif
+
+
+/* menu_item_descriptor_to_widget_value() mallocs a widget_value, but then
+   may signal lisp errors.  If an error does not occur, the cons cell we have
+   here has had its car and cdr set to 0 to tell us not to do anything.
+   Otherwise we free the widget value.  (This has nothing to do with GC, it's
+   just about not dropping pointers to malloc'd data when errors happen.)
+ */
+static Lisp_Object
+widget_value_unwind (Lisp_Object closure)
+{
+  widget_value *wv = (widget_value *) cons_to_long (closure);
+  if (wv)
+    {
+      BLOCK_INPUT;
+      free_widget_value (wv);
+      UNBLOCK_INPUT;
+    }
+  return Qnil;
+}
+
+/* This does the dirty work.  gc_currently_forbidden is 1 when this is called.
  */
 static widget_value *
-menu_item_descriptor_to_widget_value (desc, menubar_p, deep_p)
-     Lisp_Object desc;
-     int menubar_p, deep_p;
+menu_item_descriptor_to_widget_value_1 (Lisp_Object desc, 
+					int menubar_p, int deep_p)
 {
   widget_value *wv;
+  Lisp_Object wv_closure;
+  int count = specpdl_depth ();
+
   BLOCK_INPUT;
   wv = malloc_widget_value ();
   UNBLOCK_INPUT;
 
-  switch (XTYPE (desc))
+  wv_closure = long_to_cons ((unsigned long) wv);
+  record_unwind_protect (widget_value_unwind, wv_closure);
+
+  if (STRINGP (desc))
     {
-    case Lisp_String:
       wv->name = (char *) XSTRING (desc)->data;
       wv->value = 0;
       wv->enabled = 1;
-      break;
-    case Lisp_Vector:
-      if (XVECTOR (desc)->size < 3 || XVECTOR (desc)->size > 4)
-	Fsignal (Qerror,
-		 Fcons (build_string("button descriptors must be 3 or 4 long"),
-			Fcons (desc, Qnil)));
+    }
+  else if (VECTORP (desc))
+    {
+      if (vector_length (XVECTOR (desc)) < 3 ||
+	  vector_length (XVECTOR (desc)) > 4)
+	signal_error (Qerror, 
+                      list2 (build_string
+			     ("button descriptors must be 3 or 4 long"),
+			     desc));
+
       CHECK_STRING (XVECTOR (desc)->contents [0], 0);
       wv->name = (char *) XSTRING (XVECTOR (desc)->contents [0])->data;
-      if (XVECTOR (desc)->size == 4 && !NILP (XVECTOR (desc)->contents [3]))
+      if (vector_length (XVECTOR (desc)) == 4
+          && !NILP (XVECTOR (desc)->contents [3]))
 	{
 	  CHECK_STRING (XVECTOR (desc)->contents [3], 0);
 	  wv->value = (char *) XSTRING (XVECTOR (desc)->contents [3])->data;
 	}
       else
 	wv->value = 0;
-      wv->enabled = (Qnil != XVECTOR (desc)->contents [2]);
-      wv->call_data = (XtPointer) (XVECTOR (desc)->contents [1]);
-      if (menubar_show_keybindings &&
-	  SYMBOLP ((Lisp_Object) wv->call_data))
-	{
-	  char buf [1024];
-	  where_is_to_char ((Lisp_Object) wv->call_data,
-			    Fcurrent_local_map (), Qnil, buf);
-	  if (buf [0])
-	    {
-	      int len = strlen (buf) + 1;
-	      wv->key = xmalloc (len);
-	      memcpy (wv->key, buf, len);
-	    }
-	  else
-	    wv->key = 0;
-	}
-      break;
-    case Lisp_Cons:
+      wv_set_enabled (wv, XVECTOR (desc)->contents [2]);  /* runs Feval */
+      {
+	Lisp_Object fn = XVECTOR (desc)->contents [1];
+	wv->call_data = LISP_TO_VOID (fn);
+	if (menubar_show_keybindings && SYMBOLP (fn))
+	  {
+	    char buf [1024];
+	    where_is_to_char (fn, Fcurrent_local_map (), Qnil, buf);
+	    if (buf [0])
+	      wv->key = xstrdup (buf);
+	    else
+	      wv->key = 0;
+	  }
+      }
+    }
+  else if (CONSP (desc))
+    {
       if (STRINGP (XCONS (desc)->car))
 	{
 	  wv->name = (char *) XSTRING (XCONS (desc)->car)->data;
@@ -126,11 +194,10 @@ menu_item_descriptor_to_widget_value (desc, menubar_p, deep_p)
 	wv->name = "menubar";
       else
 	{
-	  while (1)
-	    Fsignal (Qerror,
-		     Fcons (build_string
-			    ("menu name (first element) must be a string"),
-			    Fcons (desc, Qnil)));
+	  signal_error (Qerror,
+                        list2 (build_string
+			       ("menu name (first element) must be a string"),
+                               desc));
 	}
 
       wv->value = 0;
@@ -140,8 +207,8 @@ menu_item_descriptor_to_widget_value (desc, menubar_p, deep_p)
 	  widget_value *prev = 0, *next;
 	  for (; !NILP (desc); desc = Fcdr (desc))
 	    {
-	      next = menu_item_descriptor_to_widget_value (Fcar (desc),
-							   0, deep_p);
+	      next = menu_item_descriptor_to_widget_value_1 (Fcar (desc),
+							     0, deep_p);
 	      if (! next)
 		continue;
 	      else if (prev)
@@ -152,23 +219,79 @@ menu_item_descriptor_to_widget_value (desc, menubar_p, deep_p)
 	    }
 	}
       if (deep_p && !wv->contents)
-	{
-	  free_widget_value (wv);
-	  wv = 0;
-	}
-      break;
-    default:
-      free_widget_value (wv);
-      wv = 0;
-      if (!NILP (desc)) /* ignore nil for now */
-	while (1)
-	  Fsignal (Qerror, Fcons (build_string ("unrecognised descriptor"),
-				  Fcons (desc, Qnil)));
+	wv = 0;
     }
+  else
+    {
+      if (NILP (desc)) /* ignore nil for now */
+	wv = 0;
+      else
+	signal_error (Qerror, list2 (build_string ("unrecognised descriptor"),
+                                     desc));
+    }
+
+  if (wv)
+    {
+      /* Completed normally.  Clear out the cons that widget_value_unwind()
+	 will be called with to tell it not to free the wv (as we are
+	 returning it.) */
+      XCONS (wv_closure)->car = Qzero;
+      XCONS (wv_closure)->cdr = Qzero;
+    }
+
+  unbind_to (count, Qnil);
   return wv;
 }
 
 
+#if 0
+static void
+print_widget_value (widget_value *wv, int depth)
+{
+  char d [200];
+  int i;
+  for (i = 0; i < depth; i++) d[i] = ' ';
+  d[depth]=0;
+  printf ("%sname:    %s\n", d, (wv->name ? wv->name : "(null)"));
+  if (wv->value) printf ("%svalue:   %s\n", d, wv->value);
+  if (wv->key)   printf ("%skey:     %s\n", d, wv->key);
+  printf ("%senabled: %d\n", d, wv->enabled);
+  if (wv->contents)
+    {
+      printf ("\n%scontents: \n", d);
+      print_widget_value (wv->contents, depth + 5);
+    }
+  if (wv->next)
+    {
+      printf ("\n");
+      print_widget_value (wv->next, depth);
+    }
+}
+#endif
+
+
+static Lisp_Object
+restore_gc_inhibit (Lisp_Object val)
+{
+  gc_currently_forbidden = XINT (val);
+  return val;
+}
+
+static widget_value *
+menu_item_descriptor_to_widget_value (Lisp_Object desc, 
+				      int menubar_p, int deep_p)
+{
+  widget_value *wv;
+  int count = specpdl_depth ();
+  record_unwind_protect (restore_gc_inhibit,
+			 make_number (gc_currently_forbidden));
+  gc_currently_forbidden = 1;
+  wv = menu_item_descriptor_to_widget_value_1 (desc, menubar_p, deep_p);
+  unbind_to (count, Qnil);
+  return wv;
+}
+
+
 /* This recursively calls free_widget_value() on the tree of widgets.
    It must free all data that was malloc'ed for these widget_values.
    Currently, emacs only allocates new storage for the `key' slot.
@@ -193,28 +316,19 @@ free_menubar_widget_value_tree (widget_value *wv)
       free_menubar_widget_value_tree (wv->next);
       wv->next = (widget_value *) 0xDEADBEEF;
     }
+  BLOCK_INPUT;
   free_widget_value (wv);
+  UNBLOCK_INPUT;
 }
 
-
-/* screen->menubar_data holds a Lisp_Vector.
-   In this code, we treat that vector as a menubar_data structure.
- */
+
 struct menubar_data
 {
-  int size;
-  struct Lisp_Vector *next;
-
+  struct lcrecord_header header;
   /* This is the last buffer for which the menubar was displayed.
      If the buffer has changed, we may have to update things.
    */
   Lisp_Object last_menubar_buffer;
-
-  /* This flag tells us if the menubar contents are up-to-date with respect
-     to the current menubar structure.  If we want to actually pull down a
-     menu and this is false, then we need to update things.
-   */
-  Lisp_Object menubar_contents_up_to_date;
 
   /* This is a vector of all of the callbacks of the menubar menu buttons.
      This is used only to protect them from being GCed, since the only other
@@ -222,13 +336,41 @@ struct menubar_data
      structures, which GC doesn't know about.
    */
   Lisp_Object menubar_callbacks;
+
+  /* This flag tells us if the menubar contents are up-to-date with respect
+     to the current menubar structure.  If we want to actually pull down a
+     menu and this is false, then we need to update things.
+   */
+  char menubar_contents_up_to_date;
 };
 
-#define SCREEN_MENUBAR_DATA(screen) \
-  ((struct menubar_data *) XVECTOR ((screen)->menubar_data))
+static Lisp_Object
+mark_menubar_data (Lisp_Object obj, void (*markobj) (Lisp_Object))
+{
+  struct menubar_data *data = XRECORD (obj);
+  ((markobj) (data->last_menubar_buffer));
+  return (data->menubar_callbacks);
+}
+static void
+print_menubar_data (Lisp_Object obj, Lisp_Object stream, int escapeflag)
+{
+  char buf[40];
+  sprintf (buf, "#<menubar-data 0x%x>", 
+           ((struct menubar_data *) XRECORD (obj))->header.uid);
+  write_string_1 (buf, -1, stream);
+}
+static int sizeof_menubar_data (void *h)
+{
+  return (sizeof (struct menubar_data)); 
+}
+DEFINE_LRECORD_IMPLEMENTATION (lrecord_menubar_data,
+                               mark_menubar_data, print_menubar_data,
+                               0, sizeof_menubar_data, 0);
 
-#define MENUBAR_DATA_SIZE \
-  ((sizeof (struct menubar_data) / sizeof (Lisp_Object)) - 2)
+
+#define SCREEN_MENUBAR_DATA(screen) \
+  ((struct menubar_data *) XRECORD ((screen)->menubar_data))
+
 
 /* This is like SCREEN_MENUBAR_DATA(s)->menubar_callbacks, but contains an
    alist of (id . vector) for the callbacks of the popup menus and dialog
@@ -241,41 +383,39 @@ static Lisp_Object Vpopup_callbacks;
 static int
 gcpro_menu_callbacks_1 (Lisp_Object menu, Lisp_Object *vector, int index)
 {
-  if (menu == Qnil)
+  if (NILP (menu))
     return index;
-  switch (XTYPE (menu))
+  if (VECTORP (menu))
     {
-    case Lisp_Vector:
-      if (XVECTOR (menu)->size > 2)
+      if (vector_length (XVECTOR (menu)) > 2)
 	{
-	  if (XVECTOR (*vector)->size <= index)
+          struct Lisp_Vector *v = XVECTOR (*vector);
+	  if (vector_length (v) <= index)
 	    {
 	      /* reallocate the vector by doubling its size */
-	      Lisp_Object new_vector = Fmake_vector (index * 2, Qnil);
+	      Lisp_Object new_vector = make_vector (index * 2, Qnil);
 	      memcpy (XVECTOR (new_vector)->contents,
-		      XVECTOR (*vector)->contents,
-		      XVECTOR (*vector)->size * sizeof (Lisp_Object));
+		      v->contents,
+		      vector_length (v) * sizeof (Lisp_Object));
 	      *vector = new_vector;
+              v = XVECTOR (new_vector);
 	    }
-	  XVECTOR (*vector)->contents [index] = XVECTOR (menu)->contents [1];
+	  v->contents [index] = XVECTOR (menu)->contents [1];
 	  index++;
 	}
-      break;
-      
-    case Lisp_String:
-      break;
-
-    case Lisp_Cons:
+    }
+  else if (STRINGP (menu))
+    ;
+  else if (CONSP (menu))
       {
 	Lisp_Object current;
 	for (current = menu; !NILP (current); current = Fcdr (current))
 	  index = gcpro_menu_callbacks_1 (Fcar (current), vector, index);
-	break;
       }
-    default:
+  else
       /* syntax checking has already been done */
       abort ();
-    }
+
   return index;
 }
 
@@ -284,7 +424,7 @@ gcpro_menu_callbacks (Lisp_Object menu, Lisp_Object *vector)
 {
   int i, end;
   if (NILP (*vector))
-    *vector = Fmake_vector (make_number (10), Qnil);
+    *vector = make_vector (10, Qnil);
   else if (!VECTORP (*vector))
     abort ();
 
@@ -292,7 +432,7 @@ gcpro_menu_callbacks (Lisp_Object menu, Lisp_Object *vector)
 
   /* pad it with nil, so that we don't continue protecting things
      we don't need any more */
-  for (i = end; i < XVECTOR (*vector)->size; i++)
+  for (i = end; i < vector_length (XVECTOR (*vector)); i++)
     XVECTOR (*vector)->contents [i] = Qnil;
 }
 
@@ -317,9 +457,7 @@ ungcpro_popup_callbacks (Lisp_Object id)
 }
 
 
-extern Lisp_Object Qeval, Vrun_hooks;
 Lisp_Object Qactivate_menubar_hook, Vactivate_menubar_hook;
-struct screen *x_any_window_to_screen (Window);
 
 static void
 pre_activate_callback (widget, id, client_data)
@@ -329,7 +467,6 @@ pre_activate_callback (widget, id, client_data)
 {
   struct gcpro gcpro1;
   struct screen* s = x_any_window_to_screen (XtWindow (widget));
-  Lisp_Object menubar_data;
   Lisp_Object rest = Qnil;
   int any_changes = 0;
 
@@ -338,8 +475,7 @@ pre_activate_callback (widget, id, client_data)
   if (!s)
     return;
 
-  menubar_data = s->menubar_data;
-  if (!VECTORP (menubar_data))
+  if (!RECORD_TYPEP (s->menubar_data, lrecord_menubar_data))
     return;
 
   /* make the activate-menubar-hook be a list of functions, not a single
@@ -354,7 +490,7 @@ pre_activate_callback (widget, id, client_data)
     if (!EQ (call0 (XCONS (rest)->car), Qt))
       any_changes = 1;
   if (any_changes ||
-      NILP (SCREEN_MENUBAR_DATA (s)->menubar_contents_up_to_date))
+      !SCREEN_MENUBAR_DATA (s)->menubar_contents_up_to_date)
     set_screen_menubar (s, 1);
   UNGCPRO;
 }
@@ -362,7 +498,6 @@ pre_activate_callback (widget, id, client_data)
 
 extern Time mouse_timestamp;
 extern Time global_mouse_timestamp;
-extern Lisp_Object Faccept_process_output ();
 
 static void
 menubar_selection_callback (Widget ignored_widget,
@@ -370,18 +505,22 @@ menubar_selection_callback (Widget ignored_widget,
 			    XtPointer client_data)
 {
   Lisp_Object event, fn, arg;
-  Lisp_Object data = (Lisp_Object) client_data;
+  Lisp_Object data;
 
-  if (((int) client_data) == 0)
+  if (((LISP_WORD_TYPE) client_data) == 0)
     return;
+
+  VOID_TO_LISP (data, client_data);
 
   /* Flush the X and process input */
   Faccept_process_output (Qnil);
 
-  if (((int) client_data) == -1)
+  if (((LISP_WORD_TYPE) client_data) == -1)
     {
-      fn = intern ("run-hooks");
-      arg = intern ("menu-no-selection-hook");
+      fn = Vrun_hooks;
+      arg = Qmenu_no_selection_hook;
+      if (NILP (fn))
+        fn = Qsymbolp;          /* something innocuous */
     }
   else if (SYMBOLP (data))
     {
@@ -396,14 +535,10 @@ menubar_selection_callback (Widget ignored_widget,
   else
     {
       fn = Qeval;
-      arg =
-	Fcons (intern ("signal"),
-	       Fcons (Fcons (intern ("quote"), Fcons (Qerror, Qnil)),
-		      Fcons (Fcons (intern ("quote"),
-				    Fcons (Fcons (build_string ("illegal menu callback"),
-						  Fcons (data, Qnil)),
-					   Qnil)),
-			     Qnil)));
+      arg = list3 (Qsignal,
+                   list2 (Qquote, Qerror),
+                   list2 (Qquote, list2 (build_string ("illegal menu callback:"),
+                                         data)));
     }
 
   event = Fallocate_event ();
@@ -488,7 +623,15 @@ set_screen_menubar (struct screen *s, int deep_p)
   data = compute_menubar_data (s, menubar, deep_p);
 
   if (NILP (s->menubar_data))
-    s->menubar_data = Fmake_vector (MENUBAR_DATA_SIZE, Qnil);
+  {
+    struct menubar_data *data = alloc_lcrecord (sizeof (struct menubar_data),
+                                                lrecord_menubar_data);
+
+    data->last_menubar_buffer = Qnil;
+    data->menubar_callbacks = Qnil;
+    data->menubar_contents_up_to_date = 0;
+    XSET (s->menubar_data, Lisp_Record, data);
+  }
 
   {
     Widget menubar_widget = s->display.x->menubar_widget;
@@ -533,14 +676,14 @@ set_screen_menubar (struct screen *s, int deep_p)
       }
     UNBLOCK_INPUT;
   }
-  if (data) free_menubar_widget_value_tree (data);
-  SCREEN_MENUBAR_DATA (s)->menubar_contents_up_to_date = deep_p ? Qt : Qnil;
+  if (data)
+    free_menubar_widget_value_tree (data);
+  SCREEN_MENUBAR_DATA (s)->menubar_contents_up_to_date = deep_p;
   SCREEN_MENUBAR_DATA (s)->last_menubar_buffer =
     XWINDOW (s->selected_window)->buffer;
   menubar_has_changed = 0;
 
   gcpro_menu_callbacks (menubar, &SCREEN_MENUBAR_DATA (s)->menubar_callbacks);
-
 }
 
 static LWLIB_ID last_popup_selection_callback_id;
@@ -608,13 +751,14 @@ maybe_run_dbox_text_callback (LWLIB_ID id)
   UNBLOCK_INPUT;
   if (got_some)
     {
-      Lisp_Object text_field_callback = (Lisp_Object) wv->call_data;
+      Lisp_Object text_field_callback;
       char *text_field_value = wv->value;
+      VOID_TO_LISP (text_field_callback, wv->call_data);
       if (text_field_value)
 	{
-	  menubar_selection_callback (0, id, (XtPointer)
-				      list2 (text_field_callback,
-					     build_string (text_field_value)));
+	  void *tmp = LISP_TO_VOID (list2 (text_field_callback,
+                                           build_string (text_field_value)));
+	  menubar_selection_callback (0, id, (XtPointer) tmp);
 	  xfree (text_field_value);
 	}
     }
@@ -625,9 +769,7 @@ maybe_run_dbox_text_callback (LWLIB_ID id)
 
 #endif /* HAVE_DIALOG_BOXES */
 
-
-extern int zmacs_regions, zmacs_region_stays;
-
+
 DEFUN ("popup-menu", Fpopup_menu, Spopup_menu, 1, 1, 0,
        "Pop up the given menu.\n\
 A menu description is a list of menu items, strings, and submenus.\n\
@@ -666,7 +808,8 @@ The syntax, more precisely:\n\
    form		:=  <something to pass to `eval'>\n\
    command	:=  <a symbol or string, to pass to `call-interactively'>\n\
    callback 	:=  command | form\n\
-   active-p	:=  <t or nil, whether this thing is selectable>\n\
+   active-p	:=  <t, nil, or a form to evaluate to decide whether this\n\
+		    item should be selectable>\n\
    text		:=  <string, non selectable>\n\
    name		:=  <string>\n\
    argument	:=  <string>\n\
@@ -730,9 +873,12 @@ See popup-menu.")
 
 #ifdef HAVE_DIALOG_BOXES
 
-static char *button_names [] = {
+static const char * const button_names [] = {
   "button1", "button2", "button3", "button4", "button5",
   "button6", "button7", "button8", "button9", "button10" };
+
+/* can't have static frame locals because of some broken compilers */
+static char tmp_dbox_name [255];
 
 static widget_value *
 dbox_descriptor_to_widget_value (Lisp_Object desc)
@@ -757,11 +903,11 @@ dbox_descriptor_to_widget_value (Lisp_Object desc)
   prev->enabled = 1;
 
   if (VECTORP (XCONS (desc)->car) &&
-      EQ (XVECTOR (XCONS (desc)->car)->contents [0], intern ("text")))
+      EQ (XVECTOR (XCONS (desc)->car)->contents [0], Qtext))
     {
       Lisp_Object button = XCONS (desc)->car;
       widget_value *wv;
-      if (XVECTOR (button)->size != 4)
+      if (vector_length (XVECTOR (button)) != 4)
 	error ("dialog box text field descriptors must be 4 long");
       CHECK_STRING (XVECTOR (button)->contents [2], 0);
       BLOCK_INPUT;
@@ -769,8 +915,8 @@ dbox_descriptor_to_widget_value (Lisp_Object desc)
       UNBLOCK_INPUT;
       wv->name = "value";
       wv->value = (char *) XSTRING (XVECTOR (button)->contents [2])->data;
-      wv->enabled = !NILP (XVECTOR (button)->contents [3]);
-      wv->call_data = (XtPointer) XVECTOR (button)->contents [1];
+      wv->call_data = LISP_TO_VOID (XVECTOR (button)->contents [1]);
+      wv_set_enabled (wv, XVECTOR (button)->contents [3]);
       text_field_p = 1;
       prev->next = wv;
       prev = wv;
@@ -781,7 +927,6 @@ dbox_descriptor_to_widget_value (Lisp_Object desc)
     {
       Lisp_Object button = XCONS (desc)->car;
       Lisp_Object cb;
-      int active_p;
       widget_value *wv;
 
       if (NILP (button))
@@ -792,21 +937,20 @@ dbox_descriptor_to_widget_value (Lisp_Object desc)
 	  continue;
 	}
       CHECK_VECTOR (button, 0);
-      if (XVECTOR (button)->size != 3)
-	while (1)
-	  Fsignal (Qerror,
-		   Fcons (build_string("button descriptors must be 3 long"),
-			  Fcons (button, Qnil)));
+      if (vector_length (XVECTOR (button)) != 3)
+        signal_error (Qerror, list2 (build_string
+                                     ("button descriptors must be 3 long"),
+                                     button));
       CHECK_STRING (XVECTOR (button)->contents [0], 0);
       cb = XVECTOR (button)->contents [1];
       
       BLOCK_INPUT;
       wv = malloc_widget_value ();
       UNBLOCK_INPUT;
-      wv->name = button_names [n];
+      wv->name = (char *) button_names [n];
       wv->value = (char *) XSTRING (XVECTOR (button)->contents [0])->data;
-      wv->enabled = !NILP (XVECTOR (button)->contents [2]);
-      wv->call_data = (XtPointer) XVECTOR (button)->contents [1];
+      wv_set_enabled (wv, XVECTOR (button)->contents [2]);
+      wv->call_data = LISP_TO_VOID (XVECTOR (button)->contents [1]);
 
       if (partition_seen)
 	rbuttons++;
@@ -825,13 +969,12 @@ dbox_descriptor_to_widget_value (Lisp_Object desc)
     error ("dialog boxes must have some buttons");
   {
     char type = (text_field_p ? 'P' : 'Q');
-    static char dbox_name [255];
     widget_value *dbox;
-    sprintf (dbox_name, "%c%dBR%d", type, lbuttons + rbuttons, rbuttons);
+    sprintf (tmp_dbox_name, "%c%dBR%d", type, lbuttons + rbuttons, rbuttons);
     BLOCK_INPUT;
     dbox = malloc_widget_value ();
     UNBLOCK_INPUT;
-    dbox->name = dbox_name;
+    dbox->name = tmp_dbox_name;
     dbox->contents = kids;
 
     return dbox;
@@ -862,7 +1005,8 @@ The syntax, more precisely:\n\
    form		:=  <something to pass to `eval'>\n\
    command	:=  <a symbol or string, to pass to `call-interactively'>\n\
    callback 	:=  command | form\n\
-   active-p	:=  <t or nil, whether this thing is selectable>\n\
+   active-p	:=  <t, nil, or a form to evaluate to decide whether this\n\
+		    button should be selectable>\n\
    name		:=  <string>\n\
    partition	:=  'nil'\n\
    button	:=  '['  name callback active-p ']'\n\
@@ -923,7 +1067,7 @@ The syntax, more precisely:\n\
 extern int desired_debuggerpanel_exposed_p;
 extern int current_debuggerpanel_exposed_p;
 extern int debuggerpanel_sheet;
-extern void notify_that_sheet_has_been_hidden (unsigned long);
+extern void notify_energize_sheet_hidden (unsigned long);
 
 #endif
 
@@ -932,6 +1076,7 @@ update_screen_menubars ()
 {
   struct screen* s;
   Lisp_Object tail;
+  int save_menubar_has_changed = menubar_has_changed;
   
   for (tail = Vscreen_list; CONSP (tail); tail = XCONS (tail)->cdr)
     {
@@ -945,10 +1090,10 @@ update_screen_menubars ()
       
       /* If the menubar_has_changed flag was set, or the displayed buffer
 	 has changed we have to update the menubar. */
-      if (menubar_has_changed
-	  || !VECTORP (s->menubar_data)
-	  || (SCREEN_MENUBAR_DATA (s)->last_menubar_buffer !=
-	      XWINDOW (s->selected_window)->buffer))
+      if (save_menubar_has_changed
+	  || !RECORD_TYPEP (s->menubar_data, lrecord_menubar_data)
+	  || (!EQ (SCREEN_MENUBAR_DATA (s)->last_menubar_buffer,
+		   XWINDOW (s->selected_window)->buffer)))
 	if (!MINI_WINDOW_P (XWINDOW (s->selected_window)))
 #ifndef LWLIB_USES_OLIT
 	  set_screen_menubar (s, 0);
@@ -968,11 +1113,11 @@ static void
 update_one_screen_psheets (screen)
      Lisp_Object screen;
 {
-  struct screen* s = XSCREEN (screen);
+  struct screen *s = XSCREEN (screen);
   struct x_display *x = s->display.x;
-  int i;
   
 #ifdef ENERGIZE
+  int i;
   int *old_sheets = x->current_psheets;
   int *new_sheets = x->desired_psheets;
   int old_count = x->current_psheet_count;
@@ -981,7 +1126,7 @@ update_one_screen_psheets (screen)
   Lisp_Object new_buf = x->desired_psheet_buffer;
   int psheets_changed = (old_sheets != new_sheets
 			 || old_count != new_count
-			 || old_buf != new_buf);
+			 || !EQ (old_buf, new_buf));
   int debuggerpanel_changed = (desired_debuggerpanel_exposed_p
 			       != current_debuggerpanel_exposed_p);
 #endif
@@ -1025,7 +1170,7 @@ update_one_screen_psheets (screen)
 	  w = lw_get_widget (sheet, x->column_widget, 0);
 	  if (psheets_changed && w)
 	    {
-	      notify_that_sheet_has_been_hidden (sheet);
+	      notify_energize_sheet_hidden (sheet);
 	      XtVaSetValues (w, XtNmappedWhenManaged, 0, 0);
 	      XtUnmanageChild (w);
 	      XtUnmapWidget (w);
@@ -1042,7 +1187,7 @@ update_one_screen_psheets (screen)
       w = lw_get_widget (sheet, x->column_widget, 0);
       if (!desired_debuggerpanel_exposed_p && w)
 	{
-	  notify_that_sheet_has_been_hidden (sheet);
+	  notify_energize_sheet_hidden (sheet);
 	  XtVaSetValues (w, XtNmappedWhenManaged, 0, 0);
 	  XtUnmanageChild (w);
 	  XtUnmapWidget (w);
@@ -1192,6 +1337,8 @@ free_screen_menubar (struct screen *s)	/* called from Fdelete_screen() */
 void
 syms_of_menubar ()
 {
+  defsymbol (&Qmenu_no_selection_hook, "menu-no-selection-hook");
+
   popup_menu_up_p = 0;
   last_popup_selection_callback_id = -1;
   popup_id_tick = (1<<16);	/* start big, to not conflict with Energize */
@@ -1265,7 +1412,8 @@ The syntax, more precisely:\n\
    form		:=  <something to pass to `eval'>\n\
    command	:=  <a symbol or string, to pass to `call-interactively'>\n\
    callback 	:=  command | form\n\
-   active-p	:=  <t or nil, whether this thing is selectable>\n\
+   active-p	:=  <t, nil, or a form to evaluate to decide whether this\n\
+		    item should be selectable>\n\
    text		:=  <string, non selectable>\n\
    name		:=  <string>\n\
    argument	:=  <string>\n\
@@ -1278,8 +1426,7 @@ The syntax, more precisely:\n\
 
   */
 
-  Qcurrent_menubar = intern ("current-menubar");
-  staticpro (&Qcurrent_menubar);
+  defsymbol (&Qcurrent_menubar, "current-menubar");
   Fset (Qcurrent_menubar, Qnil);
 
   DEFVAR_LISP ("activate-menubar-hook", &Vactivate_menubar_hook,
@@ -1298,8 +1445,7 @@ changes may not show up right away.  Returning `nil' when the menubar has\n\
 not changed is not so bad; more computation will be done, but redisplay of\n\
 the menubar will still be performed optimally.");
   Vactivate_menubar_hook = Qnil;
-  Qactivate_menubar_hook = intern ("activate-menubar-hook");
-  staticpro (&Qactivate_menubar_hook);
+  defsymbol (&Qactivate_menubar_hook, "activate-menubar-hook");
 
 /*
  *  This DEFVAR_LISP is just for the benefit of make-docfile.
@@ -1307,7 +1453,7 @@ the menubar will still be performed optimally.");
    "Function or functions to call when a menu or dialog box is dismissed\n\
 without a selecting having been made.");
  */
-  Fset (intern ("menu-no-selection-hook"), Qnil);
+  Fset (Qmenu_no_selection_hook, Qnil);
 
   DEFVAR_BOOL ("menubar-show-keybindings", &menubar_show_keybindings,
     "If true, the menubar will display keyboard equivalents.\n\

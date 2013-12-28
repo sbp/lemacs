@@ -1,5 +1,9 @@
-;; Handling of disabled commands ("novice mode") for Emacs.
-;; Copyright (C) 1985-1993 Free Software Foundation, Inc.
+;;; novice.el --- handling of disabled commands ("novice mode") for Emacs.
+
+;; Copyright (C) 1985, 1986, 1987, 1992, 1993 Free Software Foundation, Inc.
+
+;; Maintainer: FSF
+;; Keywords: internal, help
 
 ;; This file is part of GNU Emacs.
 
@@ -18,11 +22,23 @@
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
 
+;;; Commentary:
+
+;; This mode provides a hook which is, by default, attached to various
+;; putatively dangerous commands in a (probably futile) attempt to
+;; prevent lusers from shooting themselves in the feet.
+
+;;; Code:
+
 ;; This function is called (by autoloading)
 ;; to handle any disabled command.
 ;; The command is found in this-command
 ;; and the keys are returned by (this-command-keys).
 
+;;;###autoload
+;(setq disabled-command-hook 'disabled-command-hook)
+
+;;;###autoload
 (defun disabled-command-hook (&rest ignore)
   (let (char)
     (save-window-excursion
@@ -55,10 +71,9 @@ Space to try the command just this once,
 Y to try it and enable it (no questions if you use it again),
 N to do nothing (command remains disabled)."))
      (message "Type y, n or Space: ")
-     (let ((cursor-in-echo-area t)
-	   (event (allocate-event)))
+     (let ((cursor-in-echo-area t))
        (while (not (memq (setq char (downcase (event-to-character
-					       (next-command-event event))))
+					       (next-command-event))))
 			 '(?  ?y ?n)))
 	 (ding nil 'y-or-n-p)
 	 (discard-input)
@@ -70,6 +85,7 @@ N to do nothing (command remains disabled)."))
     (if (/= char ?n)
 	(call-interactively this-command))))
 
+;;;###autoload
 (defun enable-command (command)
   "Allow COMMAND to be executed without special confirmation from now on.
 The user's .emacs file is altered so that this will apply
@@ -88,6 +104,7 @@ to future sessions."
      (insert "\n(put '" (symbol-name command) " 'disabled nil)\n"))
    (save-buffer)))
 
+;;;###autoload
 (defun disable-command (command)
   "Require special confirmation to execute COMMAND from now on.
 The user's .emacs file is altered so that this will apply
@@ -105,3 +122,4 @@ to future sessions."
    (insert "(put '" (symbol-name command) " 'disabled t)\n")
    (save-buffer)))
 
+;;; novice.el ends here

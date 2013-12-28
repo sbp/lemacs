@@ -71,12 +71,24 @@ The contents of these headers will be displayed in the face
 Text in the body of a message which matches this will be displayed in
 the face `message-cited-text'.")
 
+(defvar highlight-headers-highlight-citation-too nil
+  "*Whether the whole citation line should go in the `mesage-cited-text' face.
+If nil, the text matched by `highlight-headers-citation-regexp' is in the
+default face, and the remainder of the line is in the message-cited-text face.")
+
 (defvar highlight-headers-citation-header-regexp
   (concat "^In article\\|^In message\\|"
 	  "^[^ \t].*\\(writes\\|wrote\\|said\\):\n[ \t]*[A-Z]*[]}<>|]")
   "*The pattern to match the prolog of a cited block.
 Text in the body of a message which matches this will be displayed in
 the `message-headers' face.")
+
+(defvar highlight-headers-max-message-size 10000
+  "*If the message body is larger than this many chars, don't highlight it.
+This is to prevent us from wasting time trying to fontify things like
+uuencoded files and large digests.  If this is nil, all messages will
+be highlighted.")
+
 
 (defun highlight-headers (start end hack-sig)
   "Highlight message headers between start and end.
@@ -96,7 +108,12 @@ If HACK-SIG is true,then we search backward from END for something that
 looks like the beginning of a signature block, and don't consider that a
 part of the message (this is because signatures are often incorrectly
 interpreted as cited text.)"
+  (if (< end start)
+      (let ((s start)) (setq start end end s)))
   (let* ((current 'message-header-contents)
+	 (too-big (and highlight-headers-max-message-size
+		       (> (- end start)
+			  highlight-headers-max-message-size)))
 	 e p)
     ;; delete previous highlighting
     (map-extents (function (lambda (extent ignore)
@@ -107,7 +124,7 @@ interpreted as cited text.)"
       (save-restriction
 	(widen)
 	;; take off signature
-	(if hack-sig
+	(if (and hack-sig (not too-big))
 	    (save-excursion
 	      (goto-char end)
 	      (if (re-search-backward "\n--+ *\n" start t)
@@ -168,33 +185,37 @@ interpreted as cited text.)"
 	    ))
 	  (forward-line 1))
 
-	(while (not (eobp))
-	  (cond ((null highlight-headers-citation-regexp)
-		 nil)
-		((looking-at highlight-headers-citation-regexp)
-		 (goto-char (match-end 0))
-		 (or (save-excursion
-		       (beginning-of-line)
-		       (let ((case-fold-search nil)) ; aaaaah, unix...
-			 (looking-at "^>From ")))
-		     (setq current 'message-cited-text)))
-;;		((or (looking-at "^In article\\|^In message")
-;;		     (looking-at
+	(if too-big
+	    nil
+	  (while (not (eobp))
+	    (cond ((null highlight-headers-citation-regexp)
+		   nil)
+		  ((looking-at highlight-headers-citation-regexp)
+		   (or highlight-headers-highlight-citation-too
+		       (goto-char (match-end 0)))
+		   (or (save-excursion
+			 (beginning-of-line)
+			 (let ((case-fold-search nil)) ; aaaaah, unix...
+			   (looking-at "^>From ")))
+		       (setq current 'message-cited-text)))
+;;		  ((or (looking-at "^In article\\|^In message")
+;;		       (looking-at
 ;;	      "^[^ \t].*\\(writes\\|wrote\\|said\\):\n[ \t]+[A-Z]*[]}<>|]"))
-;;		 (setq current 'message-headers))
-		((null highlight-headers-citation-header-regexp)
-		 nil)
-		((looking-at highlight-headers-citation-header-regexp)
-		 (setq current 'message-headers))
-		(t (setq current nil)))
-	  (cond (current
-		 (setq p (point))
-		 (end-of-line)
-		 (setq e (make-extent p (point)))
-		 (set-extent-face e current)
-		 (set-extent-data e 'headers)
-		 ))
-	  (forward-line 1))))
+;;		   (setq current 'message-headers))
+		  ((null highlight-headers-citation-header-regexp)
+		   nil)
+		  ((looking-at highlight-headers-citation-header-regexp)
+		   (setq current 'message-headers))
+		  (t (setq current nil)))
+	    (cond (current
+		   (setq p (point))
+		   (forward-line 1) ; this is to put the newline in the face too
+		   (setq e (make-extent p (point)))
+		   (forward-char -1)
+		   (set-extent-face e current)
+		   (set-extent-data e 'headers)
+		   ))
+	    (forward-line 1)))))
     ))
 
 (provide 'highlight-headers)

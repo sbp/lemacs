@@ -1,12 +1,13 @@
 ;;; -*- Mode:Emacs-Lisp -*-
 
-;;; gnus-mark.el v1.4
+;;; gnus-mark.el v1.5
 ;;; Operating on more than one news article at a time.
 ;;; Created: 28-Jun-91 by Jamie Zawinski <jwz@lucid.com>
 ;;; Modified: 28-Jun-91 by Sebastian Kremer <sk@thp.Uni-Koeln.DE>
 ;;; Modified: 1-Dec-91 by Jamie Zawinski <jwz@lucid.com>
 ;;; Modified: 05-Dec-91 by Paul D. Smith <paul_smith@dg.com>
 ;;; Modified: 28-Nov-92 by A1C Tim Miller <tjm@hrt213.brooks.af.mil>
+;;; Modified: 10-Jun-93 by Vivek Khera <khera@cs.duke.edu> (GNUS 3.15 fixes)
 ;;;
 ;;; typing `@' in the subject buffer will mark the current article with
 ;;; an `@'.  After marking more than one article this way, you can use one
@@ -69,7 +70,7 @@
 ;;    actually read in when you used one of the three mark processing
 ;;    commands the mark would not be deleted.
 ;;
-;;  * Modified gnus-Subject-mark-article to use GNUS functions to do
+;;  * Modified gnus-summary-mark-article to use GNUS functions to do
 ;;    the marking instead of modifying the character itself.  This
 ;;    keeps the cursor in the right position in the buffer, doesn't
 ;;    allow it to go beyond the end of the buffer even if you select
@@ -77,15 +78,15 @@
 
 (require 'gnus)
 
-(define-key gnus-Subject-mode-map "@" 'gnus-Subject-mark-article)
-(define-key gnus-Subject-mode-map "\C-F" 'gnus-forward-marked-articles)
-(define-key gnus-Subject-mode-map "\M-@" 'gnus-Subject-mark-regexp)
+(define-key gnus-summary-mode-map "@" 'gnus-summary-mark-article)
+(define-key gnus-summary-mode-map "\C-F" 'gnus-forward-marked-articles)
+(define-key gnus-summary-mode-map "\M-@" 'gnus-summary-mark-regexp)
 ;;; See also gnus-uudecode-marked-messages and gnus-unshar-marked-articles.
 
 (defvar gnus-default-mark-char ?@
   "*Character used to mark articles for later commands in GNUS.")
 
-(defun gnus-Subject-mark-article (mark)
+(defun gnus-summary-mark-article (mark)
 "Mark the current article for later commands.
 This marker comes from variable `gnus-default-mark-char'.
 You can change this variable by giving a prefix argument to this command,
@@ -95,13 +96,13 @@ in which case you will be prompted for the character to use."
 			   (message "Mark message with: ")
 			   (setq gnus-default-mark-char (read-char)))
 			 gnus-default-mark-char)))
-  (or (eq (current-buffer) (get-buffer gnus-Subject-buffer))
-      (error "not in subject buffer"))
-  (gnus-Subject-mark-as-read nil gnus-default-mark-char)
-  (gnus-Subject-next-subject 1 nil))
+  (or (eq (current-buffer) (get-buffer gnus-summary-buffer))
+      (error "not in summary buffer"))
+  (gnus-summary-mark-as-read nil gnus-default-mark-char)
+  (gnus-summary-next-subject 1 nil))
 
 ;; Actually, gnus-kill should have an interactive spec!
-(defun gnus-Subject-mark-regexp (regexp &optional marker)
+(defun gnus-summary-mark-regexp (regexp &optional marker)
   "Mark all articles with subjects matching REGEXP.
 With a prefix ARG, prompt for the marker.  Type RET immediately to
 mark them as unread or enter SPC RET to remove all kinds of marks."
@@ -113,14 +114,14 @@ mark them as unread or enter SPC RET to remove all kinds of marks."
   (setq marker (or marker (char-to-string gnus-default-mark-char)))
   (gnus-kill "Subject" regexp
 	     (if (equal "" marker)
-		 '(gnus-Subject-mark-as-unread)
-	       (list 'gnus-Subject-mark-as-read nil marker))
+		 '(gnus-summary-mark-as-unread)
+	       (list 'gnus-summary-mark-as-read nil marker))
 	     ;; overwrite existing marks:
 	     t))
 
-(defun gnus-Subject-mark-map-articles (mark function)
+(defun gnus-summary-mark-map-articles (mark function)
   (save-excursion
-    (set-buffer gnus-Subject-buffer)
+    (set-buffer gnus-summary-buffer)
     (let ((str (concat "^" (make-string 1 mark) " +\\([0-9]+\\):"))
 	  got-one)
       (save-excursion
@@ -137,11 +138,11 @@ mark them as unread or enter SPC RET to remove all kinds of marks."
 			  (match-beginning 1) (match-end 1))))))))
 	  (forward-line 1)))
       (cond ((not got-one)
-	     (let ((article (gnus-Subject-article-number)))
+	     (let ((article (gnus-summary-article-number)))
 	       (if (or (null gnus-current-article)
 		       (/= article gnus-current-article))
 		   ;; Selected subject is different from current article's.
-		   (gnus-Subject-display-article article))
+		   (gnus-summary-display-article article))
 	       (funcall function 
 			(gnus-find-header-by-number gnus-newsgroup-headers 
 						    article)))))
@@ -182,15 +183,15 @@ appended to the end of the buffer."
 	(progn
 	  (setq tmp-buf (get-buffer-create "*gnus-forward-tmp*"))
 	  (save-excursion (set-buffer tmp-buf) (erase-buffer))
-	  (gnus-Subject-mark-map-articles
+	  (gnus-summary-mark-map-articles
 	   gnus-default-mark-char
 	   (function (lambda (msg)
 	     (if (eq state 'first) (setq state t) (setq state nil))
 	     (message "Snarfing article %s..." (aref msg 0))
 	     (if (eq gnus-current-article (aref msg 0))
-		 (gnus-Subject-mark-as-read)
-	       (gnus-Subject-display-article (aref msg 0)))
-	     (set-buffer gnus-Article-buffer)
+		 (gnus-summary-mark-as-read)
+	       (gnus-summary-display-article (aref msg 0)))
+	     (set-buffer gnus-article-buffer)
 	     (widen)
 	     (set-buffer tmp-buf)
 	     (goto-char (point-max))
@@ -198,7 +199,7 @@ appended to the end of the buffer."
 		 (insert "----------\n")
 	       (setq subj (aref msg 1)))
 	     (setq p (point))
-	     (insert-buffer gnus-Article-buffer)
+	     (insert-buffer gnus-article-buffer)
 	     (goto-char p)
 	     (while (re-search-forward "^-" nil t)
 	       (insert " -"))
@@ -272,7 +273,7 @@ Normally tar unpacks files with the time at which they are packed; this can
 cause your `make' commands to fail if you are installing a new version of
 a package which you have modified.")
 
-(defvar gnus-uudecode-picture-pattern "\\.\\(gif\\|p[bgp]m\\|rast\\|pic\\|jpg\\)$"
+(defvar gnus-uudecode-picture-pattern "\\.\\(gif\\|p[bgp]m\\|rast\\|pic\\|jpg\\|tiff?\\)$"
   "*If non-nil, this should be a pattern which matches files which are 
 images.  When gnus-uudecode-marked-articles creates a file which matches
 this pattern, it will ask you if you want to look at it now.  If so, it
@@ -302,22 +303,22 @@ gnus-uudecode-file-mode, gnus-uudecode-auto-chmod, and
       (progn
        (setq tmp-buf  (get-buffer-create "*gnus-uudecode-tmp*"))
        (save-excursion (set-buffer tmp-buf) (erase-buffer))
-       (gnus-Subject-mark-map-articles
+       (gnus-summary-mark-map-articles
 	gnus-default-mark-char
 	(function (lambda (msg)
 	  (message "Snarfing article %s..." (aref msg 0))
 	  (if (eq state 'last)
 	      (error "articles out of order: articles follow `end' line."))
 	  (if (eq gnus-current-article (aref msg 0))
-	      (gnus-Subject-mark-as-read)
-	    (gnus-Subject-display-article (aref msg 0)))
-	  (set-buffer gnus-Article-buffer)
+	      (gnus-summary-mark-as-read)
+	    (gnus-summary-display-article (aref msg 0)))
+	  (set-buffer gnus-article-buffer)
 	  (widen)
 	  (set-buffer tmp-buf)
 	  (goto-char (point-max))
 	  (let ((p (point))
 		(case-fold-search nil))
-	    (insert-buffer gnus-Article-buffer)
+	    (insert-buffer gnus-article-buffer)
 	    (cond
 	     ((eq state 'first)
 	      (or (re-search-forward gnus-uudecode-begin-pattern nil t)
@@ -472,18 +473,18 @@ and then run the result through gnus-unshar-program (typically /bin/sh.)"
 	     (set-buffer tmp-buf)
 	     (erase-buffer)))
        (setq tmp-buf (get-buffer-create "*gnus-unshar-tmp*"))
-       (gnus-Subject-mark-map-articles
+       (gnus-summary-mark-map-articles
 	gnus-default-mark-char
 	(function (lambda (msg)
 	  (message "Snarfing article %s..." (aref msg 0))
 	  (if (eq gnus-current-article (aref msg 0))
-	      (gnus-Subject-mark-as-read)
-	    (gnus-Subject-display-article (aref msg 0)))
-	  (set-buffer gnus-Article-buffer)
+	      (gnus-summary-mark-as-read)
+	    (gnus-summary-display-article (aref msg 0)))
+	  (set-buffer gnus-article-buffer)
 	  (widen)
 	  (set-buffer tmp-buf)
 	  (erase-buffer)
-	  (insert-buffer gnus-Article-buffer)
+	  (insert-buffer gnus-article-buffer)
 	  (or (re-search-forward "^#!" nil t)
 	      (re-search-forward "^: This is a shar archive" nil t)
 	      (re-search-forward "^# This is a shell archive" nil t)
@@ -521,15 +522,15 @@ article being saved.")
   (let ((state 'first))
     (unwind-protect
 	(progn
-	  (gnus-Subject-mark-map-articles
+	  (gnus-summary-mark-map-articles
 	   gnus-default-mark-char
 	   (function (lambda (msg)
 		       (if (eq state 'first) (setq state t) (setq state nil))
 		       (message "Grabbing Article %s..." (aref msg 0))
 		       (or (eq gnus-current-article (aref msg 0))
-			   (gnus-Subject-display-article (aref msg 0)))
+			   (gnus-summary-display-article (aref msg 0)))
 		       (if (and (not state) gnus-save-marked-in-same-file)
-			   (gnus-Subject-save-in-file gnus-newsgroup-last-file)
-			 (gnus-Subject-save-in-file)))))))))
+			   (gnus-summary-save-in-file gnus-newsgroup-last-file)
+			 (gnus-summary-save-in-file)))))))))
 
 (provide 'gnus-mark)

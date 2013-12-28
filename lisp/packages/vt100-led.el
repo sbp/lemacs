@@ -1,11 +1,16 @@
-;; Functions for controlling the LEDs on VT-100 terminals & clones.
+;;; vt100-led.el --- functions for LED control on VT-100 terminals & clones.
+
 ;; Copyright (C) 1988 Free Software Foundation, Inc.
+
+;; Author: Howard Gayle
+;; Maintainer: FSF
+;; Keywords: hardware
 
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -17,8 +22,7 @@
 ;; along with GNU Emacs; see the file COPYING.  If not, write to
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
-
-;; Written by Howard Gayle.
+;;; Code:
 
 (defvar led-state (make-vector 5 nil)
    "The internal state of the LEDs.  Choices are nil, t, `flash.
@@ -59,3 +63,5 @@ Element 0 is not used.")
     (send-string-to-terminal o)))
 
 (provide 'vt100-led)
+
+;;; vt100-led.el ends here

@@ -1,5 +1,5 @@
 ;; GNU Emacs window commands aside from those written in C.
-;; Copyright (C) 1985-1993 Free Software Foundation, Inc.
+;; Copyright (C) 1985, 1989, 1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -23,57 +23,97 @@
 Optional arg NO-MINI non-nil means don't count the minibuffer
 even if it is active."
    (let ((count 0))
-     (walk-windows (function (lambda ()
+     (walk-windows (function (lambda (w)
 			       (setq count (+ count 1))))
 		   minibuf)
      count))
 
 (defun balance-windows ()
-  "Makes all visible windows the same size (approximately)."
+  "Makes all visible windows the same height (approximately)."
   (interactive)
-  (let ((count 0))
+  (let ((count -1) levels newsizes size)
+    ;; Find all the different vpos's at which windows start,
+    ;; then count them.  But ignore levels that differ by only 1.
+    (save-window-excursion
+      (let (tops (prev-top -2))
+	(walk-windows (function (lambda (w)
+                        (setq tops (cons (nth 1 (window-edges w))
+                                         tops))))
+		      'nomini)
+	(setq tops (sort tops '<))
+	(while tops
+	  (if (> (car tops) (1+ prev-top))
+	      (setq prev-top (car tops)
+		    count (1+ count)))
+	  (setq levels (cons (cons (car tops) count) levels))
+	  (setq tops (cdr tops)))
+	(setq count (1+ count))))
+    ;; Subdivide the frame into that many vertical levels.
+    (setq size (/ (screen-height) count))
     (walk-windows (function (lambda (w)
-			      (setq count (+ count 1))))
-		  'nomini)
-    (let ((size (/ (screen-height) count)))
-      (walk-windows (function (lambda (w)
-				(select-window w)
-				(enlarge-window (- size (window-height)))))
-		    'nomini))))
+                    (select-window w)
+                    (let ((newtop (cdr (assq (nth 1 (window-edges))
+                                             levels)))
+                          (newbot (or (cdr (assq (+ (window-height)
+                                                    (nth 1 (window-edges)))
+                                                 levels))
+                                      count)))
+                      (setq newsizes
+                            (cons (cons w (* size (- newbot newtop)))
+                                  newsizes))))))
+    (walk-windows (function (lambda (w)
+                    (select-window w)
+                    (let ((newsize (cdr (assq w newsizes))))
+                      (enlarge-window (- newsize
+                                         (window-height))))))
+                  'nomini)))
 
-(defun split-window-vertically (&optional arg hack-display)
+;;; I think this should be the default; I think people will prefer it--rms.
+;;; I disagree. --jwz.
+(defvar split-window-keep-point nil
+  "*If non-nil, split windows keeps the original point in both children.
+This is often more convenient for editing.
+If nil, adjust point in each of the two windows to minimize redisplay.
+This is convenient on slow terminals, but point can move strangely.")
+
+(defun split-window-vertically (&optional arg)
   "Split current window into two windows, one above the other.
-The top window gets ARG lines.  No arg means split equally.
+The uppermost window gets ARG lines and the other gets the rest.
+With no argument, split equally or close to it.
+Both windows display the same buffer now current.
 
-The two windows will be displaying the same text as before: both windows will
-be displaying the current buffer, but the second window will be scrolled such
-that little redisplay will happen - the lines that were on the screen before
-the split will still be on the screen, in the same places.  
+If the variable split-window-keep-point is non-nil, both new windows
+will get the same value of point as the current window.  This is often
+more convenient for editing.
 
-An effort is made to keep the cursor in the same place relative to the text on
-the screen as well.  If the cursor is below the split-point before the split,
-then the bottom window will be selected; otherwise the top window will be
-selected."
-  (interactive (list current-prefix-arg t))
+Otherwise, we chose window starts so as to minimize the amount of
+redisplay; this is convenient on slow terminals.  The new selected
+window is the one that the current value of point appears in.  The
+value of point can change if the text around point is hidden by the
+new mode line.
+
+Programs should probably use split-window instead of this."
+  (interactive "P")
   (let ((old-w (selected-window))
-	new-w)
+	(old-point (point))
+	new-w bottom switch)
     (setq new-w (split-window nil (and arg (prefix-numeric-value arg))))
-    (if hack-display
-	(let (bottom)
+    (or split-window-keep-point
+	(progn
 	  (save-excursion
 	    (set-buffer (window-buffer))
 	    (goto-char (window-start))
 	    (vertical-motion (window-height))
 	    (set-window-start new-w (point))
-	    (if (>= (point) (window-point new-w))
+	    (if (> (point) (window-point new-w))
 		(set-window-point new-w (point)))
 	    (vertical-motion -1)
-	    (if (pos-visible-in-window-p (point) new-w)
-		(set-window-start new-w (point)))
 	    (setq bottom (point)))
 	  (if (<= bottom (point))
+	      (set-window-point old-w (1- bottom)))
+	  (if (< (window-start new-w) old-point)
 	      (progn
-		(set-window-point old-w (1- bottom))
+		(set-window-point new-w old-point)
 		(select-window new-w)))))
     new-w))
 
@@ -94,14 +134,44 @@ ARG columns.  No arg means split equally."
   (interactive "p")
   (shrink-window arg t))
 
-(defun window-config-to-register (name)
-  "Save the current window configuration in register REG (a letter).
-It can be later retrieved using \\[M-x register-to-window-config]."
-  (interactive "cSave window configuration in register: ")
-  (set-register name (current-window-configuration)))
-
-(defun register-to-window-config (name)
-  "Restore (make current) the window configuration in register REG (a letter).
-Use with a register previously set with \\[window-config-to-register]."
-  (interactive "cRestore window configuration from register: ")
-  (set-window-configuration (get-register name)))
+(defun shrink-window-if-larger-than-buffer (&optional window)
+  "Shrink the WINDOW to be as small as possible to display its contents.
+Do nothing if the buffer contains more lines than the present window height,
+or if some of the window's contents are scrolled out of view,
+or if the window is the only window of its frame."
+  (interactive)
+  (save-excursion
+    (set-buffer (window-buffer window))
+    (let ((w (selected-window)) ;save-window-excursion can't win
+	  (buffer-file-name buffer-file-name)
+	  (p (point))
+	  (n 0)
+	  (ignore-final-newline
+	   ;; If buffer ends with a newline, ignore it when counting height
+	   ;; unless point is after it.
+	   (and (not (eobp))
+		(eq ?\n (char-after (1- (point-max))))))
+	  (window-min-height 0)
+	  (buffer-read-only nil)
+	  (modified (buffer-modified-p))
+	  (buffer (current-buffer)))
+      (if (and (< 1 (count-windows))
+	       (pos-visible-in-window-p (point-min) window))
+	  (unwind-protect
+	      (progn
+		(select-window (or window w))
+		(goto-char (point-min))
+		(while (pos-visible-in-window-p
+			(- (point-max)
+			   (if ignore-final-newline 1 0)))
+		  ;; defeat file locking... don't try this at home, kids!
+		  (setq buffer-file-name nil)
+		  (insert ?\n) (setq n (1+ n)))
+		(if (> n 0) (shrink-window (1- n))))
+	    (delete-region (point-min) (point))
+	    (set-buffer-modified-p modified)
+	    (goto-char p)
+	    (select-window w)
+	    ;; Make sure we unbind buffer-read-only
+	    ;; with the proper current buffer.
+	    (set-buffer buffer))))))

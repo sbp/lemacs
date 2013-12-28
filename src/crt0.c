@@ -1,5 +1,5 @@
 /* C code startup routine.
-   Copyright (C) 1985, 1986 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1992, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -46,7 +46,13 @@ And always:
          word pointing to first arg string, and so on as above
 */
 
+#ifdef emacs
 #include "config.h"
+#endif
+
+#ifdef __GNUC__
+#define asm __asm
+#endif
 
 /*		********  WARNING ********
     Do not insert any data definitions before data_start!
@@ -72,6 +78,14 @@ int errno;
 char **environ;
 #endif
 
+#ifndef static
+/* On systems where the static storage class is usable, this function
+   should be declared as static.  Otherwise, the static keyword has
+   been defined to be something else, and code for those systems must
+   take care of this declaration appropriately.  */
+static start1 ();
+#endif
+
 #if defined(orion) || defined(pyramid) || defined(celerity) || defined(ALLIANT) || defined(clipper) || defined(sps7)
 
 #if defined(sps7) && defined(V3x)
@@ -87,6 +101,9 @@ char **environ;
 extern unsigned char *_curbrk, *_minbrk;
 extern unsigned char end;
 unsigned char *_setbrk = &end;
+#ifdef ALLIANT_2800
+unsigned char *_end = &end;
+#endif
 #endif
 
 #ifndef DUMMIES
@@ -98,8 +115,13 @@ _start (DUMMIES argc, argv, envp)
      char **argv, **envp;
 {
 #ifdef ALLIANT
+#ifdef ALLIANT_2800
+  _curbrk = _end;
+  _minbrk = _end;
+#else
   _curbrk = _setbrk;
   _minbrk = _setbrk;
+#endif
 #endif
 
   environ = envp;
@@ -205,12 +227,30 @@ asm("	global start	");
 asm("	start:		");
 #endif /* NODOT_GLOBAL_START */
 
+#ifdef m68000
+
+/* GCC 2.1, when optimization is turned off, seems to want to push a
+   word of garbage on the stack, which screws up the CRT0_DUMMIES
+   hack.  So we hand-code _start in assembly language.  */
+asm(".text			");
+asm("	.even			");
+asm(".globl __start		");
+asm("__start:			");
+asm("	link a6,#0		");
+asm("	jbsr _start1		");
+asm("	unlk a6			");
+asm("	rts			");
+
+#else /* not m68000 */
+
 _start ()
 {
 /* On vax, nothing is pushed here  */
 /* On sequent, bogus fp is pushed here  */
   start1 ();
 }
+
+#endif /* possibly m68000 */
 
 static
 start1 (CRT0_DUMMIES argc, xargv)
@@ -319,6 +359,15 @@ start1 (ignore, argc, xargv)
 
   if ((char *)environ == xargv)
     environ--;
+#ifdef sun_68881
+  asm("    jsr     f68881_used");
+#endif
+#ifdef sun_fpa
+  asm("    jsr     ffpa_used");
+#endif
+#ifdef sun_soft
+  asm("    jsr     start_float");
+#endif
   exit (main (argc, argv, environ));
 }
 
@@ -398,6 +447,11 @@ char **argv_value;
 	asm("	add.l	%d0,%d0");
 	asm("	subx.w	%d1,%d1");
 	asm("	mov.w	%d1,flag_fpa");
+	asm("	tst.l	%d2");
+	asm("	ble.b	skip_3");
+	asm("	lsl	flag_68881");
+	asm("	lsl	flag_fpa");
+	asm("skip_3:");
 	asm("	mov.l	4(%a7),%d0");
 	asm("	beq.b	skip_1");
 	asm("	mov.l	%d0,%a0");
@@ -514,6 +568,24 @@ _start()
 
 
 #ifdef sparc
+#ifdef USG5_4
+asm (".global _start");
+asm (".text");
+asm ("_start:");
+asm ("	mov	0, %fp");
+asm ("	ld	[%sp + 64], %o0");
+asm ("	add	%sp, 68, %o1");
+asm ("	sll	%o0, 2,	%o2");
+asm ("	add	%o2, 4,	%o2");
+asm ("	add	%o1, %o2, %o2");
+asm ("	sethi	%hi(_environ), %o3");
+asm ("	st	%o2, [%o3+%lo(_environ)]");
+asm ("	andn	%sp, 7,	%sp");
+asm ("	call	main");
+asm ("	sub	%sp, 24, %sp");
+asm ("	call	_exit");
+asm ("	nop");
+#else
 asm (".global __start");
 asm (".text");
 asm ("__start:");
@@ -530,5 +602,5 @@ asm ("	call	_main");
 asm ("	sub	%sp, 24, %sp");
 asm ("	call	__exit");
 asm ("	nop");
-
+#endif /* USG5_4 */
 #endif /* sparc */

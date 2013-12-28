@@ -1,5 +1,9 @@
-;; Debuggers and related commands for Emacs
-;; Copyright (C) 1985, 1986, 1992 Free Software Foundation, Inc.
+;;; debug.el --- debuggers and related commands for Emacs
+
+;; Copyright (C) 1985, 1986, 1993 Free Software Foundation, Inc.
+
+;; Maintainer: FSF
+;; Keyword: lisp, tools
 
 ;; This file is part of GNU Emacs.
 
@@ -17,12 +21,19 @@
 ;; along with GNU Emacs; see the file COPYING.  If not, write to
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
+;;; Code:
 
 (defvar debug-function-list nil
   "List of functions currently set for debug on entry.")
 
+;;;###autoload
 (setq debugger 'debug)
 
+(defvar debugger-step-after-exit)
+(defvar debugger-old-buffer)
+(defvar debugger-value)
+
+;;;###autoload
 (defun debug (&rest debugger-args)
   "Enter debugger.  Returns if user says \"continue\".
 Arguments are mainly for use when this is called
@@ -99,20 +110,30 @@ You may call with no args, or you may
       (store-match-data debugger-match-data))
     (setq debug-on-next-call debugger-step-after-exit)
     debugger-value))
+
+
+(defun debugger-exit ()
+  (condition-case nil
+      (let ((debug-on-error nil))
+        ;; Tell signal to keep searching for handlers
+        (throw 'debugger t))
+    ;; Called from an old version of Emacs, perhaps?
+    (no-catch (exit-recursive-edit))))
+
 
 (defun debugger-step-through ()
   "Proceed, stepping through subexpressions of this expression.
 Enter another debugger on next entry to eval, apply or funcall."
   (interactive)
   (setq debugger-step-after-exit t)
-  (message "Proceding, will debug on next eval or call.")
-  (exit-recursive-edit))
+  (message "Proceeding, will debug on next eval or call.")
+  (debugger-exit))
 
 (defun debugger-continue ()
   "Continue, evaluating this expression without stopping."
   (interactive)
   (message "Continuing.")
-  (exit-recursive-edit))
+  (debugger-exit))
 
 (defun debugger-return-value (val)
   "Continue, specifying value to return.
@@ -123,6 +144,13 @@ will be used, such as in a debug on exit from a frame."
   (princ "Returning " t)
   (prin1 debugger-value)
   (exit-recursive-edit))
+
+;; Chosen empirically to account for all the frames
+;; that will exist when debugger-frame is called
+;; within the first one that appears in the backtrace buffer.
+;; Assumes debugger-frame is called from a key;
+;; will be wrong if it is called with Meta-x.
+(defconst debugger-frame-offset 8 "")
 
 (defun debugger-jump ()
   "Continue to exit from this frame, with all debug-on-entry suspended."
@@ -138,7 +166,7 @@ will be used, such as in a debug on exit from a frame."
 	    (debug-on-entry-1 (car list) (symbol-function (car list)) nil))
       (setq list (cdr list))))
   (message "Continuing through this frame")
-  (exit-recursive-edit))
+  (debugger-exit))
 
 (defun debugger-reenable ()
   ;; Turn all debug-on-entry functions back on.
@@ -174,13 +202,6 @@ will be used, such as in a debug on exit from a frame."
 	       (<= (point) opoint))
 	(setq count (1+ count)))
       count)))
-
-;; Chosen empirically to account for all the frames
-;; that will exist when debugger-frame is called
-;; within the first one that appears in the backtrace buffer.
-;; Assumes debugger-frame is called from a key;
-;; will be wrong if it is called with Meta-x.
-(defconst debugger-frame-offset 8 "")
 
 (defun debugger-frame ()
   "Request entry to debugger when this frame exits.
@@ -260,6 +281,7 @@ Complete list of commands:
   (set-syntax-table emacs-lisp-mode-syntax-table)
   (use-local-map debugger-mode-map))
 
+;;;###autoload
 (defun debug-on-entry (function)
   "Request FUNCTION to invoke debugger each time it is called.
 If the user continues, FUNCTION's execution proceeds.
@@ -280,10 +302,19 @@ Redefining FUNCTION also does that."
       (setq debug-function-list (cons function debug-function-list)))
   function)
 
+;;;###autoload
 (defun cancel-debug-on-entry (&optional function)
   "Undo effect of \\[debug-on-entry] on FUNCTION.
 If argument is nil or an empty string, cancel for all functions."
-  (interactive "aCancel debug on entry (to function): ")
+  (interactive
+   (list (let ((name
+                (completing-read "Cancel debug on entry (to function): "
+                                 ;; Make an "alist" of the functions
+				 ;; that now have debug on entry.
+				 (mapcar 'list (mapcar 'symbol-name
+                                                       debug-function-list))
+				 nil t nil)))
+	   (if name (intern name)))))
   (debugger-reenable)
   (if (and function (not (string= function "")))
       (progn
@@ -341,3 +372,5 @@ If argument is nil or an empty string, cancel for all functions."
 	  (setq list (cdr list))))
       (princ "Note: if you have redefined a function, then it may no longer\n")
       (princ "be set to debug on entry, even if it is in the list."))))
+
+;;; debug.el ends here

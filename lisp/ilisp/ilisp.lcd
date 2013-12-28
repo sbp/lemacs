@@ -1,1 +1,5 @@
-ilisp|Chris McConnell|ccm@cs.cmu.edu|Fancy LISP interface that supports multiple dialects.|92-03-17|4.12|katmandu.mt.cs.cmu.edu:/pub/ilisp/ilisp.tar.Z
+;;; LCD Archive Entry:
+;;; ilisp| Chris McConnell (now maintained by Ivan Vazquez)| ivan@darwin.bu.edu|
+;;; Fancy LISP interface that supports multiple dialects.|
+;;; 93-06-30|Version 5.3|haldane.bu.edu:/pub/ilisp/ilisp.tar.Z|
+

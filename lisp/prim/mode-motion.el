@@ -1,5 +1,5 @@
 ;; Mode-specific mouse-highlighting of text.
-;; Copyright (C) 1992 Free Software Foundation, Inc.
+;; Copyright (C) 1992, 1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -65,28 +65,28 @@ the mode-motion-hook of the buffer of that window is run.")
   "For use as the value of `mode-motion-hook' -- highlight word under mouse."
   (mode-motion-highlight-internal
    event
-   (function (lambda () (mouse-track-beginning-of-word nil)))
-   (function (lambda () (mouse-track-end-of-word nil)))))
+   #'(lambda () (mouse-track-beginning-of-word nil))
+   #'(lambda () (mouse-track-end-of-word nil))))
 
 (defun mode-motion-highlight-symbol (event)
   "For use as the value of `mode-motion-hook' -- highlight symbol under mouse."
   (mode-motion-highlight-internal
    event
-   (function (lambda () (mouse-track-beginning-of-word t)))
-   (function (lambda () (mouse-track-end-of-word t)))))
+   #'(lambda () (mouse-track-beginning-of-word t))
+   #'(lambda () (mouse-track-end-of-word t))))
 
 (defun mode-motion-highlight-sexp (event)
   "For use as the value of `mode-motion-hook' -- highlight form under mouse."
   (mode-motion-highlight-internal
    event
-   (function (lambda ()
-	       (if (= (char-syntax (following-char)) ?\()
-		   nil
-		 (goto-char (scan-sexps (point) -1)))))
-   (function (lambda ()
-	       (if (= (char-syntax (following-char)) ?\))
-		   (forward-char 1))
-	       (goto-char (scan-sexps (point) 1))))))
+   #'(lambda ()
+       (if (= (char-syntax (following-char)) ?\()
+	   nil
+	 (goto-char (scan-sexps (point) -1))))
+   #'(lambda ()
+       (if (= (char-syntax (following-char)) ?\))
+	   (forward-char 1))
+       (goto-char (scan-sexps (point) 1)))))
 
 
 ;;; Minibuffer hackery
@@ -105,11 +105,9 @@ the mode-motion-hook of the buffer of that window is run.")
 			       'read-file-name-internal)))
     (mode-motion-highlight-internal
      event
-     (function
-      (lambda () (mouse-track-beginning-of-word
-		  (if filename-kludge-p 'nonwhite t))))
-     (function
-      (lambda ()
+     #'(lambda () (mouse-track-beginning-of-word
+		   (if filename-kludge-p 'nonwhite t)))
+     #'(lambda ()
 	(let ((p (point)) string)
 	  (mouse-track-end-of-word (if filename-kludge-p 'nonwhite t))
 	  (if (or (= p (point)) (null minibuffer-completion-table))
@@ -132,7 +130,7 @@ the mode-motion-hook of the buffer of that window is run.")
 					(intern-soft string
 					 minibuffer-completion-table)
 				      string))))
-		  (goto-char p))))))))))
+		  (goto-char p)))))))))
 
 
 (defun minibuf-select-kludge-filename (string)

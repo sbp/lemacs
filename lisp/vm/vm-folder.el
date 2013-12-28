@@ -61,8 +61,7 @@
       (goto-char (point-min))
       (skip-chars-forward "\n")
       (cond ((looking-at "From ") 'From_)
-	    ((looking-at "\001\001\001\001\n") 'mmdf)
-	    ((looking-at "^$") 'From_)))))
+	    ((looking-at "\001\001\001\001\n") 'mmdf)))))
 
 ;; Build a chain of message structures.
 ;; Find the start and end of each message and fill in the relevant
@@ -75,7 +74,8 @@
   (save-excursion
     (vm-build-visible-header-alist)
     (let (tail-cons message prev-message case-fold-search list marker
-	  start-regexp sep-pattern trailer-length)
+	  start-regexp sep-pattern trailer-length
+	  separator-string)
       (if (eq vm-folder-type 'mmdf)
 	  (setq start-regexp "^\001\001\001\001\n"
 		separator-string "\n\001\001\001\001\n\001\001\001\001"
@@ -192,8 +192,8 @@
 		     (looking-at vm-generic-header-regexp))
 	   (setq match-end-0 (match-end 0)
 		 list (vm-match-visible-header header-alist))
-	   (if (and (null list)
-		    (or (null vm-invisible-header-regexp)
+	   (if (or (null list)
+		   (and vm-invisible-header-regexp
 			(looking-at vm-invisible-header-regexp)))
 	       (goto-char match-end-0)
 	     (if list
@@ -945,7 +945,7 @@ visited folder."
    (save-excursion
      (vm-session-initialization)
      (vm-select-folder-buffer)
-     (let ((dir (if vm-folder-directory
+     (let ((default-directory (if vm-folder-directory
 		    (expand-file-name vm-folder-directory)
 		  default-directory)))
        (list (read-file-name
@@ -954,7 +954,7 @@ visited folder."
 		      (if vm-last-save-folder
 			  (format " (default %s)" vm-last-save-folder)
 			""))
-	      dir vm-last-save-folder t) current-prefix-arg))))
+	      default-directory vm-last-save-folder t) current-prefix-arg))))
   (vm-session-initialization)
   (vm-select-folder-buffer)
   (vm-check-for-killed-summary)
@@ -991,7 +991,8 @@ visited folder."
      (let ((opoint-max (point-max)) crash-buf buffer-read-only
 	   (old-buffer-modified-p (buffer-modified-p))
            ;; crash box could contain a letter bomb...
-	   ;; force user notification of file variables.
+	   ;; force user notification of file variables for v18 Emacses
+	   ;; enable-local-variables == nil disables them for newer Emacses
 	   (inhibit-local-variables t)
 	   (enable-local-variables nil))
        (setq crash-buf (find-file-noselect vm-crash-box))
@@ -1011,7 +1012,7 @@ visited folder."
 
 (defun vm-compatible-folder-p (file)
   (while (not (string= file (setq file (expand-file-name file)))))
-  (let (buffer (type vm-folder-type))
+  (let (buffer (type vm-folder-type) newtype)
     (if (zerop (buffer-size))
 	t
       (if (null (setq buffer (get-file-buffer file)))
@@ -1024,13 +1025,13 @@ visited folder."
 		    (call-process "sed" file buffer nil "-n" "1p")
 		    (save-excursion
 		      (set-buffer buffer)
-		      (or (zerop (buffer-size))
-			  (eq type (vm-get-folder-type)))))
+		      (setq newtype (vm-get-folder-type))
+		      (or (null newtype) (eq type (vm-get-folder-type)))))
 		(and buffer (kill-buffer buffer)))))
 	(save-excursion
 	  (set-buffer buffer)
-	  (or (zerop (buffer-size))
-	      (eq type (vm-get-folder-type))))))))
+	  (setq newtype (vm-get-folder-type))
+	  (or (null newtype) (eq type (vm-get-folder-type))))))))
 
 (defun vm-check-for-spooled-mail ()
   (let ((spool-files
@@ -1146,6 +1147,7 @@ undisturbed after its messages have been copied."
     (save-excursion
       (vm-save-restriction
        (widen)
+       (setq vm-folder-type (vm-get-folder-type))
        (vm-build-message-list)
        (vm-read-attributes)
        (setq new-messages-p (or new-messages-p (cdr tail-cons))
@@ -1181,7 +1183,7 @@ undisturbed after its messages have been copied."
 (defun vm-display-startup-message ()
   (if (sit-for 5)
       (let ((lines vm-startup-message-lines))
-	(message "VM %s, Copyright (C) 1991 Kyle E. Jones; type ? for help"
+	(message "VM %s, Copyright (C) 1993 Kyle E. Jones; type ? for help"
 		 vm-version)
 	(setq vm-startup-message-displayed t)
 	(while (and (sit-for 4) lines)
@@ -1203,9 +1205,9 @@ undisturbed after its messages have been copied."
 	(random t)
 	(vm-load-rc)
 	(if vm-window-configuration-file
-	    (if (condition-case () (progn (require 'screen) t))
+	    (if (condition-case () (progn (require 'tapestry) t))
 		(vm-load-window-configurations vm-window-configuration-file)
-	      (message "can't support window configurations without the screen package... sorry.")
+	      (message "can't support window configurations without the tapestry package... sorry.")
 	      (setq vm-window-configuration-file nil)
 	      (sleep-for 2)))
 	(setq vm-session-beginning nil))))
@@ -1235,6 +1237,7 @@ See the documentation for vm-mode for more information."
   (vm-session-initialization)
   ;; set inhibit-local-variables non-nil to protect
   ;; against letter bombs.
+  ;; set enable-local-variables to nil for newer Emacses
   (let ((inhibit-local-variables t)
 	(enable-local-variables nil)
 	(full-startup (not (bufferp folder)))
@@ -1270,7 +1273,7 @@ See the documentation for vm-mode for more information."
       ;; needs to be done 
       (if first-time
 	  (progn
-	    (buffer-flush-undo (current-buffer))
+	    (buffer-disable-undo (current-buffer))
 	    (abbrev-mode 0)
 	    (auto-fill-mode 0)
 	    (vm-mode-internal)))
@@ -1333,7 +1336,7 @@ See the documentation for vm-mode for more information."
 		    (vm-proportion-windows))))
 	(switch-to-buffer (current-buffer)))
       (set-buffer mail-buffer)
-      (vm-preview-current-message)
+      (and vm-message-list (vm-preview-current-message))
       (if (and (numberp vm-flush-interval)
 	       (condition-case data
 		   (progn (require 'timer) t)

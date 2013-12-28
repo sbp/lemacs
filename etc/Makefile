@@ -1,132 +1,271 @@
-DESTDIR=
-LIBDIR=/usr/local/lib
-BINDIR=/usr/local/bin
-MANDIR=/usr/man/man1
-MANEXT=1
-
-# make sure executables are linked statically.
 # add -DUSG for SysV movemail and timer
-CFLAGS= -g -Bstatic
+CFLAGS= -g
+
 # For Xenix.  Needed for movemail
 #  LOADLIBES= -lx
 
-EXECUTABLES = test-distrib etags ctags wakeup make-docfile \
-   digest-doc sorted-doc movemail cvtmail fakemail yow env \
-   emacsserver emacsclient b2m hexl
+# ==================== Where To Install Things ====================
 
-#Executables to install in BINDIR.
-#(The others can be left in the emacs/etc subdir; Emacs can find them there.)
-INSTALL = wakeup etags ctags b2m
+# The default location for installation.  Everything is placed in
+# subdirectories of this directory.  The default values for many of
+# the variables below are expressed in terms of this one, so you may
+# not need to change them.
+prefix=/usr/local
 
-all: ${EXECUTABLES}
+# Like `prefix', but used for architecture-specific files.
+exec_prefix=/usr/local
 
-install: all
-	install -c -s wakeup ${DESTDIR}${LIBDIR}/etc/wakeup
-	install -c -s etags ${DESTDIR}${BINDIR}/etags
-	install -c -s ctags ${DESTDIR}${BINDIR}/ctags
-	install -c -s b2m ${DESTDIR}${BINDIR}/b2m
-	install -c -m 444 emacs.1 ${MANDIR}/emacs.${MANEXT}
+# Where to install Emacs and other binaries that people will want to
+# run directly (like etags).
+bindir=${exec_prefix}/bin
 
-install.sysv: all
-	-cp wakeup ${DESTDIR}${BINDIR}/wakeup.new
-	-chmod 755 ${DESTDIR}${BINDIR}/wakeup.new
-	-chgrp bin ${DESTDIR}${BINDIR}/wakeup.new
-	-chown bin ${DESTDIR}${BINDIR}/wakeup.new
-	-mv ${DESTDIR}${BINDIR}/wakeup.new ${DESTDIR}${BINDIR}/wakeup
-	-cp etags ${DESTDIR}${BINDIR}/etags.new
-	-chmod 755 ${DESTDIR}${BINDIR}/etags.new
-	-chgrp bin ${DESTDIR}${BINDIR}/etags.new
-	-chown bin ${DESTDIR}${BINDIR}/etags.new
-	-mv ${DESTDIR}${BINDIR}/etags.new ${DESTDIR}${BINDIR}/etags
-	-cp ctags ${DESTDIR}${BINDIR}/ctags.new
-	-chmod 755 ${DESTDIR}${BINDIR}/ctags.new
-	-chgrp bin ${DESTDIR}${BINDIR}/ctags.new
-	-chown bin ${DESTDIR}${BINDIR}/ctags.new
-	-mv ${DESTDIR}${BINDIR}/ctags.new ${DESTDIR}${BINDIR}/ctags
-	-cp b2m ${DESTDIR}${BINDIR}/b2m.new
-	-chmod 755 ${DESTDIR}${BINDIR}/b2m.new
-	-chgrp bin ${DESTDIR}${BINDIR}/b2m.new
-	-chown bin ${DESTDIR}${BINDIR}/b2m.new
-	-mv ${DESTDIR}${BINDIR}/b2m.new ${DESTDIR}${BINDIR}/b2m
-	-cp emacs.1 ${MANDIR}/emacs.${MANEXT}.new
-	-chmod 444 ${MANDIR}/emacs.${MANEXT}.new
-	-mv ${MANDIR}/emacs.${MANEXT}.new ${MANDIR}/emacs.${MANEXT}
+# Where to install and expect executable files to be run by Emacs
+# rather than directly by users, and other architecture-dependent
+# data.  ${archlibdir} is usually below this.
+libdir=/usr/local/lib
 
-install.xenix:
-	cp wakeup ${DESTDIR}${LIBDIR}/etc/wakeup
-	chmod 755 ${DESTDIR}${LIBDIR}/etc/wakeup
-	cp etags ctags ${DESTDIR}${BINDIR}
-	chmod 755 ${DESTDIR}${BINDIR}/etags ${DESTDIR}${BINDIR}/ctags
-	cp b2m ${DESTDIR}${BINDIR}
-	chmod 755 ${DESTDIR}${BINDIR}/b2m
-	cp emacs.1 ${MANDIR}/emacs.${MANEXT}
-	chmod 444 ${MANDIR}/emacs.${MANEXT}
+# Where to find the source code.  This is
+# set by the configure script's `--srcdir' option.
+# However, the value of ${srcdir} in this makefile
+# is not identical to what was specified with --srcdir.
+# The variable here has `/lib-src' added at the end.
+srcdir=.
+VPATH=.
+
+# ==================== Emacs-specific directories ====================
+
+# These variables hold the values Emacs will actually use.  They are
+# based on the values of the standard Make variables above.
+
+# Where to put executables to be run by Emacs rather than the user.
+# This path usually includes the Emacs version and configuration name,
+# so that multiple configurations for multiple versions of Emacs may
+# be installed at once.
+archlibdir=.
+
+# ==================== Utility Programs for the Build ====================
+
+# Allow the user to specify the install program.
+INSTALL = install
+INSTALLFLAGS = -c
+INSTALL_PROGRAM = ${INSTALL}
+INSTALL_DATA = ${INSTALL}
+
+# ============================= Targets ==============================
+
+# Things that a user might actually run, which should be installed in bindir.
+INSTALLABLES = etags ctags emacsclient b2m
+INSTALLABLE_SCRIPTS = rcs-checkin
+
+# Things that Emacs runs internally, or during the build process,
+# which should not be installed in bindir.
+UTILITIES= test-distrib make-path wakeup make-docfile digest-doc sorted-doc \
+	movemail cvtmail fakemail yow env emacsserver hexl
+
+# Like UTILITIES, but they're not system-dependent, and should not be
+# deleted by the distclean target.
+SCRIPTS= rcs2log vcdiff
+
+EXECUTABLES= ${UTILITIES} ${INSTALLABLES} ${SCRIPTS} ${INSTALLABLE_SCRIPTS}
+
+SOURCES = COPYING ChangeLog Makefile.in README aixcc.lex emacs.csh \
+	makedoc.com *.[chy] rcs2log vcdiff
+
+### We need to #define emacs to get the right versions of some files.
+### Some other files - those shared with other GNU utilities - need
+### HAVE_CONFIG_H #defined before they know they can take advantage of
+### the information in ../src/config.h.
+ALL_CFLAGS = ${C_SWITCH_SYSTEM} -Demacs -DHAVE_CONFIG_H \
+   -I${srcdir} -I${srcdir}/../src -I. -I../src ${CFLAGS}
+CPP_CFLAGS = ${C_SWITCH_SYSTEM} -Demacs -DHAVE_CONFIG_H \
+   -I${srcdir} -I${srcdir}/../src -I. -I../src ${CPPFLAGS} ${CFLAGS}
+# This is the default compilation command.
+# But we should never rely on it, because some make version
+# failed to find it for getopt.o.  Using an explicit command made it work.
+.c.o:
+	${CC} -c ${CPP_CFLAGS} $<
+
+all: ${UTILITIES} ${INSTALLABLES}
+
+### Install the internal utilities.  Until they are installed, we can
+### just run them directly from lib-src.
+${archlibdir}: all
+	@echo
+	@echo "Installing utilities run internally by Emacs."
+	./make-path ${archlibdir}
+	if [ `(cd ${archlibdir} && /bin/pwd)` != `/bin/pwd` ]; then \
+	  for file in ${UTILITIES} ${INSTALLABLES}; do \
+	    cp $${file} ${archlibdir} ; \
+	    chmod 755 ${archlibdir}/$${file} ; \
+	  done ; \
+	  cd ${srcdir}; for file in ${SCRIPTS} ${INSTALLABLE_SCRIPTS}; do \
+	    cp $${file} ${archlibdir} ; \
+	    chmod 755 ${archlibdir}/$${file} ; \
+	  done ; \
+	fi
+	@echo
+	@echo "Changing the owner and group of Emacs's utility programs to \`bin'."
+	@echo "(You may ignore errors here if you don't care about this.)"
+	-for file in ${EXECUTABLES} ; do \
+	  chgrp bin ${archlibdir}/$${file} ; \
+	  chown bin ${archlibdir}/$${file} ; \
+	done
+
+# We don't need to install `wakeup' explicitly, because it will be copied when
+# this whole directory is copied.
+# We use .n, not .new as before, to avoid exceeding the 14-character limit.
+install: ${archlibdir}
+	@echo
+	@echo "Installing utilities for users to run."
+	for file in ${INSTALLABLES} ; do \
+	  cp $${file} ${bindir}/$${file}.n ; \
+	  chmod 755 ${bindir}/$${file}.n ; \
+	done
+	for file in ${INSTALLABLE_SCRIPTS} ; do \
+	  cp ${srcdir}/$${file} ${bindir}/$${file}.n ; \
+	  chmod 755 ${bindir}/$${file}.n ; \
+	done
+	@echo
+	@echo "Changing the owner and group of utility programs to \`bin'."
+	@echo "(You may ignore errors here if you don't care about this.)"
+	-for file in ${INSTALLABLES}  ${INSTALLABLE_SCRIPTS} ; do \
+	  chgrp bin ${bindir}/$${file}.n ; \
+	  chown bin ${bindir}/$${file}.n ; \
+	  rm -f ${bindir}/$${file} ; \
+	  mv ${bindir}/$${file}.n ${bindir}/$${file} ; \
+	done
+
+uninstall:
+	(cd ${bindir}; \
+	 rm -f ${INSTALLABLES} ${INSTALLABLE_SCRIPTS})
+	(cd ${archlibdir}; \
+	 rm -f ${UTILITIES} ${INSTALLABLES} ${SCRIPTS} ${INSTALLABLE_SCRIPTS})
+
+clean mostlyclean:
+	-rm -f ${INSTALLABLES} ${UTILITIES} core *.o
+
+distclean: clean
+	-rm -f ../etc/DOC* *.tab.c *.tab.h aixcc.c TAGS
+
+realclean: distclean
+	true
+
+extraclean: realclean
+	-rm -f *~ \#*
+
+unlock:
+	chmod u+w $(SOURCES)
+
+relock:
+	chmod u-w $(SOURCES)
+
+# Test the contents of the directory.
+check:
+	@echo "We don't have any tests for GNU Emacs yet."
+
+TAGS: etags
+	etags *.[ch]
+
+# This verifies that the non-ASCII characters in the file `testfile'
+# have not been clobbered by whatever means were used to copy and
+# distribute Emacs.  If they were clobbered, all the .elc files were
+# clobbered too.
+test-distrib: ${srcdir}/test-distrib.c
+	$(CC) -o test-distrib ${srcdir}/test-distrib.c
+	./test-distrib ${srcdir}/testfile
+
+GETOPTOBJS = getopt.o getopt1.o $(ALLOCA)
+GETOPTDEPS = $(GETOPTOBJS) ${srcdir}/getopt.h
+getopt.o: ${srcdir}/getopt.c ${srcdir}/getopt.h
+	${CC} -c ${CPP_CFLAGS} ${srcdir}/getopt.c
+getopt1.o: ${srcdir}/getopt1.c ${srcdir}/getopt.h
+	${CC} -c ${CPP_CFLAGS} ${srcdir}/getopt1.c
+
+etags: ${srcdir}/etags.c $(GETOPTDEPS) ../src/config.h
+	$(CC) ${CPP_CFLAGS} -DETAGS ${srcdir}/etags.c $(GETOPTOBJS) $(LOADLIBES) -o etags
+
+# We depend on etags to assure that parallel makes don't write two
+# etags.o files on top of each other.
+ctags: ${srcdir}/etags.c $(GETOPTDEPS) etags
+	$(CC) ${CPP_CFLAGS} -DCTAGS ${srcdir}/etags.c $(GETOPTOBJS) $(LOADLIBES) -o ctags
+
+wakeup: ${srcdir}/wakeup.c
+	$(CC) ${CPP_CFLAGS} ${srcdir}/wakeup.c $(LOADLIBES) -o wakeup
+
+make-docfile: ${srcdir}/make-docfile.c
+	$(CC) ${CPP_CFLAGS} ${srcdir}/make-docfile.c $(LOADLIBES) -o make-docfile
+
+digest-doc: ${srcdir}/digest-doc.c
+	$(CC) ${CPP_CFLAGS} ${srcdir}/digest-doc.c $(LOADLIBES) -o digest-doc 
+
+sorted-doc: ${srcdir}/sorted-doc.c ${ALLOCA}
+	$(CC) ${CPP_CFLAGS} ${srcdir}/sorted-doc.c ${ALLOCA} $(LOADLIBES) -o sorted-doc
+
+b2m: ${srcdir}/b2m.c ../src/config.h
+	$(CC) -I${srcdir}/../src ${CPP_CFLAGS} ${srcdir}/b2m.c $(LOADLIBES) -o b2m 
+
+movemail: ${srcdir}/movemail.c ../src/config.h
+	$(CC) -I${srcdir}/../src ${CPP_CFLAGS} ${srcdir}/movemail.c $(LOADLIBES) -o movemail
+
+cvtmail: ${srcdir}/cvtmail.c
+	$(CC) ${CPP_CFLAGS} ${srcdir}/cvtmail.c $(LOADLIBES) -o cvtmail
+
+fakemail: ${srcdir}/fakemail.c ../src/config.h
+	$(CC) -I${srcdir}/../src ${CPP_CFLAGS} ${srcdir}/fakemail.c $(LOADLIBES) -o fakemail
+
+yow: ${srcdir}/yow.c ../src/paths.h
+	$(CC) ${CPP_CFLAGS} ${srcdir}/yow.c $(LOADLIBES) -o yow
+
+env: ${srcdir}/env.c ../src/config.h
+	$(CC) -DEMACS -I${srcdir}/../src ${CPP_CFLAGS} ${srcdir}/env.c $(LOADLIBES) -o env
+
+emacsserver: ${srcdir}/emacsserver.c ../src/config.h
+	$(CC) -I${srcdir}/../src ${CPP_CFLAGS} ${srcdir}/emacsserver.c $(LOADLIBES) -o emacsserver
+
+emacsclient: ${srcdir}/emacsclient.c ../src/config.h
+	$(CC) -I${srcdir}/../src ${CPP_CFLAGS} ${srcdir}/emacsclient.c $(LOADLIBES) -o emacsclient
+
+hexl: ${srcdir}/hexl.c
+	$(CC) ${CPP_CFLAGS} ${srcdir}/hexl.c $(LOADLIBES) -o hexl
 
 
-distclean:
-	-rm -f ${EXECUTABLES} *~ \#* DOC* core
+TIMEROBJS=getdate.o timer.o $(ALLOCA)
+getdate.o: ${srcdir}/getdate.y ../src/config.h
+	${YACC} ${YFLAGS} ${srcdir}/getdate.y
+	$(CC) -I${srcdir}/../src $(CPP_CFLAGS) -c y.tab.c
+	mv y.tab.o getdate.o
+timer.o: ${srcdir}/timer.c ../src/config.h
+	$(CC) -c -I${srcdir}/../src $(CPP_CFLAGS) ${srcdir}/timer.c
+timer: ${TIMEROBJS}
+	$(CC) -I${srcdir}/../src $(ALL_CFLAGS) ${TIMEROBJS} $(LOADLIBES) -o timer
 
-clean:
-	-rm -f ${EXECUTABLES} core
+make-path: ${srcdir}/make-path.c
+	$(CC) $(CPP_CFLAGS) ${srcdir}/make-path.c -o make-path
 
-# This justs verifies that the non-ASCII characters
-# in the file `testfile' have no been clobbered by
-# whatever means were used to copy and distribute Emacs.
-# If they were clobbered, all the .elc files were clobbered too.
-test-distrib: test-distrib.c
-	$(CC) -o test-distrib ${CFLAGS} test-distrib.c
-	./test-distrib
-
-etags: etags.c
-	$(CC) -o etags ${CFLAGS} -DETAGS etags.c $(LOADLIBES)
-
-ctags: etags.c
-	$(CC) -o ctags ${CFLAGS} -DCTAGS etags.c $(LOADLIBES)
-
-wakeup: wakeup.c
-	$(CC) -o wakeup ${CFLAGS} wakeup.c $(LOADLIBES)
-
-make-docfile: make-docfile.c
-	$(CC) -o make-docfile ${CFLAGS} make-docfile.c $(LOADLIBES)
-
-digest-doc: digest-doc.c
-	$(CC) -o digest-doc ${CFLAGS} digest-doc.c $(LOADLIBES)
-
-sorted-doc: sorted-doc.c
-	$(CC) -o sorted-doc ${CFLAGS} sorted-doc.c $(LOADLIBES)
-
-#
-movemail: movemail.c ../src/config.h
-	$(CC) -o movemail ${CFLAGS} movemail.c $(LOADLIBES)
-
-cvtmail: cvtmail.c
-	$(CC) -o cvtmail ${CFLAGS} cvtmail.c $(LOADLIBES)
-
-fakemail: fakemail.c ../src/config.h
-	$(CC) -o fakemail ${CFLAGS} fakemail.c $(LOADLIBES)
-
-yow: yow.c ../src/paths.h
-	$(CC) -o yow ${CFLAGS} yow.c $(LOADLIBES)
-
-# this is silly -- just use emacs to edit this file!
-# (in any case this program doesn't preserve alphabetical ordering,
-#  which is why I'm removing it)
-#addyow: addyow.c
-#	$(CC) -o addyow ${CFLAGS} addyow.c
-
-env: env.c ../src/config.h
-	$(CC) -o env -DEMACS ${CFLAGS} env.c $(LOADLIBES)
-
-emacsserver: emacsserver.c ../src/config.h
-	$(CC) -o emacsserver ${CFLAGS} emacsserver.c $(LOADLIBES)
-
-emacsclient: emacsclient.c ../src/config.h
-	$(CC) -o emacsclient ${CFLAGS} emacsclient.c $(LOADLIBES)
-
-hexl: hexl.c
-	$(CC) -o hexl ${CFLAGS} hexl.c $(LOADLIBES)
-
-# This one is NOT included in EXECUTABLES.
+# These are NOT included in INSTALLABLES or UTILITIES.
 # See ../src/ymakefile.
-emacstool: emacstool.c
-	$(CC) emacstool.c -o emacstool -g -lsuntool -lsunwindow -lpixrect $(LOADLIBES)
+emacstool: ${srcdir}/emacstool.c
+	$(CC) ${srcdir}/emacstool.c -o emacstool ${CPP_CFLAGS} \
+	  -lsuntool -lsunwindow -lpixrect $(LOADLIBES)
+
+# For SUN Japanese Language Environment
+nemacstool: ${srcdir}/emacstool.c
+	$(CC) -o nemacstool -DJLE ${CPP_CFLAGS} ${srcdir}/emacstool.c \
+	  -lsuntool -lmle -lsunwindow -lpixrect $(LOADLIBES)
+
+xvetool: ${srcdir}/emacstool.c
+	$(CC) -o xvetool -DXVIEW ${CPP_CFLAGS} ${srcdir}/emacstool.c \
+	  -lxview -lX -I$(OPENWINHOME)/include -L$(OPENWINHOME)/lib \
+	  $(LOADLIBES)
+
+xveterm: ${srcdir}/emacstool.c
+	$(CC) -o xveterm -DXVIEW -DTTERM ${CPP_CFLAGS} ${srcdir}/emacstool.c \
+	  -lxview -lolgx -lX  -I$(OPENWINHOME)/include -L$(OPENWINHOME)/lib \
+	  $(LOADLIBES)
+
+aixcc: ${srcdir}/aixcc.c
+	$(CC) $(CPP_CFLAGS) -o aixcc ${srcdir}/aixcc.c
+
+aixcc.c: ${srcdir}/aixcc.lex
+	lex ${srcdir}/aixcc.lex
+	mv lex.yy.c aixcc.c

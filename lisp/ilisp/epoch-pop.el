@@ -1,5 +1,8 @@
 ;;; -*-Emacs-Lisp-*-
 ;;;%Header
+;;;
+;;; Rcs_Info: epoch-pop.el,v 1.18 1993/09/03 02:05:07 ivan Rel $
+;;;
 ;;; Shrink-wrapped temporary windows for GNU Emacs V2.11
 ;;; Copyright (C) 1990, 1991, 1992 Chris McConnell, ccm@cs.cmu.edu.
 

@@ -1,5 +1,5 @@
 ;;; Mouse and font support for GNUS running in Lucid GNU Emacs
-;; Copyright (C) 1992-1993 Free Software Foundation, Inc.
+;; Copyright (C) 1992, 1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -18,99 +18,104 @@
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
 
-;;; Right button pops up a menu of commands in Newsgroup and Subject buffers.
+;;; Right button pops up a menu of commands in Newsgroup and Summary buffers.
 ;;; Middle button selects indicated newsgroup or article.
 
-(defvar gnus-Subject-menu
-  '("GNUS Subject Commands"
-    ["Select Article / Next Page" gnus-Subject-next-page t]
-    ["Prev Page" gnus-Subject-prev-page t]
-    ["Select Parent Article" gnus-Subject-refer-parent-article t]
+(defvar gnus-summary-menu
+  '("GNUS Summary Commands"
+    ["Select Article / Next Page" gnus-summary-next-page t]
+    ["Prev Page" gnus-summary-prev-page t]
+    ["Select Parent Article" gnus-summary-refer-parent-article t]
     "----"
-    ["Beginning of Article" gnus-Subject-beginning-of-article t]
-    ["End of Article" gnus-Subject-end-of-article t]
-    ["Show all Headers" gnus-Subject-show-all-headers t]
-    ["ROT13 Article" gnus-Subject-caesar-message t]
-    ["Save Article to Mail File" gnus-Subject-save-in-mail t]
+    ["Beginning of Article" gnus-summary-beginning-of-article t]
+    ["End of Article" gnus-summary-end-of-article t]
+    ["Show All Headers" gnus-summary-show-all-headers t]
+    ["ROT13 Article" gnus-summary-caesar-message t]
+    ["Save Article to Mail File" gnus-summary-save-in-mail t]
+    ("Sort Articles"
+     ["Sort By Author" gnus-summary-sort-by-author t]
+     ["Sort By Date" gnus-summary-sort-by-date t]
+     ["Sort By Number" gnus-summary-sort-by-number t]
+     ["Sort By Subject" gnus-summary-sort-by-subject t])
     "----"
-    ["Mail Reply" gnus-Subject-mail-reply t]
-    ["Mail Reply (Citing Original)" gnus-Subject-mail-reply-with-original t]
-    ["Post Reply" gnus-Subject-post-reply t]
-    ["Post Reply (Citing Original)" gnus-Subject-post-reply-with-original t]
-    ["Forward Article" gnus-Subject-mail-forward t]
+    ["Mail Reply" gnus-summary-reply t]
+    ["Mail Reply (Citing Original)" gnus-summary-reply-with-original t]
+    ["Post Reply" gnus-summary-followup t]
+    ["Post Reply (Citing Original)" gnus-summary-followup-with-original t]
+    ["Forward Article" gnus-summary-mail-forward t]
     "----"
-    ["Mark Article as Read" gnus-Subject-mark-as-read-forward t]
-    ["Mark Article as Unread" gnus-Subject-mark-as-unread-backward t]
-    ["Mark Similar Subjects as Read" gnus-Subject-kill-same-subject t]
-    ["Quit this Newsgroup" gnus-Subject-exit t]
+    ["Mark Article as Read" gnus-summary-mark-as-read-forward t]
+    ["Mark Article as Unread" gnus-summary-mark-as-unread-backward t]
+    ["Mark Similar Subjects as Read" gnus-summary-kill-same-subject t]
+    ["Quit this Newsgroup" gnus-summary-exit t]
     ["Quit this Newsgroup (mark everything as read)"
-     gnus-Subject-catch-up-and-exit t]
+     gnus-summary-catchup-and-exit t]
     ))
 
-(defvar gnus-Group-menu
+(defvar gnus-group-menu
   '("GNUS Group Commands"
-    ["Select Newsgroup" gnus-Group-read-group t]
-    ["Unsubscribe Newsgroup" gnus-Group-unsubscribe-current-group t]
-    ["Get New News" gnus-Group-get-new-news t]
+    ["Select Newsgroup" gnus-group-read-group t]
+    ["Unsubscribe Newsgroup" gnus-group-unsubscribe-current-group t]
+    ["Get New News" gnus-group-get-new-news t]
     "----"
-    ["Mark Newsgroup as Read" gnus-Group-catch-up t]
-    ["Mark All Newsgroups as Read" gnus-Group-catch-up-all t]
-    ["Show All Newsgroups" gnus-Group-list-all-groups t]
-    ["Show Subscribed Nonempty Newsgroups" gnus-Group-list-groups t]
-    ["Check Bogosity" gnus-Group-check-bogus-groups t]
+    ["Mark Newsgroup as Read" gnus-group-catchup t]
+    ["Mark All Newsgroups as Read" gnus-group-catchup-all t]
+    ["Show All Newsgroups" gnus-group-list-all-groups t]
+    ["Show Subscribed Nonempty Newsgroups" gnus-group-list-groups t]
+    ["Check Bogosity" gnus-group-check-bogus-groups t]
     "----"
-    ["Save .newsrc" gnus-Group-force-update t]
-    ["GNUS Manual" gnus-Info-find-node t]
-    ["Suspend GNUS" gnus-Group-suspend t]
-    ["Quit GNUS" gnus-Group-exit t]
+    ["Save .newsrc" gnus-group-force-update t]
+    ["GNUS Manual" gnus-info-find-node t]
+    ["Suspend GNUS" gnus-group-suspend t]
+    ["Quit GNUS" gnus-group-exit t]
     ))
 
-(defvar gnus-Article-menu 
+(defvar gnus-article-menu 
   '("GNUS Article Commands"
-    ["Next Page" gnus-Article-next-page t]
-    ["Previous Page" gnus-Article-prev-page t]
-    ["Pop Article History" gnus-Article-pop-article t]
-    ["Show Referenced Article" gnus-Article-refer-article t]
-    ["Show Subjects" gnus-Article-show-subjects t]))
+    ["Next Page" gnus-article-next-page t]
+    ["Previous Page" gnus-article-prev-page t]
+    ["Pop Article History" gnus-article-pop-article t]
+    ["Show Referenced Article" gnus-article-refer-article t]
+    ["Show Summary" gnus-article-show-summary t]))
 
-(defun gnus-Subject-menu (e)
+(defun gnus-summary-menu (e)
   (interactive "e")
   (mouse-set-point e)
   (beginning-of-line)
   (search-forward ":" nil t)
-  (popup-menu gnus-Subject-menu))
+  (popup-menu gnus-summary-menu))
 
-(defun gnus-Group-menu (e)
+(defun gnus-group-menu (e)
   (interactive "e")
   (mouse-set-point e)
   (beginning-of-line)
   (search-forward ":" nil t)
-  (popup-menu gnus-Group-menu))
+  (popup-menu gnus-group-menu))
 
-(defun gnus-Article-menu (e)
+(defun gnus-article-menu (e)
   (interactive "@e")
-  (popup-menu gnus-Article-menu))
+  (popup-menu gnus-article-menu))
 
-(defun gnus-Group-mouse-read-group (e)
+(defun gnus-group-mouse-read-group (e)
   (interactive "e")
   (mouse-set-point e)
   (beginning-of-line)
   (search-forward ":" nil t)
-  (gnus-Group-read-group nil))
+  (gnus-group-read-group nil))
 
-(defun gnus-Subject-mouse-next-page (e)
+(defun gnus-summary-mouse-next-page (e)
   (interactive "e")
   (mouse-set-point e)
   (beginning-of-line)
   (search-forward ":" nil t)
-  (gnus-Subject-next-page nil))
+  (gnus-summary-next-page nil))
 
-(define-key gnus-Subject-mode-map 'button2 'gnus-Subject-mouse-next-page)
-(define-key gnus-Group-mode-map   'button2 'gnus-Group-mouse-read-group)
+(define-key gnus-summary-mode-map 'button2 'gnus-summary-mouse-next-page)
+(define-key gnus-group-mode-map   'button2 'gnus-group-mouse-read-group)
 
-(define-key gnus-Subject-mode-map 'button3 'gnus-Subject-menu)
-(define-key gnus-Group-mode-map   'button3 'gnus-Group-menu)
-(define-key gnus-Article-mode-map 'button3 'gnus-Article-menu)
+(define-key gnus-summary-mode-map 'button3 'gnus-summary-menu)
+(define-key gnus-group-mode-map   'button3 'gnus-group-menu)
+(define-key gnus-article-mode-map 'button3 'gnus-article-menu)
 
 
 ;;; Put message headers in boldface, etc...
@@ -119,7 +124,7 @@
 
 (defun gnus-fontify-headers ()
   (save-excursion
-    (set-buffer gnus-Article-buffer)
+    (set-buffer gnus-article-buffer)
     (save-excursion
       (save-restriction
 	(widen)
@@ -133,7 +138,7 @@
   "replaces underscore-backspace with an extent.
 Also removes the extra blank lines from the article."
   (save-excursion
-    (set-buffer gnus-Article-buffer)
+    (set-buffer gnus-article-buffer)
     (goto-char (point-min))
     (while (re-search-forward "\\(\\(_\^H.\\) ?\\)+" nil t)
       (set-extent-face (make-extent (match-beginning 0) (match-end 0))
@@ -145,37 +150,37 @@ Also removes the extra blank lines from the article."
   (if (string-match "^clari\\.*\\|^biz\\.clarinet" gnus-newsgroup-name)
       (save-excursion
 	(gnus-hack-underlining)
-	(set-buffer gnus-Article-buffer)
+	(set-buffer gnus-article-buffer)
 	(goto-char (point-min))
         (while (re-search-forward "\n\n\n\n*" nil t)
           (replace-match "\n\n")))))
 
-(add-hook 'gnus-Select-article-hook 'gnus-fontify-headers)
-(add-hook 'gnus-Article-prepare-hook 'gnus-hack-clarinews)
+(add-hook 'gnus-select-article-hook 'gnus-fontify-headers)
+(add-hook 'gnus-article-prepare-hook 'gnus-hack-clarinews)
 
 
-;;; Highlight the line under the mouse in the Newsgroup and Subject buffers.
+;;; Highlight the line under the mouse in the Newsgroup and Summary buffers.
 
 (defun gnus-install-mouse-tracker ()
   (require 'mode-motion)
   (setq mode-motion-hook 'mode-motion-highlight-line))
 
-(add-hook 'gnus-Subject-mode-hook 'gnus-install-mouse-tracker)
-(add-hook 'gnus-Group-mode-hook   'gnus-install-mouse-tracker)
+(add-hook 'gnus-summary-mode-hook 'gnus-install-mouse-tracker)
+(add-hook 'gnus-group-mode-hook   'gnus-install-mouse-tracker)
 
 
 ;;; Put the GNUS menus in the menubar
 
 (defun gnus-install-menubar ()
   (if (and current-menubar (not (assoc "GNUS" current-menubar)))
-      (let ((menu (cond ((eq major-mode 'gnus-Group-mode) gnus-Group-menu)
-			((eq major-mode 'gnus-Subject-mode) gnus-Subject-menu)
-			(t (error "not GNUS Group or Subject mode")))))
+      (let ((menu (cond ((eq major-mode 'gnus-group-mode) gnus-group-menu)
+			((eq major-mode 'gnus-summary-mode) gnus-summary-menu)
+			(t (error "not GNUS Group or Summary mode")))))
 	(set-buffer-menubar (copy-sequence current-menubar))
 	(add-menu nil "GNUS" (cdr menu)))))
 
-(add-hook 'gnus-Subject-mode-hook 'gnus-install-menubar)
-(add-hook 'gnus-Group-mode-hook   'gnus-install-menubar)
+(add-hook 'gnus-summary-mode-hook 'gnus-install-menubar)
+(add-hook 'gnus-group-mode-hook   'gnus-install-menubar)
 
 
 (provide 'gnus-lucid)

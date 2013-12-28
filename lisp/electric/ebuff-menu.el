@@ -1,9 +1,8 @@
-; buggestions to mly@ai.ai.mit.edu
+;;; ebuff-menu.el --- electric-buffer-list mode
 
-;; who says one can't have typeout windows in gnu emacs?
-;; like ^r select buffer from its emacs lunar or tmacs libraries.
+;; Copyright (C) 1985, 1986, 1992, 1993 Free Software Foundation, Inc.
 
-;; Copyright (C) 1985-1993 Free Software Foundation, Inc.
+;; Author: Richard Mlynarik <mly@ai.mit.edu>
 
 ;; This file is part of GNU Emacs.
 
@@ -21,6 +20,13 @@
 ;; along with GNU Emacs; see the file COPYING.  If not, write to
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
+;;; Commentary:
+
+;; Who says one can't have typeout windows in GNU Emacs?   The entry
+;; point, `electric-buffer-list' works like ^r select buffer from the
+;; ITS Emacs lunar or tmacs libraries.
+
+;;; Code:
 
 (require 'electric)
 
@@ -28,6 +34,8 @@
 ;; on stuff in lisp/buff-menu.el
 
 (defvar electric-buffer-menu-mode-map nil)
+
+;;;###autoload
 (defun electric-buffer-list (arg)
   "Pops up a buffer describing the set of Emacs buffers.
 Vaguely like ITS lunar select buffer; combining typeoutoid buffer
@@ -113,7 +121,7 @@ Calls value of `electric-buffer-menu-mode-hook' on entry if non-nil.
 Each line describes one of the buffers in Emacs.
 Letters do not insert themselves; instead, they are commands.
 \\<electric-buffer-menu-mode-map>
-\\[Electric-buffer-menu-quit] -- exit buffer menu, returning to previous window and buffer
+\\[keyboard-quit] or \\[Electric-buffer-menu-quit] -- exit buffer menu, returning to previous window and buffer
   configuration.  If the very first character typed is a space, it
   also has this effect.
 \\[Electric-buffer-menu-select] -- select buffer of line point is on.
@@ -207,6 +215,11 @@ Entry to this mode via command `electric-buffer-list' calls the value of
     (define-key map "\e\C-v" 'scroll-other-window)
     (define-key map "\e>" 'end-of-buffer)
     (define-key map "\e<" 'beginning-of-buffer)
+    (define-key map [home] 'beginning-of-buffer)
+    (define-key map [down] 'next-line)
+    (define-key map [up] 'previous-line)
+    (define-key map [prior] 'scroll-down)
+    (define-key map [next] 'scroll-up)
     (define-key map 'button2 'Electric-buffer-menu-mouse-select)
     (define-key map 'button3 'Buffer-menu-popup-menu)
     (setq electric-buffer-menu-mode-map map)))
@@ -258,3 +271,5 @@ Returns to Electric Buffer Menu when done."
       (ding)
       (message "Buffer %s does not exist!" bufnam)
       (sit-for 4))))
+
+;;; ebuff-menu.el ends here

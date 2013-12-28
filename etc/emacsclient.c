@@ -23,9 +23,8 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #undef read
 #undef write
 #undef open
-#ifdef close
 #undef close
-#endif
+#undef signal
 
 
 #if !defined(HAVE_SOCKETS) && !defined(HAVE_SYSVIPC)
@@ -49,27 +48,32 @@ main (argc, argv)
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <sys/stat.h>
 #include <stdio.h>
+#include <errno.h>
 
+extern int sys_nerr;
+extern char *sys_errlist[];
+extern int errno;
+
+void
 main (argc, argv)
      int argc;
      char **argv;
 {
+  char system_name[256];
   int s, i;
   FILE *out;
   struct sockaddr_un server;
   char *homedir, *cwd, *str;
   char string[BUFSIZ];
-  extern int sys_nerr;
-  extern char *sys_errlist[];
-  extern int errno;
 
   char *getenv (), *getwd ();
   int geteuid ();
 
   if (argc < 2)
     {
-      fprintf (stderr, "Usage: %s filename\n", argv[0]);
+      fprintf (stderr, "Usage: %s [+linenumber] filename\n", argv[0]);
       exit (1);
     }
 
@@ -84,6 +88,29 @@ main (argc, argv)
       exit (1);
     }
   server.sun_family = AF_UNIX;
+#ifndef SERVER_HOME_DIR
+  {
+    struct stat statbfr;
+
+    gethostname (system_name, sizeof (system_name));
+    sprintf (server.sun_path, "/tmp/esrv%d-%s", geteuid (), system_name);
+
+    if (stat (server.sun_path, &statbfr) == -1)
+      {
+	if (errno == ENOENT)
+	  fprintf (stderr,
+		   "Can't find socket; have you started the server?\n");
+	else
+	  perror ("stat");
+	exit (1);
+      }
+    if (statbfr.st_uid != geteuid())
+      {
+	fprintf (stderr, "Illegal socket owner\n");
+	exit (1);
+      }
+  }
+#else
   if ((homedir = getenv ("HOME")) == NULL)
     {
       fprintf (stderr, "%s: No home directory\n", argv[0]);
@@ -94,7 +121,9 @@ main (argc, argv)
   strcpy (server.sun_path, homedir);
   strcat (server.sun_path, "/.emacs_server");
 #endif
-  if (connect (s, &server, strlen (server.sun_path) + 2) < 0)
+#endif /* SERVER_HOME_DIR */
+  if (connect (s, (struct sockaddr *) &server, strlen (server.sun_path) + 2)
+      < 0)
     {
       fprintf (stderr, "%s: ", argv[0]);
       perror ("connect");
@@ -140,7 +169,7 @@ main (argc, argv)
 
   /* Now, wait for an answer and print any messages.  */
   
-  while (str = fgets (string, BUFSIZ, out))
+  while ((str = fgets (string, BUFSIZ, out)))
     printf ("%s", str);
   
   exit (0);
@@ -170,7 +199,7 @@ main (argc, argv)
 
   if (argc < 2)
     {
-      fprintf (stderr, "Usage: %s filename\n", argv[0]);
+      fprintf (stderr, "Usage: %s [+linenumber] filename\n", argv[0]);
       exit (1);
     }
 
@@ -186,7 +215,7 @@ main (argc, argv)
   strcat (buf, "/.emacs_server");
   creat (buf, 0600);
   key = ftok (buf, 1);	/* unlikely to be anyone else using it */
-  s = msgget (key, 0600);
+  s = msgget (key, 0600 | IPC_CREAT);
   if (s == -1)
     {
       fprintf (stderr, "%s: ", argv[0]);

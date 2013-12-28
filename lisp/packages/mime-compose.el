@@ -1,7 +1,7 @@
-;;; --------------------------------------------------------------------------
 ;;; File: --- mime-compose.el ---
 ;;; Author: Marc Andreessen (marca@ncsa.uiuc.edu)
 ;;; Additional code: Keith Waclena (k-waclena@uchicago.edu).
+;;;                  Christopher Davis (ckd@eff.org).
 ;;; Copyright (C) National Center for Supercomputing Applications, 1992.
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
@@ -21,16 +21,17 @@
 ;;; -------------------------------- CONTENTS --------------------------------
 ;;;
 ;;; mime-compose: Utility routines for composing MIME-compliant mail.
-;;; !Revision: 1.47 !
-;;; !Date: 1992/11/21 21:42:50 !
+;;; $Revision: 1.3 $
+;;; $Date: 1993/06/11 02:11:00 $
 ;;;
 ;;; Canonical list of features:
 ;;;   Automatic MIME header construction.
 ;;;   Include GIF/JPEG image.
 ;;;   Include audio file.
 ;;;   Include PostScript file.
+;;;   Include MPEG animation sequence.
 ;;;   Include raw binary/nonbinary file.
-;;;   Include xwd window dump.
+;;;   Include xwd window dump taken on the fly.
 ;;;   Include reference to anonymous/regular FTP.
 ;;;   Include audio snippet recorded on the fly.
 ;;;   Convert region to MIME richtext.
@@ -48,7 +49,8 @@
 ;;; Use the normal Emacs mail composer (C-x m).
 ;;;
 ;;; (Or, use with Emacs mh-e by loading this file *after* loading mh-e.
-;;; Try putting (require 'mime-compose) in mh-letter-mode-hook.)
+;;; But due to incestuous hookification, you can't require mime-compose
+;;; inside mh-letter-mode-hook.)
 ;;;
 ;;; Do nothing special to prepare a message to have MIME elements
 ;;; included in it.
@@ -62,6 +64,7 @@
 ;;; C-c j      (C-c C-m j)  mime-include-jpeg        Add a JPEG file.
 ;;; C-c a      (C-c C-m a)  mime-include-audio       Add an audio file.
 ;;; C-c p      (C-c C-m p)  mime-include-postscript  Add a PostScript file.
+;;; C-c v      (C-c C-m v)  mime-include-mpeg        Add an MPEG file.
 ;;;
 ;;; (Note that mime-compose assumes you have the 'mmencode' program
 ;;; installed on your system.  See 'WHAT MIME IS' below for more
@@ -75,9 +78,10 @@
 ;;;   mime-xwd-command will be run, and the resulting dump will be
 ;;;   inserted into the message.
 ;;; C-c s      (C-c C-m s)
-;;;   mime-include-audio-snippet
+;;;   mime-include-audio-snippet 
 ;;;   Add an audio snippet, recorded on the fly.  CURRENTLY THIS WORKS
-;;;   ONLY FOR SILICON GRAPHICS INDIGO AND 4D/35's.  Recording begins
+;;;   ONLY FOR SILICON GRAPHICS INDIGO AND 4D/35's.  The Sun version
+;;;   may also work; see the source code below.  Recording begins
 ;;;   immediately; press 'y' to end recording or 'n' to abort the
 ;;;   whole process.  The resulting audio file will be converted to
 ;;;   standard mulaw format and incorporated into the message.
@@ -104,11 +108,10 @@
 ;;;   text/plain).  With prefix arg, you will also be prompted for the
 ;;;   character set (default is US-ASCII).
 ;;;
-;;; In addition to including files and generating inclusions on the
-;;; fly, you can also point to external elements: files that will not
-;;; be included in the document, but can be accessed by the recipient
-;;; in some other way (most commonly, via FTP).  The following
-;;; commands handle this:
+;;; You can also point to external elements: files that will not be
+;;; included in the document, but can be accessed by the recipient in
+;;; some other way (most commonly, via FTP).  The following commands
+;;; handle this:
 ;;;
 ;;; C-c e       (C-c C-m e)
 ;;;   mime-include-external-anonftp
@@ -153,7 +156,7 @@
 ;;; character set that you're using when a message is sent.  To have
 ;;; this happen, set this variable:
 ;;;
-;;; mime-encode-plaintext-on-send  (default NIL)
+;;; mime-encode-plaintext-on-send       (variable, default NIL)
 ;;;   If T, all text/plain bodyparts in the message will be encoded in
 ;;;   quoted-printable and labeled with charset mime-default-charset
 ;;;   (by default, US-ASCII) when a message is sent.  If NIL,
@@ -237,18 +240,22 @@
 ;;; LCD Archive Entry:
 ;;; mime-compose|Marc Andreessen|marca@ncsa.uiuc.edu|
 ;;; MIME-compliant message generation utilities.|
-;;; !Date: 1992/11/21 21:42:50 !|!Revision: 1.47 !|~/misc/mime-compose.el.Z|
+;;; $Date: 1993/06/11 02:11:00 $|$Revision: 1.3 $|~/misc/mime-compose.el.Z|
 ;;; --------------------------------------------------------------------------
 
 (provide 'mime-compose)
 
-(defvar mime-running-mh-e (boundp 'mh-letter-mode-map)
+(defvar mime-running-mh-e (boundp 'mh-letter-mode-hook)
   "Non-nil if running under mh-e.")
 
 (if (not mime-running-mh-e)
     (require 'sendmail))
 
 ;;; ---------------------- User-customizable variables -----------------------
+
+(defvar mime-compose-hook nil
+  "*Invoked exactly once by first invocation of mime-mimify-message,
+before any processing is done.")
 
 (defvar mime-use-selective-display t
   "*Flag for using selective-display to hide bodies of MIME enclosures.
@@ -293,23 +300,41 @@ Epoch or Lucid Emacs; if non-NIL, highlighting will be used.")
   "*Command used to encode data in quoted-printable format.")
 
 (defvar mime-babbling-description "talking"
-  "*Adjective(s) applying to audio snippets.")
+  "*Adjective(s) (or gerunds; I never could tell them apart) applying to 
+audio snippets.")
+
+(defvar mime-sgi-record-program "/usr/sbin/recordaiff"
+  "*Full name of SGI audio record program.")
+
+(defvar mime-sun-record-program "/usr/demo/SOUND/record"
+  "*Full name of Sun audio record program, patched with the context
+diff found at the end of mime-compose.el.")
 
 ;;; ---------------------------- Other variables -----------------------------
+
+(defvar mime-compose-hook-was-run nil
+  "NIL implies we haven't yet run mime-compose-hook.")
 
 (defvar mime-valid-include-types
   '(("image/gif" 1)
     ("image/jpeg" 2)
-    ("image/x-xbm" 3)
-    ("image/x-xwd" 4)
-    ("application/postscript" 5)
-    ("application/andrew-inset" 6)
-    ("application/octet-stream" 7)
-    ("text/richtext" 8)
-    ("text/plain" 9)
-    ("audio/basic" 10)
-    ("video/mpeg" 11)
-    ("message/rfc822" 12))
+    ("application/postscript" 3)
+    ("application/andrew-inset" 4)
+    ("application/octet-stream" 5)
+    ("text/richtext" 6)
+    ("text/plain" 7)
+    ("audio/basic" 8)
+    ("video/mpeg" 9)
+    ("message/rfc822" 10)
+    ;; These aren't ``standard'', but are useful.
+    ("application/x-emacs-lisp" 11)
+    ("application/x-unix-tar-z" 12)
+    ("application/x-dvi" 13)
+    ("image/x-xbm" 14)
+    ("image/x-xwd" 15)
+    ("image/x-tiff" 16)
+    ("audio/x-aiff" 17)
+    ("text/x-html" 18))
   "A list of valid content types for minibuffer completion.")
 
 (defvar mime-valid-charsets
@@ -408,7 +433,7 @@ from VM, the Kitchen Sink(tm) of mail readers."
         (if (sit-for 2)
             (let ((lines mime-waiting-message-lines))
               (message
-               "mime-compose.el !Revision: 1.47 !, by marca@ncsa.uiuc.edu")
+               "mime-compose.el $Revision: 1.3 $, by marca@ncsa.uiuc.edu")
               (while (and (sit-for 4) lines)
                 (message (car lines))
                 (setq lines (cdr lines)))))
@@ -416,6 +441,7 @@ from VM, the Kitchen Sink(tm) of mail readers."
         (if (not (input-pending-p))
             (progn
               (sit-for 2)
+              ;; TODO: Don't recurse; iterate.
               (if (not (input-pending-p))
                   (mime-display-waiting-messages)))))))
 
@@ -459,6 +485,10 @@ the message.
 
 This function is safe to call more than once."
   (interactive)
+  (if (not mime-compose-hook-was-run)
+      (progn
+	(setq mime-compose-hook-was-run t)
+	(run-hooks 'mime-compose-hook)))
   (let ((mail-header-separator (if (eq major-mode 'mh-letter-mode)
                                    "\n\n\\|^-+$"
                                  mail-header-separator)))
@@ -713,7 +743,7 @@ This routine works on SGI Indigo's and 4D/35's."
   (let (audio-process done-flag)
     (setq audio-process 
           (start-process "snippet" "snippet" 
-                         "/usr/sbin/recordaiff" "-n" "1" "-s" "8" "-r" "8000"
+                         mime-sgi-record-program "-n" "1" "-s" "8" "-r" "8000"
                          mime-audio-tmp-file))
     ;; Quick hack to make Emacs sit until recording is done.
     (setq done-flag
@@ -739,13 +769,15 @@ This routine works on SGI Indigo's and 4D/35's."
 
 (defun mime-sun-grab-audio-snippet ()
   "Grab an audio snippet into file named in 'mime-audio-file'.
-This is the Sun version.  I don't know if it works.  I don't have a
-SPARCstation to test on at the moment."
+This is the Sun version.  I don't know how well it works.  It also
+requires a patched version of /usr/demo/SOUND/record.c; see the 
+context diff at the end of mime-compose.el.
+
+Courtesy Christopher Davis <ckd@eff.org>."
   (let (audio-process done-flag)
     (setq audio-process
           (start-process "snippet" "snippet"
-                         "/bin/sh" "-c" "/bin/cat" "<" "/dev/audio"
-                         ">" mime-audio-file))
+                         mime-sun-record-program "-m" mime-audio-file))
     ;; Quick hack to make Emacs sit until recording is done.
     (setq done-flag
           (y-or-n-p "Press y when done recording (n to abort): "))
@@ -795,11 +827,21 @@ platforms are welcome."
   (mime-include-binary-file filename "image/jpeg")
   (mime-display-waiting-messages))
 
-(defun mime-include-audio (filename)
+(defun mime-include-audio (filename &optional prefix-arg)
   "Include an audio file named by FILENAME.  Note that to match the
-MIME specification for audio/basic, this should be an 8-bit mulaw file."
-  (interactive "fAudio filename: ")
-  (mime-include-binary-file filename "audio/basic")
+MIME specification for audio/basic, this should be an 8-bit mulaw file.
+With prefix arg, use AIFF format (unofficial MIME subtype audio/x-aiff)
+instead of audio/basic."
+  (interactive "fAudio filename: \nP")
+  (if prefix-arg
+      (mime-include-binary-file filename "audio/x-aiff")
+    (mime-include-binary-file filename "audio/basic"))
+  (mime-display-waiting-messages))
+
+(defun mime-include-mpeg (filename)
+  "Include a MPEG file named by FILENAME."
+  (interactive "fMPEG animation filename: ")
+  (mime-include-binary-file filename "video/mpeg")
   (mime-display-waiting-messages))
 
 (defun mime-include-postscript (filename)
@@ -940,6 +982,7 @@ character set."
           (define-key mh-letter-mode-mime-map "g" 'mime-include-gif)
           (define-key mh-letter-mode-mime-map "j" 'mime-include-jpeg)
           (define-key mh-letter-mode-mime-map "a" 'mime-include-audio)
+          (define-key mh-letter-mode-mime-map "v" 'mime-include-mpeg)
           (define-key mh-letter-mode-mime-map "p" 'mime-include-postscript)
           (define-key mh-letter-mode-mime-map "r" 'mime-include-raw-binary)
           (define-key mh-letter-mode-mime-map "n" 'mime-include-raw-nonbinary)
@@ -950,7 +993,11 @@ character set."
             'mime-include-external-ftp)
           (define-key mh-letter-mode-mime-map "s"
             'mime-include-audio-snippet)
-          (define-key mh-letter-mode-mime-map "\C-r" 'mime-region-map)))
+          ;; Functions that operate on regions.
+          (defvar mime-region-map (make-sparse-keymap))
+          (define-key mh-letter-mode-mime-map "\C-r" mime-region-map)
+          (define-key mime-region-map "r" 'mime-region-to-richtext)
+          (define-key mime-region-map "i" 'mime-region-to-charset)))
   ;; Not running mh-e.
   (progn
     (define-key mail-mode-map "\C-cm" 'mime-mimify-message)
@@ -964,6 +1011,7 @@ character set."
     (define-key mail-mode-map "\C-ce" 'mime-include-external-anonftp)
     (define-key mail-mode-map "\C-cf" 'mime-include-external-ftp)
     (define-key mail-mode-map "\C-cs" 'mime-include-audio-snippet)
+    (define-key mail-mode-map "\C-cv" 'mime-include-mpeg)
     
     ;; Functions that operate on regions.
     (defvar mime-region-map (make-sparse-keymap))
@@ -1003,6 +1051,7 @@ character set."
 	 "----"
 	 ["Include GIF File"		mime-include-gif		t]
 	 ["Include JPEG File"		mime-include-jpeg		t]
+	 ["Include MPEG File"		mime-include-mpeg		t]
 	 ["Include Audio File"		mime-include-audio		t]
 	 ["Include PostScript File"	mime-include-postscript		t]
 	 ["Include XWD Dump"		mime-include-xwd-dump		t]
@@ -1136,3 +1185,107 @@ encode plaintext bodyparts in quoted-printable with a given charset."
     (mime-postpend-unique-hook 'mh-letter-mode-hook
                                'mime-setup-hook-function)
   (mime-postpend-unique-hook 'mail-mode-hook 'mime-setup-hook-function))
+
+;;; ------------------------- END OF MIME-COMPOSE.EL -------------------------
+
+;;; ---------------------- PATCH FOR SUN RECORD PROGRAM ----------------------
+
+;;; This patch must be applied to record.c as found in the Sun demo
+;;; directories in order to enable on-the-fly audio recording in
+;;; mime-compose.
+
+;; *** record.c.orig	Wed Oct 23 13:56:38 1991
+;; --- record.c	Sun Dec  6 22:50:06 1992
+;; ***************
+;; *** 2,7 ****
+;; --- 2,9 ----
+;;   static	char sccsid[] = "@(#)record.c 1.2 90/01/02 Copyr 1989 Sun Micro";
+;;   #endif
+;;   /* Copyright (c) 1989 by Sun Microsystems, Inc. */
+;; + /* 921206: modifications to not output audio header (ckd@eff.org) */
+;; + /* yes, I know it's ugly code... sorry... */
+;;   
+;;   #include <stdio.h>
+;;   #include <errno.h>
+;; ***************
+;; *** 30,36 ****
+;;   /* Local variables */
+;;   char *prog;
+;;   char prog_desc[] = "Record an audio file";
+;; ! char prog_opts[] = "aft:v:d:i:?";	/* getopt() flags */
+;;   
+;;   char		*Stdout = "stdout";
+;;   
+;; --- 32,38 ----
+;;   /* Local variables */
+;;   char *prog;
+;;   char prog_desc[] = "Record an audio file";
+;; ! char prog_opts[] = "aft:v:d:i:?m";	/* getopt() flags */
+;;   
+;;   char		*Stdout = "stdout";
+;;   
+;; ***************
+;; *** 69,76 ****
+;;   usage()
+;;   {
+;;   	Error(stderr, "%s -- usage:\n\t%s ", prog_desc, prog);
+;; ! 	Error(stderr, "\t[-a] [-v #] [-t #] [-i msg] [-d dev] [file]\n");
+;;   	Error(stderr, "where:\n\t-a\tAppend to output file\n");
+;;   	Error(stderr, "\t-f\tIgnore sample rate differences on append\n");
+;;   	Error(stderr, "\t-v #\tSet record volume (0 - %d)\n", MAX_GAIN);
+;;   	Error(stderr, "\t-t #\tSpecify record time (hh:mm:ss.dd)\n");
+;; --- 71,79 ----
+;;   usage()
+;;   {
+;;   	Error(stderr, "%s -- usage:\n\t%s ", prog_desc, prog);
+;; ! 	Error(stderr, "\t[-a] [-m] [-v #] [-t #] [-i msg] [-d dev] [file]\n");
+;;   	Error(stderr, "where:\n\t-a\tAppend to output file\n");
+;; + 	Error(stderr, "\t-m\tDon't add audio header (for MIME)\n");
+;;   	Error(stderr, "\t-f\tIgnore sample rate differences on append\n");
+;;   	Error(stderr, "\t-v #\tSet record volume (0 - %d)\n", MAX_GAIN);
+;;   	Error(stderr, "\t-t #\tSpecify record time (hh:mm:ss.dd)\n");
+;; ***************
+;; *** 112,117 ****
+;; --- 115,121 ----
+;;   	int		cnt;
+;;   	int		err;
+;;   	int		ofd;
+;; + 	int		addheader = 1;
+;;   	double		vol;
+;;   	struct stat	st;
+;;   	struct sigvec	vec;
+;; ***************
+;; *** 150,155 ****
+;; --- 154,162 ----
+;;   		Info = optarg;		/* set information string */
+;;   		Ilen = strlen(Info);
+;;   		break;
+;; + 	case 'm':
+;; + 		addheader = 0;		/* no header (for MIME) */
+;; + 		break;
+;;   	case '?':
+;;   		usage();
+;;   /*NOTREACHED*/
+;; ***************
+;; *** 288,293 ****
+;; --- 295,301 ----
+;;   			exit(1);
+;;   		}
+;;   	} else {
+;; + 	  if (addheader) {
+;;   		if (audio_write_filehdr(ofd, &Dev_hdr, Info, Ilen) !=
+;;   		    AUDIO_SUCCESS) {
+;;   			Error(stderr, "%s: error writing header for \n", prog);
+;; ***************
+;; *** 294,299 ****
+;; --- 302,308 ----
+;;   			perror(Ofile);
+;;   			exit(1);
+;;   		}
+;; + 	      }
+;;   	}
+;;   
+;;   	/* If -v flag, set the record volume now */
+
+;;; ------------------------------ END OF PATCH ------------------------------
+

@@ -1,5 +1,5 @@
 ;; Mouse support that is independent of window systems.
-;; Copyright (C) 1988-1993 Free Software Foundation, Inc.
+;; Copyright (C) 1988, 1992, 1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -25,6 +25,13 @@
 (global-set-key '(shift button1) 'mouse-track-adjust)
 (global-set-key '(control button1) 'mouse-track-insert)
 (global-set-key '(control shift button1) 'mouse-track-delete-and-insert)
+
+(define-key mode-line-map 'button1 'mouse-drag-modeline)
+(define-key mode-line-map 'button3 'mode-line-menu)
+
+(defvar mouse-track-rectangle-p nil
+  "*If true, then dragging out a region with the mouse selects rectangles
+instead of simple start/end regions.")
 
 
 (defun mouse-select ()
@@ -55,13 +62,12 @@
     (select-window window)
     (if (and pos (> pos 0))
 	(goto-char pos)
-      (if (> (move-to-window-line
-	      (- (event-y event) (nth 1 (window-edges window))))
-	     0)
+      (let ((ypos (- (event-y event) (nth 1 (window-edges window)))))
+	(if (and (< (move-to-window-line ypos) ypos) (> ypos 0))
 	  ;; if target line was past end of buffer, go to eol of last line.
 	  (end-of-line)
 	(move-to-column (- (event-x event) (nth 0 (window-edges window))))
-	))))
+	)))))
 
 (defun mouse-eval-last-sexpr (event)
   (interactive "@e")
@@ -197,16 +203,15 @@ Display cursor at that position for a second."
   (incremental-scroll (- scroll-speed)))
 
 (defun incremental-scroll (n)
-  (let ((event (allocate-event))
-	(down t))
+  (let ((down t))
     (while down
       (sit-for mouse-track-scroll-delay)
       (cond ((input-pending-p)
-	     (next-event event)
-	     (if (or (button-press-event-p event)
-		     (button-release-event-p event))
-		 (setq down nil))
-	     (dispatch-event event)))
+	     (let ((event (next-command-event)))
+	       (if (or (button-press-event-p event)
+		       (button-release-event-p event))
+		   (setq down nil))
+	       (dispatch-event event))))
       (setq scrolled-lines (1+ (* scroll-speed scrolled-lines)))
       (scroll-down n))))
 
@@ -266,7 +271,9 @@ Display cursor at that position for a second."
 	  (move-to-window-line (- (event-y event)
 				  (nth 1 (window-edges window))))
 	  (if (> (event-x-pixel event)
-		 (or (cdr (assoc 'internal-border-width x-screen-defaults)) 5))
+		 (+ (buffer-left-margin-pixwidth (window-buffer window))
+		    (or (cdr (assoc 'internal-border-width x-screen-defaults))
+			5)))
 	      (end-of-line)))
 	t)))
 
@@ -346,9 +353,63 @@ Display cursor at that position for a second."
 (defun mouse-track-next-move (min-anchor max-anchor extent)
   (let ((anchor (if (<= (point) min-anchor) max-anchor min-anchor)))
     (mouse-track-normalize-point mouse-track-type (> (point) anchor))
-    (if (<= anchor (point))
-	(set-extent-endpoints extent anchor (point))
-      (set-extent-endpoints extent (point) anchor))))
+    (if (consp extent)
+	(mouse-track-next-move-rect anchor (point) extent)
+      (if (<= anchor (point))
+	  (set-extent-endpoints extent anchor (point))
+	(set-extent-endpoints extent (point) anchor)))))
+
+(defun mouse-track-next-move-rect (start end extents &optional pad-p)
+  (if (< end start)
+      (let ((tmp start)) (setq start end end tmp)))
+  (cond
+   ((= start end)		; never delete the last remaining extent
+    (mapcar 'delete-extent (cdr extents))
+    (setcdr extents nil)
+    (set-extent-endpoints (car extents) start start))
+   (t
+    (let ((indent-tabs-mode nil)	; if pad-p, don't use tabs
+	  (rest extents)
+	  left right last p)
+      (save-excursion
+	(save-restriction
+	  (goto-char end)
+	  (setq right (current-column))
+	  (goto-char start)
+	  (setq left (current-column))
+	  (if (< right left)
+	      (let ((tmp left))
+		(setq left right right tmp)
+		(setq start (- start (- right left))
+		      end (+ end (- right left)))))
+	  (beginning-of-line)
+	  (narrow-to-region (point) end)
+	  (goto-char start)
+	  (while (and rest (not (eobp)))
+	    (setq p (point))
+	    (move-to-column right pad-p)
+	    (set-extent-endpoints (car rest) p (point))
+	    (if (= 0 (forward-line 1))
+		(move-to-column left pad-p))
+	    (setq last rest
+		  rest (cdr rest)))
+	  (cond (rest
+		 (mapcar 'delete-extent rest)
+		 (setcdr last nil))
+		((not (eobp))
+		 (while (not (eobp))
+		   (setq p (point))
+		   (move-to-column right pad-p)
+		   (let ((e (make-extent p (point))))
+		     (set-extent-face e (extent-face (car extents)))
+		     (set-extent-priority e (extent-priority (car extents)))
+		     (setcdr last (cons e nil))
+		     (setq last (cdr last)))
+		   (if (= 0 (forward-line 1))
+		       (move-to-column left pad-p))
+		   )))))
+      ))))
+
 
 (defun mouse-track-has-selection-p (buffer)
   (and (or (not (eq window-system 'x))
@@ -389,6 +450,7 @@ Display cursor at that position for a second."
     ;; priority, so that conflicts between the two of them are resolved by
     ;; the usual size-and-endpoint-comparison method.
     (set-extent-priority extent (1+ mouse-highlight-priority))
+    (if mouse-track-rectangle-p (setq extent (list extent)))
     ;;
     ;; process double and triple clicks
     (cond ((and (< (- (event-timestamp event) mouse-track-up-time)
@@ -424,7 +486,7 @@ Display cursor at that position for a second."
 	(progn
 	  (while mouse-down
 	    (mouse-track-next-move min-anchor max-anchor extent)
-	    (next-event event)
+	    (setq event (next-event event))
 	    (mouse-track-cleanup-timeout)
 	    (cond ((motion-event-p event)
 		   (mouse-track-set-point-and-timeout event window))
@@ -444,8 +506,19 @@ Display cursor at that position for a second."
 		   (error "Selection aborted"))
 		  (t
 		   (dispatch-event event))))
-	  (setq result (cons (extent-start-position extent)
-			     (extent-end-position extent)))
+	  (cond ((consp extent) ; rectangle-p
+		 (let ((first (car extent))
+		       (last (car (setq extent (nreverse extent)))))
+		   (setq result (cons (extent-start-position first)
+				      (extent-end-position last)))
+		   ;; kludge to fix up region when dragging backwards...
+		   (if (and (/= (point) (extent-start-position first))
+			    (/= (point) (extent-end-position last))
+			    (= (point) (extent-end-position first)))
+		       (goto-char (car result)))))
+		(t
+		 (setq result (cons (extent-start-position extent)
+				    (extent-end-position extent)))))
 	  ;; Minor kludge: if we're selecting in line-mode, include the
 	  ;; final newline.  It's hard to do this in *-normalize-point.
 	  (if (eq mouse-track-type 'line)
@@ -456,7 +529,9 @@ Display cursor at that position for a second."
 		(goto-char (if end-p (cdr result) (car result)))))
 	  )
       ;; protected
-      (delete-extent extent)
+      (if (consp extent) ; rectangle-p
+	  (mapcar 'delete-extent extent)
+	(delete-extent extent))
       (mouse-track-cleanup-timeout))
     result))
 
@@ -505,6 +580,7 @@ released the button, and the mark will be left at the initial click position.
 
 See also the `mouse-track-adjust' command, on \\[mouse-track-adjust]."
   (interactive "e")
+  (or (event-window event) (error "not in a window"))
   (select-screen (window-screen (event-window event)))
   (let ((p (point))
 	(b (current-buffer))
@@ -550,3 +626,86 @@ except that point is not moved; the selected text is immediately inserted
 after being selected\; and the text of the selection is deleted."
   (interactive "*e")
   (mouse-track-insert event t))
+
+
+;;; Modeline hackery
+
+(defun mouse-drag-modeline (event)
+  "Resize the window by dragging the modeline.
+This should be bound to a mouse button in `mode-line-map'."
+  (interactive "e")
+  (or (button-press-event-p event)
+      (error "%s must be invoked by a mouse-press" this-command))
+  (or (null (event-window event))
+      (error "not over a modeline"))
+  (let ((y (event-y event))
+	(mouse-down t)
+	(window (locate-window-from-coordinates
+		 (event-screen event) (list (event-x event) (event-y event))))
+	(old-window (selected-window))
+	ny delta)
+    (if (= (- (screen-height) 1) (nth 3 (window-edges window)))
+	(error "can't drag bottommost modeline"))
+    (while mouse-down
+      (setq event (next-event event))
+;      (and (motion-event-p event)
+;	   (message "%S %S %S" event (event-y event) (event-y-pixel event)))
+      (cond ((motion-event-p event)
+	     (setq ny (event-y event))
+	     (if (and (= ny 0) (>= (event-y-pixel event) 20)) ;kludgoriffic
+		 (setq ny 999))
+	     (setq delta (- ny (nth 3 (window-edges window))))
+	     (cond ((and (> delta 0)
+			 (<= (- (window-height (next-vertical-window window))
+				delta)
+			     window-min-height))
+		    (setq delta (- (window-height
+				    (next-vertical-window window))
+				   window-min-height))
+		    (if (< delta 0) (error "BLAT")))
+		   ((and (< delta 0)
+			 (< (+ (window-height window) delta)
+			    window-min-height))
+		    (setq delta (- window-min-height
+				   (window-height window)))
+		    (if (> delta 0) (error "FOOP"))))
+	     (if (= delta 0)
+		 nil
+	       (select-window window)
+	       (enlarge-window delta)
+	       (select-window old-window)
+	       (sit-for 0)
+	       (setq y ny)
+	       ))
+	    ((button-release-event-p event)
+	     (setq mouse-down nil))
+	    ((or (button-press-event-p event)
+		 (key-press-event-p event))
+	     (error ""))
+	    (t
+	     (dispatch-event event)))
+      )))
+
+(defconst mode-line-menu
+  '("Window Commands"
+    ["Delete Window"		 delete-window			t]
+    ["Delete Other Windows"	 delete-other-windows		t]
+    ["Split Window"		 split-window-vertically	t]
+    ["Split Window Horizontally" split-window-horizontally	t]
+    ["Balance Windows"		 balance-windows		t]
+    ))
+
+(defun mode-line-menu (event)
+  (interactive "e")
+  (let* ((window (locate-window-from-coordinates
+		  (event-screen event)
+		  (list (event-x event) (event-y event)))))
+    ;; kludge; don't select the minibuffer window...
+    (if (eq window (minibuffer-window (event-screen event)))
+	(setq window (previous-window window)))
+    (select-window window)
+    (popup-menu (nconc (list (car mode-line-menu)
+			     (format "Window Commands for %S:"
+				     (buffer-name (window-buffer window)))
+			     "---")
+		       (cdr mode-line-menu)))))

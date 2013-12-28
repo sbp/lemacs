@@ -22,6 +22,19 @@
 ;; along with GNU Emacs; see the file COPYING.  If not, write to
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
+(if (fboundp 'error)
+    (error "loadup.el already loaded!"))
+
+(setq debug-on-error t)
+(setq debugger (function (lambda (&rest x)
+                 (setq debugger nil debug-on-error nil)
+                 (princ "*** Error in Emacs initialisation" 
+                        'external-debugging-output)
+                 (print x 'external-debugging-output)
+                 (princ "*** Backtrace\n" 'external-debugging-output)
+                 (backtrace 'external-debugging-output t)
+                 (princ "*** Killing Emacs\n" 'external-debugging-output)
+                 (kill-emacs -1))))
 
 ;; We don't want to have any undo records in the dumped Emacs.
 (buffer-disable-undo (get-buffer "*scratch*"))
@@ -38,6 +51,12 @@
       load-warn-when-source-only t)
 
 (load "subr")
+(garbage-collect)
+(load "cmdloop")
+(or (fboundp 'recursive-edit) (load "cmdloop1"))
+(garbage-collect)
+(load "keymap")
+(load "syntax")
 (garbage-collect)
 (load "minibuf")
 (load "faces")		; must be loaded before any file that makes faces
@@ -56,6 +75,7 @@
 (load "paths.el")  ;Don't get confused if someone compiled paths by mistake.
 (garbage-collect)
 (load "startup")
+(garbage-collect)
 (load "lisp")
 (garbage-collect)
 (load "page")
@@ -113,6 +133,9 @@
 (setq load-warn-when-source-newer nil ; set to t at top of file
       load-warn-when-source-only nil)
 
+(setq debugger 'debug)
+(setq debug-on-error nil)
+
 
 ;If you want additional libraries to be preloaded and their
 ;doc strings kept in the DOC file rather than in core,
@@ -148,7 +171,7 @@
 	    (Snarf-documentation (concat "DOC-" name)))
 	(Snarf-documentation "DOC"))
       (message "Finding pointers to doc strings...done")
-;;      (Verify-documentation)
+      (Verify-documentation)
       ))
 
 ;Note: You can cause additional libraries to be preloaded
@@ -161,13 +184,18 @@
 ;; At this point, we're ready to resume undo recording for scratch.
 (buffer-enable-undo "*scratch*")
 
+(if (and (eq system-type 'vax-vms)
+         (or (equal (nth 3 command-line-args) "dump")
+             (equal (nth 4 command-line-args) "dump")))
+    (progn
+      (setq command-line-args nil)
+      (message "Dumping data as file temacs.dump")
+      (dump-emacs "temacs.dump" "temacs")
+      (kill-emacs)))
+
 (if (or (equal (nth 3 command-line-args) "dump")
-	(equal (nth 4 command-line-args) "dump"))
-    (if (eq system-type 'vax-vms)
-	(progn 
-	  (message "Dumping data as file temacs.dump")
-	  (dump-emacs "temacs.dump" "temacs")
-	  (kill-emacs))
+        (equal (nth 4 command-line-args) "dump"))
+    (progn
       (let ((name (concat "emacs-" emacs-version)))
 	(while (string-match "[^-+_.a-zA-Z0-9]+" name)
 	  (setq name (concat (downcase (substring name 0 (match-beginning 0)))
@@ -189,17 +217,16 @@
 	(add-name-to-file "xemacs" name t))
       (kill-emacs)))
 
-(if (or (equal (elt command-line-args 3) "run-temacs")
-	(equal (elt command-line-args 4) "run-temacs"))
+(if (or (equal (nth 3 command-line-args) "run-temacs")
+	(equal (nth 4 command-line-args) "run-temacs"))
     (progn
-      (princ "\nSnarfing doc...\n" (function external-debugging-output))
+      (princ "\nSnarfing doc...\n" #'external-debugging-output)
       (Snarf-documentation "DOC")
-;;      (Verify-documentation)
-      (princ "\nBootstrapping from temacs...\n"
-	     (function external-debugging-output))
+      (Verify-documentation)
+      (princ "\nBootstrapping from temacs...\n" #'external-debugging-output)
       (setq purify-flag nil)
-      (apply (function run-emacs-from-temacs)
-             (nthcdr (if (equal (elt command-line-args 3) "run-temacs")
+      (apply #'run-emacs-from-temacs
+             (nthcdr (if (equal (nth 3 command-line-args) "run-temacs")
                          4 5)
                      command-line-args))
       ;; run-emacs-from-temacs doesn't actually return anyway.

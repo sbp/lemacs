@@ -1,12 +1,15 @@
-;; -*-Emacs-Lisp-*-
-;; hexl-mode -- Edit a file in a hex dump format.
+;;; hexl.el --- edit a file in a hex dump format using the hexl filter.
+
 ;; Copyright (C) 1989 Free Software Foundation, Inc.
+
+;; Author: Keith Gabryelski <ag@wheaties.ai.mit.edu>
+;; Keywords: non-text
 
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -18,8 +21,13 @@
 ;; along with GNU Emacs; see the file COPYING.  If not, write to
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
-;;
-;; By: Keith Gabryelski (ag@wheaties.ai.mit.edu)
+;;; Commentary:
+
+;; This package implements a major mode for editing binary files.  It uses
+;; a program called hexl, supplied with the GNU Emacs distribution, that
+;; can filter a binary into an editable format or from the format back into
+;; binary.  For full instructions, invoke `hexl-mode' on an empty buffer and
+;; do `M-x describe-mode'.
 ;;
 ;; This may be useful in your .emacs:
 ;;
@@ -37,14 +45,16 @@
 ;; ASCII region of the screen (if your emacs supports this) instead of
 ;; changing them to dots.
 
+;;; Code:
+
 ;;
 ;; vars here
 ;;
 
 (defvar hexl-program "hexl"
-  "The program that will hexlify and de-hexlify its stdin.  hexl-program
-will always be concated with hexl-options and "-de" when dehexlfying a
-buffer.")
+  "The program that will hexlify and de-hexlify its stdin.
+`hexl-program' will always be concatenated with `hexl-options'
+and \"-de\" when dehexlfying a buffer.")
 
 (defvar hexl-iso ""
   "If your emacs can handle ISO characters, this should be set to
@@ -53,13 +63,13 @@ buffer.")
 (defvar hexl-options (format "-hex %s" hexl-iso)
   "Options to hexl-program that suit your needs.")
 
-(defvar hexlify-command (format "%s %s" hexl-program hexl-options)
-  "The command to use to hexlify a buffer.  It is the concatination of
-`hexl-program' and `hexl-options'.")
+(defvar hexlify-command
+  (format "%s%s %s" exec-directory hexl-program hexl-options)
+  "The command to use to hexlify a buffer.")
 
-(defvar dehexlify-command (format "%s -de %s" hexl-program hexl-options)
-  "The command to use to unhexlify a buffer.  It is the concatination of
-`hexl-program', the option \"-de\", and `hexl-options'.")
+(defvar dehexlify-command
+  (format "%s%s -de %s" exec-directory hexl-program hexl-options)
+  "The command to use to unhexlify a buffer.")
 
 (defvar hexl-max-address 0
   "Maximum offset into hexl buffer.")
@@ -68,14 +78,19 @@ buffer.")
 
 ;; routines
 
+(defvar hexl-mode-old-local-map)
+(defvar hexl-mode-old-mode-name)
+(defvar hexl-mode-old-major-mode)
+
+;;;###autoload
 (defun hexl-mode (&optional arg)
   "\\<hexl-mode-map>
-A major mode for editting binary files in hex dump format.
+A major mode for editing binary files in hex dump format.
 
 This function automatically converts a buffer into the hexl format
 using the function `hexlify-buffer'.
 
-Each line in the buffer has an `address' (displayed in hexadecimal)
+Each line in the buffer has an \"address\" (displayed in hexadecimal)
 representing the offset into the file that the characters on this line
 are at and 16 characters from the file (displayed as hexadecimal
 values grouped every 16 bits) and as their ASCII values.
@@ -84,8 +99,8 @@ If any of the characters (displayed as ASCII characters) are
 unprintable (control or meta characters) they will be replaced as
 periods.
 
-If hexl-mode is invoked with an argument the buffer is assumed to be
-in hexl-format.
+If `hexl-mode' is invoked with an argument the buffer is assumed to be
+in hexl format.
 
 A sample format:
 
@@ -131,11 +146,10 @@ into the buffer at the current point.
 \\[hexl-insert-decimal-char] will insert a given decimal value (if it is between 0 and 255)
 into the buffer at the current point.
 
-\\[hexl-save-buffer] will save the buffer in is binary format.
-
 \\[hexl-mode-exit] will exit hexl-mode.
 
-Note: \\[write-file] will write the file out in HEXL FORMAT.
+Note: saving the file with any of the usual Emacs commands
+will actually convert it back to binary format while saving.
 
 You can use \\[hexl-find-file] to visit a file in hexl-mode.
 
@@ -156,6 +170,10 @@ You can use \\[hexl-find-file] to visit a file in hexl-mode.
     (setq hexl-mode-old-major-mode major-mode)
     (setq major-mode 'hexl-mode)
 
+    (make-local-variable 'write-contents-hooks)
+    (setq write-contents-hooks
+	  (cons 'hexl-save-buffer write-contents-hooks))
+
     (let ((modified (buffer-modified-p))
  	  (read-only buffer-read-only)
 	  (original-point (1- (point))))
@@ -169,33 +187,40 @@ You can use \\[hexl-find-file] to visit a file in hexl-mode.
         (setq buffer-read-only read-only)
         (hexl-goto-address original-point)))))
 
+(defvar hexl-in-save-buffer nil)
+
 (defun hexl-save-buffer ()
   "Save a hexl format buffer as binary in visited file if modified."
   (interactive)
-  (set-buffer-modified-p (if (buffer-modified-p)
-			     (save-excursion
-			       (let ((buf (generate-new-buffer " hexl"))
-				     (name (buffer-name))
-				     (file-name (buffer-file-name))
-				     (start (point-min))
-				     (end (point-max))
-				     modified)
-				 (set-buffer buf)
-				 (insert-buffer-substring name start end)
-				 (set-buffer name)
-				 (dehexlify-buffer)
-				 (save-buffer)
-				 (setq modified (buffer-modified-p))
-				 (delete-region (point-min) (point-max))
-				 (insert-buffer-substring buf start end)
-				 (kill-buffer buf)
-				 modified))
-			   (message "(No changes need to be saved)")
-			   nil)))
+  (if hexl-in-save-buffer nil
+    (set-buffer-modified-p (if (buffer-modified-p)
+			       (save-excursion
+				 (let ((buf (generate-new-buffer " hexl"))
+				       (name (buffer-name))
+				       (file-name (buffer-file-name))
+				       (start (point-min))
+				       (end (point-max))
+				       modified)
+				   (set-buffer buf)
+				   (insert-buffer-substring name start end)
+				   (set-buffer name)
+				   (dehexlify-buffer)
+				   ;; Prevent infinite recursion.
+				   (let ((hexl-in-save-buffer t))
+				     (save-buffer))
+				   (setq modified (buffer-modified-p))
+				   (delete-region (point-min) (point-max))
+				   (insert-buffer-substring buf start end)
+				   (kill-buffer buf)
+				   modified))
+			     (message "(No changes need to be saved)")
+			     nil))
+    ;; Return t to indicate we have saved t
+    t))
 
+;;;###autoload
 (defun hexl-find-file (filename)
   "Edit file FILENAME in hexl-mode.
-
 Switch to a buffer visiting file FILENAME, creating one in none exists."
   (interactive "fFilename: ")
   (find-file filename)
@@ -203,7 +228,7 @@ Switch to a buffer visiting file FILENAME, creating one in none exists."
       (hexl-mode)))
 
 (defun hexl-mode-exit (&optional arg)
-  "Exit hexl-mode returning to previous mode.
+  "Exit Hexl mode, returning to previous mode.
 With arg, don't unhexlify buffer."
   (interactive "p")
   (if (or (eq arg 1) (not arg))
@@ -246,7 +271,7 @@ Signal error if ADDRESS out of range."
   (goto-char (hexl-address-to-marker address)))
 
 (defun hexl-goto-hex-address (hex-address)
-  "Goto hexl-mode address (hex string) HEX-ADDRESS.
+  "Go to hexl-mode address (hex string) HEX-ADDRESS.
 
 Signal error if HEX-ADDRESS is out of range."
   (interactive "sHex Address: ")
@@ -364,20 +389,14 @@ Signal error if HEX-ADDRESS is out of range."
   (hexl-backward-word (- arg)))
 
 (defun hexl-previous-line (arg)
-  "Move vertically up ARG lines [16 bytes] (down if ARG negative) in
-hexl-mode.
-
-If there is byte at the target address move to the last byte in that
-line."
+  "Move vertically up ARG lines [16 bytes] (down if ARG negative) in hexl-mode.
+If there is byte at the target address move to the last byte in that line."
   (interactive "p")
   (hexl-next-line (- arg)))
 
 (defun hexl-next-line (arg)
-  "Move vertically down ARG lines [16 bytes] (up if ARG negative) in
-hexl-mode.
-
-If there is no byte at the target address move to the last byte in that
-line."
+  "Move vertically down ARG lines [16 bytes] (up if ARG negative) in hexl-mode.
+If there is no byte at the target address move to the last byte in that line."
   (interactive "p")
   (hexl-goto-address (let ((address (+ (hexl-current-address) (* arg 16))))
 		       (if (and (< arg 0) (< address 0))
@@ -396,16 +415,15 @@ line."
 		       address)))
 
 (defun hexl-beginning-of-buffer (arg)
-  "Move to the beginning of the hexl buffer; leave hexl-mark at previous
-posistion.
-
-With arg N, put point N bytes of the way from the true beginning."
+  "Move to the beginning of the hexl buffer.
+Leaves `hexl-mark' at previous position.
+With prefix arg N, puts point N bytes of the way from the true beginning."
   (interactive "p")
   (push-mark (point))
   (hexl-goto-address (+ 0 (1- arg))))
 
 (defun hexl-end-of-buffer (arg)
-  "Goto hexl-max-address minus ARG."
+  "Go to `hexl-max-address' minus ARG."
   (interactive "p")
   (push-mark (point))
   (hexl-goto-address (- hexl-max-address (1- arg))))
@@ -492,9 +510,8 @@ You may also type up to 3 octal digits, to insert a character with that code"
 
 (defun hexl-char-after-point ()
   "Return char for ASCII hex digits at point."
-  (setq lh (char-after (point)))
-  (setq rh (char-after (1+ (point))))
-  (hexl-htoi lh rh))
+  (hexl-htoi (char-after (point))
+	     (char-after (1+ (point)))))
 
 (defun hexl-htoi (lh rh)
   "Hex (char) LH (char) RH to integer."
@@ -577,6 +594,7 @@ You may also type up to 3 octal digits, to insert a character with that code"
 (if hexl-mode-map
     nil
     (setq hexl-mode-map (make-sparse-keymap))
+    (set-keymap-name hexl-mode-map 'hexl-mode-map)
 
     (define-key hexl-mode-map "\C-a" 'hexl-beginning-of-line)
     (define-key hexl-mode-map "\C-b" 'hexl-backward-char)
@@ -584,8 +602,8 @@ You may also type up to 3 octal digits, to insert a character with that code"
     (define-key hexl-mode-map "\C-e" 'hexl-end-of-line)
     (define-key hexl-mode-map "\C-f" 'hexl-forward-char)
 
-    (if (not (eq (key-binding "\C-h") 'help-command))
-	(define-key hexl-mode-map "\C-h" 'undefined))
+    (if (not (eq (key-binding (char-to-string help-char)) 'help-command))
+	(define-key hexl-mode-map help-char 'undefined))
 
     (define-key hexl-mode-map "\C-i" 'hexl-self-insert-command)
     (define-key hexl-mode-map "\C-j" 'hexl-self-insert-command)
@@ -631,12 +649,11 @@ You may also type up to 3 octal digits, to insert a character with that code"
     (define-key hexl-mode-map "\e\C-x" 'hexl-insert-hex-char)
     (define-key hexl-mode-map "\e\C-y" 'undefined)
 
-
-    (define-key hexl-mode-map "\ea" 'hexl-beginning-of-1k-page)
+    (define-key hexl-mode-map "\ea" 'undefined) ;hexl-beginning-of-1k-page
     (define-key hexl-mode-map "\eb" 'hexl-backward-word)
     (define-key hexl-mode-map "\ec" 'undefined)
     (define-key hexl-mode-map "\ed" 'undefined)
-    (define-key hexl-mode-map "\ee" 'hexl-end-of-1k-page)
+    (define-key hexl-mode-map "\ee" 'undefined) ;hexl-end-of-1k-page
     (define-key hexl-mode-map "\ef" 'hexl-forward-word)
     (define-key hexl-mode-map "\eg" 'hexl-goto-hex-address)
     (define-key hexl-mode-map "\eh" 'undefined)
@@ -661,8 +678,10 @@ You may also type up to 3 octal digits, to insert a character with that code"
 
     (define-key hexl-mode-map "\C-c\C-c" 'hexl-mode-exit)
 
+    (define-key hexl-mode-map "\C-x[" 'hexl-beginning-of-1k-page)
+    (define-key hexl-mode-map "\C-x]" 'hexl-end-of-1k-page)
     (define-key hexl-mode-map "\C-x\C-p" 'undefined)
     (define-key hexl-mode-map "\C-x\C-s" 'hexl-save-buffer)
     (define-key hexl-mode-map "\C-x\C-t" 'undefined))
 
-;; The End.
+;;; hexl.el ends here

@@ -72,12 +72,17 @@
 			    (eq (extent-buffer selection)
 				(extent-buffer previous-extent)))
 		 buffer (extent-buffer selection)))
-	  )
-    (if (and (not valid)
-	     (extentp previous-extent)
-	     (extent-buffer previous-extent)
-	     (buffer-name (extent-buffer previous-extent)))
-	(delete-extent previous-extent))
+	  (t
+	   (signal 'error (list "invalid selection" selection))))
+
+    (if valid
+	nil
+      (condition-case ()
+	  (if (listp previous-extent)
+	      (mapcar 'delete-extent previous-extent)
+	    (delete-extent previous-extent))
+	(error nil)))
+
     (if (not buffer)
 	;; string case
 	nil
@@ -89,7 +94,15 @@
 	;; the selection extent and a mouse-highlighted extent are resolved
 	;; by the usual size-and-endpoint-comparison method.
 	(set-extent-priority previous-extent mouse-highlight-priority)
-	(set-extent-face previous-extent face)))))
+	(set-extent-face previous-extent face)
+
+	(cond
+	 (mouse-track-rectangle-p
+	  ;(beep)
+	  (setq previous-extent (list previous-extent))
+	  (mouse-track-next-move-rect start end previous-extent)
+	  ))
+	previous-extent))))
 
 
 (defun x-own-selection (selection &optional type)
@@ -157,13 +170,17 @@ secondary selection instead of the primary selection."
   (cond ((eq selection 'PRIMARY)
 	 (if primary-selection-extent
 	     (let ((inhibit-quit t))
-	       (delete-extent primary-selection-extent)
+	       (if (consp primary-selection-extent)
+		   (mapcar 'delete-extent primary-selection-extent)
+		 (delete-extent primary-selection-extent))
 	       (setq primary-selection-extent nil)))
 	 (if zmacs-regions (zmacs-deactivate-region)))
 	((eq selection 'SECONDARY)
 	 (if secondary-selection-extent
 	     (let ((inhibit-quit t))
-	       (delete-extent secondary-selection-extent)
+	       (if (consp secondary-selection-extent)
+		   (mapcar 'delete-extent secondary-selection-extent)
+		 (delete-extent secondary-selection-extent))
 	       (setq secondary-selection-extent nil)))))
   nil)
 
@@ -240,55 +257,69 @@ Cut buffers are considered obsolete\; you should use selections instead."
 
 ;;; Random utility functions
 
-(defun x-kill-primary-selection ()
-  "If there is a selection, delete the text it covers, and copy it to 
-both the kill ring and the Clipboard."
-  (interactive)
-  (or (x-selection-owner-p) (error "emacs does not own the primary selection"))
+(defun x-cut-copy-clear-internal (mode)
+  (or (memq mode '(cut copy clear)) (error "unkown mode %S" mode))
+  (or (x-selection-owner-p)
+      (error "emacs does not own the primary selection"))
   (setq last-command nil)
   (or primary-selection-extent
       (error "the primary selection is not an extent?"))
   (save-excursion
-    (set-buffer (extent-buffer primary-selection-extent))
-    (kill-region (extent-start-position primary-selection-extent)
-		 (extent-end-position primary-selection-extent)))
-  (x-disown-selection nil))
-
-(defun x-delete-primary-selection ()
-  "If there is a selection, delete the text it covers *without* copying it to
-the kill ring or the Clipboard."
-  (interactive)
-  (or (x-selection-owner-p) (error "emacs does not own the primary selection"))
-  (setq last-command nil)
-  (or primary-selection-extent
-      (error "the primary selection is not an extent?"))
-  (save-excursion
-    (set-buffer (extent-buffer primary-selection-extent))
-    (delete-region (extent-start-position primary-selection-extent)
-		   (extent-end-position primary-selection-extent)))
-  (x-disown-selection nil))
+    (let (rect-p b s e)
+      (cond
+       ((consp primary-selection-extent)
+	(setq rect-p t
+	      b (extent-buffer (car primary-selection-extent))
+	      s (extent-start-position (car primary-selection-extent))
+	      e (extent-end-position (car (reverse primary-selection-extent)))))
+       (t
+	(setq rect-p nil
+	      b (extent-buffer primary-selection-extent)
+	      s (extent-start-position primary-selection-extent)
+	      e (extent-end-position primary-selection-extent))))
+      (set-buffer b)
+      (cond ((memq mode '(cut copy))
+	     (if rect-p
+		 (progn
+		   (setq killed-rectangle (extract-rectangle s e))
+		   (kill-new (mapconcat 'identity killed-rectangle "\n")))
+	       (copy-region-as-kill s e))
+	     ;; Maybe killing doesn't own clipboard.  Make sure it happens.
+	     ;; This memq is kind of grody, because they might have done it
+	     ;; some other way, but owning the clipboard twice in that case
+	     ;; wouldn't actually hurt anything.
+	     (or (and (consp kill-hooks) (memq 'x-own-clipboard kill-hooks))
+		 (x-own-clipboard (car kill-ring)))))
+      (cond ((memq mode '(cut clear))
+	     (if rect-p
+		 (delete-rectangle s e)
+	       (delete-region s e))))
+      (x-disown-selection nil)
+      )))
 
 (defun x-copy-primary-selection ()
-  "If there is a selection, copy it to both the kill ring and the Clipboard."
+  "Copy the selection to the Clipboard and the kill ring."
   (interactive)
-  (setq last-command nil)
-  (or (x-selection-owner-p) (error "emacs does not own the primary selection"))
-  (or primary-selection-extent
-      (error "the primary selection is not an extent?"))
-  (save-excursion
-    (set-buffer (extent-buffer primary-selection-extent))
-    (copy-region-as-kill (extent-start-position primary-selection-extent)
-			 (extent-end-position primary-selection-extent))))
+  (x-cut-copy-clear-internal 'copy))
+
+(defun x-kill-primary-selection ()
+  "Copy the selection to the Clipboard and the kill ring, then delete it."
+  (interactive "*")
+  (x-cut-copy-clear-internal 'cut))
+
+(defun x-delete-primary-selection ()
+  "Delete the selection without copying it to the Clipboard or the kill ring."
+  (interactive "*")
+  (x-cut-copy-clear-internal 'clear))
 
 (defun x-yank-clipboard-selection ()
-  "If someone owns a Clipboard selection, insert it at point."
-  (interactive)
+  "Insert the current Clipboard selection at point."
+  (interactive "*")
   (setq last-command nil)
   (let ((clip (x-get-clipboard)))
     (or clip (error "there is no clipboard selection"))
     (push-mark)
     (insert clip)))
-
 
 ;;; Functions to convert the selection into various other selection types.
 ;;; Every selection type that emacs handles is implemented this way, except

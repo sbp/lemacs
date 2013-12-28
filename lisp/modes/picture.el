@@ -1,12 +1,12 @@
 ;; "Picture mode" -- editing using quarter-plane screen model.
-;; Copyright (C) 1985 Free Software Foundation, Inc.
+;; Copyright (C) 1985, 1993 Free Software Foundation, Inc.
 ;; Principal author K. Shane Hartman
 
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -131,10 +131,8 @@ The mode line is updated to reflect the current direction."
 	(format "Picture:%s"
 		(car (nthcdr (+ 1 (% horiz 2) (* 3 (1+ (% vert 2))))
 			     '(nw up ne left none right sw down se)))))
-  ;; Kludge - force the mode line to be updated.  Is there a better
-  ;; way to this?
-  (set-buffer-modified-p (buffer-modified-p))
-  (message ""))
+  (redraw-mode-line)
+  (message nil))
 
 (defun picture-move ()
   "Move in direction of  picture-vertical-step  and  picture-horizontal-step."
@@ -534,6 +532,10 @@ they are not defaultly assigned to keys."
     (setq picture-tab-chars (default-value 'picture-tab-chars))
     (make-local-variable 'picture-vertical-step)
     (make-local-variable 'picture-horizontal-step)
+
+    (make-local-variable 'mouse-track-rectangle-p)
+    (setq mouse-track-rectangle-p t)
+
     (picture-set-motion 0 1)
     (run-hooks 'edit-picture-hook)
     (message
@@ -555,9 +557,8 @@ With no argument strips whitespace from end of every line in Picture buffer
     (use-local-map picture-mode-old-local-map)
     (setq major-mode picture-mode-old-major-mode)
     (kill-local-variable 'tab-stop-list)
-    ;; Kludge - force the mode line to be updated.  Is there a better
-    ;; way to do this?
-    (set-buffer-modified-p (buffer-modified-p))))
+    (kill-local-variable 'mouse-track-rectangle-p)
+    (redraw-mode-line)))
 
 (defun picture-clean ()
   "Eliminate whitespace at ends of lines."

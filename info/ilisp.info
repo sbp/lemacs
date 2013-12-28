@@ -1,0 +1,67 @@
+This is Info file ilisp.info, produced by Makeinfo-1.49 from the input
+file ilisp.texi.
+
+   This file documents ILISP.
+
+   This is edition 0.11 of the ILISP manual for ILISP Version 5.5.
+
+   Copyright (C) 1991,1992,1993 Todd Kaufmann
+
+   Permission is granted to make and distribute verbatim copies of this
+manual provided the copyright notice and this permission notice are
+preserved on all copies.
+
+   Permission is granted to copy and distribute modified versions of
+this manual under the conditions for verbatim copying, provided that
+the entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+
+   Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that this permission notice may be stated in a
+translation approved by the Foundation.
+
+Indirect:
+ilisp.info-1: 894
+ilisp.info-2: 50260
+
+Tag Table:
+(Indirect)
+Node: Top896
+Node: Distribution2037
+Node: FTP directions3181
+Node: Acknowledgements3766
+Node: Introduction4982
+Node: Installation6654
+Node: Makefile configuration7512
+Node: Files of ILISP10781
+Node: Autoloading13074
+Node: Starting up17130
+Node: Buffers of ILISP18508
+Node: Popper buffers20007
+Node: Switching buffers22311
+Node: ILISP Commands22946
+Node: Eval and compile functions23751
+Node: Documentation functions28024
+Node: Macroexpansion30217
+Node: Tracing functions30659
+Node: Package Commands31019
+Node: Source code commands32318
+Node: Batch commands36254
+Node: Files and directories37553
+Node: Keyboard modes38864
+Node: Interrupts40029
+Node: Command history41900
+Node: Completion43068
+Node: Miscellany44852
+Node: Customization46096
+Node: Dialects47712
+Node: Defining new dialects48351
+Node: Writing new commands48956
+Node: Concept index50262
+Node: Key index60851
+Node: Command index65508
+Node: Variable index70849
+Node: Function index73759
+
+End Tag Table

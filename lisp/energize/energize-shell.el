@@ -3,70 +3,31 @@
 
 (require 'comint)
 (require 'shell)
-
-(defun energize-comint-mark ()
-  "This function has been augumented to work with Energize debugger buffers."
-  (or (energize-user-input-buffer-mark)
-      (energize-orig-comint-mark)))
+(require 'gdb)
 
 (defun energize-comint-input-sender (energize-proc input)
-  (energize-send-region
-   (marker-position energize-mark) ; spec-ref to energize-comint-send-input
-   (point)))		          ; dependent on how comint-send-input works...
+  (energize-send-region (energize-user-input-buffer-mark) (point)))
 
-(defun energize-comint-send-input ()
-  "This function has been augumented to work with Energize debugger buffers."
-  (interactive)
-  (if (energize-buffer-p (current-buffer))
-      (let ((energize-proc (or (get-process "energize")
-			       (get-process "energize\000") ; #### Nuke this!
-			       (error "couldn't find \"energize\" process")))
-	    (energize-mark (or (energize-user-input-buffer-mark)
-				(error "couldn't find energize input mark"))))
-	(unwind-protect
-	    (let ((comint-input-sender 'energize-comint-input-sender))
-	      (set-marker (process-mark energize-proc) energize-mark)
-	      (set-process-buffer energize-proc (current-buffer))
-	      (energize-orig-comint-send-input)
-	      )
-	  (set-marker energize-mark (process-mark energize-proc))
-	  (set-process-buffer energize-proc nil)))
-    (energize-orig-comint-send-input)))
-
-(fset 'energize-bits 'random)
-
-
-(defvar energize-shell-prompt-pattern "^(.*gdb[+]?) *"
-  "*A regexp to recognize the prompt for gdb or gdb+.") 
-
-(defun energize-user-input-mode ()
-  "Major mode for the Energize user-input buffers.
-In addition to the normal cursor-motion commands, the following keys are bound:
-\\{energize-user-input-map}"
-  (interactive)
-  (comint-mode)
-  (setq mode-line-process ())
-  (energize-mode-internal)
-  (setq major-mode 'energize-user-input-mode
-	mode-name "Energize-Shell")
-  (setq comint-prompt-regexp energize-shell-prompt-pattern
-	comint-input-sentinel 'shell-directory-tracker)
-  (set (make-local-variable 'shell-dirstack) nil)
-  (set (make-local-variable 'shell-dirtrackp) t)
-  (use-local-map energize-user-input-map)
-  (run-hooks 'energize-user-input-mode-hook))
-
+(defvar energize-shell-prompt-pattern "^(.*gdb) ?"
+  "*A regexp to recognize the prompt for the Energize debugger.")
 
 (defun energize-debugger-mode ()
   "Major mode for the Energize Debugger buffers.
 In addition to the normal cursor-motion commands, the following keys are bound:
 \\{energize-debugger-map}"
   (interactive)
-  (energize-user-input-mode)
+  (comint-mode)
+  (setq comint-prompt-regexp energize-shell-prompt-pattern
+	comint-input-sentinel 'shell-directory-tracker
+	comint-input-sender 'energize-comint-input-sender)
+  (setq mode-line-process nil)
+  (energize-mode-internal)
   (set-syntax-table c-mode-syntax-table)
   (setq major-mode 'energize-debugger-mode
 	mode-name "Energize-Debugger")
   (use-local-map energize-debugger-map)
+  (set (make-local-variable 'shell-dirstack) nil)
+  (set (make-local-variable 'shell-dirtrackp) t)
   (set (make-local-variable 'gdb-last-frame) nil)
   (set (make-local-variable 'gdb-last-frame-displayed-p) t)
   (set (make-local-variable 'gdb-delete-prompt-marker) nil)
@@ -75,15 +36,11 @@ In addition to the normal cursor-motion commands, the following keys are bound:
 
 (if energize-debugger-map
     nil
-  (setq energize-debugger-map (copy-keymap gdb-mode-map))
-  (if (keymap-parent gdb-mode-map) (error "gdb-mode-map has a parent keymap?"))
-  (set-keymap-parent energize-debugger-map energize-user-input-map)
-;;(define-key energize-debugger-map "\M-s" 'energize-debugger-step-line)
-;;(define-key energize-debugger-map "\M-i" 'energize-debugger-step-instruction)
-;;(define-key energize-debugger-map "\M-n" 'energize-debugger-next-line)
-;;(define-key energize-debugger-map "\M-c" 'energize-debugger-continue-program)
-;;(define-key energize-debugger-map "\M-u" 'energize-debugger-up-frame)
-;;(define-key energize-debugger-map "\M-d" 'energize-debugger-down-frame)
+  (setq energize-debugger-map (make-sparse-keymap))
+  (set-keymap-name energize-debugger-map 'energize-debugger-map)
+  (set-keymap-parent energize-debugger-map gdb-mode-map)
+  (define-key energize-debugger-map "\M-\t" 'comint-dynamic-complete)
+  (define-key energize-debugger-map "\M-?" 'comint-dynamic-list-completions)
   (define-key energize-debugger-map "\C-c<" 'energize-debugger-up-frame)
   (define-key energize-debugger-map "\C-c>" 'energize-debugger-down-frame)
   (define-key energize-debugger-map "\C-c\C-f" 'energize-debugger-return)

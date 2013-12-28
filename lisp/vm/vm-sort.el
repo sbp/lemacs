@@ -240,8 +240,10 @@ If this is nil, we will -try- to compute it when necessary.")
   (or (condition-case ()
 	  ;; even if current-time-zone is defined, it may error...
 	  (let ((zoneinfo (current-time-zone)))
-	    (or (if (nth 1 zoneinfo) (nth 3 zoneinfo))
-		(nth 2 zoneinfo)))
+	    (if (stringp (nth 1 zoneinfo))
+		(nth 1 zoneinfo)
+	      (or (if (nth 1 zoneinfo) (nth 3 zoneinfo))
+		  (nth 2 zoneinfo))))
 	(error nil))
       (vm-compute-local-timezone-via-date)))
 

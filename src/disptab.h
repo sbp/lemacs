@@ -1,5 +1,5 @@
 /* Things for GLYPHS and glyph tables.
-   Copyright (C) 1990-1993 Free Software Foundation, Inc.
+   Copyright (C) 1990, 1992, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -43,14 +43,12 @@ extern Lisp_Object Vglyph_table;
 /* Return the current length of the GLYPH table,
    or 0 if the table isn't currently valid.  */
 #define GLYPH_TABLE_LENGTH  \
-  ((VECTORP (Vglyph_table)) \
-   ? XVECTOR (Vglyph_table)->size : 0)
+  ((VECTORP (Vglyph_table)) ? XVECTOR (Vglyph_table)->size : 0)
 
 /* Return the current base (for indexing) of the GLYPH table,
    or 0 if the table isn't currently valid.  */
 #define GLYPH_TABLE_BASE  \
-  ((VECTORP (Vglyph_table)) \
-   ? XVECTOR (Vglyph_table)->contents : 0)
+  ((VECTORP (Vglyph_table)) ? XVECTOR (Vglyph_table)->contents : 0)
 
 /* Given BASE and LEN returned by the two previous macros,
    return nonzero if the GLYPH code G should be output as a single
@@ -86,5 +84,6 @@ extern int glyphlen ();
 extern void str_to_glyph_cpy ();
 extern void str_to_glyph_ncpy ();
 extern void glyph_to_str_cpy ();
+extern int run_from_glyph_index ();
 
 #endif /* _EMACS_DISPTAB_H_ */

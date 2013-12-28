@@ -15,43 +15,40 @@ File: dir	Node: Top	This is the top of the INFO tree
 
 * Menu: The list of major topics begins on the next line.
 
-* Info:     (info).	Documentation browsing system.
+* Info::	Documentation browsing system.
 
-* Emacs:    (lemacs).	The extensible self-documenting text editor.
-			This manual is for Lucid GNU Emacs 19.5.
+* Emacs::	The extensible self-documenting text editor.
+		This manual is for Lucid GNU Emacs 19.6.
 
-* Dired:    (dired).	Manual for Tree Dired.
+* Dired::	Manual for Tree Dired.
 
-* Ange-FTP: (ange-ftp).	Making the entire network accessible as a filesystem.
+* Ange-FTP::	Making the entire network accessible as a pseudo-filesystem.
 
-* GNUS:     (gnus).	A NNTP-based newsreader for GNU Emacs.
+* GNUS::	An NNTP-based newsreader for GNU Emacs.
 
-* View Mail: (vm).	A replacement for RMAIL.
+* VM::		View Mail, a replacement for RMAIL.
 
-* Calendar: (calendar).	A calendar/diary utility for GNU Emacs.
+* Calendar::	A calendar/diary utility for GNU Emacs.
 
-* Edebug:   (edebug).	A source-level debugger for Emacs Lisp.
+* Edebug::	A source-level debugger for Emacs Lisp.
 
-* Lispref:  (elisp).	Emacs-Lisp technical reference for GNU Emacs 18.
+* Lispref::	Emacs-Lisp technical reference for GNU Emacs 18.
 
-* ILISP:    (ilisp).	Multi-dialect inferior LISP interface.
+* ILISP::	Multi-dialect inferior LISP interface.
 
-* GDB:      (gdb).	The source-level C and C++ debugger.
+* Ispell::	Interactive spelling corrector.
 
-* Texinfo:  (texinfo).	With one source file, make either a printed manual
-			(through TeX) or an Info file (through texinfo).
-			Full documentation in this menu item.
+* GDB::		The source-level C and C++ debugger.
 
-* Tar:      (tar).	The GNU implementation of 'tar'.
+* PCL-CVS::	An Emacs-based front end to CVS.
 
-* Gzip:     (gzip).	The GNU compression/decompression utility.
+* Texinfo::	With one source file, make either a printed manual (through
+		TeX) or an Info file (through texinfo).  Full documentation
+		in this menu item.
 
-* Finger:   (finger).	The GNU implementation of finger, with bitmaps.
+* CL::		A Common Lisp compatibility package for Emacs-Lisp.
 
-* Regex:    (regex).	The GNU regular expression library.
+* Termcap::	The termcap library, which enables application programs
+		to handle all types of character-display terminals.
 
-* Termcap:  (termcap).	The termcap library, which enables application
-			programs to handle all types of character-display
-			terminals.
-
-* CVS:      (pcl-cvs).  The front end to CVS.
+* Locals:

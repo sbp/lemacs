@@ -2,7 +2,7 @@
 ;;; Copyright (C) 1985-1993 Free Software Foundation, Inc.
 ;;; Created: 19 oct 90, Jamie Zawinski <jwz@lucid.com>
 ;;; Modified: 5 apr 92, Roland McGrath <roland@gnu.ai.mit.edu>
-;;; Last change 16-feb-93. jwz
+;;; Last change  1-jul-93. jwz
 
 ;;; This file is part of GNU Emacs.
 
@@ -56,9 +56,9 @@
 ;;;     alias someone "John Doe <doe@quux.com>"
 ;;;
 ;;; That is, if you want an address to have embedded spaces, simply surround it
-;;; with double-quotes.  This is necessary because the format of the .mailrc
-;;; file bogusly uses spaces as address delimiters.  The following line defines
-;;; an alias which expands to three addresses:
+;;; with quotes.  This is necessary because the format of the .mailrc file
+;;; bogusly uses spaces as address delimiters.  The following line defines an
+;;; alias which expands to three addresses:
 ;;;
 ;;;     alias foobar addr-1 addr-2 "address three <addr-3>"
 ;;;
@@ -100,20 +100,21 @@
 ;;; command Meta-X merge-mail-aliases.  The rebuild-mail-aliases command is
 ;;; similar, but will delete existing aliases first.
 ;;;
-;;; If you would like your aliases to be expanded when you type M-> or ^N to
-;;; move out of the mail-header into the message body (instead of having to
-;;; type SPC at the end of the abbrev before moving away) then you can do
-;;;
-;;;	(define-key mail-mode-map "\C-n" 'abbrev-hacking-next-line)
-;;;	(define-key mail-mode-map "\M->" 'abbrev-hacking-end-of-buffer)
-;;;
 ;;; If you want multiple addresses separated by a string other than ", " then
 ;;; you can set the variable mail-alias-separator-string to it.  This has to
 ;;; be a comma bracketed by whitespace if you want any kind of reasonable
 ;;; behaviour.
 ;;;
-;;; Thanks to Harald Hanche-Olsen, Michael Ernst, David Loeffler, and
-;;; Noah Friedman for suggestions and bug reports.
+;;; Some versions of /bin/mail append the contents of multiple definitions of
+;;; the same alias together, so that
+;;;     alias group one two three
+;;;     alias group four five
+;;; would define "group" as "one two three four five" instead of "four five".
+;;; This code does *not* support that syntax, because it's a horrible syntax
+;;; and isn't worth the effort or added code complexity.  (So there.)
+;;;
+;;; Thanks to Harald Hanche-Olsen, Michael Ernst, David Loeffler, Noah
+;;; Friedman, and Michelangelo Grigni for suggestions and bug reports.
 ;;;
 ;;; INSTALLATION 
 ;;;
@@ -176,10 +177,8 @@ no aliases, which is represented by this being a table with no entries.)")
 (defun build-mail-aliases (&optional file recursivep)
   "Read mail aliases from .mailrc and set mail-aliases."
   (setq file (expand-file-name (or file (mail-abbrev-mailrc-file))))
-  (if (vectorp mail-aliases)
-      nil
-    (setq mail-aliases nil)
-    (define-abbrev-table 'mail-aliases '()))
+  (or (vectorp mail-aliases)
+      (setq mail-aliases (make-abbrev-table)))
   (message "Parsing %s..." file)
   (let ((buffer nil)
 	(obuf (current-buffer)))
@@ -218,7 +217,9 @@ no aliases, which is represented by this being a table with no entries.)")
 		(progn
 		  (end-of-line)
 		  (build-mail-aliases
-		   (buffer-substring (match-beginning 1) (match-end 1)) t))
+		   (substitute-in-file-name
+		    (buffer-substring (match-beginning 1) (match-end 1)))
+		   t))
 	      (re-search-forward "[ \t]+\\([^ \t\n]+\\)")
 	      (let* ((name (buffer-substring
 			    (match-beginning 1) (match-end 1)))
@@ -233,7 +234,7 @@ no aliases, which is represented by this being a table with no entries.)")
 	  ;; This would happen automatically before the first abbrev was
 	  ;; expanded, but why not do it now.
 	  (or recursivep (mail-resolve-all-aliases))
-	  mail-aliases)
+	  )
       (if buffer (kill-buffer buffer))
       (set-buffer obuf)))
     (message "Parsing %s... done" file))
@@ -260,8 +261,7 @@ If DEFINITION contains multiple addresses, separate them with commas."
   ;; Read the defaults first, if we have not done so.
   (if (vectorp mail-aliases)
       nil
-    (setq mail-aliases nil)
-    (define-abbrev-table 'mail-aliases '())
+    (setq mail-aliases (make-abbrev-table))
     (if (file-exists-p (mail-abbrev-mailrc-file))
 	(build-mail-aliases)))
   ;; strip garbage from front and end
@@ -276,13 +276,18 @@ If DEFINITION contains multiple addresses, separate them with commas."
     (while start
       ;; If we're reading from the mailrc file, then addresses are delimited
       ;; by spaces, and addresses with embedded spaces must be surrounded by
-      ;; double-quotes.  Otherwise, addresses are separated by commas.
+      ;; single or double-quotes.  Otherwise, addresses are separated by
+      ;; commas.
       (if from-mailrc-file
-	  (if (eq ?\" (aref definition start))
-	      (setq start (1+ start)
-		    end (string-match "\"[ \t,]*" definition start))
-	      (setq end (string-match "[ \t,]+" definition start)))
-	  (setq end (string-match "[ \t\n,]*,[ \t\n,]*" definition start)))
+	  (cond ((eq ?\" (aref definition start))
+		 (setq start (1+ start)
+		       end (string-match "\"[ \t,]*" definition start)))
+		((eq ?\' (aref definition start))
+		 (setq start (1+ start)
+		       end (string-match "\'[ \t,]*" definition start)))
+		(t
+		 (setq end (string-match "[ \t,]+" definition start))))
+	(setq end (string-match "[ \t\n,]*,[ \t\n,]*" definition start)))
       (setq result (cons (substring definition start end) result))
       (setq start (and end
 		       (/= (match-end 0) L)
@@ -323,7 +328,7 @@ If DEFINITION contains multiple addresses, separate them with commas."
 	  (setq definition
 		(mapconcat (function (lambda (x)
 			     (or (mail-resolve-all-aliases-1
-				   (intern-soft x mail-aliases)
+				   (intern-soft (downcase x) mail-aliases)
 				   (cons sym so-far))
 				 x)))
 			   (nreverse result)
@@ -523,26 +528,29 @@ characters which may be a part of the name of a mail-alias.")
   (if (not (vectorp mail-aliases)) (mail-aliases-setup))
   (insert (or (and alias (symbol-value (intern-soft alias mail-aliases))) "")))
 
-(defun abbrev-hacking-next-line (&optional arg)
-  "Just like `next-line' (\\[next-line]) but expands abbrevs when at \
-end of line."
-  (interactive "p")
+;; call-interactively is so that zmacs-regions gets hacked correctly
+;; without making the interactive specs incompatible with v18.
+
+(defun abbrev-hacking-next-line ()
+  "Just like `next-line' (\\<global-map>\\[next-line]) but expands abbrevs \
+when at end of line."
+  (interactive)
   (if (looking-at "[ \t]*\n") (expand-abbrev))
   (setq this-command 'next-line)
-  (next-line arg))
+  (call-interactively 'next-line))
 
-(defun abbrev-hacking-end-of-buffer (&optional arg)
-  "Just like `end-of-buffer' (\\[end-of-buffer]) but expands abbrevs when at \
-end of line."
-  (interactive "P")
+(defun abbrev-hacking-end-of-buffer ()
+  "Just like `end-of-buffer' (\\<global-map>\\[end-of-buffer]) but expands \
+abbrevs when at end of line."
+  (interactive)
   (if (looking-at "[ \t]*\n") (expand-abbrev))
   (setq this-command 'end-of-buffer)
-  (end-of-buffer arg))
+  (call-interactively 'end-of-buffer))
 
 (define-key mail-mode-map "\C-c\C-a" 'mail-interactive-insert-alias)
 
-;;(define-key mail-mode-map "\C-n" 'abbrev-hacking-next-line)
-;;(define-key mail-mode-map "\M->" 'abbrev-hacking-end-of-buffer)
+(define-key mail-mode-map "\C-n" 'abbrev-hacking-next-line)
+(define-key mail-mode-map "\M->" 'abbrev-hacking-end-of-buffer)
 
 (provide 'mail-abbrevs)
 

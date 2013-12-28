@@ -122,7 +122,7 @@ Makes all diary entries in the diary file invisible (using selective display),
 Returns a list of all relevant diary entries found, if any, in order by date.
 The list entries have the form ((month day year) string).  If the variable
 `diary-list-include-blanks' is t, this list will include a dummy diary entry
-(consisting of the empty string) for a date with no diary entries.
+\(consisting of the empty string) for a date with no diary entries.
 
 After the list is prepared, the hooks `nongregorian-diary-listing-hook',
 `list-diary-entries-hook', and `diary-display-hook' are run.  These hooks
@@ -163,10 +163,10 @@ have the following distinct roles:
               (if (not (looking-at "\^M\\|\n"))
                   (progn
                     (forward-char 1)
-                    (insert-string "\^M")))
+                    (insert "\^M")))
               (goto-char (point-min))
               (if (not (looking-at "\^M\\|\n"))
-                  (insert-string "\^M"))
+                  (insert "\^M"))
               (subst-char-in-region (point-min) (point-max) ?\n ?\^M t)
               (calendar-for-loop i from 1 to number do
                  (let ((d diary-date-forms)

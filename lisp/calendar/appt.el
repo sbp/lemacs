@@ -269,7 +269,7 @@ appt-display-duration controls how long this window should be left up."
 			   (if (< h 12) "am" "pm")))
 		 ") %-"))
 	     (pop-to-buffer appt-disp-buf)
-	     (insert-string (car (cdr appt)))
+	     (insert (car (cdr appt)))
 	     (shrink-window-if-larger-than-buffer
 	       (get-buffer-window appt-disp-buf))
 	     (set-buffer-modified-p nil)
@@ -298,7 +298,7 @@ notifications to be given via messages in a pop-up screen."
 			    (substring (current-time-string) 14 16)
 			    (if (< h 12) "am" "pm")))
 		  ") %-"))
-    (insert-string (car (cdr appt)))
+    (insert (car (cdr appt)))
     (let ((height (max 10 (min 20 (+ 2 (count-lines (point-min)
 						    (point-max)))))))
       (if (and (boundp 'appt-disp-screen) appt-disp-screen)
@@ -509,7 +509,9 @@ selects that one."
 	   (if (consp j) (setq j (car j)))
 	   (while (> i 0)
 	     (beep)
-	     (sleep-for-millisecs j)
+	     (if (integerp j)
+		 (sleep-for-millisecs j)
+	       (sleep-for j))
 	     (setq i (1- i)))))
 	(t (beep))))
 

@@ -1,25 +1,28 @@
-;;; Spool access using NNTP for GNU Emacs
-;; Copyright (C) 1988, 1989 Fujitsu Laboratories LTD.
-;; Copyright (C) 1988, 1989, 1990 Masanobu UMEDA
+;;; nnspool.el --- spool access using NNTP for GNU Emacs
+
+;; Copyright (C) 1988, 1989, 1990, 1993 Free Software Foundation, Inc.
+
+;; Author: Masanobu UMEDA <umerin@flab.flab.fujitsu.junet>
+;; Keywords: news
 
 ;; This file is part of GNU Emacs.
 
+;; GNU Emacs is free software; you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation; either version 2, or (at your option)
+;; any later version.
+
 ;; GNU Emacs is distributed in the hope that it will be useful,
-;; but WITHOUT ANY WARRANTY.  No author or distributor
-;; accepts responsibility to anyone for the consequences of using it
-;; or for whether it serves any particular purpose or works at all,
-;; unless he says so in writing.  Refer to the GNU Emacs General Public
-;; License for full details.
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
 
-;; Everyone is granted permission to copy, modify and redistribute
-;; GNU Emacs, but only under the conditions described in the
-;; GNU Emacs General Public License.   A copy of this license is
-;; supposed to have been given to you along with GNU Emacs so you
-;; can know your rights and responsibilities.  It should be in a
-;; file named COPYING.  Among other things, the copyright notice
-;; and this notice must be preserved on all copies.
+;; You should have received a copy of the GNU General Public License
+;; along with GNU Emacs; see the file COPYING.  If not, write to
+;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
-(provide 'nnspool)
+;;; Code:
+
 (require 'nntp)
 
 (defvar nnspool-inews-program news-inews-program
@@ -34,12 +37,18 @@
 (defvar nnspool-active-file "/usr/lib/news/active"
   "*Local news active file.")
 
+(defvar nnspool-newsgroups-file "/usr/lib/news/newsgroups"
+  "*Local news newsgroups file.")
+
+(defvar nnspool-distributions-file "/usr/lib/news/distributions"
+  "*Local news distributions file.")
+
 (defvar nnspool-history-file "/usr/lib/news/history"
   "*Local news history file.")
 
 
 
-(defconst nnspool-version "NNSPOOL 1.10"
+(defconst nnspool-version "NNSPOOL 1.12"
   "Version numbers of this version of NNSPOOL.")
 
 (defvar nnspool-current-directory nil
@@ -53,9 +62,10 @@
   "Return list of article headers specified by SEQUENCE of article id.
 The format of list is
  `([NUMBER SUBJECT FROM XREF LINES DATE MESSAGE-ID REFERENCES] ...)'.
+If there is no References: field, In-Reply-To: field is used instead.
 Reader macros for the vector are defined as `nntp-header-FIELD'.
 Writer macros for the vector are defined as `nntp-set-header-FIELD'.
-News group must be selected before calling me."
+Newsgroup must be selected before calling this."
   (save-excursion
     (set-buffer nntp-server-buffer)
     ;;(erase-buffer)
@@ -136,28 +146,33 @@ News group must be selected before calling me."
 			      (save-excursion (end-of-line) (point))))
 		(setq xref nil))
 	      ;; Extract References:
+	      ;; If no References: field, use In-Reply-To: field instead.
 	      (goto-char (point-min))
-	      (if (search-forward "\nReferences: " nil t)
+	      (if (or (search-forward "\nReferences: " nil t)
+		      (search-forward "\nIn-Reply-To: " nil t))
 		  (setq references (buffer-substring
 				    (point)
 				    (save-excursion (end-of-line) (point))))
 		(setq references nil))
-	      (setq headers
-		    (cons (vector article subject from
-				  xref lines date
-				  message-id references) headers))
+	      ;; Collect valid article only.
+	      (and article
+		   message-id
+		   (setq headers
+			 (cons (vector article subject from
+				       xref lines date
+				       message-id references) headers)))
 	      ))
 	(setq sequence (cdr sequence))
 	(setq count (1+ count))
 	(and (numberp nntp-large-newsgroup)
 	     (> number nntp-large-newsgroup)
 	     (zerop (% count 20))
-	     (message "NNSPOOL: %d%% of headers received."
-		      (/ (* count 100) number)))
+	     (gnus-lazy-message "NNSPOOL: Receiving headers... %d%%"
+				(/ (* count 100) number)))
 	)
       (and (numberp nntp-large-newsgroup)
 	   (> number nntp-large-newsgroup)
-	   (message "NNSPOOL: 100%% of headers received."))
+	   (message "NNSPOOL: Receiving headers... done"))
       (nreverse headers)
       )))
 
@@ -244,7 +259,9 @@ If the stream is opened, return T, otherwise return NIL."
 
 (defun nnspool-request-stat (id)
   "Select article by message ID (or number)."
-  (error "NNSPOOL: STAT is not implemented."))
+  (setq nntp-status-string "NNSPOOL: STAT is not implemented.")
+  nil
+  )
 
 (defun nnspool-request-group (group)
   "Select news GROUP."
@@ -255,18 +272,32 @@ If the stream is opened, return T, otherwise return NIL."
     ))
 
 (defun nnspool-request-list ()
-  "List valid newsgoups."
+  "List active newsgoups."
   (save-excursion
     (nnspool-find-file nnspool-active-file)))
+
+(defun nnspool-request-list-newsgroups ()
+  "List newsgroups (defined in NNTP2)."
+  (save-excursion
+    (nnspool-find-file nnspool-newsgroups-file)))
+
+(defun nnspool-request-list-distributions ()
+  "List distributions (defined in NNTP2)."
+  (save-excursion
+    (nnspool-find-file nnspool-distributions-file)))
 
 (defun nnspool-request-last ()
   "Set current article pointer to the previous article
 in the current news group."
-  (error "NNSPOOL: LAST is not implemented."))
+  (setq nntp-status-string "NNSPOOL: LAST is not implemented.")
+  nil
+  )
 
 (defun nnspool-request-next ()
   "Advance current article pointer."
-  (error "NNSPOOL: NEXT is not implemented."))
+  (setq nntp-status-string "NNSPOOL: NEXT is not implemented.")
+  nil
+  )
 
 (defun nnspool-request-post ()
   "Post a new news in current buffer."
@@ -274,7 +305,7 @@ in the current news group."
     ;; We have to work in the server buffer because of NEmacs hack.
     (copy-to-buffer nntp-server-buffer (point-min) (point-max))
     (set-buffer nntp-server-buffer)
-    (apply 'call-process-region
+    (apply (function call-process-region)
 	   (point-min) (point-max)
 	   nnspool-inews-program 'delete t nil nnspool-inews-switches)
     (prog1
@@ -304,7 +335,7 @@ in the current news group."
     ;; Initialize communication buffer.
     (setq nntp-server-buffer (get-buffer-create " *nntpd*"))
     (set-buffer nntp-server-buffer)
-    (buffer-disable-undo (current-buffer))
+    (buffer-flush-undo (current-buffer))
     (erase-buffer)
     (kill-all-local-variables)
     (setq case-fold-search t)		;Should ignore case.
@@ -325,7 +356,7 @@ in the current news group."
   (setq nntp-server-process nil))
 
 (defun nnspool-find-article-by-message-id (id)
-  "Return full pathname of an artilce identified by message-ID."
+  "Return full pathname of an article identified by message-ID."
   (save-excursion
     (let ((buffer (get-file-buffer nnspool-history-file)))
       (if buffer
@@ -365,10 +396,14 @@ in the current news group."
   (let ((string (substring string 0))	;Copy string.
 	(len (length string))
 	(idx 0))
-    ;; Replace all occurence of FROM with TO.
+    ;; Replace all occurrences of FROM with TO.
     (while (< idx len)
       (if (= (aref string idx) from)
 	  (aset string idx to))
       (setq idx (1+ idx)))
     string
     ))
+
+(provide 'nnspool)
+
+;;; nnspool.el ends here

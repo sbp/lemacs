@@ -33,12 +33,12 @@
 ;; newsgroups.
 ;;
 ;; This code makes GNUS understand digests directly.  The command
-;; gnus-Subject-read-digest (bound to C-d) will expand the current message
+;; gnus-summary-read-digest (bound to C-d) will expand the current message
 ;; as a digest.  The *Subject* buffer will be replaced with lines representing
 ;; the messages in the digest; the normal GNUS commands will work on the 
 ;; sub-messages of the digest, including kill files.
 ;;
-;; Typing \\[gnus-Subject-exit] at the *Subject* buffer will replace the list
+;; Typing \\[gnus-summary-exit] at the *Subject* buffer will replace the list
 ;; of messages in the digest with the list of (digest) messages in the
 ;; newsgroup.  Reading a digest is something like a recursive edit.
 ;;
@@ -53,7 +53,7 @@
 ;; ***************
 ;; *** 3748,3751 ****
 ;; --- 3748,3754 ----
-;;   gnus-Exit-group-hook is called with no arguments if that value is non-nil."
+;;   gnus-exit-group-hook is called with no arguments if that value is non-nil."
 ;;     (interactive)
 ;; +   (if gnus-digest-mode
 ;; +       (gnus-unselect-digest-article)
@@ -62,17 +62,17 @@
 ;;   	(gnus-newsgroup-headers gnus-newsgroup-headers)
 ;; ***************
 ;; *** 3788,3792 ****
-;;   	(bury-buffer gnus-Article-buffer))
-;;       (gnus-configure-windows 'ExitNewsgroup)
-;; !     (pop-to-buffer gnus-Group-buffer)))
+;;   	(bury-buffer gnus-article-buffer))
+;;       (gnus-configure-windows 'newsgroups)
+;; !     (pop-to-buffer gnus-group-buffer)))
 ;;   
-;;   (defun gnus-Subject-quit ()
+;;   (defun gnus-summary-quit ()
 ;; --- 3791,3795 ----
-;;   	(bury-buffer gnus-Article-buffer))
-;;       (gnus-configure-windows 'ExitNewsgroup)
-;; !     (pop-to-buffer gnus-Group-buffer))))
+;;   	(bury-buffer gnus-article-buffer))
+;;       (gnus-configure-windows 'newsgroups)
+;; !     (pop-to-buffer gnus-group-buffer))))
 ;;   
-;;   (defun gnus-Subject-quit ()
+;;   (defun gnus-summary-quit ()
 ;; ***************
 ;; *** 3882,3885 ****
 ;; --- 3885,3890 ----
@@ -80,7 +80,7 @@
 ;;   
 ;; + (defvar gnus-digest-mode nil)
 ;; + 
-;;   (defun gnus-Article-prepare (article &optional all-headers)
+;;   (defun gnus-article-prepare (article &optional all-headers)
 ;;     "Prepare ARTICLE in Article mode buffer.
 ;; ***************
 ;; *** 3889,3893 ****
@@ -113,14 +113,14 @@
 ;;     '("comp.risks" "comp.sys.ibm.pc.digest" "comp.sys.mac.digest"
 ;;       "sci.psychology.digest" "soc.human-nets" "soc.politics.arms-d"))
 ;;   
-;;   (setq gnus-Select-article-hook
+;;   (setq gnus-select-article-hook
 ;;         '(lambda ()
 ;;            (or gnus-digest-mode ; don't do it if we're already doing it
 ;;                (if (string-match (mapconcat 'regexp-quote
 ;;                                             gnus-digestified-newsgroups
 ;;                                             "\\|")
 ;;                                  gnus-newsgroup-name)
-;;                    (gnus-Subject-read-digest)))))
+;;                    (gnus-summary-read-digest)))))
 ;;
 ;; IMPLEMENTATION:
 ;;
@@ -132,7 +132,7 @@
 ;;   corresponding to the sub-messages.  This makes the normal Subject-buffer
 ;;   generation (and commands) work.  The article-number of each of these
 ;;   new message descriptors is the buffer-index of the message in the 
-;;   temporary buffer.  When GNUS is in digest-mode, gnus-Article-prepare
+;;   temporary buffer.  When GNUS is in digest-mode, gnus-article-prepare
 ;;   will take the messages out of this buffer instead of calling 
 ;;   gnus-request-article.
 ;;
@@ -161,7 +161,7 @@
 
 (require 'gnus)
 
-(define-key gnus-Subject-mode-map "\C-d" 'gnus-Subject-read-digest)
+(define-key gnus-summary-mode-map "\C-d" 'gnus-summary-read-digest)
 
 
 (defun gnus-parse-digest-1 ()
@@ -270,26 +270,28 @@
     (nreverse result)))
 
 (defvar gnus-digest-save-state nil) ; ack pfffft.
-(defvar gnus-digest-buffer nil)
+(defvar gnus-digest-scratch-buffer nil)
 
 (defun gnus-select-digest-article ()
   (if gnus-digest-save-state (error "already reading a digest"))
-  (gnus-Subject-select-article)
-  (gnus-Subject-show-all-headers)
-  (if (not (and gnus-digest-buffer (buffer-name gnus-digest-buffer)))
-      (setq gnus-digest-buffer (get-buffer-create " *gnus-digest-buffer*")))
+  (gnus-summary-select-article)
+  (gnus-summary-show-all-headers)
+  (if (not (and gnus-digest-scratch-buffer
+		(buffer-name gnus-digest-scratch-buffer)))
+      (setq gnus-digest-scratch-buffer
+	    (get-buffer-create " *gnus-digest-scratch-buffer*")))
   (save-excursion
-    (set-buffer gnus-digest-buffer)
+    (set-buffer gnus-digest-scratch-buffer)
     (erase-buffer)
     ;; this contortion is because insert-buffer-contents can't be made
     ;; to grab text outside of the narrowed region.
     (save-excursion
       (save-restriction
-	(set-buffer gnus-Article-buffer)
+	(set-buffer gnus-article-buffer)
 	(widen)
 	(save-excursion
-	  (set-buffer gnus-digest-buffer)
-	  (insert-buffer gnus-Article-buffer))))
+	  (set-buffer gnus-digest-scratch-buffer)
+	  (insert-buffer gnus-article-buffer))))
     (let ((header-data (gnus-parse-digest)))
       ;; I wish we didn't have to restore all of this crap, but we do...
       (setq gnus-digest-save-state (list gnus-newsgroup-unreads
@@ -298,7 +300,7 @@
 					 gnus-newsgroup-headers
 					 gnus-auto-select-next
 					 (save-excursion
-					   (set-buffer gnus-Subject-buffer)
+					   (set-buffer gnus-summary-buffer)
 					   (point))
 					 ))
       (setq gnus-newsgroup-unreads
@@ -336,24 +338,24 @@
 (defun gnus-unselect-digest-article ()
   (if (not gnus-digest-save-state) (error "not reading a digest"))
   (let ((p (gnus-digest-reset)))
-    (gnus-Subject-exit t)
+    (gnus-summary-exit t)
     ;; We have to adjust the point of Group mode buffer because the current
     ;; point was moved to the next unread newsgroup by exiting.
-    (gnus-Subject-jump-to-group gnus-newsgroup-name)
+    (gnus-summary-jump-to-group gnus-newsgroup-name)
     
-    (gnus-Subject-setup-buffer)
-    (run-hooks 'gnus-Select-group-hook)
-    (gnus-Subject-prepare)
+    (gnus-summary-setup-buffer)
+    (run-hooks 'gnus-select-group-hook)
+    (gnus-summary-prepare)
     (goto-char p)))
 
 
 (defvar inside-select-digest nil) ; hands off
 
-(defun gnus-Subject-read-digest ()
+(defun gnus-summary-read-digest ()
   "Read the current message as a digest.
 The *Subject* buffer will be replaced with lines representing the messages
 in the digest; the normal GNUS commands will work on the sub-messages of
-the digest.  Typing \\[gnus-Subject-exit] at the *Subject* buffer will 
+the digest.  Typing \\[gnus-summary-exit] at the *Subject* buffer will 
 replace the list of messages in the digest with the list of (digest) 
 messages in the newsgroup.  Reading a digest is something like a recursive
 edit."
@@ -361,46 +363,46 @@ edit."
   (if inside-select-digest
       nil
     (let ((inside-select-digest t))
-  ;; most of this is copied from gnus-Subject-read-group.
+  ;; most of this is copied from gnus-summary-read-group.
   (gnus-select-digest-article)
-  (gnus-Subject-setup-buffer)
-  (run-hooks 'gnus-Select-group-hook)
-  (gnus-Subject-prepare)
-  (run-hooks 'gnus-Apply-kill-hook)
+  (gnus-summary-setup-buffer)
+  (run-hooks 'gnus-select-group-hook)
+  (gnus-summary-prepare)
+  (run-hooks 'gnus-apply-kill-hook)
   (if (zerop (buffer-size)) (error "empty digest?"))
   (setq gnus-digest-mode t)
   ;; Hide conversation thread subtrees.  We cannot do this in
-  ;; gnus-Subject-prepare-hook since kill processing may not
+  ;; gnus-summary-prepare-hook since kill processing may not
   ;; work with hidden articles.
   ;; ## Do any digest-groups include References: fields in the submessages?
   ;; ## I think not, but if they do, threading should work.
   (and gnus-show-threads
        gnus-thread-hide-subtree
-       (gnus-Subject-hide-all-threads))
+       (gnus-summary-hide-all-threads))
   ;; Show first unread article if requested.
   (goto-char (point-min))
   (if (and gnus-auto-select-first
-	   (gnus-Subject-first-unread-article))
+	   (gnus-summary-first-unread-article))
       ;; Window is configured automatically.
       ;; Current buffer may be changed as a result of hook
-      ;; evaluation, especially by gnus-Subject-rmail-digest
+      ;; evaluation, especially by gnus-summary-rmail-digest
       ;; command, so we should adjust cursor point carefully.
-      (if (eq (current-buffer) (get-buffer gnus-Subject-buffer))
+      (if (eq (current-buffer) (get-buffer gnus-summary-buffer))
 	  (progn
 	    ;; Adjust cursor point.
 	    (beginning-of-line)
 	    (search-forward ":" nil t)))
-    (gnus-configure-windows 'SelectNewsgroup)
-    (gnus-pop-to-buffer gnus-Subject-buffer)
-    (gnus-Subject-set-mode-line)
+    (gnus-configure-windows 'newsgroups)
+    (gnus-pop-to-buffer gnus-summary-buffer)
+    (gnus-summary-set-mode-line)
     ;; I sometime get confused with the old Article buffer.
-    (if (get-buffer gnus-Article-buffer)
-	(if (get-buffer-window gnus-Article-buffer)
+    (if (get-buffer gnus-article-buffer)
+	(if (get-buffer-window gnus-article-buffer)
 	    (save-excursion
-	      (set-buffer gnus-Article-buffer)
+	      (set-buffer gnus-article-buffer)
 	      (let ((buffer-read-only nil))
 		(erase-buffer)))
-	  (kill-buffer gnus-Article-buffer)))
+	  (kill-buffer gnus-article-buffer)))
     ;; Adjust cursor point.
     (beginning-of-line)
     (search-forward ":" nil t))
@@ -408,10 +410,10 @@ edit."
 
 (defun gnus-request-digest-article (article)
   ;; article is the article-number of the message, which in this case,
-  ;; is a buffer-index into gnus-digest-buffer of the beginning of the
+  ;; is a buffer-index into gnus-digest-scratch-buffer of the beginning of the
   ;; message.
   (save-excursion
-    (set-buffer gnus-digest-buffer)
+    (set-buffer gnus-digest-scratch-buffer)
     (let ((rest gnus-digest-divisions)
 	  next)
       (while (and rest (not next))
@@ -422,7 +424,7 @@ edit."
       (goto-char next)
       (set-buffer nntp-server-buffer)
       (erase-buffer)
-      (insert-buffer-substring gnus-digest-buffer article next)
+      (insert-buffer-substring gnus-digest-scratch-buffer article next)
       t)))
 
 (provide 'gnus-digest)

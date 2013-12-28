@@ -1,5 +1,5 @@
 /* filemode.c -- make a string describing file modes
-   Copyright (C) 1985-1993 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1990, 1993 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,13 +17,41 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#ifdef _POSIX_SOURCE
-#undef  S_IREAD
+#ifndef S_IREAD
 #define S_IREAD S_IRUSR
-#undef  S_IWRITE
 #define S_IWRITE S_IWUSR
-#undef  S_IEXEC
 #define S_IEXEC S_IXUSR
+#endif
+#ifndef S_ISREG			/* Doesn't have POSIX.1 stat stuff.  */
+#define mode_t unsigned short
+#endif
+#if !defined(S_ISBLK) && defined(S_IFBLK)
+#define	S_ISBLK(m) (((m) & S_IFMT) == S_IFBLK)
+#endif
+#if !defined(S_ISCHR) && defined(S_IFCHR)
+#define	S_ISCHR(m) (((m) & S_IFMT) == S_IFCHR)
+#endif
+#if !defined(S_ISDIR) && defined(S_IFDIR)
+#define	S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
+#endif
+#if !defined(S_ISREG) && defined(S_IFREG)
+#define	S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
+#endif
+#if !defined(S_ISFIFO) && defined(S_IFIFO)
+#define	S_ISFIFO(m) (((m) & S_IFMT) == S_IFIFO)
+#endif
+#if !defined(S_ISLNK) && defined(S_IFLNK)
+#define	S_ISLNK(m) (((m) & S_IFMT) == S_IFLNK)
+#endif
+#if !defined(S_ISSOCK) && defined(S_IFSOCK)
+#define	S_ISSOCK(m) (((m) & S_IFMT) == S_IFSOCK)
+#endif
+#if !defined(S_ISMPB) && defined(S_IFMPB) /* V7 */
+#define S_ISMPB(m) (((m) & S_IFMT) == S_IFMPB)
+#define S_ISMPC(m) (((m) & S_IFMT) == S_IFMPC)
+#endif
+#if !defined(S_ISNWK) && defined(S_IFNWK) /* HP/UX */
+#define S_ISNWK(m) (((m) & S_IFMT) == S_IFNWK)
 #endif
 
 static void mode_string ();
@@ -104,48 +132,39 @@ mode_string (mode, str)
 
 static char
 ftypelet (bits)
-     unsigned short bits;
+     mode_t bits;
 {
-  switch (bits & S_IFMT)
-    {
-    default:
-      return '?';
-    case S_IFREG:
-      return '-';
-    case S_IFDIR:
-      return 'd';
-#ifdef S_IFLNK
-    case S_IFLNK:
-      return 'l';
+#ifdef S_ISBLK
+  if (S_ISBLK (bits))
+    return 'b';
 #endif
-#ifdef S_IFCHR
-    case S_IFCHR:
-      return 'c';
+  if (S_ISCHR (bits))
+    return 'c';
+  if (S_ISDIR (bits))
+    return 'd';
+  if (S_ISREG (bits))
+    return '-';
+#ifdef S_ISFIFO
+  if (S_ISFIFO (bits))
+    return 'p';
 #endif
-#ifdef S_IFBLK
-    case S_IFBLK:
-      return 'b';
+#ifdef S_ISLNK
+  if (S_ISLNK (bits))
+    return 'l';
 #endif
-#ifdef S_IFMPC
-    case S_IFMPC:
-    case S_IFMPB:
-      return 'm';
+#ifdef S_ISSOCK
+  if (S_ISSOCK (bits))
+    return 's';
 #endif
-#ifdef S_IFSOCK
-    case S_IFSOCK:
-      return 's';
+#ifdef S_ISMPC
+  if (S_ISMPC (bits))
+    return 'm';
 #endif
-#ifdef S_IFIFO
-#if S_IFIFO != S_IFSOCK
-    case S_IFIFO:
-      return 'p';
+#ifdef S_ISNWK
+  if (S_ISNWK (bits))
+    return 'n';
 #endif
-#endif
-#ifdef S_IFNWK			/* HP-UX */
-    case S_IFNWK:
-      return 'n';
-#endif
-    }
+  return '?';
 }
 
 /* Look at read, write, and execute bits in BITS and set

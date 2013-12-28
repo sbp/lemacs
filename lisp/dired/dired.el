@@ -51,6 +51,23 @@ and in Europe at my own site in Germany:
 ;;; The funny comments are for autoload.el, to automagically update
 ;;; loaddefs.
 
+(defvar dired-use-gzip-instead-of-compress t
+  "*If non-nil, use gzip instead of compress as the standard compress
+program")
+
+(defvar dired-make-gzip-quiet t
+  "*If non-nil, pass -q to shell commands involving gzip this will override
+GZIP environment variable.")
+
+(defvar dired-znew-switches nil
+  "*If non-nil, a string of switches that will be passed to `znew'
+example: \"-K\"")
+
+(defvar dired-gzip-file-extension ".gz"
+  "*A string representing the suffix created by gzip.  This should probably
+match the value of --suffix or -S in the GZIP environment variable if it
+exists and \".gz\" if it does not.")
+
 ;;;###autoload
 (defvar dired-listing-switches "-al"
   "*Switches passed to ls for dired. MUST contain the `l' option.
@@ -478,7 +495,7 @@ If DIRNAME is already in a dired buffer, that buffer is used without refresh."
       (widen)
       (erase-buffer)
       (dired-readin-insert dirname)
-      (indent-rigidly (point-min) (point-max) 2)
+      (dired-indent-rigidly (point-min) (point-max) 2)
       ;; We need this to make the root dir have a header line as all
       ;; other subdirs have:
       (goto-char (point-min))
@@ -501,6 +518,7 @@ If DIRNAME is already in a dired buffer, that buffer is used without refresh."
 
 (defun dired-readin-insert (dirname)
   ;; Just insert listing for DIRNAME, assuming a clean buffer.
+  (let ((font-lock-mode nil))
   (if (equal default-directory dirname);; i.e., (file-directory-p dirname)
       (dired-ls (if (or (let (case-fold-search)
 			  (string-match "R" dired-actual-switches))
@@ -523,7 +541,7 @@ If DIRNAME is already in a dired buffer, that buffer is used without refresh."
       (dired-ls dirname dired-actual-switches t)
       (save-excursion;; insert wildcard instead of total line:
 	(goto-char (point-min))
-	(insert "wildcard " (file-name-nondirectory dirname) "\n")))))
+	(insert "wildcard " (file-name-nondirectory dirname) "\n"))))))
 
 (defun dired-insert-headerline (dir);; also used by dired-insert-subdir
   ;; Insert DIR's headerline with no trailing slash, exactly like ls
@@ -1439,7 +1457,7 @@ Thus, use \\[backward-page] to find the beginning of a group of errors."
   ;; In Emacs 18 the exit status is not accessible, so we
   ;; do the following which is not always correct as some compress
   ;; programs are verbose by default or otherwise braindamaged
-  (if dired-emacs-19-p
+  (if (and dired-emacs-19-p exit-status)
       (/= 0 exit-status);; >>> install (does it work in Emacs 19?)
     (/= 0 (buffer-size)))		; run in program's output buffer
   ;; If have you one of those compress programs, you might
@@ -1546,9 +1564,25 @@ Prefix arg lets you edit the diff switches.  See the command `diff'."
 ;;  "Converts a filename FROM-FILE to the filename of the associated
 ;;  compressed file.  With an optional argument REVERSE, the reverse
 ;;  conversion is done."
+
   (if reverse
-      (substring from-file 0 -2)
-    (concat from-file ".Z")))
+      
+      ;; uncompress...
+      ;; return `nil' if no match found -- better than nothing
+      (let (case-fold-search ; case-sensitive search
+            (string
+             (concat "\\.\\(g?z\\|" (regexp-quote dired-gzip-file-extension)
+                     "$\\|Z\\)$")))
+
+        (and (string-match string from-file)
+             (substring from-file 0 (match-beginning 0))))
+
+    ;; compress...
+    ;; note: it could be that `gz' is not the proper extension for gzip
+    (concat from-file 
+            (if dired-use-gzip-instead-of-compress
+                dired-gzip-file-extension ".Z"))))
+
 
 (defun dired-compress ()
   ;; Compress current file.  Return nil for success, offending filename else.
@@ -1561,8 +1595,18 @@ Prefix arg lets you edit the diff switches.  See the command `diff'."
 	   (dired-log (concat "Attempt to compress a symbolic link:\n"
 			      from-file))
 	   (dired-make-relative from-file))
-	  ((dired-check-process (concat "Compressing " from-file)
-				"compress" "-f" from-file)
+          (
+
+           (if dired-use-gzip-instead-of-compress
+               ;; gzip (GNU zip)
+               ;; use `-q' (quiet) switch for gzip in case GZIP environment
+               ;; variable contains `--verbose' - lrd - Feb 18, 1993
+               (dired-check-process (concat "Gzip'ing " from-file)
+                                    "gzip" "--quiet" "--force" "--suffix"
+                                    dired-gzip-file-extension from-file)
+
+             (dired-check-process (concat "Compressing " from-file)
+                                  "compress" "-f" from-file))
 	   ;; errors from the process are already logged by dired-check-process
 	   (dired-make-relative from-file))
 	(t
@@ -1574,8 +1618,18 @@ Prefix arg lets you edit the diff switches.  See the command `diff'."
   (let* (buffer-read-only
 	 (from-file (dired-get-filename))
 	 (to-file (dired-compress-make-compressed-filename from-file t)))
-    (if (dired-check-process (concat "Uncompressing " from-file)
-			     "uncompress" from-file)
+    (if
+        (if dired-use-gzip-instead-of-compress
+            ;; gzip (GNU zip)
+            ;; use `-q' (quiet) switch for gzip in case GZIP environment
+            ;; variable contains `--verbose' - lrd - Feb 18, 1993
+            (dired-check-process (concat "Gunzip'ing " from-file)
+                                 "gzip" "--decompress" "--quiet" "--suffix"
+                                 dired-gzip-file-extension from-file)
+
+          (dired-check-process (concat "Uncompressing " from-file)
+                               "uncompress" from-file))
+
 	(dired-make-relative from-file)
       (dired-update-file-line to-file)
       nil)))
@@ -3499,7 +3553,7 @@ This function takes some pains to conform to ls -lR output."
 	(dired-ls dirname dired-actual-switches nil t)))
     (message "Reading directory %s...done" dirname)
     (setq end (point-marker))
-    (indent-rigidly begin end 2)
+    (dired-indent-rigidly begin end 2)
     ;;  call dired-insert-headerline afterwards, as under VMS dired-ls
     ;;  does insert the headerline itself and the insert function just
     ;;  moves point.
@@ -3592,6 +3646,21 @@ is always equal to STRING."
 	(setq result
 	      (cons (substring str end) result)))
     (nreverse result)))
+
+(defun dired-indent-rigidly (start end arg)
+  ;; like indent-rigidly but has more efficient behavior w.r.t. the
+  ;; after-change-function (i.e., font-lock-mode.)
+  (let ((oacf (and (boundp 'after-change-function) after-change-function))
+	(after-change-function nil))
+    (save-excursion
+      (goto-char end)
+      (indent-rigidly start end arg)
+      (cond (oacf
+	     (funcall oacf start start (- end start))
+	     (funcall oacf start (point) 0))))))
+
+(if (string-lessp emacs-version "19")
+    (fset 'dired-indent-rigidly (symbol-function 'indent-rigidly)))
 
 ;;;###end dired-ins.el
 

@@ -35,8 +35,17 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 
 #include <stdio.h>
+#include <string.h>
 
 
+extern char *getenv ();
+char *xmalloc ();
+char *xrealloc ();
+void skip_to_lf ();
+void fatal ();
+void error ();
+
+int
 main (argc, argv)
      int argc;
      char *argv[];
@@ -50,7 +59,7 @@ main (argc, argv)
   FILE *mddf;
   FILE *mfilef;
   FILE *cff;
-  char pre[10], post[100];
+  char pre[10];
   char name[14];
   int c;
 
@@ -100,6 +109,7 @@ main (argc, argv)
   return 0;
 }
 
+void
 skip_to_lf (stream)
      FILE *stream;
 {
@@ -108,22 +118,22 @@ skip_to_lf (stream)
     ;
 }
 
-int
+char *
 xmalloc (size)
      int size;
 {
-  int result = malloc (size);
+  char *result = (char *) malloc (size);
   if (!result)
     fatal ("virtual memory exhausted", 0);
   return result;
 }
 
-int
+char *
 xrealloc (ptr, size)
      char *ptr;
      int size;
 {
-  int result = realloc (ptr, size);
+  char *result = (char *) realloc (ptr, size);
   if (!result)
     fatal ("virtual memory exhausted");
   return result;
@@ -131,6 +141,7 @@ xrealloc (ptr, size)
 
 /* Print error message and exit.  */
 
+void
 fatal (s1, s2)
      char *s1, *s2;
 {
@@ -138,6 +149,7 @@ fatal (s1, s2)
   exit (1);
 }
 
+void
 error (s1, s2)
      char *s1, *s2;
 {

@@ -158,10 +158,13 @@ Optional argument means return a name relative to default-directory."
 		   (- (nth 2 best-so-far) (nth 1 best-so-far))))
 	    (setq best-so-far elt)))
       (setq alist (cdr alist)))
-    (if relative
-	(dired-make-relative (car best-so-far) default-directory)
-      (car best-so-far))))
-
+    (if best-so-far
+	(if relative
+	    (dired-make-relative (car best-so-far) default-directory)
+	  (car best-so-far))
+      (progn
+	(dired-build-subdir-alist)
+	(dired-current-directory relative)))))
 
 (defun dired-insert-subdir-del (element)
   ;; Erase an already present subdir (given by ELEMENT) from buffer.

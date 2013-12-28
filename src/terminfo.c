@@ -1,11 +1,11 @@
 /* Interface from Emacs to terminfo.
-   Copyright (C) 1985, 1986 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -23,8 +23,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 char *UP, *BC, PC;
 short ospeed;
-
-static buffer[512];
 
 /* Interface to curses/terminfo library.
    Turns out that all of the terminfo-level routines look
@@ -44,7 +42,7 @@ tparam (string, outstring, len, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, 
 
   temp = tparm (string, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
   if (outstring == 0)
-    outstring = ((char *) (malloc ((strlen (temp)) + 1)));
+    outstring = ((char *) (xmalloc ((strlen (temp)) + 1)));
   strcpy (outstring, temp);
   return outstring;
 }

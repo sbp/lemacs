@@ -1,5 +1,5 @@
 /* Terminal control module for terminals described by TERMCAP
-   Copyright (C) 1985, 1986, 1987, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1987, 1992, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -31,12 +31,13 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "screen.h"
 #include "disptab.h"
 
-#ifndef tputs
-extern int tputs (char *, int, int (*) (char));
-extern int tgetent (char *, char *);
-extern int tgetflag (char *);
-extern int tgetnum (char *);
+#ifdef HAVE_X_WINDOWS
+#include "xobjs.h"
 #endif
+
+#include "dispmisc.h"
+
+#include "sysdep.h"   /* For get_screen_size, tabs_safe_p, init_baud_rate */
 
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define min(a, b) ((a) < (b) ? (a) : (b))
@@ -63,7 +64,7 @@ int screen_height;		/* Number of lines */
 int must_write_spaces;		/* Nonzero means spaces in the text
 				   must actually be output; can't just skip
 				   over some columns to leave them blank.  */
-int min_padding_speed;	/* Speed below which no padding necessary */
+int min_padding_speed;		/* Speed below which no padding necessary */
 
 int line_ins_del_ok;		/* Terminal can insert and delete lines */
 int char_ins_del_ok;		/* Terminal can insert and delete chars */
@@ -85,73 +86,98 @@ int no_redraw_on_reenter;
 /* Hook functions that you can set to snap out the functions in this file.
    These are all extern'd in termhooks.h  */
 
-void (*cursor_to_hook) ();
-void (*raw_cursor_to_hook) ();
+/* What's this X-specific junk doing here? */
+/* This X-specific junk is here because Epoch only ran under X
+   and they didn't care.  Oh, and it isn't necessarily X specific. */
+int  (*text_width_hook) (Lisp_Object font, 
+                         const unsigned char *s, int l);
+void (*clear_window_end_hook) ();
+void (*update_line_hook) (struct window *w, 
+                          struct line_header *l,
+                          struct char_block *start, 
+                          struct char_block *end,
+                          char clear, int line_type);
+void (*insert_chars_hook) (struct window *w, 
+                           struct line_header *l,
+                           struct char_block *new,
+                           struct char_block *cb, 
+                           struct char_block *end, 
+                           char clear);
+void (*shift_region_hook) (struct window *,
+                           struct line_header *start,
+                           struct line_header *end);
 
-void (*clear_to_end_hook) ();
-void (*clear_screen_hook) ();
-void (*clear_end_of_line_hook) ();
+void (*cursor_to_hook) (struct line_header *,
+                        struct char_block *, 
+                        int row, int col, 
+                        struct window *, struct screen *);
+/* void (*raw_cursor_to_hook) (); */
 
-void (*ins_del_lines_hook) ();
+void (*clear_to_end_hook) (void);
+void (*clear_screen_hook) (void);
+void (*clear_end_of_line_hook) (void);
 
-void (*change_line_highlight_hook) ();
-void (*reassert_line_highlight_hook) ();
+void (*ins_del_lines_hook) (int vpos, int n);
 
-void (*insert_glyphs_hook) ();
-void (*write_glyphs_hook) ();
-void (*delete_glyphs_hook) ();
+/* void (*change_line_highlight_hook) (); */
+/* void (*reassert_line_highlight_hook) (); */
 
-void (*ring_bell_hook) ();
+/* void (*insert_glyphs_hook) (); */
+/* void (*write_glyphs_hook) (); */
+/* void (*delete_glyphs_hook) (); */
 
-void (*reset_terminal_modes_hook) ();
-void (*set_terminal_modes_hook) ();
-void (*update_begin_hook) ();
-void (*update_end_hook) ();
-void (*set_terminal_window_hook) ();
+void (*ring_bell_hook) (Lisp_Object);
 
-Lisp_Object (*read_socket_hook) ();
+void (*reset_terminal_modes_hook) (void);
+void (*set_terminal_modes_hook) (void);
+void (*update_begin_hook) (struct screen *);
+void (*update_end_hook) (struct screen *);
+void (*set_terminal_window_hook) (int size);
+
+/* Lisp_Object (*read_socket_hook) (); */
+int read_socket_hook;
 
 /* Strings, numbers and flags taken from the termcap entry.  */
 
-static char *TS_ins_line;		/* termcap "al" */
-static char *TS_ins_multi_lines;	/* "AL" (one parameter, # lines to insert) */
-static char *TS_bell;			/* "bl" */
-static char *TS_clr_to_bottom;		/* "cd" */
-static char *TS_clr_line;		/* "ce", clear to end of line */
-static char *TS_clr_screen;		/* "cl" */
-static char *TS_set_scroll_region;	/* "cs" (2 params, first line and last line) */
-static char *TS_set_scroll_region_1;   /* "cS" (4 params: total lines,
+static const char *TS_ins_line;	/* termcap "al" */
+static const char *TS_ins_multi_lines;/* "AL" (one parameter, # lines to insert) */
+static const char *TS_bell;		/* "bl" */
+static const char *TS_clr_to_bottom;	/* "cd" */
+static const char *TS_clr_line;	/* "ce", clear to end of line */
+static const char *TS_clr_screen;	/* "cl" */
+static const char *TS_set_scroll_region;/* "cs" (2 params, first line and last line) */
+static const char *TS_set_scroll_region_1;   /* "cS" (4 params: total lines,
 				   lines above scroll region, lines below it,
 				   total lines again) */
-static char *TS_del_char;		/* "dc" */
-static char *TS_del_multi_chars;	/* "DC" (one parameter, # chars to delete) */
-static char *TS_del_line;		/* "dl" */
-static char *TS_del_multi_lines;	/* "DL" (one parameter, # lines to delete) */
-static char *TS_delete_mode;		/* "dm", enter character-delete mode */
-static char *TS_end_delete_mode;	/* "ed", leave character-delete mode */
-static char *TS_end_insert_mode;	/* "ei", leave character-insert mode */
-static char *TS_ins_char;		/* "ic" */
-static char *TS_ins_multi_chars;	/* "IC" (one parameter, # chars to insert) */
-static char *TS_insert_mode;		/* "im", enter character-insert mode */
-static char *TS_pad_inserted_char;	/* "ip".  Just padding, no commands.  */
-static char *TS_end_keypad_mode;	/* "ke" */
-static char *TS_keypad_mode;		/* "ks" */
-static char *TS_pad_char;		/* "pc", char to use as padding */
-static char *TS_repeat;		/* "rp" (2 params, # times to repeat
+static const char *TS_del_char;	/* "dc" */
+static const char *TS_del_multi_chars;/* "DC" (one parameter, # chars to delete) */
+static const char *TS_del_line;	/* "dl" */
+static const char *TS_del_multi_lines;/* "DL" (one parameter, # lines to delete) */
+static const char *TS_delete_mode;	/* "dm", enter character-delete mode */
+static const char *TS_end_delete_mode;/* "ed", leave character-delete mode */
+static const char *TS_end_insert_mode;/* "ei", leave character-insert mode */
+static const char *TS_ins_char;	/* "ic" */
+static const char *TS_ins_multi_chars;/* "IC" (one parameter, # chars to insert) */
+static const char *TS_insert_mode;	/* "im", enter character-insert mode */
+static const char *TS_pad_inserted_char;/* "ip".  Just padding, no commands.  */
+static const char *TS_end_keypad_mode;/* "ke" */
+const char *TS_keypad_mode;		/* "ks" */
+static const char *TS_pad_char;	/* "pc", char to use as padding */
+static const char *TS_repeat;		/* "rp" (2 params, # times to repeat
 				   and character to be repeated) */
-static char *TS_end_standout_mode;	/* "se" */
-static char *TS_fwd_scroll;		/* "sf" */
-static char *TS_standout_mode;		/* "so" */
-static char *TS_rev_scroll;		/* "sr" */
-static char *TS_end_termcap_modes;	/* "te" */
-static char *TS_termcap_modes;		/* "ti" */
-static char *TS_visible_bell;		/* "vb" */
-static char *TS_end_visual_mode;	/* "ve" */
-static char *TS_visual_mode;		/* "vi" */
-static char *TS_set_window;		/* "wi" (4 params, start and end of window,
+static const char *TS_end_standout_mode;/* "se" */
+static const char *TS_fwd_scroll;	/* "sf" */
+static const char *TS_standout_mode;	/* "so" */
+static const char *TS_rev_scroll;	/* "sr" */
+static const char *TS_end_termcap_modes;/* "te" */
+static const char *TS_termcap_modes;	/* "ti" */
+static const char *TS_visible_bell;	/* "vb" */
+static const char *TS_end_visual_mode;/* "ve" */
+static const char *TS_visual_mode;	/* "vi" */
+static const char *TS_set_window;	/* "wi" (4 params, start and end of window,
 				   each as vpos and hpos) */
-static char *TS_underline_mode;	/* "us" */
-static char *TS_end_underline_mode;	/* "ue" */
+static const char *TS_underline_mode;	/* "us" */
+static const char *TS_end_underline_mode;/* "ue" */
 
 static int TF_hazeltine;	/* termcap hz flag. */
 static int TF_insmode_motion;	/* termcap mi flag: can move while in insert mode. */
@@ -161,33 +187,34 @@ static int TF_underscore;	/* termcap ul flag: _ underlines if overstruck on
 static int TF_teleray;		/* termcap xt flag: many weird consequences.
 			   For t1061. */
 
-static int TF_xs;		/* Nonzero for "xs".  If set together with
+static int TF_xs;	/* Nonzero for "xs".  If set together with
 			   TN_standout_width == 0, it means don't bother
 			   to write any end-standout cookies.  */
 
 /* These are present if the terminal uses the magic cookie model. */
 
 static int TN_standout_width;	/* termcap "sg" number: width occupied by standout
-			   markers */
+				   markers */
 static int TN_underline_width;	/* termcap "ug" number: width occupied by underline
-			   markers. */
+				   markers. */
 
 
+#if 0 /* unused */
 static int RPov;	/* # chars to start a TS_repeat */
+#endif
 
-static int delete_in_insert_mode;	/* delete mode == insert mode */
+static int delete_in_insert_mode;/* delete mode == insert mode */
 
 static int se_is_so;	/* 1 if same string both enters and leaves
 			   standout mode */
 
-
+/* internal state */
 
 /* Number of chars of space used for standout marker at beginning of line,
    or'd with 0100.  Zero if no standout marker at all.
 
    Used IFF TN_standout_width >= 0. */
 static char *chars_wasted;
-static char *copybuf;
 
 #if 0
 /* nonzero means supposed to write text in standout mode.  */
@@ -207,18 +234,124 @@ static int underline_mode;	/* Nonzero when in underline mode.  */
 int specified_window;
 
 /* Run of text the cursor is in. */
-static int cursor_run;
+/* static int cursor_run; */
 
 /* How many glyphs are left in cursor_run of glyphs. */
-static int left_in_this_run;
+/* static int left_in_this_run; */
 
 /* Screen currently being redisplayed; 0 if not currently redisplaying.
    (Direct output does not count).  */
 SCREEN_PTR updating_screen;
 
-char *tparam ();
 
+/*
+ * text_width - return length (in pixels) of a string being displayed
+ * 		in a given font.  If font is proportional, call the hook;
+ * 		otherwise use local info from the font structure.
+ */
+int
+text_width (Lisp_Object font, unsigned char *s, int l)
+{
+  int ret_val;
+  if (CHECK_HOOK (text_width_hook))
+    {
+      if (!XFONT (font)->proportional_p)
+	return XFONT (font)->width * l;
+      else
+	{
+	  ret_val = (*text_width_hook) (font, s, l);
+	  return ret_val;
+	}
+    }
+  return l;
+}
 
+
+
+/*
+ * cursor_to - move to absolute position, specified origin
+ */
+void
+cursor_to (struct line_header *l, struct char_block *cb, int row,
+	     int col, struct window *win, struct screen *s)
+{
+  if (CHECK_HOOK (cursor_to_hook))
+    {
+      (*cursor_to_hook) (l,cb,row,col,win,s);
+      return;
+    }
+}
+
+
+
+/*
+ * clear_window_end - Clear from last visible line on window to window
+ *			end (presumably the line above window's modeline.
+ */
+void
+clear_window_end (struct window *w, int ystart, int yend)
+{
+  if (CHECK_HOOK (clear_window_end_hook))
+    {
+      (*clear_window_end_hook) (w,ystart,yend);
+      return;
+    }
+  /* Stuff goes here */
+}
+
+
+
+/*
+ * update_line - Update a lines contents, changing from position CB to
+ *		 position END, clearing end of line if CLEAR
+ */
+void
+update_line (struct window *w, struct line_header *l, struct char_block *cb,
+	     struct char_block *end, char clear, int line_type)
+{
+  if (CHECK_HOOK (update_line_hook))
+    {
+      (*update_line_hook) (w,l,cb,end,clear,line_type);
+      return;
+    }
+  /* Stuff goes here */
+}
+
+
+
+/*
+ * insert_chars - Do a fast insertion of a single char
+ */
+void
+insert_chars (struct window *w, struct line_header *l, struct char_block *new,
+	      struct char_block *cb, struct char_block *end, char clear)
+{
+  if (CHECK_HOOK (insert_chars_hook))
+    {
+      (*insert_chars_hook) (w,l,new,cb,end,clear);
+      return;
+    }
+}
+
+
+
+/*
+ * shift_region - Shift a region between START and END to its new position
+ */
+void
+shift_region(struct window *w,struct line_header *start,struct line_header *end)
+{
+  if (CHECK_HOOK (shift_region_hook))
+    {
+      (*shift_region_hook) (w,start,end);
+      return;
+    }
+
+  /* STUFF goes here */
+}
+
+
+
 int 
 initial_screen_is_tty ()
 {
@@ -239,12 +372,13 @@ set_scroll_region (start, stop)
   char *buf;
   if (TS_set_scroll_region)
     {
-      buf = tparam (TS_set_scroll_region, 0, 0, start, stop - 1);
+      buf = tparam (TS_set_scroll_region, 0, 0, start, stop - 1, 0, 0);
     }
   else if (TS_set_scroll_region_1)
     {
       buf = tparam (TS_set_scroll_region_1, 0, 0,
-		    SCREEN_HEIGHT (selected_screen), start,
+		    SCREEN_HEIGHT (selected_screen),
+		    start,
 		    SCREEN_HEIGHT (selected_screen) - stop,
 		    SCREEN_HEIGHT (selected_screen));
     }
@@ -273,6 +407,7 @@ set_terminal_window (size)
   set_scroll_region (0, specified_window);
 }
 
+#if 0 /* Unused */
 static void
 turn_on_insert ()
 {
@@ -280,6 +415,7 @@ turn_on_insert ()
     OUTPUT (TS_insert_mode);
   insert_mode = 1;
 }
+#endif /* unused */
 
 static void
 turn_off_insert ()
@@ -369,6 +505,7 @@ write_underline_marker (flag, hpos, vpos)
 #define write_underline_end_marker(hpos, vpos)    \
         write_underline_marker (0, (hpos), (vpos))
 
+#if 0 /* unused */
 static void
 turn_on_underline ()
 {
@@ -383,6 +520,7 @@ turn_on_underline ()
     }
   underline_mode = 1;
 }
+#endif /* unused */
 
 static void
 turn_off_underline ()
@@ -409,6 +547,7 @@ enter_background_mode ()
     turn_off_highlight ();
 }
 
+#if 0 /* Unused */
 static void
 standout_as_desired (faceptr)
      struct face *faceptr;
@@ -426,6 +565,7 @@ standout_as_desired (faceptr)
   else
     turn_off_underline ();
 }
+#endif /* unused */
 
 void
 ring_bell (sound)
@@ -471,7 +611,7 @@ reset_terminal_modes ()
   OUTPUT_IF (TS_end_visual_mode);
   OUTPUT_IF (TS_end_termcap_modes);
   /* Output raw CR so kernel can track the cursor hpos.
-     But on magic-cookie terminals this can erase a end-standout marker and
+     But on magic-cookie terminals this can erase an end-standout marker and
      cause the rest of the screen to be in standout, so move down first.  */
   if (TN_standout_width >= 0)
     cmputc ('\n');
@@ -502,102 +642,37 @@ update_end (s)
   updating_screen = 0;
 }
 
-/* Move to absolute position, specified origin 0 */
+
+/* Clear entire screen */
 
 void
-cursor_to (row, col)
-     int row, col;
+clear_screen ()
 {
-  register struct run *face_list
-    = selected_screen->current_glyphs->face_list[row];
-  int run_len, this_run;
-
-  if (CHECK_HOOK (cursor_to_hook))
+  if (CHECK_HOOK (clear_screen_hook))
     {
-      (*cursor_to_hook) (row, col);
+      (*clear_screen_hook) ();
       return;
     }
 
-  if (face_list [(face_list[0].type == window) ? 1 : 0 ].length == 0)
+#ifdef TTY_REDISPLAY
+  if (TS_clr_screen)
     {
-      if (col != 0)
-	abort ();
-      cursor_run = 0;
-    }
-  else if (col == selected_screen->current_glyphs->used[row])
-    {
-      cursor_run = selected_screen->current_glyphs->nruns[row] - 1;
+      enter_background_mode ();
+      OUTPUT (TS_clr_screen);
+      memset (chars_wasted, 0, SCREEN_HEIGHT (selected_screen));
+      cmat (0, 0);
     }
   else
     {
-      this_run = 0;
-      run_len = face_list[this_run].length;
-      while (col >= run_len)
-	{
-	  run_len += face_list[++this_run].length;
-	}
-      cursor_run = this_run;
-      left_in_this_run = run_len - col;
+      cursor_to (0, 0);
+      clear_to_end ();
     }
-
-  col += chars_wasted[row] & 077;
-  if (curY == row && curX == col)
-    return;
-  if (!TF_standout_motion)
-    enter_background_mode ();
-  if (!TF_insmode_motion)
-    turn_off_insert ();
-  cmgoto (row, col);
+#endif /* TTY_REDISPLAY */
 }
 
-/* Similar but don't take any account of the wasted characters.  */
 
-static void
-raw_cursor_to (row, col)
-     int row, col;
-{
-  register struct run *face_list = selected_screen->current_glyphs->face_list[row];
-  int run_len;
-  int this_run = 0;
+#ifdef TTY_REDISPLAY
 
-  if (CHECK_HOOK (raw_cursor_to_hook))
-    {
-      (*raw_cursor_to_hook) (row, col);
-      return;
-    }
-
-  if (curY == row && curX == col)
-    return;
-
-  if (face_list[this_run].length == 0)
-    {
-      if (col != 0)
-	abort ();
-      cursor_run = 0;
-    }
-  else if (col == selected_screen->current_glyphs->used[row])
-    {
-      cursor_run = selected_screen->current_glyphs->nruns[row] - 1;
-    }
-  else
-    {
-      this_run = 0;
-      run_len = face_list[this_run].length;
-      while (col >= run_len)
-	{
-	  run_len += face_list[++this_run].length;
-	}
-      cursor_run = this_run;
-      left_in_this_run = run_len - col;
-    }
-
-  if (!TF_standout_motion)
-    enter_background_mode ();
-  if (!TF_insmode_motion)
-    turn_off_insert ();
-  cmgoto (row, col);
-}
-
 static void
 write_raw_glyph (g)
      GLYPH g;
@@ -722,203 +797,6 @@ clear_to_end ()
     }
 }
 
-/* Clear entire screen */
-
-void
-clear_screen ()
-{
-  if (CHECK_HOOK (clear_screen_hook))
-    {
-      (*clear_screen_hook) ();
-      return;
-    }
-
-  if (TS_clr_screen)
-    {
-      enter_background_mode ();
-      OUTPUT (TS_clr_screen);
-      memset (chars_wasted, 0, SCREEN_HEIGHT (selected_screen));
-      cmat (0, 0);
-    }
-  else
-    {
-      cursor_to (0, 0);
-      clear_to_end ();
-    }
-}
-
-void
-write_glyphs (hpos, vpos, len)
-     register int hpos, vpos, len;
-{
-  register struct run *face_list;
-  register int this_run = 0;
-  register int run_len;
-
-  if (CHECK_HOOK (write_glyphs_hook))
-    {
-      (*write_glyphs_hook) (hpos, vpos, len);
-      return;
-    }
-
-  if (len == 0)
-    return;
-
-  face_list = selected_screen->current_glyphs->face_list[vpos];
-  run_len = face_list[this_run].length;
-
-  /* Don't dare write in last column of bottom line, if AutoWrap,
-     since that would scroll the whole screen on some terminals.  */
-  if (AutoWrap
-      && curY + 1 == SCREEN_HEIGHT (selected_screen)
-      && (curX + len - (chars_wasted[curY] & 077)
-	  == SCREEN_WIDTH (selected_screen)))
-    len --;
-
-#if 0
-  /* Paranoia */
-  while (hpos >= run_len)
-    {
-      run_len += face_list[++this_run].length;
-    }
-
-  if (this_run != cursor_run)
-    abort ();
-#endif
-
-  standout_as_desired (face_list[cursor_run].faceptr);
-  turn_off_insert ();
-  cmplus (len);
-  while (--len >= 0)
-    {
-      write_raw_glyph (selected_screen->current_glyphs->glyphs[vpos][hpos++]);
-      if (--left_in_this_run == 0 && len > 0)
-	{
-	  ++cursor_run;
-	  standout_as_desired (face_list[cursor_run].faceptr);
-	  left_in_this_run = face_list[cursor_run].length;
-	}
-    }
-}
-
-void
-insert_spaceglyphs (hpos, vpos, len)
-     register int hpos, vpos, len;
-{
-  register struct run *face_list
-    = selected_screen->current_glyphs->face_list[vpos];
-
-  if (CHECK_HOOK (insert_glyphs_hook))
-    {
-      (*insert_glyphs_hook) (hpos, vpos, len);
-      return;
-    }
-
-  if (TS_ins_multi_chars)
-    {
-      char *buf;
-
-      buf = tparam (TS_ins_multi_chars, 0, 0, len);
-      OUTPUT1 (buf);
-      xfree (buf);
-      return;
-    }
-
-  standout_as_desired (face_list[cursor_run].faceptr);
-  turn_on_insert ();
-  cmplus (len);
-  while (--len >= 0)
-    {
-      OUTPUT1_IF (TS_ins_char);
-      write_raw_glyph (SPACEGLYPH);
-      OUTPUT1_IF (TS_pad_inserted_char);
-
-      if (--left_in_this_run == 0 && len >= 1)
-	{
-	  ++cursor_run;
-	  standout_as_desired (face_list[cursor_run].faceptr);
-	  left_in_this_run = face_list[cursor_run].length;
-	}
-    }
-}
-
-void
-insert_glyphs (hpos, vpos, len)
-     register int hpos, vpos, len;
-{
-  register GLYPH **glyphs = selected_screen->current_glyphs->glyphs;
-  register struct run *face_list
-    = selected_screen->current_glyphs->face_list[vpos];
-  char *buf;
-
-  if (CHECK_HOOK (insert_glyphs_hook))
-    {
-      (*insert_glyphs_hook) (hpos, vpos, len);
-      return;
-    }
-
-  standout_as_desired (face_list[cursor_run].faceptr);
-
-  if (TS_ins_multi_chars)
-    {
-      buf = tparam (TS_ins_multi_chars, 0, 0, len);
-      OUTPUT1 (buf);
-      xfree (buf);
-      write_glyphs (curX, curY, len);
-      return;
-    }
-
-  turn_on_insert ();
-  cmplus (len);
-  while (--len >= 0)
-    {
-      OUTPUT1_IF (TS_ins_char);
-      write_raw_glyph (glyphs[vpos][hpos++]);
-      OUTPUT1_IF (TS_pad_inserted_char);
-
-      if (--left_in_this_run == 0 && len >= 1)
-	{
-	  standout_as_desired (face_list[++cursor_run].faceptr);
-	  left_in_this_run = face_list[cursor_run].length;
-	}
-    }
-}
-
-void
-delete_glyphs (n)
-     register int n;
-{
-  char *buf;
-  register int i;
-
-  if (CHECK_HOOK (delete_glyphs_hook))
-    {
-      (*delete_glyphs_hook) (n);
-      return;
-    }
-
-  if (delete_in_insert_mode)
-    {
-      turn_on_insert ();
-    }
-  else
-    {
-      turn_off_insert ();
-      OUTPUT_IF (TS_delete_mode);
-    }
-
-  if (TS_del_multi_chars)
-    {
-      buf = tparam (TS_del_multi_chars, 0, 0, n);
-      OUTPUT1 (buf);
-      xfree (buf);
-    }
-  else
-    for (i = 0; i < n; i++)
-      OUTPUT1 (TS_del_char);
-  if (!delete_in_insert_mode)
-    OUTPUT_IF (TS_end_delete_mode);
-}
 
 /* Insert N lines at vpos VPOS.  If N is negative, delete -N lines.  */
 
@@ -926,9 +804,9 @@ void
 ins_del_lines (vpos, n)
      int vpos, n;
 {
-  char *multi = n > 0 ? TS_ins_multi_lines : TS_del_multi_lines;
-  char *single = n > 0 ? TS_ins_line : TS_del_line;
-  char *scroll = n > 0 ? TS_rev_scroll : TS_fwd_scroll;
+  const char *multi = n > 0 ? TS_ins_multi_lines : TS_del_multi_lines;
+  const char *single = n > 0 ? TS_ins_line : TS_del_line;
+  const char *scroll = n > 0 ? TS_rev_scroll : TS_fwd_scroll;
 
   register int i = n > 0 ? n : -n;
   register char *buf;
@@ -955,7 +833,7 @@ ins_del_lines (vpos, n)
     {
       raw_cursor_to (vpos, 0);
       enter_background_mode ();
-      buf = tparam (multi, 0, 0, i);
+      buf = tparam (multi, 0, 0, i, 0, 0, 0);
       OUTPUT (buf);
       xfree (buf);
     }
@@ -1010,7 +888,7 @@ ins_del_lines (vpos, n)
 
 int
 string_cost (str)
-     char *str;
+     const char *str;
 {
   cost = 0;
   if (str)
@@ -1023,7 +901,7 @@ string_cost (str)
 
 static int
 string_cost_one_line (str)
-     char *str;
+     const char *str;
 {
   cost = 0;
   if (str)
@@ -1036,7 +914,7 @@ string_cost_one_line (str)
 
 int
 per_line_cost (str)
-     register char *str;
+     register const char *str;
 {
   cost = 0;
   if (str)
@@ -1118,17 +996,13 @@ calculate_ins_del_char_costs (screen)
     *p++ = (ins_startup_cost += ins_cost_per_char);
 }
 
-extern void do_line_insertion_deletion_costs (SCREEN_PTR, 
-					      char *, char *, char *, char *, 
-					      char *, char *, int);
-
 void
 calculate_costs (screen)
      SCREEN_PTR screen;
 {
-  register char *s = TS_set_scroll_region ?
-                       TS_set_scroll_region
-		     : TS_set_scroll_region_1;
+  register const char *s = ((TS_set_scroll_region)
+			    ? TS_set_scroll_region
+			    : TS_set_scroll_region_1);
 
   if (dont_calculate_costs)
     return;
@@ -1197,22 +1071,10 @@ calculate_costs (screen)
 
   cmcostinit ();		/* set up cursor motion costs */
 }
+
+#endif /* TTY_REDISPLAY */
+
 
-/* VARARGS 1 */
-void
-fatal (str, arg1, arg2)
-     char *str;
-     int arg1, arg2;
-{
-  fprintf (stderr, "emacs: ");
-  fprintf (stderr, str, arg1, arg2);
-  fflush (stderr);
-  exit (1);
-}
-
-extern int tabs_safe_p (void);
-extern void init_baud_rate (void);
-
 void
 term_init (terminal_type)
      char *terminal_type;
@@ -1220,10 +1082,7 @@ term_init (terminal_type)
   char *combuf;
   char *fill;
   char tbuf[2044];
-  register char *p;
   int status;
-
-  extern char *tgetstr ();
 
   if (! initial_screen_is_tty ())
     return;
@@ -1233,9 +1092,9 @@ term_init (terminal_type)
 
   status = tgetent (tbuf, terminal_type);
   if (status < 0)
-    fatal ("Cannot open termcap database file.\n", 0, 0);
+    fatal ("Cannot open termcap database file.\n");
   if (status == 0)
-    fatal ("Terminal type %s is not defined.\n", (int)terminal_type, 0);
+    fatal ("Terminal type %s is not defined.\n", terminal_type);
 
 #ifdef TERMINFO
   combuf = (char *) xmalloc (2044);
@@ -1408,7 +1267,7 @@ term_init (terminal_type)
 	 If it were in the termcap entry, it would confuse other programs.  */
       if (!TS_set_window)
 	{
-	  p = TS_termcap_modes;
+          register const char *p = TS_termcap_modes;
 	  while (*p && strcmp (p, "\033v  "))
 	    p++;
 	  if (*p)
@@ -1422,15 +1281,17 @@ term_init (terminal_type)
       strcat (fill, "\033\007!");
       TS_termcap_modes = fill;
       fill += strlen (fill) + 1;
-      p = combuf;
-      /* Change all %+ parameters to %C, to handle
-	 values above 96 correctly for the C100.  */
-      while (p != fill)
+      {
+        char *p = combuf;
+        /* Change all %+ parameters to %C, to handle
+           values above 96 correctly for the C100.  */
+        while (p != fill)
 	{
 	  if (p[0] == '%' && p[1] == '+')
 	    p[1] = 'C';
 	  p++;
 	}
+      }
     }
 
   ScreenRows = SCREEN_HEIGHT (selected_screen);
@@ -1450,19 +1311,19 @@ It lacks the ability to position the cursor.\n\
 If that is not the actual type of terminal you have, use either the\n\
 DCL command `SET TERMINAL/DEVICE= ...' for DEC-compatible terminals,\n\
 or `define EMACS_TERM \"terminal type\"' for non-DEC terminals.\n",
-	     (int)terminal_type);
+	     terminal_type);
 #else
       fatal ("Terminal type \"%s\" is not powerful enough to run Emacs.\n\
 It lacks the ability to position the cursor.\n\
 If that is not the actual type of terminal you have,\n\
 use the C-shell command `setenv TERM ...' to specify the correct type.\n\
 It may be necessary to do `unsetenv TERMCAP' as well.\n",
-	     (int)terminal_type, 0);
+	     terminal_type);
 #endif
     }
   if (SCREEN_HEIGHT (selected_screen) <= 0
       || SCREEN_WIDTH (selected_screen) <= 0)
-    fatal ("The screen size has not been specified.", 0, 0);
+    fatal ("The screen size has not been specified.");
 
   delete_in_insert_mode
     = TS_delete_mode && TS_insert_mode
@@ -1496,5 +1357,5 @@ It may be necessary to do `unsetenv TERMCAP' as well.\n",
 				/* meaningless in this case */
     baud_rate = 9600;
 
-  calculate_costs (selected_screen);
+/*  calculate_costs (selected_screen); */
 }

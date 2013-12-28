@@ -39,7 +39,7 @@
 ;;; !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 ;; Know which function the debugger is!
-(setq debugger 'debug)
+;(setq debugger 'debug) -- done in startup.el
 
 (defconst mode-line-buffer-identification (purecopy '("Emacs: %17b")) "\
 Mode-line control for identifying the buffer being displayed.
@@ -74,7 +74,10 @@ Mode-line control for displaying whether current buffer is modified.")
 (defvar minor-mode-alist nil "\
 Alist saying how to show minor modes in the mode line.
 Each element looks like (VARIABLE STRING);
-STRING is included in the mode line iff VARIABLE's value is non-nil.")
+STRING is included in the mode line iff VARIABLE's value is non-nil.
+
+Actually, STRING need not be a string; any possible mode-line element
+is acceptable.  See `mode-line-format'.")
 (setq minor-mode-alist (mapcar 'purecopy
 			       '((abbrev-mode " Abbrev")
 				 (overwrite-mode " Ovwrt")
@@ -85,19 +88,6 @@ STRING is included in the mode line iff VARIABLE's value is non-nil.")
 ;; These variables are used by autoloadable packages.
 ;; They are defined here so that they do not get overridden
 ;; by the loading of those packages.
-
-(defconst paragraph-start "^[ \t\n\f]" "\
-*Regexp for beginning of a line that starts OR separates paragraphs.")
-(defconst paragraph-separate "^[ \t\f]*$" "\
-*Regexp for beginning of a line that separates paragraphs.
-If you change this, you may have to change paragraph-start also.")
-
-(defconst sentence-end   (purecopy "[.?!][]\"')}]*\\($\\| $\\|\t\\|  \\)[ \t\n]*") "\
-*Regexp describing the end of a sentence.
-All paragraph boundaries also end sentences, regardless.")
-
-(defconst page-delimiter "^\014" "\
-*Regexp describing line-beginnings that separate pages.")
 
 (defconst case-replace t "\
 *Non-nil means query-replace should preserve case in replacements.")
@@ -115,15 +105,16 @@ Makes the commands to define mode-specific abbrevs define global ones instead.")
 ;; are ignored in completion,
 ;; making it more likely you will get a unique match.
 (setq completion-ignored-extensions
-      (if (eq system-type 'vax-vms)
-	  '(".obj" ".elc" ".exe" ".bin" ".lbin" ".sbin"
-	    ".dvi" ".toc" ".log" ".aux"
-	    ".lof" ".brn" ".rnt" ".mem" ".lni" ".lis"
-	    ".olb" ".tlb" ".mlb" ".hlb" ".glo" ".idx" ".lot" ".fmt")
-	'(".o" ".elc" "~" ".bin" ".lbin" ".fasl"
-	  ".dvi" ".toc" ".log" ".aux" ".a" ".ln"
-	  ".lof" ".blg" ".bbl" ".glo" ".idx" ".lot" ".fmt"
-	  ".diff" ".oi")))
+      (mapcar 'purecopy
+	      (if (eq system-type 'vax-vms)
+		  '(".obj" ".elc" ".exe" ".bin" ".lbin" ".sbin"
+		    ".dvi" ".toc" ".log" ".aux"
+		    ".lof" ".brn" ".rnt" ".mem" ".lni" ".lis"
+		    ".olb" ".tlb" ".mlb" ".hlb" ".glo" ".idx" ".lot" ".fmt")
+		'(".o" ".elc" "~" ".bin" ".lbin" ".fasl"
+		  ".dvi" ".toc" ".log" ".aux" ".a" ".ln"
+		  ".lof" ".blg" ".bbl" ".glo" ".idx" ".lot" ".fmt"
+		  ".diff" ".oi"))))
 
 (defconst grep-command "grep -n" "\
 *Name of the command to use to run the grep command;
@@ -194,16 +185,19 @@ to all buffers (for backwards compatibility.)  It is searched first.
 This is for backward compatibility, and is largely supplanted by the
 variable tag-table-alist.")
 
-(defconst shell-prompt-pattern "^\\(([^() \n]+)\\|[^#$%>\n]*[#$%>]\\) *" "\
-*Regexp used by Newline command in shell mode to match subshell prompts.
-Anything from beginning of line up to the end of what this pattern matches
-is deemed to be prompt, and is not reexecuted.")
+(defconst shell-prompt-pattern (purecopy "^\\(([^() \n]+)\\|[^#$%>\n]*[#$%>]\\) *") "\
+*Regexp to match prompts in the inferior shell.
+Defaults to \"^[^#$%>]*[#$%>] *\", which works pretty well.
+This variable is used to initialize comint-prompt-regexp in the 
+shell buffer.
+
+This is a fine thing to set in your .emacs file.")
 
 (defconst ledit-save-files t "\
 *Non-nil means Ledit should save files before transferring to Lisp.")
-(defconst ledit-go-to-lisp-string "%?lisp" "\
+(defconst ledit-go-to-lisp-string (purecopy "%?lisp") "\
 *Shell commands to execute to resume Lisp job.")
-(defconst ledit-go-to-liszt-string "%?liszt" "\
+(defconst ledit-go-to-liszt-string (purecopy "%?liszt") "\
 *Shell commands to execute to resume Lisp compiler job.")
 
 (defconst display-time-day-and-date nil "\
@@ -216,55 +210,60 @@ Alist of filename patterns vs corresponding major mode functions.
 Each element looks like (REGEXP . FUNCTION).
 Visiting a file whose name matches REGEXP causes FUNCTION to be called.")
 (setq auto-mode-alist (mapcar 'purecopy
-			      '(("\\.te?xt$" . text-mode)
-				("\\.c$" . c-mode)
-				("\\.h$" . c-mode)
-				("\\.tex$" . TeX-mode)
-				("\\.ltx$" . LaTeX-mode)
-				("\\.el$" . emacs-lisp-mode)
- 				("\\.mm$" . nroff-mode)
- 				("\\.me$" . nroff-mode)
- 				("\\.[12345678]$" . nroff-mode)
-				("\\.scm$" . scheme-mode)
-				("\\.l$" . lisp-mode)
-				("\\.lisp$" . lisp-mode)
-				("\\.f$" . fortran-mode)
-				("\\.for$" . fortran-mode)
-				("\\.mss$" . scribe-mode)
-				("\\.pl$" . prolog-mode)
-				("\\.cc$" . c++-mode)
-				("\\.hh$" . c++-mode)
-				("\\.C$" . c++-mode)
-				("\\.H$" . c++-mode)
+			      '(("\\.te?xt\\'" . text-mode)
+				("\\.c\\'" . c-mode)
+				("\\.h\\'" . c-mode)
+				("\\.tex\\'" . TeX-mode)
+				("\\.ltx\\'" . LaTeX-mode)
+				("\\.el\\'" . emacs-lisp-mode)
+ 				("\\.mm\\'" . nroff-mode)
+ 				("\\.me\\'" . nroff-mode)
+				("\\.scm\\'" . scheme-mode)
+				("\\.l\\'" . lisp-mode)
+				("\\.lisp\\'" . lisp-mode)
+				("\\.f\\'" . fortran-mode)
+				("\\.for\\'" . fortran-mode)
+				("\\.mss\\'" . scribe-mode)
+				("\\.pl\\'" . prolog-mode)
+				("\\.cc\\'" . c++-mode)
+				("\\.hh\\'" . c++-mode)
+				("\\.C\\'" . c++-mode)
+				("\\.H\\'" . c++-mode)
 ;;; Less common extensions come here
 ;;; so more common ones above are found faster.
-				("ChangeLog$" . change-log-mode)
+                                ("\\.s\\'" . asm-mode)
+				("ChangeLog\\'" . change-log-mode)
+                                ("ChangeLog.[0-9]+\\'" . change-log-mode)
 				("\\$CHANGE_LOG\\$\\.TXT" . change-log-mode)
-				("\\.TeX$" . TeX-mode)
-				("\\.sty$" . LaTeX-mode)
-				("\\.bbl$" . LaTeX-mode)
-				("\\.bib$" . text-mode)
-				("\\.article$" . text-mode)
-				("\\.letter$" . text-mode)
-				("\\.texinfo$" . texinfo-mode)
-				("\\.lsp$" . lisp-mode)
-				("\\.awk$" . awk-mode)
-				("\\.prolog$" . prolog-mode)
+;; The following should come after the ChangeLog pattern
+;; for the sake of ChangeLog.1, etc.
+                                ("\\.[12345678]\\'" . nroff-mode)
+				("\\.TeX\\'" . TeX-mode)
+				("\\.sty\\'" . LaTeX-mode)
+				("\\.bbl\\'" . LaTeX-mode)
+				("\\.bib\\'" . bibtex-mode)
+				("\\.article\\'" . text-mode)
+				("\\.letter\\'" . text-mode)
+				("\\.texinfo\\'" . texinfo-mode)
+                                ("\\.texi\\'" . texinfo-mode)
+				("\\.lsp\\'" . lisp-mode)
+				("\\.awk\\'" . awk-mode)
+				("\\.prolog\\'" . prolog-mode)
 				;; Mailer puts message to be edited in
 				;; /tmp/Re.... or Message
 				("^/tmp/Re" . text-mode)
-				("/Message[0-9]*$" . text-mode)
+				("/Message[0-9]*\\'" . text-mode)
 				;; some news reader is reported to use this
 				("^/tmp/fol/" . text-mode)
-				("\\.y$" . c-mode)
-				("\\.oak$" . scheme-mode)
-				("\\.scm.[0-9]*$" . scheme-mode)
-				("\\.tar$" . tar-mode)
-				("\\.c?ps$" . postscript-mode)
+				("\\.y\\'" . c-mode)
+				("\\.oak\\'" . scheme-mode)
+				("\\.scm.[0-9]*\\'" . scheme-mode)
+				("\\.tar\\'" . tar-mode)
+				("\\.c?ps\\'" . postscript-mode)
 				;; .emacs following a directory delimiter
 				;; in either Unix or VMS syntax.
-				("[]>:/]\\..*emacs" . emacs-lisp-mode)
-				("\\.ml$" . lisp-mode))))
+				("[]>:/]\\..*emacs\\'" . emacs-lisp-mode)
+				("\\.ml\\'" . lisp-mode))))
 
 (make-variable-buffer-local 'indent-tabs-mode)
 
@@ -303,6 +302,27 @@ Show symbols whose names/documentation contain matches for REGEXP.
 If optional argument DO-ALL is non-nil, does more (time-consuming) work such as
 showing key bindings and documentation that is not stored in the documentation
 file.  Returns list of symbols and documentation found."
+  t)
+
+(autoload 'asm-mode "asm-mode"
+  "\
+Major mode for editing typical assembler code.
+Features a private abbrev table and the following bindings:
+
+\\[asm-colon]\toutdent a preceding label, tab to next tab stop.
+\\[tab-to-tab-stop]\ttab to next tab stop.
+\\[asm-newline]\tnewline, then tab to next tab stop.
+\\[asm-comment]\tsmart placement of assembler comments.
+
+The character used for making comments is set by the variable
+`asm-comment-char' (which defaults to `?;').
+
+Alternatively, you may set this variable in `asm-set-comment-hook', which is
+called near the beginning of mode initialization.
+
+Turning on Asm mode runs the hook `asm-mode-hook' at the end of initialization.
+
+Special commands:\\{asm-mode-map}"
   t)
 
 (autoload 'awk-mode "awk-mode"
@@ -376,7 +396,7 @@ the end of FILENAME."
 Byte-compile and evaluate contents of BUFFER (default: the current buffer)."
   t)
 
-(autoload 'elisp-compile-defun "bytecomp"
+(autoload 'compile-defun "bytecomp"
   "\
 Compile and evaluate the current top-level form.
 Print the result in the minibuffer.
@@ -420,54 +440,181 @@ all local to the current buffer." t)
 
 (autoload 'c++-mode "c++-mode"
   "\
-Major mode for editing C++ code.  Very much like editing C code.
-Expression and list commands understand all C++ brackets.
-Tab at left margin indents for C++ code.
-Comments are delimited with /* ... */ {or with // ... <newline>}
-Paragraphs are separated by blank lines only.
-Delete converts tabs to spaces as it moves back.
+Major mode for editing C++ code.
+To submit a problem report, enter `\\[c++-submit-bug-report]' from a
+c++-mode buffer.  This automatically sets up a mail buffer with
+version information already added.  You just need to add a description
+of the problem and send the message.
+
+1. Very much like editing C code,
+2. Expression and list commands understand all C++ brackets,
+3. Tab at left margin indents for C++ code,
+4. Both C++ and C style block comments are recognized,
+5. Paragraphs are separated by blank lines only,
+6. Hungry delete key and auto newline features are optional.
+
+IMPORTANT NOTE: You may notice that some characters (by default, only
+single quote) will get escaped with a backslash when typed in a
+comment region.  This is a necessary workaround of a bug present in
+GNU Emacs 18 and derivatives.  Enter `\\[describe-variable] c++-untame-characters RET'
+for more information.  If you are running a patched Emacs, no
+characters will be escaped in comment regions, and many functions will
+run much faster.
+
+Key bindings:
 \\{c++-mode-map}
-Variables controlling indentation style:
- c-tab-always-indent
-    Non-nil means TAB in C mode should always reindent the current line,
-    regardless of where in the line point is when the TAB command is used.
-    Default is t.
- c-auto-newline
-    Non-nil means automatically newline before and after braces,
-    and after colons and semicolons, inserted in C code.
+
+These variables control indentation style.  Those with names like
+c-<thing> are inherited from c-mode.  Those with names like
+c++-<thing> are unique for this mode, or have extended functionality
+from their c-mode cousins.
+
+ c-argdecl-indent
+    Indentation level of declarations of C function arguments.
+ c-brace-imaginary-offset
+    An open brace following other text is treated as if it were
+    this far to the right of the start of its line.
+ c-brace-offset
+    Extra indentation for line if it starts with an open brace.
+ c-continued-brace-offset
+    Extra indentation given to a brace that starts a substatement.
+    This is in addition to `c-continued-statement-offset'.
+ c-continued-statement-offset
+    Extra indentation given to a substatement, such as the
+    then-clause of an if or body of a while.
  c-indent-level
     Indentation of C statements within surrounding block.
     The surrounding block's indentation is the indentation
     of the line on which the open-brace appears.
- c-continued-statement-offset
-    Extra indentation given to a substatement, such as the
-    then-clause of an if or body of a while.
- c-brace-offset
-    Extra indentation for line if it starts with an open brace.
- c-brace-imaginary-offset
-    An open brace following other text is treated as if it were
-    this far to the right of the start of its line.
- c-argdecl-indent
-    Indentation level of declarations of C function arguments.
  c-label-offset
-    Extra indentation for line that is a label, or case or default.
- c++-electric-colon
-    If non-nil at invocation of c++-mode (t is the default) colon electricly
-    indents.
+    Extra indentation for line that is a label, or case or ``default:''
+
+ c++-C-block-comments-indent-p
+    Style of C block comments to support.
+ c++-access-specifier-offset
+    Extra indentation given to public, protected, and private keyword lines.
+ c++-always-arglist-indent-p
+    Control indentation of continued arglists.  When non-nil, arglists
+    continued on subsequent lines will always indent
+    `c++-empty-arglist-indent' spaces, otherwise, they will indent to
+    just under previous line's argument indentation.
+ c++-auto-hungry-initial-state
+    Initial state of auto/hungry feature when a C++ buffer is first visited.
+ c++-auto-hungry-toggle
+    Enable/disable toggling of auto/hungry features.
+ c++-backscan-limit
+    Limit in characters for looking back while skipping syntactic
+    whitespace.  This variable is only used in an un-patched Emacs to
+    help improve performance at the expense of some accuracy.  Patched
+    Emacses are both fast and accurate.
+ c++-block-close-brace-offset
+    Extra indentation give to braces which close a block.
+ c++-cleanup-list
+    A list of construct ``clean ups'' which c++-mode will perform when
+    auto-newline feature is on.  Current legal values are:
+    `brace-else-brace', `empty-defun-braces', `defun-close-semi'.
+ c++-comment-only-line-offset
+    Extra indentation for a line containing only a C or C++ style
+    comment.  Can be an integer or list, specifying the various styles
+    of comment-only line special indentations.
+ c++-continued-member-init-offset
+    Extra indentation for continuation lines of member initializations; nil
+    means to align with previous initializations rather than with the colon.
+ c++-default-macroize-column
+    Column to insert backslashes when macroizing a region.
+ c++-delete-function
+    Function called by `c++-electric-delete' when deleting a single char.
+ c++-electric-pound-behavior
+    List of behaviors for electric pound insertion.
  c++-empty-arglist-indent
-    If non-nil, a function declaration or invocation which ends a line with a
-    left paren is indented this many extra spaces, instead of flush with the
-    left paren.
+    Extra indentation to apply to a line following an empty argument
+    list.  nil means to line it up with the left paren.
  c++-friend-offset
     Offset of C++ friend class declarations relative to member declarations.
+ c++-hanging-braces
+    Controls open brace hanging behavior when using auto-newline feature.
+    nil says no braces hang, t says all open braces hang.  non-nil-or-t
+    means top-level open braces don't hang, all others do.
+ c++-hanging-member-init-colon
+    Defines how colons which introduce member initialization lists are
+    formatted.  t means no newlines are inserted either before or after
+    the colon.  nil means newlines are inserted both before and after
+    the colon.  `before' inserts newlines only before the colon, and
+    `after' inserts newlines only after colon.
  c++-member-init-indent
     Indentation level of member initializations in function declarations,
     if they are on a separate line beginning with a colon.
- c++-continued-member-init-offset
-    Extra indentation for continuation lines of member initializations; NIL
-    means to align with previous initializations rather than with the colon.
+ c++-paren-as-block-close-p
+    If non-nil, treat a parenthesis which is the first non-whitespace
+    on a line as a paren which closes a block (i.e. treat it similar
+    to right curly brace).
+ c++-relative-offset-p
+    Control the calculation for indentation.  When non-nil (the
+    default), indentation is calculated relative to the first
+    statement in the block.  When nil, the indentation is calculated
+    without regard to how the first statement is indented.  Useful when
+    using a `c++-special-indent-hook'.
+ c++-special-indent-hook
+    Hook for user defined special indentation adjustments.  You can use
+    this hook, which gets called after a line is indented by the mode,
+    to customize indentations of the line.
+ c++-tab-always-indent
+    Controls the operation of the TAB key.  t means always just indent
+    the current line.  nil means indent the current line only if point
+    is at the left margin or in the line's indentation; otherwise
+    insert a tab.  If not-nil-or-t, then tab is inserted only within
+    literals (comments and strings) and inside preprocessor
+    directives, but the line is always reindented.  Default is value
+    for `c-tab-always-indent'.
+ c++-untame-characters
+    When non-nil, inserts backslash escapes before certain untamed
+    characters in comment regions.  It is recommended that you keep the
+    default setting to workaround a nasty Emacs bug, unless you are
+    running a patched Emacs.
 
-Turning on C++ mode calls the value of the variable c++-mode-hook with
+Auto-newlining is no longer an all or nothing proposition.  In my
+opinion, I don't believe it is possible to implement a perfect
+auto-newline algorithm.  Sometimes you want it and sometimes you don't.
+So now auto-newline (and its companion feature, hungry-delete-key) can
+be toggled on and off on the fly.  Hungry-delete-key is the optional
+behavior of the delete key so that, when enabled, hitting the delete
+key once consumes all preceding whitespace, unless point is within a
+literal (defined as a C or C++ comment, or string).  Inside literals,
+and with hungry-delete-key disabled, the delete key just calls the
+function in variable `c++-delete-function'.
+
+Selection and toggling of these features is controlled by the
+variables `c++-auto-hungry-initial-state' and `c++-auto-hungry-toggle'.
+Legal values for both variables are:
+
+  `none' (or nil)      -- no auto-newline or hungry-delete-key.
+  `auto-only'          -- function affects only auto-newline feature.
+  `hungry-only'        -- function affects only hungry-delete-key feature.
+  `auto-hungry' (or t) -- function affects both features.
+
+Thus if `c++-auto-hungry-initial-state' is `hungry-only', then only
+hungry-delete-key feature is turned on when the buffer is first
+visited.  If `c++-auto-hungry-toggle' is `auto-hungry', and both
+auto-newline and hungry-delete-key features are on, then hitting
+`\\[c++-toggle-auto-hungry-state]' will toggle both features.  Hitting
+`\\[c++-toggle-hungry-state]' will always toggle hungry-delete-key
+feature and hitting `\\[c++-toggle-auto-state]' will always toggle
+auto-newline feature, regardless of the value of
+`c++-auto-hungry-toggle'.
+
+Settings for K&R, BSD, and Stroustrup indentation styles are
+  c-indent-level                5    8    4
+  c-continued-statement-offset  5    8    4
+  c-continued-brace-offset                0
+  c-brace-offset               -5   -8    0
+  c-brace-imaginary-offset                0
+  c-argdecl-indent              0    8    4
+  c-label-offset               -5   -8   -4
+  c++-access-specifier-offset  -5   -8   -4
+  c++-empty-arglist-indent                4
+  c++-friend-offset                       0
+
+Turning on C++ mode calls the value of the variable `c++-mode-hook' with
 no args, if that value is non-nil."
   t)
 
@@ -524,10 +671,20 @@ The more patterns there are in this list, the slower the initial fontification
 of the buffer will be.")
 
 
-(autoload 'holidays "holidays"
+(autoload 'diff "diff"
   "\
-Prepare a list of holidays in the previous, present, and next months."
+Find and display the differences between OLD and NEW files.
+Interactively you are prompted with the current buffer's file name for NEW
+and what appears to be it's backup for OLD."
   t)
+
+(defvar diff-switches nil "\
+*A list of switches to pass to the diff program.")
+
+(defvar kill-emacs-hook nil "\
+A list of functions (of no args) for `kill-emacs' to call before emacs is
+actually killed.")
+
 (autoload 'calendar "calendar"
   "\
 Display a three-month calendar window."
@@ -545,22 +702,6 @@ This function is suitable for execution in a .emacs file."
   "\
 Local time of sunrise and sunset for today.  Accurate to +/- 2 minutes."
   t)
-
-
-(autoload 'diff "diff"
-  "\
-Find and display the differences between OLD and NEW files.
-Interactively you are prompted with the current buffer's file name for NEW
-and what appears to be it's backup for OLD."
-  t)
-
-(defvar diff-switches nil "\
-*A list of switches to pass to the diff program.")
-
-(defvar kill-emacs-hook nil "\
-A list of functions (of no args) for `kill-emacs' to call before emacs is
-actually killed.")
-
 (autoload 'holidays "calendar"
   "\
 Display the holidays for last month, this month, and next month.
@@ -1292,22 +1433,13 @@ but insted winds up to the right of the rectangle."
 Yank the last killed rectangle with upper left corner at point."
   t)
 
-(autoload 'rnews "rnews"
-  "\
-Read USENET news for groups for which you are a member and add or
-delete groups.
-You can reply to articles posted and send articles to any group.
-
-Type \\[describe-mode] once reading news to get a list of rnews commands."
-  t)
-
 (autoload 'news-post-news "rnewspost"
   "\
 Begin editing a new USENET news article to be posted.
 Type \\[describe-mode] once editing the article to get a list of commands."
   t)
-(fset 'sendnews 'news-post-news)
-(fset 'postnews 'news-post-news)
+(define-function 'sendnews 'news-post-news)
+(define-function 'postnews 'news-post-news)
 
 (autoload 'rmail "rmail"
   "\
@@ -1343,7 +1475,7 @@ It is useful to set this variable in the site customisation file.")
 \(the first name varies depending on the operating system,
 and the value of the environment variable MAIL overrides it).")
 
-(defconst rmail-ignored-headers "^via:\\|^mail-from:\\|^origin:\\|^status:\\|^received:\\|^[a-z-]*message-id:\\|^summary-line:\\|^errors-to:" "\
+(defconst rmail-ignored-headers (purecopy "^via:\\|^mail-from:\\|^origin:\\|^status:\\|^received:\\|^[a-z-]*message-id:\\|^summary-line:\\|^errors-to:") "\
 *Gubbish header fields one would rather not see.")
 
 (defvar rmail-delete-after-output nil "\
@@ -1447,7 +1579,7 @@ so you can remove or alter the BCC field to override the default.")
 *Non-nil means when sending a message wait for and display errors.
 nil means let mailer mail back a message to report errors.")
 
-(defconst mail-yank-ignored-headers "^via:\\|^mail-from:\\|^origin:\\|^status:\\|^remailed\\|^received:\\|^[a-z-]*message-id:\\|^summary-line:\\|^to:\\|^cc:\\|^subject:\\|^in-reply-to:\\|^return-path:" "\
+(defconst mail-yank-ignored-headers (purecopy "^via:\\|^mail-from:\\|^origin:\\|^status:\\|^remailed\\|^received:\\|^[a-z-]*message-id:\\|^summary-line:\\|^to:\\|^cc:\\|^subject:\\|^in-reply-to:\\|^return-path:") "\
 Delete these headers from old message when it's inserted in a reply.")
 
 (defconst mail-header-separator "--text follows this line--" "\
@@ -1541,39 +1673,51 @@ Emacs distribution as your standard \"editor\".
 Prefix arg means just kill any existing server communications subprocess."
   t)
 
-(autoload 'run-lisp "inf-lisp"
+
+(define-function 'run-lisp 'inferior-lisp)
+(autoload 'inferior-lisp "inf-lisp"
   "\
-Run an inferior Lisp process, input and output via buffer *lisp*."
+Run an inferior Lisp process, input and output via buffer `*inferior-lisp*'.
+If there is a process already running in `*inferior-lisp*', just switch
+to that buffer.
+With argument, allows you to edit the command line (default is value
+of `inferior-lisp-program').  Runs the hooks from
+`inferior-lisp-mode-hook' (after the `comint-mode-hook' is run).
+\(Type \\[describe-mode] in the process buffer for a list of commands.)"
   t)
 
 (autoload 'shell "shell"
   "\
-Run an inferior shell, with I/O through buffer *shell*.
-If buffer exists but shell process is not running, make new shell.
-Program used comes from variable explicit-shell-file-name,
- or (if that is nil) from the ESHELL environment variable,
- or else from SHELL if there is no ESHELL.
-If a file ~/.emacs_SHELLNAME exists, it is given as initial input
- (Note that this may lose due to a timing error if the shell
-  discards input when it starts up.)
-The buffer is put in shell-mode, giving commands for sending input
-and controlling the subjobs of the shell.  See shell-mode.
-See also variable shell-prompt-pattern.
+Major mode for interacting with an inferior shell.
+Return after the end of the process' output sends the text from the 
+    end of process to the end of the current line.
+Return before end of process output copies the current line (except
+    for the prompt) to the end of the buffer and sends it.
+\\[send-invisible] reads a line of text without echoing it, and sends it to
+    the shell.  This is useful for entering passwords.
 
-The shell file name (sans directories) is used to make a symbol name
-such as `explicit-csh-arguments'.  If that symbol is a variable,
-its value is used as a list of arguments when invoking the shell.
-Otherwise, one argument `-i' is passed to the shell.
+If you accidentally suspend your process, use \\[comint-continue-subjob]
+to continue it.
 
-Note that many people's .cshrc files unconditionally clear the prompt.
-If yours does, you will probably want to change it."
+cd, pushd and popd commands given to the shell are watched by Emacs to keep
+this buffer's default directory the same as the shell's working directory.
+\\[shell-resync-dirs] queries the shell and resyncs Emacs' idea of what the 
+    current directory stack is.
+\\[dirtrack-toggle] turns directory tracking on and off.
+
+\\{shell-mode-map}
+Customisation: Entry to this mode runs the hooks on `comint-mode-hook' and
+`shell-mode-hook' (in that order).
+
+Variables `shell-cd-regexp', `shell-pushd-regexp' and `shell-popd-regexp'
+are used to match their respective commands."
   t)
 
 ;; these are in the minibuffer keymap used by `shell-command'
 (autoload 'comint-dynamic-complete "comint"
   "\
 Dynamically complete the filename at point.
-This function is similar to comint-replace-by-expanded-filename, except
+This function is similar to `comint-replace-by-expanded-filename', except
 that it won't change parts of the filename already entered in the buffer; 
 it just adds completion characters to the end of the filename."
   t)
@@ -1581,6 +1725,8 @@ it just adds completion characters to the end of the filename."
   "\
 List in help buffer all possible completions of the filename at point."
   t)
+
+
 
 (autoload 'sort-lines "sort"
   "\
@@ -2099,104 +2245,6 @@ Return or display a Zippy quotation" t)
 Zippy goes to the analyst." t)
 
 
-
-(defun query-replace (from-string to-string &optional arg)
-  "\
-Replace some occurrences of FROM-STRING with TO-STRING.
-As each match is found, the user must type a character saying
-what to do with it.  For directions, type \\[help-command] at that time.
-
-Preserves case in each replacement if  case-replace  and  case-fold-search
-are non-nil and FROM-STRING has no uppercase letters.
-Third arg DELIMITED (prefix arg if interactive) non-nil means replace
-only matches surrounded by word boundaries."
-  (interactive "sQuery replace: \nsQuery replace %s with: \nP")
-  (perform-replace from-string to-string t nil arg)
-  (message "Done"))
-
-(defun query-replace-regexp (regexp to-string &optional arg)
-  "\
-Replace some things after point matching REGEXP with TO-STRING.
-As each match is found, the user must type a character saying
-what to do with it.  For directions, type \\[help-command] at that time.
-
-Preserves case in each replacement if  case-replace  and  case-fold-search
-are non-nil and REGEXP has no uppercase letters.
-Third arg DELIMITED (prefix arg if interactive) non-nil means replace
-only matches surrounded by word boundaries.
-In TO-STRING, \\& means insert what matched REGEXP,
-and \\=\\<n> means insert what matched <n>th \\(...\\) in REGEXP."
-  (interactive "sQuery replace regexp: \nsQuery replace regexp %s with: \nP")
-  (perform-replace regexp to-string t t arg)
-  (message "Done"))
-
-(defun map-query-replace-regexp (regexp to-strings &optional arg)
-  "\
-Replace some matches for REGEXP with various strings, in rotation.
-The second argument TO-STRINGS contains the replacement strings, separated
-by spaces.  This command works like `query-replace-regexp' except
-that each successive replacement uses the next successive replacement string,
-wrapping around from the last such string to the first.
-
-Non-interactively, TO-STRINGS may be a list of replacement strings.
-
-A prefix argument N says to use each replacement string N times
-before rotating to the next."
-  (interactive "sMap query replace (regexp): \nsQuery replace %s with (space-separated strings): \nP")
-  (let (replacements)
-    (if (listp to-strings)
-	(setq replacements to-strings)
-      (while (/= (length to-strings) 0)
-	(if (string-match " " to-strings)
-	    (setq replacements
-		  (append replacements
-			  (list (substring to-strings 0
-					   (string-match " " to-strings))))
-		  to-strings (substring to-strings
-				       (1+ (string-match " " to-strings))))
-	  (setq replacements (append replacements (list to-strings))
-		to-strings ""))))
-    (perform-replace regexp replacements t t nil arg))
-  (message "Done"))
-
-(defun replace-string (from-string to-string &optional delimited)
-  "\
-Replace occurrences of FROM-STRING with TO-STRING.
-Preserve case in each match if `case-replace' and `case-fold-search'
-are non-nil and FROM-STRING has no uppercase letters.
-Third arg DELIMITED (prefix arg if interactive) non-nil means replace
-only matches surrounded by word boundaries.
-
-This function is usually the wrong thing to use in a Lisp program.
-What you probably want is a loop like this:
-  (while (search-forward OLD-STRING nil t)
-    (replace-match REPLACEMENT nil t))
-which will run faster and will not set the mark or print anything."
-  (interactive "sReplace string: \nsReplace string %s with: \nP")
-  (perform-replace from-string to-string nil nil delimited)
-  (message "Done"))
-
-(defun replace-regexp (regexp to-string &optional delimited)
-  "\
-Replace things after point matching REGEXP with TO-STRING.
-Preserve case in each match if case-replace and case-fold-search
-are non-nil and REGEXP has no uppercase letters.
-Third arg DELIMITED (prefix arg if interactive) non-nil means replace
-only matches surrounded by word boundaries.
-In TO-STRING, \\& means insert what matched REGEXP,
-and \\=\\<n> means insert what matched <n>th \\(...\\) in REGEXP.
-
-This function is usually the wrong thing to use in a Lisp program.
-What you probably want is a loop like this:
-  (while (re-search-forward REGEXP nil t)
-    (replace-match REPLACEMENT nil nil))
-which will run faster and will not set the mark or print anything."
-  (interactive "sReplace regexp: \nsReplace regexp %s with: \nP")
-  (perform-replace regexp to-string nil t delimited)
-  (message "Done"))
-
-(autoload 'perform-replace "replace")
-
 (autoload 'load-sound-file "sound"
   "\
 Read in an audio-file and add it to the sound-alist."
@@ -2204,8 +2252,13 @@ Read in an audio-file and add it to the sound-alist."
 (autoload 'load-default-sounds "sound"
   "\
 Load and install some sound files as beep-types.
-This only works if you're on display 0 of a Sun SparcStation."
+This only works if you're on display 0 of a Sun SparcStation, SGI machine,
+or HP9000s700."
   t)
+
+;; clutters describe-bindings display too much...
+;(define-key global-map [multi_key] 'compose-key)
+;(autoload 'compose-key "x-compose" nil t 'keymap)
 
 (autoload 'vm "vm"
    "\
@@ -2482,23 +2535,6 @@ If HACK-SIG is true,then we search backward from END for something that
 looks like the beginning of a signature block, and don't consider that a
 part of the message (this is because signatures are often incorrectly
 interpreted as cited text.)")
-
-(autoload 'run-ilisp "ilisp" "\
-Select a new inferior LISP." t)
-(autoload 'clisp     "ilisp" "\
-Run an inferior generic Common LISP." t)
-(autoload 'allegro   "ilisp" "\
-Run an inferior Allegro Common LISP." t)
-(autoload 'lucid     "ilisp" "\
-Run an inferior Lucid Common LISP." t)
-(autoload 'cmulisp   "ilisp" "\
-Run an inferior CMU Common LISP." t)
-(autoload 'kcl       "ilisp" "\
-Run an inferior Kyoto Common LISP." t)
-(autoload 'scheme    "ilisp" "\
-Run an inferior generic Scheme." t)
-(autoload 'oaklisp   "ilisp" "\
-Run an inferior Oaklisp Scheme." t)
 
 (autoload 'hexl-find-file "hexl" "\
 Edit file FILENAME in hexl-mode." t)

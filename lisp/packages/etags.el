@@ -624,7 +624,7 @@ this buffer uses."
 		   ;; skip probably bogus entry:
 		   )
 		  ((and (eq file-type 'c-mode)
-			(looking-at ".*\\["))
+			(looking-at "[^{}\n]*\\["))
 		   (or (looking-at tags-array-pattern)
 		       (error "array definition doesn't fit pattern"))
 		   (setq name (buffer-substring (match-beginning 1)

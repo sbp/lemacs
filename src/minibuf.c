@@ -1,5 +1,5 @@
 /* Minibuffer input and completion.
-   Copyright (C) 1985-1993 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1992, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -26,15 +26,15 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "buffer.h"
 #include "screen.h"
 #include "window.h"
-#include "syntax.h"
+
+#include "dispmisc.h"
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
 
 /* Depth in minibuffer invocations.  */
 int minibuf_level;
 
-/* help-form is bound to this while in the minibuffer.  */
-Lisp_Object Vminibuffer_help_form;
+Lisp_Object Qcompletion_ignore_case;
 
 /* Nonzero means completion ignores case.  */
 int completion_ignore_case;
@@ -45,17 +45,7 @@ extern int minibuf_prompt_width;
 /* Width in pixels of current minibuffer prompt.  */
 extern int minibuf_prompt_pix_width;
 
-#ifdef MULTI_SCREEN
-/* When the global-minibuffer-screen is not used, this is the screen
-   where the minbuffer is active, and thus where certain windows
-   (completions, etc.) should appear. */
-struct screen *active_screen;
-
-extern Lisp_Object Vglobal_minibuffer_screen;
-#endif
 
-/* Actual minibuffer invocation. */
-
 DEFUN ("minibuffer-depth", Fminibuffer_depth, Sminibuffer_depth, 0, 0, 0,
   "Return current depth of activations of minibuffer, a nonnegative integer.")
   ()
@@ -69,17 +59,18 @@ Lisp_Object Vminibuffer_zero;
 
 
 
+/* Actual minibuffer invocation. */
 
 static Lisp_Object
 read_minibuffer_internal_unwind (Lisp_Object unwind_data)
 {
   windows_or_buffers_changed++;
-  XFASTINT (XWINDOW (minibuf_window)->last_modified) = 0;
-  XFASTINT (XWINDOW (minibuf_window)->last_facechange) = 0;
-  Vminibuf_prompt = Felt (unwind_data, make_number (0));
-  minibuf_prompt_width = XFASTINT (Felt (unwind_data, make_number (1)));
-  minibuf_prompt_pix_width = XFASTINT (Felt (unwind_data, make_number (2)));
-  minibuf_level = XFASTINT (Felt (unwind_data, make_number (3)));
+  XWINDOW (minibuf_window)->last_modified = Qzero;
+  XWINDOW (minibuf_window)->last_facechange = Qzero;
+  Vminibuf_prompt = Felt (unwind_data, Qzero);
+  minibuf_prompt_width = XINT (Felt (unwind_data, make_number (1)));
+  minibuf_prompt_pix_width = XINT (Felt (unwind_data, make_number (2)));
+  minibuf_level = XINT (Felt (unwind_data, make_number (3)));
   while (CONSP (unwind_data))
   {
     Lisp_Object victim = unwind_data;
@@ -89,8 +80,6 @@ read_minibuffer_internal_unwind (Lisp_Object unwind_data)
   return Qnil;
 }
 
-extern Lisp_Object command_loop_2 (Lisp_Object);
-
 DEFUN ("read-minibuffer-internal", 
        Fread_minibuffer_internal, Sread_minibuffer_internal, 
        1, 1, 0,
@@ -98,7 +87,7 @@ DEFUN ("read-minibuffer-internal",
   (prompt)
      Lisp_Object prompt;
 {
-  int speccount = specpdl_depth;
+  int speccount = specpdl_depth ();
   Lisp_Object val;
 
   CHECK_STRING (prompt, 0);
@@ -111,32 +100,23 @@ DEFUN ("read-minibuffer-internal",
   Vminibuf_prompt = prompt;
   minibuf_level++;
 
-#ifdef MULTI_SCREEN
-  if (SCREENP (Vglobal_minibuffer_screen))
-    active_screen = selected_screen;
-#endif
-
   echo_area_glyphs = 0;
 
-  val = command_loop_2 (Qnil);
+  val = call_command_loop (Qt);
 
   /* If cursor is on the minibuffer line,
      show the user we have exited by putting it in column 0.  */
   if ((SCREEN_CURSOR_Y (selected_screen)
-       >= XFASTINT (XWINDOW (minibuf_window)->top))
+       >= window_char_top(XWINDOW (minibuf_window)))
       && !noninteractive)
     {
       SCREEN_CURSOR_X (selected_screen) = 0;
-      update_screen (selected_screen, 1, 1);
+      /* update_screen (selected_screen, 1, 1); */
+      update_window (XWINDOW (minibuf_window));
     }
-#ifdef MULTI_SCREEN
-  if (active_screen)
-    active_screen = (struct screen *) 0;
-#endif
 
   return (unbind_to (speccount, val));
 }
-
 
 
 
@@ -149,7 +129,7 @@ DEFUN ("read-minibuffer-internal",
 
 int
 scmp (s1, s2, len)
-     register const char *s1, *s2;
+     register const unsigned char *s1, *s2;
      int len;
 {
   register int l = len;
@@ -195,16 +175,17 @@ The argument given to PREDICATE is the alist element or the symbol from the obar
   int bestmatchsize;
   int compare, matchsize;
   int list;
-  int index, obsize;
+  int index, obsize = 0;
   int matchcount = 0;
-  Lisp_Object bucket, zero, end, tem;
+  Lisp_Object bucket;
+  int slength, blength;
   struct gcpro gcpro1, gcpro2, gcpro3, gcpro4;
 
   CHECK_STRING (string, 0);
 
   if (CONSP (alist))
   {
-    tem = XCONS (alist)->car;
+    Lisp_Object tem = XCONS (alist)->car;
     if (SYMBOLP (tem))          /* lambda, autoload, etc.  Emacs-lisp sucks */
       return call3 (alist, string, pred, Qnil);
     else
@@ -218,13 +199,15 @@ The argument given to PREDICATE is the alist element or the symbol from the obar
     return call3 (alist, string, pred, Qnil);
 
   bestmatch = Qnil;
+  blength = 0;
+  slength = string_length (XSTRING (string));
 
   /* If ALIST is not a list, set TAIL just for gc pro.  */
   tail = alist;
   if (! list)
     {
       index = 0;
-      obsize = XVECTOR (alist)->size;
+      obsize = vector_length (XVECTOR (alist));
       bucket = XVECTOR (alist)->contents[index];
     }
 
@@ -245,15 +228,15 @@ The argument given to PREDICATE is the alist element or the symbol from the obar
 	}
       else
 	{
-	  if (XFASTINT (bucket) != 0)
+	  if (!EQ (bucket, Qzero))
 	    {
               struct Lisp_Symbol *next = symbol_next (XSYMBOL (bucket));
 	      elt = bucket;
 	      eltstring = Fsymbol_name (elt);
               if (next)
-		XSET (bucket, Lisp_Symbol, next);
+		XSETSYMBOL (bucket, next);
 	      else
-		XFASTINT (bucket) = 0;
+		bucket = Qzero;
 	    }
 	  else if (++index >= obsize)
 	    break;
@@ -266,69 +249,81 @@ The argument given to PREDICATE is the alist element or the symbol from the obar
 
       /* Is this element a possible completion? */
 
-      if (STRINGP (eltstring) &&
-	  XSTRING (string)->size <= XSTRING (eltstring)->size &&
-	  0 > scmp ((char *) XSTRING (eltstring)->data,
-		    (char *) XSTRING (string)->data,
-		    XSTRING (string)->size))
+      if (STRINGP (eltstring))
 	{
-	  /* Yes. */
-	  /* Ignore this element if there is a predicate
-	     and the predicate doesn't like it. */
-
-	  if (!NILP (pred))
+	  int eltlength = string_length (XSTRING (eltstring));
+	  if (slength <= eltlength
+	      && 0 > scmp (XSTRING (eltstring)->data,
+			   XSTRING (string)->data,
+			   slength))
 	    {
-	      if (EQ (pred, Qcommandp))
-		tem = Fcommandp (elt);
+	      /* Yes. */
+	      /* Ignore this element if there is a predicate
+		 and the predicate doesn't like it. */
+
+	      if (!NILP (pred))
+		{
+		  Lisp_Object tem;
+		  if (EQ (pred, Qcommandp))
+		    tem = Fcommandp (elt);
+		  else
+		    {
+		      GCPRO4 (tail, string, eltstring, bestmatch);
+		      tem = call1 (pred, elt);
+		      UNGCPRO;
+		    }
+		  if (NILP (tem)) continue;
+		}
+
+	      /* Update computation of how much all possible
+		 completions match */
+
+	      matchcount++;
+	      if (NILP (bestmatch))
+		{
+		  bestmatch = eltstring;
+                  blength = eltlength;
+		  bestmatchsize = eltlength;
+		}
 	      else
 		{
-		  GCPRO4 (tail, string, eltstring, bestmatch);
-		  tem = call1 (pred, elt);
-		  UNGCPRO;
+		  compare = min (bestmatchsize, eltlength);
+		  matchsize = scmp (XSTRING (bestmatch)->data,
+				    XSTRING (eltstring)->data,
+				    compare);
+		  if (matchsize < 0)
+		    matchsize = compare;
+		  if (completion_ignore_case)
+		    {
+		      /* If this is an exact match except for case,
+			 use it as the best match rather than one that is not
+			 an exact match.  This way, we get the case pattern
+			 of the actual match.  */
+		      if ((matchsize == eltlength
+			   && matchsize < blength)
+			  ||
+			  /* If there is more than one exact match ignoring
+			     case, and one of them is exact including case,
+			     prefer that one.  */
+			  /* If there is no exact match ignoring case,
+			     prefer a match that does not change the case
+			     of the input.  */
+			  ((matchsize == eltlength)
+			   ==
+			   (matchsize == blength)
+			   && !memcmp ((char *) XSTRING (eltstring)->data,
+				       (char *) XSTRING (string)->data,
+				       slength)
+			   && memcmp ((char *) XSTRING (bestmatch)->data,
+				      (char *) XSTRING (string)->data, 
+				      slength)))
+                      {
+			bestmatch = eltstring;
+                        blength = eltlength;
+                      }
+		    }
+		  bestmatchsize = matchsize;
 		}
-	      if (NILP (tem)) continue;
-	    }
-
-	  /* Update computation of how much all possible completions match */
-
-	  matchcount++;
-	  if (NILP (bestmatch))
-	    bestmatch = eltstring, bestmatchsize = XSTRING (eltstring)->size;
-	  else
-	    {
-	      compare = min (bestmatchsize, XSTRING (eltstring)->size);
-	      matchsize = scmp ((char *) XSTRING (bestmatch)->data,
-				(char *) XSTRING (eltstring)->data,
-				compare);
-	      if (matchsize < 0)
-		matchsize = compare;
-	      if (completion_ignore_case)
-		{
-		  /* If this is an exact match except for case,
-		     use it as the best match rather than one that is not an
-		     exact match.  This way, we get the case pattern
-		     of the actual match.  */
-		  if ((matchsize == XSTRING (eltstring)->size
-		       && matchsize < XSTRING (bestmatch)->size)
-		      ||
-		      /* If there is more than one exact match ignoring case,
-			 and one of them is exact including case,
-			 prefer that one.  */
-		      /* If there is no exact match ignoring case,
-			 prefer a match that does not change the case
-			 of the input.  */
-		      ((matchsize == XSTRING (eltstring)->size)
-		       ==
-		       (matchsize == XSTRING (bestmatch)->size)
-		       && !memcmp ((char *) XSTRING (eltstring)->data,
-				   (char *) XSTRING (string)->data,
-				   XSTRING (string)->size)
-		       && memcmp ((char *) XSTRING (bestmatch)->data,
-				  (char *) XSTRING (string)->data, 
-				  XSTRING (string)->size)))
-		    bestmatch = eltstring;
-		}
-	      bestmatchsize = matchsize;
 	    }
 	}
     }
@@ -338,20 +333,21 @@ The argument given to PREDICATE is the alist element or the symbol from the obar
   /* If we are ignoring case, and there is no exact match,
      and no additional text was supplied,
      don't change the case of what the user typed.  */
-  if (completion_ignore_case && bestmatchsize == XSTRING (string)->size
-      && XSTRING (bestmatch)->size > bestmatchsize)
+  if (completion_ignore_case
+      && bestmatchsize == slength
+      && blength > bestmatchsize)
     return string;
 
   /* Return t if the supplied string is an exact match (counting case);
      it does not require any change to be made.  */
-  if (matchcount == 1 && bestmatchsize == XSTRING (string)->size
+  if (matchcount == 1
+      && bestmatchsize == slength
       && !memcmp (XSTRING (bestmatch)->data, XSTRING (string)->data,
 		  bestmatchsize))
     return Qt;
 
-  XFASTINT (zero) = 0;		/* Else extract the part in which */
-  XFASTINT (end) = bestmatchsize;	     /* all completions agree */
-  return Fsubstring (bestmatch, zero, end);
+  /* Else extract the part in which all completions agree */
+  return Fsubstring (bestmatch, Qzero, make_number (bestmatchsize));
 }
 
 
@@ -377,15 +373,16 @@ the symbol from the obarray.")
   Lisp_Object tail, elt, eltstring;
   Lisp_Object allmatches;
   int list;
-  int index, obsize;
-  Lisp_Object bucket, tem;
+  int index, obsize = 0;
+  Lisp_Object bucket;
+  int slength;
   struct gcpro gcpro1, gcpro2, gcpro3, gcpro4;
 
   CHECK_STRING (string, 0);
 
   if (CONSP (alist))
   {
-    tem = XCONS (alist)->car;
+    Lisp_Object tem = XCONS (alist)->car;
     if (SYMBOLP (tem))          /* lambda, autoload, etc.  Emacs-lisp sucks */
       return call3 (alist, string, pred, Qt);
     else
@@ -399,13 +396,14 @@ the symbol from the obarray.")
     return call3 (alist, string, pred, Qt);
 
   allmatches = Qnil;
+  slength = string_length (XSTRING (string));
 
   /* If ALIST is not a list, set TAIL just for gc pro.  */
   tail = alist;
   if (! list)
     {
       index = 0;
-      obsize = XVECTOR (alist)->size;
+      obsize = vector_length (XVECTOR (alist));
       bucket = XVECTOR (alist)->contents[index];
     }
 
@@ -426,15 +424,15 @@ the symbol from the obarray.")
 	}
       else
 	{
-	  if (XFASTINT (bucket) != 0)
+	  if (!EQ (bucket, Qzero))
 	    {
               struct Lisp_Symbol *next = symbol_next (XSYMBOL (bucket));
 	      elt = bucket;
 	      eltstring = Fsymbol_name (elt);
               if (next)
-		XSET (bucket, Lisp_Symbol, next);
+		XSETSYMBOL (bucket, next);
 	      else
-		XFASTINT (bucket) = 0;
+		bucket = Qzero;
             }
 	  else if (++index >= obsize)
 	    break;
@@ -447,12 +445,12 @@ the symbol from the obarray.")
 
       /* Is this element a possible completion? */
 
-      if (STRINGP (eltstring) &&
-	  XSTRING (string)->size <= XSTRING (eltstring)->size &&
-	  XSTRING (eltstring)->data[0] != ' ' &&
-	  0 > scmp ((char *) XSTRING (eltstring)->data,
-		    (char *) XSTRING (string)->data,
-		    XSTRING (string)->size))
+      if (STRINGP (eltstring) 
+          && (slength <= string_length (XSTRING (eltstring)))
+          && XSTRING (eltstring)->data[0] != ' ' 
+          && 0 > scmp (XSTRING (eltstring)->data,
+                       XSTRING (string)->data,
+                       slength))
 	{
 	  /* Yes. */
 	  /* Ignore this element if there is a predicate
@@ -460,6 +458,7 @@ the symbol from the obarray.")
 
 	  if (!NILP (pred))
 	    {
+	      Lisp_Object tem;
 	      if (EQ (pred, Qcommandp))
 		tem = Fcommandp (elt);
 	      else
@@ -482,13 +481,16 @@ the symbol from the obarray.")
 void
 init_minibuf_once ()
 {
-  Vminibuffer_zero = Fget_buffer_create (build_string (" *Minibuf-0*"));
+  Vminibuffer_zero
+    = Fget_buffer_create (Fpurecopy (build_string (" *Minibuf-0*")));
 }
 
 void
 syms_of_minibuf ()
 {
   minibuf_level = 0;
+
+  defsymbol (&Qcompletion_ignore_case, "completion-ignore-case");
 
   DEFVAR_BOOL ("completion-ignore-case", &completion_ignore_case,
     "Non-nil means don't consider case significant in completion.");

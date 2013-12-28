@@ -1,12 +1,11 @@
 ;; Incremental search minor mode.
-;; Copyright (C) 1992 Free Software Foundation, Inc.
+;; Copyright (C) 1992, 1993 Free Software Foundation, Inc.
 
 ;; LCD Archive Entry:
 ;; isearch-mode|Daniel LaLiberte|liberte@cs.uiuc.edu
 ;; |A minor mode replacement for isearch.el.
 
-;; This file is not yet part of GNU Emacs, but it is based almost
-;; entirely on isearch.el which is part of GNU Emacs.
+;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
 ;; but WITHOUT ANY WARRANTY.  No author or distributor
@@ -94,10 +93,12 @@
 (defun isearch-char-to-string (c)
   (if (integerp c)
       (make-string 1 c)
-   (make-string 1 (event-to-character c))))
+   (make-string 1 (event-to-character c nil nil t))))
 
-(defun isearch-text-char-description (c)
-  (isearch-char-to-string c))
+;(defun isearch-text-char-description (c)
+;  (isearch-char-to-string c))
+
+(define-function 'isearch-text-char-description 'text-char-description)
 
 
 ;;;=========================================================================
@@ -567,15 +568,14 @@ is treated as a regexp.  See \\[isearch-forward] for more info."
 (defun isearch-exit ()
   "Exit search normally.
 However, if this is the first command after starting incremental
-search and `search-nonincremental-instead' is non-nil, do a
-nonincremental search instead."
-
+search and `search-nonincremental-instead' is non-nil, do an
+incremental search via `isearch-edit-string'."
   (interactive)
   (if (and search-nonincremental-instead 
 	   (= 0 (length isearch-string)))
       (let ((isearch-nonincremental t))
-	(isearch-edit-string)))
-  (isearch-done))
+	(isearch-edit-string))
+    (isearch-done)))
 
 
 (defun isearch-edit-string ()
@@ -634,19 +634,19 @@ The following additional command keys are active while editing.
 	  (exit nil))			; was recursive editing
 
 	(unwind-protect
-	    (let ((e (allocate-event))
-                  (prompt (isearch-message-prefix nil t)))
+	    (let ((prompt (isearch-message-prefix nil t))
+                  event)
 	      ;; If the first character the user types when we prompt them
 	      ;; for a string is the yank-word character, then go into
 	      ;; word-search mode.  Otherwise unread that character and
 	      ;; read a string the normal way.
 	      (let ((cursor-in-echo-area t))
 		(message "%s" prompt)
+		(setq event (next-command-event))
 		(if (eq 'isearch-yank-word
-			(lookup-key isearch-mode-map
-				    (vector (next-command-event e))))
+			(lookup-key isearch-mode-map (vector event)))
 		    (setq isearch-word t)
-		  (setq unread-command-event e)))
+		  (setq unread-command-event event)))
 	      (setq isearch-new-string
                     (if (fboundp 'gmhist-old-read-from-minibuffer)
                         ;; Eschew gmhist crockery

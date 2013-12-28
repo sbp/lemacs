@@ -14,8 +14,8 @@ We needed a version of Emacs with mouse-sensitive regions, multiple fonts,
 the ability to mark sections of a buffer as read-only, the ability to detect
 which parts of a buffer has been modified, and many other features.
 
-Why Not Epoch?
-==============
+Why Not Epoch or FSF19?
+=======================
 
 For our purposes, the existing version of Epoch was not sufficient; it did
 not allow us to put arbitrary pixmaps/icons in buffers, `undo' did not
@@ -23,20 +23,38 @@ restore changes to regions, regions did not overlap and merge their
 attributes in the way we needed, and several other things.
 
 We could have devoted our time to making Epoch do what we needed (and, in
-fact, we spent some time doing that) but, since the FSF planned to include
-Epoch-like features in their version 19, we decided that our efforts would 
-be better spent improving Emacs19 instead of Epoch.  
+fact, we spent some time doing that in 1990) but, since the FSF planned to 
+include Epoch-like features in their version 19, we decided that our efforts
+would be better spent improving Emacs 19 instead of Epoch.  
 
 Our original hope was that our changes to Emacs would be incorporated into
 the "official" v19.  However, scheduling conflicts arose, and we found that,
-given the amount of work still remaining to be done, we didn't have time to
-merge with the FSF's code.  Consequently, we have released our work as a
+given the amount of work still remaining to be done, we didn't have the time
+or manpower to do the level of coordination that would be necessary to get
+our changes accepted by the FSF.  Consequently, we released our work as a
 forked branch of Emacs, instead of delaying any longer.
 
-Work has begun on a merger of Epoch and Lucid Emacs.  It seems likely that 
-the next release of Epoch will be based on Lucid Emacs instead of GNU Emacs
-from the FSF.  At some point, Lucid Emacs and Epoch will probably be the 
-same thing.
+Roughly a year after Lucid Emacs 19.0 was released, a beta version of the FSF
+branch of Emacs 19 was released.  The FSF version is better in some areas, and
+worse in others, as reflects the differing focus of our development efforts.
+
+We plan to continue developing and supporting Lucid Emacs, and merging in bug
+fixes and new features from the FSF branch as appropriate; we do not plan to
+discard any of the functionality that we implemented which RMS has chosen not
+to include in his version.
+
+Certain elements of Lucid Emacs, or derivatives of them, have been ported to
+the FSF version.  We have not been doing work in this direction, because we
+feel that Lucid Emacs has a cleaner and more extensible substrate, and that
+any kind of merger between the two branches would be far easier by merging
+the FSF changes into our version than the other way around.
+
+We have been working closely with the Epoch developers to merge in the
+remaining Epoch functionality which Lucid Emacs does not yet have.  Epoch
+and Lucid Emacs will soon be one and the same thing.  Work is being done on
+a compatibility package which will allow Epoch 4 code to run in Lemacs with
+little or no change.  (As of 19.8, Lucid Emacs is running a descendant of
+the Epoch redisplay engine.)
 
 No Warranty
 ===========
@@ -53,14 +71,18 @@ Energize.
 What's Different?
 =================
 
+Unless otherwise noted, this file describes differences between Lucid Emacs
+version 19.* and GNU Emacs version 18.57.
+
 Lucid Emacs *currently* requires an X Window System environment to run,
 though it will not be much work to make it run on dumb ttys again.  We plan
-to do this eventually.
+to do this eventually.  If you would like to volunteer to help, send us mail.
 
-We have not personally tried to compile this version of Emacs under anything
-but SunOS 4.1 on SparcStations, though others have successfully done so.  We
-are very eager to get feedback about portability problems from those who
-compile it on other systems.
+Because of our functionality requirements and manpower constraints, we have
+not been able to spend as much time on portability issues as we would like;
+consequently, Lucid Emacs is not necessarily as easy to bring up on other
+systems as the other branches of Emacs are.  We are very eager to get feedback
+about portability problems from those who compile it on other systems.
 
 We have reimplemented the basic input model in a more general way; instead of
 X input being a special-case of the normal ASCII input stream, Emacs has a
@@ -69,14 +91,14 @@ events that Emacs knows about are not X events, but are a generalization of
 them, so that Emacs can eventually be ported to different window systems.
 
 We have reimplemented keymaps so that sequences of events can be stored into
-them instead of just ASCII codes; it is possible to, for example, bind 
+them instead of just ASCII codes; it is possible to, for example, bind
 different commands to each of the chords Control-h, Control-H, Backspace,
 Control-Backspace, and Super-Shift-Backspace.  Key bindings, function key
 bindings, and mouse bindings live in the same keymaps.
 
 Input and display of all ISO-8859-1 characters is supported.
 
-You can have multiple X windows ("screens" in Emacs terminology).
+You can have multiple X windows ("screens" in lemacs terminology).
 
 Our Emacs has objects called "extents" and "faces", which are roughly
 analogous to Epoch's "buttons," "zones," and "styles."  An extent is a region
@@ -90,9 +112,10 @@ is viewed from a different X window.
 The display attributes of faces may be specified either in lisp or through
 the X resource manager.
 
-There may be some display glitches if all the fonts of a screen are not the
-same height in pixels.  Any of the used fonts may be variable-width, but tabs
-will not be displayed sensibly.  We hope to improve this soon.
+Variable width fonts work.
+
+The height of a line is the height of the tallest font on that line, instead
+of all lines having the same height.
 
 Emacs use the MIT "Xt" toolkit instead of raw Xlib calls, which makes it be
 a more well-behaved X citizen (and also improves portability).  A result of
@@ -133,9 +156,9 @@ Emacs understands truenames, and can be configured to notice when you are
 visiting two names of the same file.  See the variables find-file-use-truenames
 and find-file-compare-truenames.
 
-If you're running on a sun SparcStation, you can specify sound files for
-Emacs to play instead of the default X beep.  See the documentation of the
-function load-sound-file and the variable sound-alist.
+If you're running on a machine with audio hardware, you can specify sound 
+files for Emacs to play instead of the default X beep.  See the documentation
+of the function load-sound-file and the variable sound-alist.
 
 Random changes to the emacs-lisp library: (some of this was not written by
 us, but is included because it's free software and we think it's good stuff)
@@ -153,7 +176,33 @@ There are many more specifics in the "Miscellaneous Changes" section, below.
 The online Emacs Manual is relatively up-to-date, but the Emacs-Lisp Manual
 is not.
 
-Here are some more specifics:
+Differences between Lucid Emacs 19 and FSF Emacs 19
+===================================================
+
+In Lucid Emacs, events are first-class objects.  FSF19 represents them as
+integers, which obscures the differences between a key gesture and the ancient
+ASCII code used to represent a particular overlapping subset of them.
+
+In Lucid Emacs, keymaps are first-class opaque objects.  FSF19 represents them
+as complicated combinations of association lists and vectors.  If you use the
+advertised functional interface to manipulation of keymaps, the same code will
+work in Lucid Emacs, Emacs 18, and and FSF Emacs 19; if your code depends on
+the underlying implementation of keymaps, it will not.
+
+Lucid Emacs calls a top-level emacs X window a "screen," which is the
+terminology that Epoch used.  FSF 19 calls these "frames."  We may adopt
+the term "frame" as well, but we have not done so yet.
+
+Lucid Emacs uses "extents" to represent all non-textual aspects of buffers;
+FSF 19 uses two distinct objects, "text properties" and "overlays", which
+divide up the functionality between them.
+
+Currently, extents are not copied into strings, and are not restored by kill
+and yank, but the underlying functionality is there.  Extents were designed 
+to be a superset of the functionality of "text properties" and "overlays."
+
+
+Here are some more specifics about the Lucid Emacs implementation:
 
 The Input Model
 ===============
@@ -252,8 +301,9 @@ or button from the user (that is, not a process, motion, timeout, or
 magic event).  If it gets an event that is not a key or button, it calls
 `dispatch-event' on it immediately and reads another one.  The
 next-command-event function could be implemented in elisp, though it isn't.
+Generally one should call `next-command-event' instead of `next-event'.
 
-Read-char calls next-command-event; if it doesn't get an event that can be
+read-char calls next-command-event; if it doesn't get an event that can be
 converted to an ASCII character, it signals an error.  Otherwise it returns
 an integer.
 
@@ -275,9 +325,9 @@ The functions `this-command-keys' and `recent-keys' return a vector of
 event objects, instead of a string of ASCII characters.  *** This also
 is an incompatible change.
 
-Almost nothing happens at interrupt level; the SIGIO handler only looks at
-the X event queue for KeyPress events which map to ^G, and sets `quit-flag'
-when appropriate.  All redisplay happens in the main thread of the process.
+Almost nothing happens at interrupt level; the SIGIO handler simply sets a
+flag, and later, the X event queue is scanned for KeyPress events which map
+to ^G.  All redisplay happens in the main thread of the process.
 
 We envision the dumb-tty handler functions doing function-key handling at
 the lowest level.  So the terminal-specific code would set up some data
@@ -375,121 +425,10 @@ X Selections
 
 We have reimplemented X Selection handling to be more general than before.
 Almost all of it is implemented in emacs-lisp now, so it's possible to 
-define new selection data types without having to recompile Emacs.
-
-variable selection-converter-alist:
-An alist associating selection-types (such as STRING and TIMESTAMP) with
-functions.  These functions will be called with three args: the name of the
-selection (typically PRIMARY, SECONDARY, or CLIPBOARD); a desired type to
-which the selection should be converted; and the local selection value
-(whatever had been passed to `x-own-selection').  These functions should
-return the value to send to the X server (typically a string).  A return
-value of nil means that the conversion could not be done.  A return value
-that is the symbol NULL means that a side-effect was executed, and there
-is no meaningful return value.
-
-variable x-lost-selection-hooks:
-A function or functions to be called after the X server has notified us
-that Emacs has lost the selection.  The function(s) will be called with one
-argument, a symbol naming the selection (typically PRIMARY, SECONDARY, or
-CLIPBOARD.)
-
-variable x-sent-selection-hooks:
-A function or functions to be called after Emacs has responded to some
-other client's request for the value of a selection that we own.  The
-function(s) will be called with four arguments:
-  - the name of the selection (typically PRIMARY, SECONDARY, or CLIPBOARD);
-  - the name of the selection-type that we were requested to convert the
-    selection into before sending (for example, STRING or LENGTH);
-  - and whether we successfully transmitted the selection.
-We might have failed (and declined the request) for any number of reasons,
-including being asked for a selection that we no longer own, or being asked
-to convert into a type that we don't know about or that is inappropriate.
-This hook doesn't let you change the behavior of Emacs's selection replies,
-it merely informs you that they have happened.
-
-subr x-own-selection-internal:
-Assert an X selection of the given TYPE with the given VALUE.
-TYPE is a symbol, typically PRIMARY, SECONDARY, or CLIPBOARD.
-VALUE is typically a string, or a cons of two markers, but may be
-anything that the functions on selection-converter-alist know about.
-
-subr x-get-selection-internal:
-Return text selected from some X window.
-SELECTION is a symbol, typically PRIMARY, SECONDARY, or CLIPBOARD.
-TYPE is the type of data desired, typically STRING.
-
-If this process is already the selection owner, then our local copy will
-be returned without a round-trip to the X server.  If we are not the owner,
-then this will block until all of the data has arrived from the server.
-Process and timeout events will be handled while we are waiting for the 
-selection data to arrive; ^G will interrupt the transfer.
-
-subr x-disown-selection-internal:
-If we own the named selection, then disown it (make there be no selection).
-
-
-Given the above functions, the lisp side of the selection code looks like this:
-
-(defun x-get-selection ()
-  "Return text selected from some X window."
-  (x-get-selection-internal 'PRIMARY 'STRING))
-
-...
-(setq selection-converter-alist
-      '((STRING . xselect-convert-to-string)
-	(LENGTH . xselect-convert-to-length)
-        ... lots of others, like TARGETS, DELETE, FILE_NAME, LINE_NUMBER...
-	))
-
-(defun xselect-convert-to-string (selection type value)
-  (cond ((stringp value)
-	 value)
-	((and (consp value)
-	      (markerp (car value))
-	      (markerp (cdr value)))
-	 (or (eq (marker-buffer (car value)) (marker-buffer (cdr value)))
-	     (signal 'error
-		     (list "markers must be in the same buffer"
-			   (car value) (cdr value))))
-	 (save-excursion
-	   (set-buffer (or (marker-buffer (car value))
-			   (error "selection is in a killed buffer")))
-	   (buffer-substring (car value) (cdr value))))
-	(t nil)))
-
-(defun xselect-convert-to-length (selection type value)
-  (let ((value
-	 (cond ((stringp value)
-		(length value))
-	       ((and (consp value)
-		     (markerp (car value))
-		     (markerp (cdr value)))
-		(or (eq(marker-buffer (car value)) (marker-buffer (cdr value)))
-		    (signal 'error
-			    (list "markers must be in the same buffer"
-				  (car value) (cdr value))))
-		(abs (- (car value) (cdr value)))))))
-    (if value
-	;; force it to be in 32-bit format.  If we just returned a small int,
-        ;; the C side of the selection code would use a 16-bit representation
-	;; for it, which is wrong in this case.  Returning a cons of two
-	;; 16 bit ints causes a 32-bit int to be sent to the server instead.
-	(cons (ash value -16) (logand value 65535))
-      nil)))
-
-
-The functions on the selection-converter-alist are called from the
-"magic-event" handler, which is called from Fdispatch_event; this means that
-selection handling happens exactly the same as process-callbacks, instead
-of happening at interrupt level (which caused problems.)
-
-There are also functions for reading and writing the cut-buffers, for
-emacs19/emacs18 compatibility.
-
-We used all-upper-case symbols like 'PRIMARY and 'STRING so that there is
-a 1:1 mapping between symbols and X Atoms.  This is a little tasteless,
-but we think it's the closest-to-right thing.
+define new selection data types without having to recompile Emacs.  See
+the documentation of the variables `selection-converter-alist', 
+`x-lost-selection-hooks', `x-sent-selection-hooks', and the file
+.../lisp/x11/xselect.el for more specifics.
 
 
 Region Highlighting
@@ -526,7 +465,7 @@ X applications that don't understand selections (like Emacs18).
 *** Compatibility note: if you have code which uses (mark) or (mark-marker),
 then you need to either: change those calls to (mark t) or (mark-marker t);
 or simply bind `zmacs-regions' to nil around the call to mark or mark-marker.
-This is probably the best solution, since it will work in Emacs18 as well.
+This is probably the best solution, since it will work in Emacs 18 as well.
 
 
 Menubars and Dialog Boxes
@@ -565,9 +504,10 @@ If the second element is a symbol, then the menu also displays the key that
 is bound to that command (if any).
 
 The third element of the menu items determines whether the item is selectable.
-A hook is run just before a menu is exposed, which can be used to change this.
+It may be t, nil, or a form to evaluate.  Also, a hook is run just before a
+menu is exposed, which can be used to change the value of these slots. 
 For example, there is a hook that makes the "undo" menu item be selectable
-only in the cases when `advertised-undo' would not signal an error.
+only in the cases when `advertised-undo' would not signal an error.  
 
 Menus may have other menus nested within them; they will cascade.
 
@@ -578,7 +518,6 @@ The function `popup-menu' takes a menu description and pops it up.
 
 The function `popup-dialog-box' takes a dialog-box description and pops 
 it up.  Dialog box descriptions look a lot like menu descriptions.
-(*** note: we aren't completely finished implementing this yet.)
 
 The menubar, menu, and dialog-box code is implemented as a library, 
 with an interface which hides the toolkit that implements it.  
@@ -619,8 +558,7 @@ and causing a few incompatible changes.
 
  -  The ESC key is no longer used to terminate an incremental search.  The
     RET key should be used instead.  This change is necessary for it to be
-    possible to bind "meta" characters to isearch commands.  (This change
-    will be in FSF's v19 as well.)
+    possible to bind "meta" characters to isearch commands.
 
 
 Startup Code Changes
@@ -668,8 +606,8 @@ appropriate directory structure.  For example, this setup works:
 
 As does this:
 
-    /usr/local/bin/lemacs -> ../lemacs/src/lemacs-19.4	; A link...
-    /usr/local/lemacs/src/lemacs-19.4*			; The executable,
+    /usr/local/bin/lemacs -> ../lemacs/src/lemacs-19.8	; A link...
+    /usr/local/lemacs/src/lemacs-19.8*			; The executable,
     /usr/local/lemacs/lisp/				; and the rest of
     /usr/local/lemacs/etc/				; the the source
     /usr/local/lemacs/lock/				; tree.
@@ -680,17 +618,17 @@ that $LOCAL refers to a directory which contains only files specific to a
 particular architecture (i.e., executables) and $SHARED refers to those files 
 which are not machine specific (i.e., lisp code and documentation.)
 
-    $LOCAL/bin/lemacs@ -> $LOCAL/lemacs-19.4/lemacs*
-    $LOCAL/lemacs-19.4/lisp@ -> $SHARED/lemacs-19.4/lisp/
-    $LOCAL/lemacs-19.4/etc@  -> $SHARED/lemacs-19.4/etc/
-    $LOCAL/lemacs-19.4/info@ -> $SHARED/lemacs-19.4/info/
+    $LOCAL/bin/lemacs@ -> $LOCAL/lemacs-19.8/lemacs*
+    $LOCAL/lemacs-19.8/lisp@ -> $SHARED/lemacs-19.8/lisp/
+    $LOCAL/lemacs-19.8/etc@  -> $SHARED/lemacs-19.8/etc/
+    $LOCAL/lemacs-19.8/info@ -> $SHARED/lemacs-19.8/info/
 
 The following would also work, but the above is probably more attractive:
 
     $LOCAL/bin/lemacs*
-    $LOCAL/bin/lisp@ -> $SHARED/lemacs-19.4/lisp/
-    $LOCAL/bin/etc@  -> $SHARED/lemacs-19.4/etc/
-    $LOCAL/bin/info@ -> $SHARED/lemacs-19.4/info/
+    $LOCAL/bin/lisp@ -> $SHARED/lemacs-19.8/lisp/
+    $LOCAL/bin/etc@  -> $SHARED/lemacs-19.8/etc/
+    $LOCAL/bin/info@ -> $SHARED/lemacs-19.8/info/
 
 If Emacs can't find the requisite directories, it writes a message like this
 (or some appropriate subset of it) to stderr:
@@ -734,15 +672,6 @@ To make the default size of all emacs be 80 columns by 55 lines, do this:
 
 	Emacs*EmacsScreen.geometry: 80x55
 
-As a special case, this geometry specification also works:
-
-	Emacs.geometry: 80x55
-
-since that is the syntax used with most other applications (since most other
-applications, unlike emacs, have only one top-level window.)  In general,
-however, the top-level shell doesn't have any interesting resources on it,
-and you should set the resources on the screens instead.
-
 To set the geometry of a particular screen named, "foo", do this:
 
 	Emacs*foo.geometry: 80x55
@@ -758,15 +687,48 @@ to measure in."  In particular, that is both telling the emacs text pane
 to be 80x55 in characters, and telling the menubar pane to be 80x55 pixels,
 which is surely not what you want.
 
-The "-geometry" command-line argument sets the geometry only of the initial
-screen created by emacs.
+
+Generally, all of the interesting resources are on the EmacsScreen widget.
+However, the `geometry' and `iconic' resources on the unmapped ApplicationShell
+(the topmost widget, the parent of the WM shell widgets, named `Emacs') are a
+special case.  
+
+The simple explanation is, -geometry overrides the resources of only the first 
+screen created, otherwise "Emacs*SCREEN-NAME.geometry" is used.
+
+The complicated explanation is:
+
+  - The -geometry command line option sets the "Emacs.geometry" resource, that
+    is, the geometry of the ApplicationShell.
+
+  - For the first screen created, the size of the screen is taken from the 
+    AppShell if it is specified, otherwise from the geometry of the screen.  
+
+  - For subsequent screens, the order is reversed: first the screen, and then
+    the AppShell.
+
+  - For the first screen created, the position of the screen is taken from the
+    AppShell ("Emacs.geometry") if it is specified, otherwise from the geometry
+    of the screen.  
+
+  - For subsequent screens, the position is taken only from the screen, and 
+    never from the AppShell.
+
+  This is rather complicated, but it does seem to provide the most intiutive
+  behavior with respect to the default sizes and positions of screens created
+  in various ways.
+
+Analagous to -geometry, the -iconic command line option sets the iconic flag
+of the AppShell ("Emacs.iconic") and always applies to the first screen created
+regardless of its name.  However, it is possible to set the iconic flag on 
+particular screens (by name) by using the "Emacs*SCREEN-NAME.iconic" resource.
 
 
 Emacs screens accept the following resources:
 
   iconic (class Iconic): boolean
 
-	Whether the initial window should appear in the iconified state.
+	Whether this screen should appear in the iconified state.
 
   internalBorderWidth (class InternalBorderWidth): int
 
@@ -811,9 +773,9 @@ Emacs screens accept the following resources:
 
 The attributes of faces are also per-screen.  They may be specified as
 
-	Emacs*FACE_NAME.parameter: value
+	Emacs*FACE-NAME.parameter: value
 or
-	Emacs.SCREEN_NAME.FACE_NAME.parameter: value
+	Emacs*SCREEN-NAME.FACE-NAME.parameter: value
 
 Faces accept the following resources:
 
@@ -836,7 +798,7 @@ Faces accept the following resources:
 
 All text is displayed in some face, defaulting to the face named "default".
 So to set the font of normal text, use "Emacs*default.attributeFont".
-To set it in the screen named "foo", use "Emacs*foo*default.attributeFont".
+To set it in the screen named "foo", use "Emacs*foo.default.attributeFont".
 
 These are the names of the predefined faces:
 
@@ -887,12 +849,28 @@ All X fonts can be referred to via XLFD-style names, so you should use those
 forms.  See the man pages for X(1), xlsfonts(1), and xfontsel(1).
 
 
+There are several structural widgets between the terminal EmacsScreen widget
+and the top level ApplicationShell; the exact names and types of these widgets
+are subject to change in the future, so you should avoid mentioning them in
+your resource database.  The above-mentioned syntaxes should be forward-
+compatible.  As of 19.8, the exact widget hierarchy is
+
+    invocation-name            "shell"       "pane"   screen-name
+    x-emacs-application-class  "EmacsShell"  "Paned"  "EmacsScreen"
+
+where `invocation-name' is the terminal component of the name of the emacs
+executable, and `x-emacs-application-class' is generally "Emacs".  It is likely
+that the future introduction of scrollbars will cause there to be one or more
+additional "Paned" superiors of the EmacsScreen.  Also, the "EmacsShell" may be
+named simply "Shell" someday, so it is wise to avoid mentioning specific
+widgets between the application name/class and the EmacsScreen.
+
+
 Known Problems / TODO List
 ==========================
 
-Horizontally-split windows don't work.  Selective-display doesn't work.
-Display tables don't work.  Horizontal scrolling doesn't work.  We plan to
-do some extensive work on redisplay soon, which will likely fix all of this.
+There are a number of minor redisplay glitches involving the echo area and
+minibuffer.  These will be fixed soon.  
 
 Most of the `screen-parameters' don't work.  I'm not convinced that the
 screen-parameters/modify-screen-parameters functions are the best interface
@@ -901,20 +879,15 @@ anyway.
 The Motif-like menubar that xlwmenu.c defines should use the same resources
 that real Motif menubars use (as much as possible, anyway.)
 
-Faces should be able to have cursors associated with them.
-
 The `mouse-motion-hook' should be called whenever a buffer scrolls or the
 sizes of windows change, so that it can correctly frob the mouse-cursor based
 on the text that the mouse is now over.
 
-Everybody wants scrollbars.  They should be implemented in lwlib.a, so that
-they are toolkit-independent (that is, when the user has Motif, emacs should
-use Motif scrollbars; likewise for OLIT.)  There should be one scrollbar per
-emacs window, *not* one scrollbar per emacs screen.  The easiest way to do 
-this would be to make emacs windows be X windows which are inferiors of the
-X window corresponding to the emacs screen.  There would then be an intermediate
-horizontally-stacking RowColumn widget between the screen and the emacs window
-which was used to group the scrollbar and the emacs window together.
+Scrollbars will be in the next release.  They will be real "toolkit" 
+scrollbars.
+
+We should use the configure system for emacs and lwlib, and should not use
+imake.  (Won't someone please volunteer to do this?)
 
 We need to implement a non-Xt event_stream, based on select() and/or timer
 signals, so that emacs can be *compiled* without support for X.  (Note that
@@ -942,10 +915,10 @@ New Functions:
 ==============
 
 abbreviate-file-name: (filename &optional hack-homedir)
-Return a version of FILENAME shortened using directory-abbrev-alist.
+Return a version of FILENAME shortened using `directory-abbrev-alist'.
 See C-h v directory-abbrev-alist RET for more information.
 If optional argument HACK-HOMEDIR is non-nil, then This also substitutes
-"~" for the user's home directory."
+"~" for the user's home directory.
 
 ------------------------------
 abs: (arg)
@@ -960,20 +933,21 @@ asin: (arg)
 Return the inverse sine of ARG.
 
 ------------------------------
-atan: (arg)
+atan: (arg1 &optional arg2)
 Return the inverse tangent of ARG.
 
 ------------------------------
-add-hook: (hook-var function &optional at-end)
+add-hook: (hook function &optional append)
 
-Add a function to a hook.
-First argument HOOK-VAR (a symbol) is the name of a hook, second
- argument FUNCTION is the function to add.
-Third (optional) argument AT-END means to add the function at the end
- of the hook list instead of the beginning.  If the function is already
- present, this has no effect.
-Returns nil if FUNCTION was already present in HOOK-VAR, else new
- value of HOOK-VAR.
+Add to the value of HOOK the function FUNCTION.
+FUNCTION is not added if already present.
+FUNCTION is added (if necessary) at the beginning of the hook list
+unless the optional argument APPEND is non-nil, in which case
+FUNCTION is added at the end.
+
+HOOK should be a symbol, and FUNCTION may be any valid function.  If
+HOOK is void, it is first set to nil.  If HOOK's value is a single
+function, it is changed to a list of functions.
 
 ------------------------------
 add-menu-item: (menu-path item-name function enabled-p &optional before)
@@ -988,7 +962,9 @@ FUNCTION is the command to invoke when this menu item is selected.
  If it is a symbol, then it is invoked with `call-interactively', in the same
  way that functions bound to keys are invoked.  If it is a list, then the 
  list is simply evaluated.
-ENABLED-P controls whether the item is selectable or not.
+ENABLED-P controls whether the item is selectable or not.  It may be t, nil,
+ or a form to evaluate.  It will be evaluated each time the menubar is 
+ activated.
 BEFORE, if provided, is the name of a menu item before which this item should
  be added, if this item is not on the menu already.  If the item is already
  present, it will not be moved.
@@ -1070,7 +1046,7 @@ returned instead.
 ------------------------------
 buffer-modified-tick: (&optional buffer)
 
-Return BUFFERs tick counter, incremented for each change in text.
+Return BUFFER's tick counter, incremented for each change in text.
 Each buffer has a tick counter which is incremented each time the text in
 that buffer is changed.  It wraps around occasionally.
 No argument or nil as argument means use current buffer as BUFFER.
@@ -1087,7 +1063,7 @@ True if the argument is a mouse-button-release event object.
 byte-compile-and-load-file: (filename)
 
 Compile a file of Lisp code named FILENAME into a file of byte code,
-and then load it.  The output files name is made by appending "c" to 
+and then load it.  The output file's name is made by appending "c" to 
 the end of FILENAME.
 
 ------------------------------
@@ -1116,16 +1092,16 @@ For example, this might appear at the top of a source file:
 
     (byte-compiler-options
       (optimize t)
-      (warnings (- free-vars))		; Dont warn about free variables
+      (warnings (- free-vars))		; Don't warn about free variables
       (file-format emacs19))
 
 ------------------------------
 case-table-p: (table)
 Return t iff ARG is a case table.
-See set-case-table for more information on these data structures.
+See `set-case-table' for more information on these data structures.
 
 ------------------------------
-ceiling: (num)
+ceiling: (arg)
 Return the smallest integer no less than ARG.  (Round toward +inf.)
 
 ------------------------------
@@ -1134,8 +1110,11 @@ character-to-event: (ch &optional event)
 Converts a numeric ASCII value to an event structure, replete with
 bucky bits.  The character is the first argument, and the event to fill
 in is the second.  This function contains knowledge about what the codes
-mean -- for example, the number 9 is converted to the character Tab,
-not the distinct character Control-I.
+``mean'' -- for example, the number 9 is converted to the character ``Tab'',
+not the distinct character ``Control-I''.
+
+If the optional second argument is an event, it is modified; otherwise, a
+new event object is created.
 
 Beware that character-to-event and event-to-character are not strictly 
 inverse functions, since events contain much more information than the 
@@ -1146,8 +1125,34 @@ clrhash: (table)
 Flush TABLE.
 
 ------------------------------
+compile-defun: ()
+Compile and evaluate the current top-level form.
+Print the result in the minibuffer.
+With argument, insert value in current buffer after the form.
+
+------------------------------
+compiled-function-arglist: (function)
+Returns the argument list of the compiled-function object.
+
+------------------------------
+compiled-function-constants: (function)
+Returns the constants vector of the compiled-function object.
+
+------------------------------
+compiled-function-instructions: (function)
+Returns the byte-opcode string of the compiled-function object.
+
+------------------------------
+compiled-function-interactive: (function)
+Returns the interactive spec of the compiled-function object, or nil.
+
+------------------------------
 compiled-function-p: (obj)
-T if OBJECT is a compiled function object (as returned by make-byte-code.)
+T if OBJECT is a byte-compiled function object.
+
+------------------------------
+compiled-function-stack-depth: (function)
+Returns the max stack depth of the compiled-function object.
 
 ------------------------------
 conx: ()
@@ -1172,12 +1177,12 @@ Defines and returns a new face which is a copy of an existing one,
 or makes an already-existing face be exactly like another.
 
 ------------------------------
-copy-tree: (arg)
+copy-tree: (arg &optional vecp)
 
-Return a copy of a list or vector, and substructures.
-The argument is copied, and any lists or vectors contained within it
-are copied recursively.  Circularities and shared substructures are
-not preserved.  Strings are not copied.
+Return a copy of a list and substructures.
+The argument is copied, and any lists contained within it are copied
+recursively.  Circularities and shared substructures are not preserved.
+Second arg VECP causes vectors to be copied, too.  Strings are not copied.
 
 ------------------------------
 cos: (arg)
@@ -1192,12 +1197,16 @@ current-case-table: ()
 Return the case table of the current buffer.
 
 ------------------------------
-current-time-seconds: ()
+current-time: ()
 
-Returns the current time as the number of seconds since Jan. 1, 1970, 00:00,
-Greenwich Mean Time.  Since Emacs cant represent integers that large, this
-is returned as a cons of two 16-bit numbers.  You can pass this value as an
-argument to current-time-string to get that time as a string.
+Return the current time, as the number of seconds since 12:00 AM January 1970.
+The time is returned as a list of three integers.  The first has the
+most significant 16 bits of the seconds, while the second has the
+least significant 16 bits.  The third integer gives the microsecond
+count.
+
+The microsecond count is zero on systems that do not provide
+resolution finer than a second.
 
 ------------------------------
 deallocate-event: (event)
@@ -1232,6 +1241,7 @@ delete-screen: (&optional screen)
 
 Delete SCREEN, permanently eliminating it from use.
 Default is current screen.
+A screen may not be deleted if its minibuffer is used by other screens.
 
 ------------------------------
 delete-window: (&optional window)
@@ -1251,19 +1261,12 @@ menu item called "Item" under the "Foo" submenu of "Menu".
 ------------------------------
 disable-timeout: (id)
 
-Given a timeout id number as returned by add-timeout, this function
-will cause that timeout to not be signalled if it hasnt been already.
+Given a timeout id number as returned by `add-timeout', this function
+will cause that timeout to not be signalled if it hasn't been already.
 
 ------------------------------
 dispatch-event: (event)
 Given an event object returned by next-event, execute it.
-
-------------------------------
-elisp-compile-defun: (&optional arg)
-
-Compile and evaluate the current top-level form.
-Print the result in the minibuffer.
-With argument, insert value in current buffer after the form.
 
 ------------------------------
 enable-menu-item: (path)
@@ -1278,21 +1281,21 @@ menu item called "Item" under the "Foo" submenu of "Menu".
 enqueue-eval-event: (function object)
 
 Add an eval event to the back of the queue.
-It will be the next event read after all pending events.
+The eval-event will be the next event read after all pending events.
 
 ------------------------------
 eval-and-compile: (&rest body)
-Like progn, but evaluates the body at compile-time as well as at load-time.
+Like `progn', but evaluates the body at compile time and at load time.
 
 ------------------------------
 eval-event-p: (obj)
-True if the argument is an eval or menu event object.
+True if the argument is an `eval' or `menu' event object.
 
 ------------------------------
 eval-when-compile: ()
 
-Like progn, but evaluates the body at compile-time.  The result of the
-body appears to the compiler as a quoted constant.
+Like `progn', but evaluates the body at compile time.
+The result of the body appears to the compiler as a quoted constant.
 
 ------------------------------
 event-button: (event)
@@ -1341,34 +1344,50 @@ event-point: (event)
 Returns the character position of the given mouse-motion, button-press,
 or button-release event.  If the event did not occur over a window, or did
 not occur over text, then this returns nil.  Otherwise, it returns an index
-into the buffer visible in the events window.
+into the buffer visible in the event's window.
 
 ------------------------------
 event-process: (event)
 Returns the process of the given proces-output event.
 
 ------------------------------
+event-screen: (event)
+Given a mouse motion, button press, or button release event, return
+the screen on which that event occurred.  This will be nil for non-mouse
+events.
+
+------------------------------
 event-timestamp: (event)
 Returns the timestamp of the given event object.
 
 ------------------------------
-event-to-character: (event &optional lenient)
+event-to-character: (event &optional allow-extra-modifiers allow-meta
+                     allow-non-ascii)
 
 Returns the closest ASCII approximation to the given event object.
 If the event isn't a keypress, this returns nil.
-If the second argument is non-nil, then this is lenient in its 
-translation; it will ignore modifier keys other than control and meta,
-and will ignore the shift modifier on those characters which have no 
-shifted ASCII equivalent (Control-Shift-A for example, will be mapped to 
-the same ASCII code as Control-A.)  If the second arg is nil, then nil 
-will be returned for events which have no direct ASCII equivalent.
+If the ALLOW-EXTRA-MODIFIERS argument is non-nil, then this is lenient in
+ its translation; it will ignore modifier keys other than control and meta,
+ and will ignore the shift modifier on those characters which have no
+ shifted ASCII equivalent (Control-Shift-A for example, will be mapped to
+ the same ASCII code as Control-A.)
+
+If the ALLOW-META argument is non-nil, then the Meta modifier will be
+ represented by turning on the high bit of the byte returned; otherwise, nil
+ will be returned for events containing the Meta modifier.
+If the ALLOW-NON-ASCII argument is non-nil, then characters which are
+ present in the prevailing character set (see the `character-set-property'
+ variable) will be returned as their code in that character set, instead of
+ the return value being restricted to ASCII.
+Note that specifying both ALLOW-META and ALLOW-NON-ASCII is ambiguous, as
+ both use the high bit; `M-x' and `oslash' will be indistinguishable.
 
 ------------------------------
 event-window: (event)
 
 Given a mouse motion, button press, or button release event, compute
 and return the window on which that event occurred.  This may be nil if
-the event did not occur in an Emacs window (in the border or modeline.)
+the event did not occur in an emacs window (in the border or modeline.)
 
 ------------------------------
 event-x: (event)
@@ -1395,6 +1414,13 @@ eventp: (obj)
 True if the argument is an event object.
 
 ------------------------------
+events-to-keys: (events &optional no-mice)
+
+Given a vector of event objects, returns a vector of key descriptors,
+or a string (if they all fit in the ASCII range.)
+Optional arg NO-MICE means that button events are not allowed.
+
+------------------------------
 exp: (arg)
 Return the exponential base e of ARG.
 
@@ -1407,8 +1433,8 @@ extent-at: (pos &optional buffer flag)
 
 Find "smallest" extent at POS in BUFFER having FLAG set.  BUFFER
 defaults to the current buffer, FLAG defaults to nil, meaning that any
-extent will do. Possible values for FLAG are nil, menu, highlight,
-invisible, and write-protected. Returns nil if there is no matching
+extent will do. Possible values for FLAG are nil, 'menu, 'highlight,
+'invisible, and 'write-protected. Returns nil if there is no matching
 extent at POS.
 
 ------------------------------
@@ -1418,7 +1444,7 @@ Return a list of attributes of EXTENT.
 This list may contain any or none of the following symbols:
 
     highlight		highlight when the mouse moves over it
-    write-protected	text within this extent will be unmodifiable
+    write-protected	text within this extent will be unmodifyable
     invisible		don't display the text in this region
     begin-glyph		there is a begin-glyph
     end-glyph		there is an end-glyph
@@ -1464,7 +1490,7 @@ Returns the background color name of the given face, or nil if unspecified.
 
 ------------------------------
 face-background-pixmap: (face &optional screen)
-Returns the background pixmap name of the given face, or nil if unspecified.
+Returns the background pixmap of the given face, or nil if unspecified.
 
 ------------------------------
 face-differs-from-default-p: (face &optional screen)
@@ -1481,18 +1507,22 @@ True if the given faces will display in the the same way.
 
 ------------------------------
 face-font: (face &optional screen)
+Returns the font of the given face, or nil if it is unspecified.
+
+------------------------------
+face-font-name: (face &optional screen)
 Returns the font name of the given face, or nil if it is unspecified.
 
 ------------------------------
 face-foreground: (face &optional screen)
-Returns the foreground color name of the given face, or nil if unspecified.
+Returns the foreground color of the given face, or nil if unspecified.
 
 ------------------------------
 face-id: (face)
 Returns the internal ID number of the given face.
 
 ------------------------------
-face-underline-p: (face)
+face-underline-p: (face &optional screen)
 Returns whether the given face is underlined.
 
 ------------------------------
@@ -1503,7 +1533,22 @@ Return the smallest integer no less than ARG, as a float.
 ------------------------------
 ffloor: (arg)
 Return the largest integer no greater than ARG, as a float.
-(Round toward +inf.)
+(Round towards -inf.)
+
+------------------------------
+font-name: (font)
+Returns the name used to allocate the given font.
+
+------------------------------
+font-truename: (font)
+Returns the canonical name of the given font.
+Font names are patterns which may match any number of fonts, of which
+the first found is used.  This returns an unambiguous name for that font
+(but not necessarily its only unambiguous name.)
+
+------------------------------
+fontp: (obj)
+Whether the given object is a font.
 
 ------------------------------
 fround: (arg)
@@ -1517,7 +1562,7 @@ Rounds the value toward zero.
 ------------------------------
 file-executable-p: (filename)
 Return t if FILENAME can be executed by you.
-For directories this means you can change to that directory.
+For a directory, this means you can access files in that directory.
 
 ------------------------------
 find-face: (name &optional screen)
@@ -1555,12 +1600,12 @@ get-face: (name &optional screen)
 Retrieve the face of the given name.
 If NAME is a symbol and SCREEN is provided, the face is looked up on
 that screen; otherwise, the selected screen is used.
-If there is no such face, an error is signalled.  See also find-face.
+If there is no such face, an error is signalled.  See also `find-face'.
 If SCREEN is the symbol t, then the global, non-screen face is returned.
 If NAME is already a face, it is simply returned.
 
 ------------------------------
-get-screen-for-buffer: (buffer &optional ignored)
+get-screen-for-buffer: (buffer &optional not-this-window-p on-screen)
 
 Select and return a screen in which to display BUFFER.
 Normally, the buffer will simply be displayed in the current screen.
@@ -1585,17 +1630,22 @@ If the screen-name symbol has a 'screen-defaults property, then that is
 prepended to the `screen-default-alist' when creating a screen for the
 first time.
 
-This function may be used as the value of `pre-display-buffer-hook', to 
-cause the display-buffer function and its callers to exhibit the above
+This function may be used as the value of `pre-display-buffer-function', 
+to cause the display-buffer function and its callers to exhibit the above
 behavior.
 
 ------------------------------
-gethash: (obj table)
-Find hashed value for OBJ in TABLE.
+gethash: (key table &optional default)
+Find hash value for KEY in TABLE.
+If there is no corresponding value, return DEFAULT (default nil)
 
 ------------------------------
 hashtable-fullness: (table)
 Returns number of entries in TABLE.
+
+------------------------------
+hashtablep: (obj)
+Returns t if OBJ is a hashtable, else nil.
 
 ------------------------------
 highlight-extent: (extent &optional flag)
@@ -1612,7 +1662,7 @@ Make the screen SCREEN into an icon, if the window manager supports icons.
 invert-face: (face &optional screen)
 
 Swap the foreground and background colors of the given face.
-If the face doesnt specify both foreground and background, then
+If the face doesn't specify both foreground and background, then
 its foreground and background are set to the background and
 foreground of the default face.
 
@@ -1623,14 +1673,27 @@ True if the argument is a key-press event object.
 ------------------------------
 keymap-parent: (keymap)
 
-Returns the parent keymap of the given keymap, or nil.
+Returns the `parent' keymap of the given keymap, or nil.
 The parent of a keymap is searched for keybindings when a key sequence
 isn't bound in this one.  The (current-global-map) is the default parent
 of all keymaps.
 
 ------------------------------
+keymapp: (object)
+Return t if ARG is a keymap object.
+
+------------------------------
 list-faces: ()
 Returns a list of the names of all of the defined faces.
+
+------------------------------
+live-screen-p: (object)
+
+Return non-nil if OBJECT is a screen which has not been deleted.
+Value is nil if OBJECT is not a live screen.  If object is a live
+screen, the return value indicates what sort of output device it is
+displayed on.  Value is t for a termcap screen (a character-only
+terminal), `x' for an Emacs screen being displayed in an X window.
 
 ------------------------------
 load-average: ()
@@ -1639,44 +1702,78 @@ Return list of 1 minute, 5 minute and 15 minute load averages.
 Each of the three load averages is multiplied by 100,
 then converted to integer.
 
-This won't work unless the Emacs executable is setgid kmem
-(assuming that /dev/kmem is in the group kmem.)
+If the 5-minute or 15-minute load averages are not available, return a
+shortened list, containing only those averages which are available.
+
+On most systems, this won't work unless the emacs executable is installed
+as setgid kmem (assuming that /dev/kmem is in the group kmem.)
 
 ------------------------------
 load-default-sounds: ()
 
 Load and install some sound files as beep-types.
-This only works if youre on display 0 of a Sun SparcStation or SGI machine.
+This only works if you're on display 0 of a Sun SparcStation, SGI machine,
+or HP9000s700.
 
 ------------------------------
 load-sound-file: (filename sound-name &optional volume)
-
 Read in an audio-file and add it to the sound-alist.
-
-You can only play sound files if you are running on display 0 of the console
-of a Sun SparcStation or an SGI machine.  The sound file must be in the
-Sun/NeXT U-LAW format.
 
 ------------------------------
 locate-library: (library &optional nosuffix)
 
 Show the full path name of Emacs library LIBRARY.
-This command searches the directories in load-path like  M-x load-library
-to find the file that  M-x load-library RET LIBRARY RET  would load.
-Optional 2nd arg NOSUFFIX non-nil means dont add suffixes .elc or .el
-to the specified name LIBRARY (a la calling load instead of load-library).
+This command searches the directories in `load-path' like `M-x load-library'
+to find the file that `M-x load-library RET LIBRARY RET' would load.
+Optional second arg NOSUFFIX non-nil means don't add suffixes `.elc' or `.el'
+to the specified name LIBRARY (a la calling `load' instead of `load-library').
 
 ------------------------------
-log: (arg)
+log: (arg1 &optional arg2)
 Return the natural logarithm of ARG.
+With two arguments, return the logarithm of ARG to the base ARG2.
 
 ------------------------------
 log10: (arg)
 Return the logarithm base 10 of ARG.
 
 ------------------------------
+make-cursor: (name &optional fg bg screen)
+
+Creates a new `cursor' object of the specified name.
+The optional second and third arguments are the foreground and background
+ colors.  They may be color name strings or `pixel' objects.
+The optional fourth argument is the screen on which to allocate the cursor
+ (in case some screens are running on different X servers.)
+This allocates a new cursor in the X server, and signals an error if the
+ cursor is unknown or cannot be allocated.
+
+A cursor name can take many different forms.  It can be:
+ - any of the standard cursor names from appendix B of the Xlib manual
+   (also known as the file <X11/cursorfont.h>) minus the XC_ prefix;
+ - the name of a font, and glyph index into it of the form
+   "FONT fontname index [[mask-font] mask-index]";
+ - the name of a bitmap or pixmap file;
+ - or a pixmap object, as returned by `make-pixmap'.
+
+If it is a pixmap or pixmap file, and that pixmap comes with a mask, then
+ that mask will be used.  If it is a pixmap, it must have only one plane,
+ since X cursors may only have two colors.  If it is a pixmap file, then
+ the file will be read in monochrome.
+
+If it is a bitmap file, and if a bitmap file whose name is the name of the
+ cursor with "msk" or "Mask" appended exists, then that second bitmap
+ will be used as the mask.  For example, a pair of files might be named
+ "cursor.xbm" and "cursor.xbmmsk".
+
+The returned object is a normal, first-class lisp object.  The way you
+`deallocate' the cursor is the way you deallocate any other lisp object:
+you drop all pointers to it and allow it to be garbage collected.  When
+these objects are GCed, the underlying X data is deallocated as well.
+
+------------------------------
 make-directory: (dir)
-Create a directory.  One argument, a file name string.
+Create the directory DIR and any nonexistent parent dirs.
 
 ------------------------------
 make-extent: (from to &optional buffer)
@@ -1711,6 +1808,16 @@ Make the font of the given face be italic, if possible.
 Returns nil on failure.
 
 ------------------------------
+make-face-larger: (face &optional screen)
+Make the font of the given face be larger, if possible.  
+Returns nil on failure.
+
+------------------------------
+make-face-smaller: (face &optional screen)
+Make the font of the given face be smaller, if possible.  
+Returns nil on failure.
+
+------------------------------
 make-face-unbold: (face &optional screen)
 
 Make the font of the given face be non-bold, if possible.  
@@ -1723,8 +1830,22 @@ Make the font of the given face be non-italic, if possible.
 Returns nil on failure.
 
 ------------------------------
+make-font: (name &optional screen)
+
+Creates a new `font' object of the specified name.
+The optional second argument is the screen on which to allocate the font
+ (in case some screens are running on different X servers.)
+This allocates a font in the X server, and signals an error if the font is
+ unknown or cannot be allocated.
+
+The returned object is a normal, first-class lisp object.  The way you
+`deallocate' the font is the way you deallocate any other lisp object:
+you drop all pointers to it and allow it to be garbage collected.  When
+these objects are GCed, the underlying X data is deallocated as well.
+
+------------------------------
 make-hashtable: (size)
-Make a hashtable of size SIZE.
+Make a hashtable of initial size SIZE.
 
 ------------------------------
 make-keymap: ()
@@ -1735,8 +1856,56 @@ meaning "command undefined".
 ------------------------------
 make-obsolete: (fn new)
 
-Make the byte-compiler warn that FUNCTION is obsolete and NEW should be
-used instead.  If NEW is a string, that is the use instead message.
+Make the byte-compiler warn that FUNCTION is obsolete.
+The warning will say that NEW should be used instead.
+If NEW is a string, that is the `use instead' message.
+
+------------------------------
+make-obsolete-variable: (var new)
+
+Make the byte-compiler warn that VARIABLE is obsolete,
+and NEW should be used instead.  If NEW is a string, then that is the
+`use instead' message.
+
+------------------------------
+make-pixel: (name &optional screen)
+
+Creates a new `pixel' object of the specified color.
+The optional second argument is the screen on which to allocate the pixel
+ (in case some screens are running on different X servers.)
+This allocates a new color cell in the X server, and signals an error
+if the color is unknown or cannot be allocated.
+
+The returned object is a normal, first-class lisp object.  The way you
+`deallocate' the color is the way you deallocate any other lisp object:
+you drop all pointers to it and allow it to be garbage collected.  When
+these objects are GCed, the underlying X data is deallocated as well.
+
+------------------------------
+make-pixmap: (name &optional screen)
+
+Loads a new `pixmap' object from the specified file.
+The file should be in `XBM' or `XPM' format.
+If the XBMLANGPATH environment variable is set, it will be searched for
+ matching files.  Next, the directories listed in the `x-bitmap-file-path'
+ variable will be searched (this variable is initialized from the
+ "*bitmapFilePath" resource.)
+The file argument may also be a list of the form (width height data) where
+ width and height are the size in pixels, and data is a string, containing
+ the raw bits of the bitmap.  (Bitmaps specified this way can only be one bit
+ deep.)
+If compiled with support for XPM, the file argument may also be a string
+ which is the contents of an XPM file (that is, a string beginning with the
+ characters "/* XPM */"; see the XPM documentation.)
+The optional second argument is the screen on which to allocate the pixmap
+ (in case some screens are running on different X servers.)
+This allocates a new Pixmap in the X server, and signals an error if the
+ file can't be found, or the Pixmap cannot be allocated.
+
+The returned object is a normal, first-class lisp object.  The way you
+`deallocate' the pixmap is the way you deallocate any other lisp object:
+you drop all pointers to it and allow it to be garbage collected.  When
+these objects are GCed, the underlying X data is deallocated as well.
 
 ------------------------------
 make-screen-invisible: (screen)
@@ -1759,14 +1928,24 @@ The Emacs process number forms part of the result,
 so there is no danger of generating a name being used by another process.
 
 ------------------------------
-map-extents: (function &optional buffer from to maparg)
+make-weak-hashtable: (size)
 
-Map FUNCTION over the extents which overlap region in BUFFER starting at
- FROM and ending at TO.  FUNCTION is called with arguments (extent, MAPARG).
-All arguments except FUNCTION are optional, with FROM, TO, MAPARG, and
- BUFFER defaulting to the beginning of BUFFER, the end of BUFFER, NIL, and
- current buffer, respectively.
-If the function returns non-nil, then map-extents returns immediately.
+Make a weak hashtable of initial size SIZE.
+A weak hashtable is one whose pointers do not count as GC referents:
+if the only remaining pointer to an object is in a weak hash table,
+then that object will be removed from the table, and collected.  A
+non-weak hash table (or any other pointer) would prevent the object
+from being collected.
+
+------------------------------
+map-extents: (function &optional buffer from to maparg closed-end)
+
+Map FUNCTION over the extents which overlap region in BUFFER,
+starting at FROM and ending at TO.  FUNCTION is called with the arguments
+ (extent, MAPARG).
+The arguments FROM, TO, MAPARG, and BUFFER default to the beginning of
+ BUFFER, the end of BUFFER, nil, and (current-buffer\, respectively.
+If the map function returns non-nil, then map-extents returns immediately.
 map-extents always returns nil.
 
 ------------------------------
@@ -1779,8 +1958,8 @@ the function inserts new elements into the keymap, it may or may not
 be called with them later.  No element of the keymap will ever be passed to
 the function more than once.
 
-The function will not be called on elements of this keymaps parent (see the
-function keymap-parent) or upon keymaps which are contained within this
+The function will not be called on elements of this keymap's parent (see the
+function `keymap-parent') or upon keymaps which are contained within this
 keymap (multi-character definitions).  It will be called on "meta"
 characters, however, since they are not really two-character sequences.
 
@@ -1792,8 +1971,8 @@ faster.
 ------------------------------
 maphash: (function table)
 
-Map FUNCTION over entries in TABLE with, calling it with two
-arguments, each key and value in the table.
+Map FUNCTION over entries in TABLE, calling it with two args,
+each key and value in the table.
 
 ------------------------------
 mark-bob: (&optional arg)					bound to C-<
@@ -1836,6 +2015,12 @@ Delete the char pointed to by the mouse.
 ------------------------------
 mouse-delete-window: ()
 Delete the Emacs window the mouse is on.
+
+------------------------------
+mouse-drag-modeline: (event)
+
+Resize the window by dragging the modeline.
+This should be bound to a mouse button in `mode-line-map'.
 
 ------------------------------
 mouse-keep-one-window: ()
@@ -1894,7 +2079,7 @@ The selected text becomes the current X Selection, and is also copied to the
 top of the kill ring.  The point will be left at the position at which you
 released the button, and the mark will be left at the initial click position.
 
-See also the mouse-track-adjust command, on Sh-button1.
+See also the `mouse-track-adjust' command, on Sh-button1.
 
 ------------------------------
 mouse-track-adjust: (event)
@@ -1902,17 +2087,17 @@ mouse-track-adjust: (event)
 Extend the existing selection.  This should be bound to a mouse button.
 The selection will be enlarged or shrunk so that the point of the mouse
 click is one of its endpoints.  This is only really meaningful after the
-mouse-track command (button1) has been executed.
+`mouse-track' command (button1) has been executed.
 
 ------------------------------
 mouse-track-and-copy-to-cutbuffer: (event)
-Makes a selection like mouse-track, but also copies it to the cutbuffer.
+Makes a selection like `mouse-track', but also copies it to the cutbuffer.
 
 ------------------------------
 mouse-track-delete-and-insert: (event)
 
 Make a selection with the mouse and insert it at point.
-This is exactly the same as the mouse-track command on button1, 
+This is exactly the same as the `mouse-track' command on button1, 
 except that point is not moved; the selected text is immediately inserted
 after being selected; and the text of the selection is deleted.
 
@@ -1920,7 +2105,7 @@ after being selected; and the text of the selection is deleted.
 mouse-track-insert: (event)
 
 Make a selection with the mouse and insert it at point.
-This is exactly the same as the mouse-track command on button1, 
+This is exactly the same as the `mouse-track' command on button1, 
 except that point is not moved; the selected text is immediately inserted
 after being selected; and the selection is immediately disowned afterwards.
 
@@ -1929,35 +2114,34 @@ mouse-window-to-region: (event)
 Narrow window to region between cursor and mouse pointer.
 
 ------------------------------
-next-command-event: (event)
+next-command-event: (&optional event)
 
-Given an event structure, fills it in with the next keyboard, mouse
-press, or mouse release event available from the user.  If there are
-non-command events available (mouse motion, sub-process output, etc) then
-these will be executed (with dispatch-event) and discarded.  This 
-function is provided as a convenience; it is equivalent to the elisp code
+Returns the next available "user" event from the window system or terminal
+driver.  Pass this object to dispatch-event to handle it.  If an event object
+is supplied, it is filled in and returned, otherwise a new event object will
+be created.
+
+The event returned will be a keyboard, mouse press, or mouse release event.
+If there are non-command events available (mouse motion, sub-process output,
+etc) then these will be executed (with `dispatch-event') and discarded.  This
+function is provided as a convenience; it is equivalent to the lisp code
 
 	(while (progn
-		(next-event event)
-	        (not (or (key-press-event-p event)
-	                 (button-press-event-p event)
-	                 (button-release-event-p event)
-	                 (menu-event-p event))))
-	  (dispatch-event event))
+		 (next-event event)
+	         (not (or (key-press-event-p event)
+	                  (button-press-event-p event)
+	                  (button-release-event-p event)
+	                  (menu-event-p event))))
+	   (dispatch-event event))
 
 ------------------------------
-next-event: (event)
+next-event: (&optional event prompt)
 
-Given an event structure, fills it in with the next event available
-from the window system or terminal driver.  Pass this object to
-dispatch-event to handle it.
-
-See also the function next-command-event.
-
-If the second optional argument is non-nil, then this will never return
-key-press and mouse-click events, but will delay them until later.  You
-should probably never need to use this option; it is used for implementing
-the wait-reading-process-input function.
+Returns the next available event from the window system or terminal driver.
+Pass this object to dispatch-event to handle it.  See also the function
+next-command-event, which is often more appropriate.
+If an event object is supplied, it is filled in and returned, otherwise a
+new event object will be created.
 
 ------------------------------
 next-extent: (extent_obj)
@@ -1977,13 +2161,32 @@ instead of all screens.
 ------------------------------
 other-window-any-screen: (n)
 
-Select the ARGth different window on any screen.
+Select the ARG'th different window on any screen.
 All windows on current screen are arranged in a cyclic order.
 This command selects the window ARG steps away in that order.
 A negative ARG moves in the opposite order.  However, unlike
-other-window, this command will select a window on the next
+`other-window', this command will select a window on the next
 (or previous) screen instead of wrapping around to the top
 (or bottom) of this screen, when there are no more windows.
+
+------------------------------
+pixel-name: (pixel)
+Returns the name used to allocate the given pixel.
+
+------------------------------
+pixelp: (obj)
+Whether the given object is a pixel.
+
+------------------------------
+pixmap-file-name: (pixmap)
+
+Returns the file name from which the given pixmap was read, or nil
+if the pixmap was created from Lisp data (the lisp data is not retained,
+since it usually won't be needed again might be quite large.)
+
+------------------------------
+pixmapp: (obj)
+Whether the given object is a pixmap.
 
 ------------------------------
 play-sound: (sound &optional volume)
@@ -2016,7 +2219,8 @@ The syntax, more precisely:
    form		:=  <something to pass to `eval'>
    command	:=  <a symbol or string, to pass to `call-interactively'>
    callback 	:=  command | form
-   active-p	:=  <t or nil, whether this thing is selectable>
+   active-p	:=  <t, nil, or a form to evaluate to decide whether this
+		    button should be selectable>
    name		:=  <string>
    partition	:=  'nil'
    button	:=  '['  name callback active-p ']'
@@ -2026,7 +2230,7 @@ The syntax, more precisely:
 popup-menu: (menu_desc)
 
 Pop up the given menu.
-A menu is a list of menu items, strings, and submenus.
+A menu description is a list of menu items, strings, and submenus.
 
 The first element of a menu must be a string, which is the name of the
 menu.  This is the string that will be displayed in the parent menu, if
@@ -2062,7 +2266,8 @@ The syntax, more precisely:
    form		:=  <something to pass to `eval'>
    command	:=  <a symbol or string, to pass to `call-interactively'>
    callback 	:=  command | form
-   active-p	:=  <t or nil, whether this thing is selectable>
+   active-p	:=  <t, nil, or a form to evaluate to decide whether this
+		    item should be selectable>
    text		:=  <string, non selectable>
    name		:=  <string>
    argument	:=  <string>
@@ -2084,8 +2289,8 @@ proclaim-notinline: (&rest fns)
 Cause the named functions to no longer be open-coded.
 
 ------------------------------
-puthash: (obj val table)
-Hash OBJ to VAL in TABLE.
+puthash: (key val table)
+Hash KEY to VAL in TABLE.
 
 ------------------------------
 raise-screen: (screen)
@@ -2120,23 +2325,32 @@ menu item called "Item" under the "Foo" submenu of "Menu".
 NEW-NAME is the string that the menu item will be printed as from now on.
 
 ------------------------------
-remhash: (obj table)
-Remove hashed value for OBJ in TABLE.
+remhash: (key table)
+Remove hash value for KEY in TABLE.
 
 ------------------------------
 remove-directory: (dir)
-Remove a directory.  One argument, a file name string.
+Delete a directory.  One argument, a file name string.
 
 ------------------------------
-remove-hook: (hook-var function)
+remove-hook: (hook function)
 
 Remove a function from a hook, if it is present.
-First argument HOOK-VAR (a symbol) is the name of a hook, second
+First argument HOOK (a symbol) is the name of a hook, second
  argument FUNCTION is the function to remove (compared with `eq').
 
 ------------------------------
 remprop: (symbol property)
-Remove from SYMBOLs plist the property PROP and its value.
+Remove from SYMBOL's plist the property PROP and its value.
+
+------------------------------
+screen-iconified-p: (screen)
+
+Return t if SCREEN is iconified.
+Not all window managers use icons; some merely unmap the window, so this
+function is not the inverse of `screen-visible-p'.  It is possible for a
+screen to not be visible and not be iconified either.  However, if the
+screen is iconified, it will not be visible.
 
 ------------------------------
 screen-list: ()
@@ -2146,7 +2360,7 @@ Return a list of all screens.
 screen-name: (&optional screen)
 
 Returns the name of SCREEN (defaulting to the selected screen).
-This is not the same as the title of the screen.
+This is not the same as the `title' of the screen.
 
 ------------------------------
 screen-parameters: (&optional screen)
@@ -2171,16 +2385,15 @@ Return T if screen is not obscured by any other X windows, NIL otherwise
 screen-visible-p: (screen)
 
 Return t if SCREEN is now "visible" (actually in use for display).
-A screen that is not "visible" is not updated and, if it works through
-a window system, it may not show at all.
-Return the symbol icon if window is visible only as an icon.
+A screen that is not visible is not updated, and, if it works through a
+window system, may not show at all.
 
 ------------------------------
 screenp: (screen)
 
 Return non-nil if OBJECT is a screen.
 Value is t for a termcap screen (a character-only terminal),
-x for an Emacs screen that is really an X window.
+`x' for an Emacs screen that is really an X window.
 
 ------------------------------
 select-screen: (screen)
@@ -2202,7 +2415,7 @@ SCREEN must be a screen or nil.
 set-buffer-modtime: (buf &optional time)
 
 Update BUFFER's recorded modification time from the associated 
-files modtime, if there is an associated file. If not, use the 
+file's modtime, if there is an associated file. If not, use the 
 current time. In either case, if the optional arg TIME is supplied, use 
 that is it is either an integer or a cons of two integers.
 
@@ -2225,10 +2438,13 @@ Both CANONICALIZE and EQUIVALENCES may be nil, in which case
  both are deduced from DOWNCASE and UPCASE.
 
 ------------------------------
-set-default-file-mode: (nmask)
+set-default-file-modes: (mode)
 
-Set Unix umask value to ARGUMENT, and return old value.
-The umask value is the default protection mode for new files.
+Set the file permission bits for newly created files.
+MASK should be an integer; if a permission's bit in MASK is 1,
+subsequently created files will not have that permission enabled.
+Only the low 9 bits are used.
+This setting is inherited by subprocesses.
 
 ------------------------------
 set-extent-attribute: (extent attr)
@@ -2244,7 +2460,7 @@ ATTRIBUTE must be one of the following symbols:
     visible		turn off `invisible'
 
 ------------------------------
-set-extent-begin-glyph: (extent_obj begin_glyph)
+set-extent-begin-glyph: (extent_obj begin_glyph &optional layout)
 
 Display a bitmap at the beginning of the given extent.
 The begin-glyph should be a string naming a bitmap file (or nil.)
@@ -2256,7 +2472,7 @@ Set the user data slot of the given extent.
 Access this using the `extent-data' function.
 
 ------------------------------
-set-extent-end-glyph: (extent_obj end_glyph)
+set-extent-end-glyph: (extent_obj end_glyph &optional layout)
 
 Display a bitmap at the end of the given extent.
 The end-glyph should be a string naming a bitmap file (or nil.)
@@ -2303,7 +2519,9 @@ in that screen; otherwise it will be changed in all screens.
 set-face-font: (face font &optional screen)
 
 Change the font of the given face.  The font should be a string, the name
-changed only in that screen; otherwise it will be changed in all screens.
+string, the name of the font.  If the optional SCREEN argument is provided, 
+this face will be changed only in that screen; otherwise it will be changed
+in all screens.
 
 ------------------------------
 set-face-foreground: (face color &optional screen)
@@ -2323,10 +2541,17 @@ in that screen; otherwise it will be changed in all screens.
 ------------------------------
 set-keymap-parent: (keymap parent)
 
-Sets the parent keymap of the given keymap.
+Sets the `parent' keymap of the given keymap.
 The parent of a keymap is searched for keybindings when a key sequence
 isn't bound in this one.  The (current-global-map) is the default parent
 of all keymaps.
+
+------------------------------
+set-keymap-prompt: (keymap new_prompt)
+
+Sets the `prompt' of KEYMAP to string NEW-PROMPT, or `nil'
+if no prompt is desired.  The prompt is shown in the echo-area
+when reading a key-sequence to be looked-up in this keymap.
 
 ------------------------------
 set-mouse-position: (screen x y)
@@ -2335,33 +2560,39 @@ Move the mouse pointer to the center of character cell (X,Y) in SCREEN.
 ------------------------------
 set-screen-position: (screen xoffset yoffset)
 Sets position of SCREEN in pixels to XOFFSET by YOFFSET.
+If XOFFSET or YOFFSET are negative, they are interpreted relative to
+the leftmost or bottommost position SCREEN could occupy without going
+off the screen.
 
 ------------------------------
 set-screen-size: (screen cols rows &optional pretend)
 
 Sets size of SCREEN to COLS by ROWS.
 Optional fourth arg non-nil means that redisplay should use COLS by ROWS
-but that the idea oft eh acrual size of the screen should not be changed.
+but that the idea of the actual size of the screen should not be changed.
 
 ------------------------------
 set-standard-case-table: (table)
 
 Select a new standard case table for new buffers.
-See set-case-table for more info on case tables.
+See `set-case-table' for more info on case tables.
 
 ------------------------------
-set-visited-file-modtime: ()
+set-visited-file-modtime: (&optional time-list)
 
-Update buffers recorded modification time from the visited files time.
+Update buffer's recorded modification time from the visited file's time.
 Useful if the buffer was not read from the file normally
 or if the file itself has been changed for some known benign reason.
+An argument specifies the modification time value to use
+(instead of that of the visited file), in the form of a list
+(HIGH . LOW) or (HIGH LOW).
 
 ------------------------------
 set-window-buffer-dedicated: (window arg)
 
 Make WINDOW display BUFFER and be dedicated to that buffer.
 Then Emacs will not automatically change which buffer appears in WINDOW.
-If BUFFER is nil, make WINDOW not be dedicated (but dont change which
+If BUFFER is nil, make WINDOW not be dedicated (but don't change which
 buffer appears in it currently).
 
 ------------------------------
@@ -2392,7 +2623,7 @@ NAME is an identifier for the timer.  It must be a string.  If a timer
   it is unique.
 FUNCTION should be a function (or symbol naming one) of no arguments.  It
   will be called each time the timer expires.  The function can access
-  timer that invoked it through the variable current-timer.
+  timer that invoked it through the variable `current-timer'.
 VALUE is the number of seconds until this timer expires.
 Optional fourth arg RESTART non-nil means that this timer should be
   restarted automatically after its function is called.  Normally a timer
@@ -2435,7 +2666,8 @@ If the file does not exist, or is otherwise unable to be resolved,
 
 ------------------------------
 truncate: (arg)
-Truncate a floating point number to an int.  Rounds the value toward zero.
+Truncate a floating point number to an integer.
+Rounds the value toward zero.
 
 ------------------------------
 timeout-event-p: (obj)
@@ -2456,8 +2688,8 @@ that determines the value of this function.
 ------------------------------
 user-original-login-name: ()
 
-Return users login name from original login.
-This tries to remain unaffected by su, by looking in environment variables.
+Return user's login name from original login.
+This tries to remain unaffected by `su', by looking in environment variables.
 
 ------------------------------
 visible-screen-list: ()
@@ -2471,6 +2703,7 @@ PROC is called with a window as argument.
 Optional second arg MINIBUF t means count the minibuffer window
 even if not active.  If MINIBUF is neither t nor nil it means
 not to count the minibuffer even if it is active.
+
 Optional third arg ALL-SCREENS t means include all windows in all screens;
 otherwise cycle within the selected screen.
 
@@ -2483,8 +2716,8 @@ It can be later retrieved using M-x register-to-window-config.
 ------------------------------
 window-dedicated-p: (window)
 
-Return WINDOWs dedicated object, usually t or nil.
-See also set-window-buffer-dedicated.
+Return WINDOW's dedicated object, usually t or nil.
+See also `set-window-buffer-dedicated'.
 
 ------------------------------
 window-end: (&optional window)
@@ -2504,7 +2737,7 @@ Returns t if the X display of the given screen supports color.
 
 ------------------------------
 x-copy-primary-selection: ()
-If there is a selection, copy it to both the kill ring and the Clipboard.
+Copy the selection to the Clipboard and the kill ring.
 
 ------------------------------
 x-create-screen: (parms)
@@ -2512,7 +2745,7 @@ x-create-screen: (parms)
 Make a new X window, which is considered a "screen" in Emacs terms.
 Return an Emacs screen object representing the X window.
 ALIST is an alist of screen parameters.
-The value of x-screen-defaults is an additional alist
+The value of `x-screen-defaults' is an additional alist
 of default parameters which apply when not overridden by ALIST.
 
 ------------------------------
@@ -2525,11 +2758,10 @@ Do not simply call XSynchronize() from gdb; that won't work.
 ------------------------------
 x-delete-primary-selection: ()
 
-If there is a selection, delete the text it covers *without* copying it to
-the kill ring or the Clipboard.
+Delete the selection without copying it to the Clipboard or the kill ring.
 
 ------------------------------
-x-disown-selection: ()
+x-disown-selection: (&optional secondary-p)
 
 Assuming we own the selection, disown it.  With an argument, discard the
 secondary selection instead of the primary selection.
@@ -2558,6 +2790,10 @@ The returned value will be one of the symbols StaticGray, GrayScale,
 StaticColor, PseudoColor, TrueColor, or DirectColor.
 
 ------------------------------
+x-font-properties (font)
+Returns the properties (an alist) of the given font.
+
+------------------------------
 x-get-clipboard: ()
 Return text pasted to the clipboard.
 
@@ -2580,30 +2816,30 @@ The fourth arg is the screen to search for the resources on, defaulting
 to the selected screen.
 
 The call
-    (x-get-resource "font" "Font" string)
+    (x-get-resource "font" "Font" 'string)
 
 is an interface to the C call
 
-    XrmGetResource (db, "Emacs.this_screen_name.font",
+    XrmGetResource (db, "emacs.this_screen_name.font",
 			"Emacs.EmacsScreen.Font",
 			"String");
 
 Therefore if you want to retrieve a deeper resource, for example,
 "Emacs.foo.foreground", you need to specify the same number of links
 in the class path:
-    (x-get-resource "foo.foreground" "Thing.Foreground" string)
+    (x-get-resource "foo.foreground" "Thing.Foreground" 'string)
 
 which is equivalent to 
 
-    XrmGetResource (db, "Emacs.screen_name.foo.foreground",
+    XrmGetResource (db, "emacs.screen_name.foo.foreground",
 			"Emacs.EmacsScreen.Thing.Foreground",
 			"String");
 
 The returned value of this function is nil if the queried resource is not
-found.  If the third arg is string, a string is returned, and if it is
-integer, an integer is returned.  If the third arg is boolean, then the
+found.  If the third arg is `string', a string is returned, and if it is
+`integer', an integer is returned.  If the third arg is `boolean', then the
 returned value is the list (t) for true, (nil) for false, and is nil to
-mean unspecified.
+mean ``unspecified.''
 
 ------------------------------
 x-get-secondary-selection: ()
@@ -2621,57 +2857,28 @@ SELECTION is a symbol, typically PRIMARY, SECONDARY, or CLIPBOARD.
 TYPE is the type of data desired, typically STRING.
 
 ------------------------------
-x-grab-pointer: (&optional shape ignore_keyboard)
+x-grab-pointer: (&optional cursor ignore-keyboard)
 
-Grab the pointer and restrict it to its current window.  If optional
-SHAPE is non-nil, change the pointer shape to that.  If second optional
-argument MOUSE-ONLY is non-nil, ignore keyboard events during the grab.
+Grab the pointer and restrict it to its current window.
+If optional CURSOR argument is non-nil, change the pointer shape to that
+ until `x-ungrab-pointer' is called (it should be an object returned by the
+ `make-cursor' function.)
+If the second optional argument MOUSE-ONLY is non-nil, ignore all keyboard
+ events during the grab.
+Returns t if the grab is successful, nil otherwise.
 
 ------------------------------
-x-insert-selection: ()
+x-insert-selection: (&optional check-cutbuffer-p move-point-event)
 Insert the current selection into buffer at point.
 
 ------------------------------
 x-kill-primary-selection: ()
 
-If there is a selection, delete the text it covers, and copy it to 
-both the kill ring and the Clipboard.
+Copy the selection to the Clipboard and the kill ring, then delete it.
 
 ------------------------------
-x-make-font-bold: (font)
-
-Given an X font specification, this attempts to make a bold version
-of it.  If it fails, it returns nil.
-
-------------------------------
-x-make-font-demibold: (font)
-
-Given an X font specification, this attempts to make a demibold version
-of it.  If it fails, it returns nil.
-
-------------------------------
-x-make-font-italic: (font)
-
-Given an X font specification, this attempts to make an italic version
-of it.  If it fails, it returns nil.
-
-------------------------------
-x-make-font-oblique: (font)
-
-Given an X font specification, this attempts to make an italic version
-of it.  If it fails, it returns nil.
-
-------------------------------
-x-make-font-unbold: (font)
-
-Given an X font specification, this attempts to make a non-bold version
-of it.  If it fails, it returns nil.
-
-------------------------------
-x-make-font-unitalic: (font)
-
-Given an X font specification, this attempts to make a non-italic version
-of it.  If it fails, it returns the supplied font name.
+x-list-fonts: (pattern &optional screen)
+Returns a list of font names matching the given pattern.
 
 ------------------------------
 x-mouse-kill: (event)
@@ -2680,7 +2887,7 @@ Kill the text between the point and mouse and copy it to the clipboard and
 to the cut buffer
 
 ------------------------------
-x-new-screen: ()
+x-new-screen: (&optional screen-name)
 Creates a new Emacs screen (that is, a new X window.)
 
 ------------------------------
@@ -2688,19 +2895,19 @@ x-own-clipboard: (string)
 Paste the given string to the X Clipboard.
 
 ------------------------------
-x-own-secondary-selection: (selection)
+x-own-secondary-selection: (selection &optional type)
 
 Make a secondary X Selection of the given argument.  The argument may be a 
 string or a cons of two markers (in which case the selection is considered to
 be the text between those markers.)
 
 ------------------------------
-x-own-selection: (selection)
+x-own-selection: (selection &optional type)
 
 Make a primary X Selection of the given argument.  
-The argument may be a string, a cons of two markers or an extent.  In the 
-latter cases the selection is considered to be the text between 
-the markers or the between extents endpoints
+The argument may be a string, a cons of two markers, or an extent.  
+In the latter cases the selection is considered to be the text 
+between the markers, or the between extents endpoints.
 
 ------------------------------
 x-server-vendor: (&optional screen)
@@ -2737,42 +2944,37 @@ Sets point where clicked and insert the primary selection or the cut buffer.
 ------------------------------
 x-set-screen-icon-pixmap: (screen pixmap &optional mask)
 
-Set the icon-pixmap of the given screen.
-This should be the name of a bitmap file, or a bitmap description list
-of the form (width height "bitmap-data").
-If the optional third argument is specified, it is the bitmap to use for
-the icon-pixmap-mask (not all window managers obey this.)
-Warning: when you call this function, the pixmap of the previous icon
-of this screen (if any) is currently not freed.
+Set the icon of the given screen to the given pixmap,
+which should be an object returned by `make-pixmap', or nil.
+If the given pixmap has a mask, that will be used as the icon mask;
+ however, not all window managers support this.
+The window manager is also not required to support color pixmaps,
+ only bitmaps (one plane deep.)
+If the second argument is a pixmap without a mask, then the optional
+ third argument may be the pixmap to use as the mask (it must be one
+ plane deep.)
 
 ------------------------------
-x-set-screen-pointer: (screen cursor-name &optional fg bg)
+x-set-screen-pointer: (screen cursor)
 
-Set the mouse cursor of SCREEN to the cursor named CURSOR-NAME,
-with colors FOREGROUND and BACKGROUND.  The string may be any of the
-standard cursor names from appendix B of the Xlib manual (also known as
-the file <X11/cursorfont.h>) minus the XC_ prefix, or it may be a font
-name and glyph index of the form "FONT fontname index [[font] index]",
-or it may be a bitmap file acceptable to XmuLocateBitmapFile().
-If it is a bitmap file, and if a bitmap file whose name is the name of
-the cursor with "msk" exists, then it is used as the mask.  For example,
-a pair of files may be named "cursor.xbm" and "cursor.xbmmsk".
+Set the mouse cursor of SCREEN to the given cursor,
+which should be an object returned by `make-cursor'.
 
 ------------------------------
 x-store-cutbuffer: (string)
 
-Store the given string into the X servers primary cut buffer.
+Store the given string into the X server's primary cut buffer.
 The previous value of the primary cut buffer is rotated to the secondary
 cut buffer, and the second to the third, and so on (there are 8 buffers.)
 Cut buffers are considered obsolete; you should use selections instead.
 
 ------------------------------
 x-ungrab-pointer: ()
-Release the pointer.
+Release a pointer grab made with `x-grab-pointer.'
 
 ------------------------------
 x-yank-clipboard-selection: ()
-If someone owns a Clipboard selection, insert it at point.
+Insert the current Clipboard selection at point.
 
 ------------------------------
 y-or-n-p-with-timeout: (timeout prompt &optional default-value)
@@ -2789,16 +2991,17 @@ if the user has not yes answered, returning DEFAULT-VALUE.
 ------------------------------
 zmacs-activate-region: ()
 
-Make the region between point and mark be in the active (hilighted)
-state, if zmacs-regions is true.  Only a very small number of commands
+Make the region between `point' and `mark' be in the active (highlighted)
+state, if `zmacs-regions' is true.  Only a very small number of commands
 should ever do this.
 
 ------------------------------
 zmacs-deactivate-region: ()
 
-Make the region between point and mark no longer be in the active
-(hilighted) state, if zmacs-regions is true.  You shouldn't need 
-to call this; the command loop calls it when appropriate.
+Make the region between `point' and `mark' no longer be in the active
+(highlighted) state, if `zmacs-regions' is true.  You shouldn't need to call
+this; the command loop calls it when appropriate.
+Returns t if the region had been active, nil otherwise.
 
 
 New Variables:
@@ -2829,28 +3032,36 @@ Function to call after each text change.
 Three arguments are passed to the function: the positions of
 the beginning and end of the range of changed text,
 and the length of the pre-change text replaced by that range.
-For an insertion, the pre-change length is zero;
+(For an insertion, the pre-change length is zero;
 for a deletion, that length is the number of characters deleted,
-and the post-change beginning and end are at the same place.
+and the post-change beginning and end are at the same place.)
 
-While executing the after-change-function, changes to buffers do not
-cause calls to any before-change-function or after-change-function.
+While executing the `after-change-function', changes to buffers do not
+cause calls to any `before-change-function' or `after-change-function'.
+
+------------------------------
+after-init-hook
+
+Functions to call after loading the init file (`~/.emacs').
+The call is not protected by a condition-case, so you can set `debug-on-error'
+in `.emacs', and put all the actual code on `after-init-hook'.
 
 ------------------------------
 after-load-alist
 
 An alist of expressions to be evalled when particular files are loaded.
 Each element looks like (FILENAME FORMS...).
-When load is run and the file-name argument is FILENAME,
+When `load' is run and the file-name argument is FILENAME,
 the FORMS in the corresponding element are executed at the end of loading.
 
 FILENAME must match exactly!  Normally FILENAME is the name of a library,
-with no directory specified, since that is how load is normally called.
+with no directory specified, since that is how `load' is normally called.
 An error in FORMS does not undo the load,
 but does prevent execution of the rest of the FORMS.
 
 ------------------------------
-after-write-file-hooks
+after-save-hook
+
 List of functions to be called after writing out a buffer to a file.
 These hooks are considered to pertain to the visited file.
 So this list is cleared if you change the visited file name.
@@ -2860,7 +3071,7 @@ allow-deletion-of-last-visible-screen
 
 *If nil, the last visible screen may not be deleted by `delete-window'
 You can never delete the last screen, but setting this to t will allow you
-to delete the last non-iconified screen.  Default nil.
+to delete the last non-iconified screen.
 
 ------------------------------
 auto-fill-inhibit-regexp
@@ -2900,7 +3111,9 @@ on the number of characters typed.
 ------------------------------
 baud-rate
 
-The variable `baud-rate' has replaced the function `baud-rate'.
+The output baud rate of the terminal.
+On most systems, changing this value will affect the amount of padding
+and the other strategic decisions made during redisplay.
 
 ------------------------------
 before-change-function
@@ -2908,12 +3121,27 @@ before-change-function
 Function to call before each text change.
 Two arguments are passed to the function: the positions of
 the beginning and end of the range of old text to be changed.
-For an insertion, the beginning and end are at the same place.
+(For an insertion, the beginning and end are at the same place.)
 No information is given about the length of the text after the change.
 position of the change
 
-While executing the before-change-function, changes to buffers do not
-cause calls to any before-change-function or after-change-function.
+While executing the `before-change-function', changes to buffers do not
+cause calls to any `before-change-function' or `after-change-function'.
+
+------------------------------
+before-init-hook's value is nil
+
+Functions to call after handling urgent options but before loading init file.
+The window system interface uses this to open screens to display messages while
+Emacs loads the user's initialization file.
+
+------------------------------
+buffer-file-number's value is nil
+
+The device number and file number of the file visited in the current buffer.
+The value is a list of the form (FILENUM DEVNUM).
+This pair of numbers uniquely identifies the file.
+If the buffer is visiting a new file, the value is nil.
 
 ------------------------------
 buffer-file-truename
@@ -2988,24 +3216,25 @@ If an element of a menu is a string consisting solely of hyphens, then that
 item will be presented as a solid horizontal line.
 
 If an element of a menu is a list, it is treated as a submenu.  The name of
-that submenu (the first element in the list) will be  used as the name of
+that submenu (the first element in the list) will be used as the name of
 the item representing this menu on the parent.
 
-If an element of a menubar is `nil', then it is used to represent the 
+If an element of a menubar is `nil', then it is used to represent the
 division between the set of menubar-items which are flushleft and those
 which are flushright.  (Note: this isn't completely implemented yet.)
 
 After the menubar is clicked upon, but before any menus are popped up,
-the functions on the `activate-menubar-hook' are invoked to make changes 
-to the menus and menubar.  This is intended to implement lazy alteration 
+the functions on the `activate-menubar-hook' are invoked to make changes
+to the menus and menubar.  This is intended to implement lazy alteration
 of the sensitivity of menu items.
 
-The syntax, More precisely:
+The syntax, more precisely:
 
    form		:=  <something to pass to `eval'>
    command	:=  <a symbol or string, to pass to `call-interactively'>
    callback 	:=  command | form
-   active-p	:=  <t or nil, whether this thing is selectable>
+   active-p	:=  <t, nil, or a form to evaluate to decide whether this
+		    item should be selectable>
    text		:=  <string, non selectable>
    name		:=  <string>
    argument	:=  <string>
@@ -3020,7 +3249,7 @@ The syntax, More precisely:
 current-mouse-event
 
 The mouse-button event which invoked this command, or nil.
-This is what (interactive "e") returns.
+This is what `(interactive "e")' returns.
 
 ------------------------------
 default-directory-alist
@@ -3058,8 +3287,8 @@ the name it is linked to.
 ------------------------------
 display-buffer-function
 
-If non-nil, function to call to handle display-buffer.
-It will receive three args, the same args as display-buffer.
+If non-nil, function to call to handle `display-buffer'.
+It will receive three args: the same as those to `display-buffer'.
 
 ------------------------------
 enable-local-variables
@@ -3086,15 +3315,16 @@ of all visited files when deciding whether a given file is already in
 a buffer, instead of just the buffer-file-name.  This means that if you
 attempt to visit another file which is a symbolic-link to a file which is
 already in a buffer, the existing buffer will be found instead of a newly-
-created one.  This works if some non-terminal component of the pathname is
-a symbolic link as well, but doesn't work with hard links (nothing does.)
+created one.  This works if any component of the pathname (including a non-
+terminal component) is a symbolic link as well, but doesn't work with hard
+links (nothing does.)
 
 See also the variable find-file-use-truenames.
 
 ------------------------------
 find-file-use-truenames
 
-If this is true, then a buffers visited file-name will always be
+If this is true, then a buffer's visited file-name will always be
 chased back to the real file; it will never be a symbolic link, and there
 will never be a symbolic link anywhere in its directory path.
 That is, the buffer-file-name and buffer-file-truename will be equal.
@@ -3103,30 +3333,30 @@ This doesn't work with hard links.
 See also the variable find-file-compare-truenames.
 
 ------------------------------
-first-change-function
+first-change-hook
 
-Function to call before changing a buffer which is unmodified.
-The function is called, with no arguments, if it is non-nil.
+A list of functions to call before changing a buffer which is unmodified.
+The functions are run using the `run-hooks' function.
 
 ------------------------------
 float-output-format
 
 The format descriptor string that lisp uses to print floats.
-This is a %-spec like those accepted by printf in C,
-but with some restrictions.  It must start with the two characters %..
+This is a %-spec like those accepted by `printf' in C,
+but with some restrictions.  It must start with the two characters `%.'.
 After that comes an integer precision specification,
 and then a letter which controls the format.
-The letters allowed are e, f and g.
-Use e for exponential notation "DIG.DIGITSeEXPT"
-Use f for decimal point notation "DIGITS.DIGITS".
-Use g to choose the shorter of those two formats for the number at hand.
+The letters allowed are `e', `f' and `g'.
+Use `e' for exponential notation "DIG.DIGITSeEXPT"
+Use `f' for decimal point notation "DIGITS.DIGITS".
+Use `g' to choose the shorter of those two formats for the number at hand.
 The precision in any of these cases is the number of digits following
-the decimal point.  With f, a precision of 0 means to omit the
-decimal point.  0 is not allowed with f or g.
+the decimal point.  With `f', a precision of 0 means to omit the
+decimal point.  0 is not allowed with `f' or `g'.
 
-A value of nil means to use %.16g.
+A value of nil means to use `%.16g'.
 
-Regardless of the value of float-output-format, a floating point number
+Regardless of the value of `float-output-format', a floating point number
 will never be printed in such a way that it is ambiguous with an integer;
 that is, a floating-point number will always be printed with a decimal
 point and/or an exponent, even if the digits following the decimal point
@@ -3137,15 +3367,24 @@ get-screen-for-buffer-default-screen-name
 The default screen to select; see doc of `get-screen-for-buffer'.
 
 ------------------------------
+inhibit-read-only
+
+*Non-nil means disregard read-only status of buffers or characters.
+If the value is t, disregard `buffer-read-only' and all `read-only'
+text properties.  If the value is a list, disregard `buffer-read-only'
+and disregard a `read-only' text property if the property value
+is a member of the list.
+
+------------------------------
 init-file-user
 
-When the .emacs file is read, this says which users init file it is.
-The value may be the null string or a string containing a users name.
+Identity of user whose `.emacs' file is or was read.
+The value may be the null string or a string containing a user's name.
 If the value is a null string, it means that the init file was taken from
 the user that originally logged in.
 
-In all cases, (concat "~" init-file-user "/") evaluates to the
-directory name of the directory where the .emacs file was looked for.
+In all cases, `(concat "~" init-file-user "/")' evaluates to the
+directory name of the directory where the `.emacs' file was looked for.
 
 ------------------------------
 internal-doc-file-name
@@ -3155,7 +3394,7 @@ Name of file containing documentation strings of built-in symbols.
 interrupt-char
 
 Character which interrupts Emacs.
-Do not setq this variable: use the function set-interrupt-character instead.
+Do not setq this variable: use the function `set-interrupt-character' instead.
 Depending on the system you are on, this may need to do magic like changing
 interrupt handlers.
 
@@ -3171,31 +3410,33 @@ Incremented for each change to any keymap.
 
 ------------------------------
 kill-emacs-hook
-Run when kill-emacs is called.
+
+A list of functions (of no args) for `kill-emacs' to call before emacs is
+actually killed.
 
 ------------------------------
 kill-hooks
 
-If non-nil, this should be a function or functions of one argument which
-are called with the string most recently added to the kill ring.  You can use
-this to, for example, make the most recent kill become the X Clipboard
-selection.
+Functions run when something is added to the Emacs kill ring.
+These functions are called with one argument, the string most recently
+cut or copied.  You can use this to, for example, make the most recent 
+kill become the X Clipboard selection.
 
 ------------------------------
 last-command-event
 
 Last keyboard or mouse button event that was part of a command.  This
 variable is off limits: you may not set its value or modify the event that
-is its value, as it is destructively modified by read-key-sequence.  If
-you want to keep a pointer to this value, you must use copy-event.
+is its value, as it is destructively modified by `read-key-sequence'.  If
+you want to keep a pointer to this value, you must use `copy-event'.
 
 ------------------------------
 last-input-event
 
 Last keyboard or mouse button event recieved.  This variable is off
 limits: you may not set its value or modify the event that is its value, as
-it is destructively modified by next-event.  If you want to keep a pointer
-to this value, you must use copy-event.
+it is destructively modified by `next-event'.  If you want to keep a pointer
+to this value, you must use `copy-event'.
 
 ------------------------------
 last-input-time
@@ -3211,12 +3452,20 @@ String used to identify this buffer, or a function of one argument
 to generate such a string.  This variable is always buffer-local.
 
 ------------------------------
+local-write-file-hooks
+
+Just like `write-file-hooks', except intended for per-buffer use.
+The functions in this list are called before the ones in
+`write-file-hooks'.
+
+------------------------------
 mail-abbrev-mailrc-file
 Name of file with mail aliases.   If nil, ~/.mailrc is used.
 
 ------------------------------
 map-screen-hook
-Function to call when screen is mapped.  One arg, the screen.
+Function or functions to call when screen is mapped.
+One arg, the screen.
 
 ------------------------------
 menubar-show-keybindings
@@ -3236,6 +3485,13 @@ minibuffer-confirm-incomplete
 If true, then in contexts where completing-read allows answers which
 are not valid completions, an extra RET must be typed to confirm the
 response.  This is helpful for catching typos, etc.
+
+------------------------------
+mode-line-map
+
+Keymap consulted for mouse-clicks on the modeline of a window.
+This variable may be buffer-local; its value will be looked up in
+the buffer of the window whose modeline was clicked upon.
 
 ------------------------------
 mode-motion-hook
@@ -3263,43 +3519,69 @@ In most cases, the `select-screen-hook' is more appropriate.
 
 ------------------------------
 mouse-motion-handler
-Handler for motion events.  One arg, a motion event.
+Handler for motion events.  One arg, the event.
 For most applications, you should use `mode-motion-hook' instead of this.
 
 ------------------------------
-next-line-extends-end-of-buffer
+mouse-track-rectangle-p
+
+*If true, then dragging out a region with the mouse selects rectangles
+instead of simple start/end regions.
+
+------------------------------
+next-line-add-newlines
 
 *If non-nil, when C-n is invoked on the last line of a buffer,
 a newline character is inserted to create a new line.
 If nil, C-n signals an `end-of-buffer' in that situation.
 
 ------------------------------
+post-command-hook
+
+Function or functions to run after every command.
+This may examine the `this-command' variable to find out what command
+was just executed.
+
+------------------------------
+post-gc-hook
+
+Function or functions to be run just after each garbage collection.
+Interrupts, garbage collection, and errors are inhibited while this hook
+runs, so be extremely careful in what you add here.  In particular, avoid
+consing, and do not interact with the user.
+
+------------------------------
 pre-abbrev-expand-hook
 
 Function or functions to be called before abbrev expansion is done.
-This is the first thing that expand-abbrev does, and so this may change
+This is the first thing that `expand-abbrev' does, and so this may change
 the current abbrev table before abbrev lookup happens.
 
 ------------------------------
 pre-display-buffer-function
 
-If non-nil, function that will be called from `display-buffer' as the
-first action.  It will receive three args, the same arguments as 
-`display-buffer' -- the buffer, a flag which if non-nil means that the
-currently selected window is not acceptable, and a screen to use (or nil,
-meaning unspecified.)  This function may be used to select an appropriate
-screen for the buffer, for example.  See also the variable
-`display-buffer-function', which may be used to completely replace
-display-buffer.
+If non-nil, function that will be called from `display-buffer'
+as the first action.  It will receive three args: the same as those
+to `display-buffer'.
+This function may be used to select an appropriate screen for the buffer,
+for example.  See also the variable `display-buffer-function', which may
+be used to completely replace the `display-buffer' function.
 
 ------------------------------
-previous-screen: (screen miniscreen visible-only-p)
+pre-command-hook
 
-Return the previous screen in the screen list before SCREEN.
-If MINISCREEN is non-nil, include the global-minibuffer-screen if it
-has its own screen.
-If VISIBLE-ONLY-P is non-nil, then cycle through the visible screens,
-instead of all screens.
+Function or functions to run before every command.
+This may examine the `this-command' variable to find out what command
+is about to be run, or may change it to cause a different command to run.
+Function on this hook must be careful to avoid signalling errors!
+
+------------------------------
+pre-gc-hook
+
+Function or functions to be run just before each garbage collection.
+Interrupts, garbage collection, and errors are inhibited while this hook
+runs, so be extremely careful in what you add here.  In particular, avoid
+consing, and do not interact with the user.
 
 ------------------------------
 print-level
@@ -3313,7 +3595,7 @@ print-readably
 If non-nil, then all objects will be printed in a readable form.
 If an object has no readable representation, then an error is signalled.
 When this is true, compiled-function objects will be written in #[...] form
-instead of in #<byte-code [...]> form.  
+instead of in #<byte-code [...]> form.
 Do not SET this variable; bind it instead.
 
 ------------------------------
@@ -3338,20 +3620,20 @@ screen-default-alist
 
 Alist of default values for screen creation, other than the first one.
 These may be set in your init file, like this:
-  (setq screen-default-alist ((width . 80) (height . 55)))
-For values specific to the first Emacs screen, you must use X Resources.
+  (setq screen-default-alist '((width . 80) (height . 55)))
+For values specific to the first Emacs screen, you must use X resources.
 
 ------------------------------
 screen-icon-title-format
 
 Controls the title of the icon corresponding to the selected screen.
-See also the variable screen-title-format
+See also the variable `screen-title-format'
 
 ------------------------------
 screen-title-format
 
 Controls the title of the X window corresponding to the selected screen.
-This is the same format as mode-line-format.
+This is the same format as `mode-line-format'.
 
 ------------------------------
 search-caps-disable-folding
@@ -3366,7 +3648,7 @@ An alist associating selection-types (such as STRING and TIMESTAMP) with
 functions.  These functions will be called with three args: the name of the
 selection (typically PRIMARY, SECONDARY, or CLIPBOARD); a desired type to
 which the selection should be converted; and the local selection value
-(whatever had been passed to x-own-selection).  These functions should
+(whatever had been passed to `x-own-selection').  These functions should
 return the value to send to the X server (typically a string).  A return
 value of nil means that the conversion could not be done.  A return value
 which is the symbol NULL means that a side-effect was executed, and there
@@ -3380,43 +3662,52 @@ Keymap for commands shared by all sorts of Lisp modes.
 sound-alist
 
 An alist associating symbols with strings of audio-data.
-When beep or ding is called with one of the symbols, the associated
+When `beep' or `ding' is called with one of the symbols, the associated
 sound data will be played instead of the standard beep.  This only works
-if you are logged in on the console of a SparcStation.
+if you are running emacs on the console of a Sun SparcStation, SGI machine,
+or HP9000s700.
 
 Elements of this list should be of one of the following forms:
 
    ( symbol . string-or-symbol )
    ( symbol integer string-or-symbol )
 
-If the string-or-symbol is a string, then it should contain raw sound data,
-the contents of a .au file.  If it is a symbol, then that means that this
+If the `string-or-symbol' is a string, then it should contain raw sound data,
+the contents of a `.au' file.  If it is a symbol, then that means that this
 element is an alias for some other element, and the sound-player will look
 for that next.  If the integer is provided, it is the volume at which the
 sound should be played, from 0 to 100.  
 
-If an element of this alist begins with the symbol default, then that sound
+If an element of this alist begins with the symbol `default', then that sound
 will be used when no other sound is appropriate.
 
-The symbol t in place of a sound-string means to use the default X beep.
+The symbol `t' in place of a sound-string means to use the default X beep.
 In this way, you can define beep-types to have different volumes even when
-not running on the console of a Sun4.
+not running on the console.
 
 You should probably add things to this list by calling the function
 load-sound-file.
 
-The following beep-types are used by Emacs itself:
+The following beep-types are used by emacs itself:
 
     auto-save-error	when an auto-save does not succeed
     command-error	when the emacs command loop catches an error
     undefined-key	when you type a key that is undefined
     undefined-click	when you use an undefined mouse-click combination
     no-completion	during completing-read
-    y-or-n-p		when you type something other than y or n
-    yes-or-no-p  	when you type something other than yes or no
+    y-or-n-p		when you type something other than 'y' or 'n'
+    yes-or-no-p  	when you type something other than 'yes' or 'no'
 
 Other lisp packages may use other beep types, but these are the ones that
 the C kernel of Emacs uses.
+
+------------------------------
+split-window-keep-point
+
+*If non-nil, split windows keeps the original point in both children.
+This is often more convenient for editing.
+If nil, adjust point in each of the two windows to minimize redisplay.
+This is convenient on slow terminals, but point can move strangely.
 
 ------------------------------
 tag-table-alist
@@ -3424,10 +3715,10 @@ tag-table-alist
 *A list which determines which tags files should be active for a 
 given buffer.  This is not really an association list, in that all 
 elements are checked.  The CAR of each element of this list is a 
-pattern against which the buffers file name is compared; if it 
+pattern against which the buffer's file name is compared; if it 
 matches, then the CDR of the list should be the name of the tags
 table to use.  If more than one element of this list matches the
-buffers file name, then all of the associated tags tables will be
+buffer's file name, then all of the associated tags tables will be
 used.  Earlier ones will be searched first.
 
 If the CAR of elements of this list are strings, then they are treated
@@ -3443,7 +3734,7 @@ strings, then they are evaluated, and must return an appropriate string.
 
 For example:
   (setq tag-table-alist
-	(("/usr/src/public/perl/" . "/usr/src/public/perl/perl-3.0/")
+	'(("/usr/src/public/perl/" . "/usr/src/public/perl/perl-3.0/")
 	 ("\\.el$" . "/usr/local/emacs/src/")
 	 ("/jbw/gnu/" . "/usr15/degree/stud/jbw/gnu/")
 	 ("" . "/usr/local/emacs/src/")
@@ -3457,13 +3748,13 @@ A file called something like "/usr/jbw/foo.el" would use both the TAGS files
 /usr/local/emacs/src/TAGS and /usr15/degree/stud/jbw/gnu/TAGS (in that order)
 because it matches both patterns.
 
-If the buffer-local variable buffer-tag-table is set, then it names a tags
+If the buffer-local variable `buffer-tag-table' is set, then it names a tags
 table that is searched before all others when find-tag is executed from this
 buffer.
 
 If there is a file called "TAGS" in the same directory as the file in 
 question, then that tags file will always be used as well (after the
-buffer-tag-table but before the tables specified by this list.)
+`buffer-tag-table' but before the tables specified by this list.)
 
 If the variable tags-file-name is set, then the tags file it names will apply
 to all buffers (for backwards compatibility.)  It is searched first.
@@ -3480,17 +3771,14 @@ The initial screen-object, which represents Emacs's stdout.
 
 ------------------------------
 unmap-screen-hook
-Function to call when screen is unmapped.  One arg, the screen.
+Function or functions to call when screen is unmapped.
+One arg, the screen.
 
 ------------------------------
 unread-command-event
 
 Set this to an event object to simulate the reciept of an event from
 the user.  Normally this is nil.
-
-------------------------------
-user-real-name
-The users name, base upon the real uid.
 
 ------------------------------
 write-contents-hooks
@@ -3510,16 +3798,12 @@ x-allow-sendevents
 Beware: allowing Emacs to process SendEvents opens a big security hole.
 
 ------------------------------
-x-backing-store
-
-The backing store capability of this screen.
-Values can be the symbols Always, WhenMapped, or NotUseful.
-
-------------------------------
 x-bitmap-file-path
 
 A list of the directories in which X bitmap files may be found.
 If nil, this is initialized from the "*bitmapFilePath" resource.
+This is used by the `make-pixmap' function (however, note that if the
+environment variable XBMLANGPATH is set, it is consulted first.)
 
 ------------------------------
 x-emacs-application-class
@@ -3574,26 +3858,21 @@ file, and if a bitmap file whose name is the name of the cursor with
 files may be named "cursor.xbm" and "cursor.xbmmsk".
 
 ------------------------------
-x-save-under
-Non-nil means this X screen supports the SaveUnder feature.
-
-------------------------------
 x-screen-defaults
 
 Alist of default screen-creation parameters for X-window screens.
-These override what is specified in ~/.Xdefaults but are overridden
-by the arguments to the particular call to x-create-screen.
+These override what is specified in `~/.Xdefaults' but are overridden
+by the arguments to the particular call to `x-create-screen'.
 
 ------------------------------
 x-selection-pointer-shape
 *The shape of the mouse-pointer when over a selectable text region.
-Default: "top_left_arrow".
 
 ------------------------------
 x-sent-selection-hooks
 
 A function or functions to be called after we have responded to some
-other clients request for the value of a selection that we own.  The
+other client's request for the value of a selection that we own.  The
 function(s) will be called with four arguments:
   - the name of the selection (typically PRIMARY, SECONDARY, or CLIPBOARD);
   - the name of the selection-type which we were requested to convert the
@@ -3601,24 +3880,37 @@ function(s) will be called with four arguments:
   - and whether we successfully transmitted the selection.
 We might have failed (and declined the request) for any number of reasons,
 including being asked for a selection that we no longer own, or being asked
-to convert into a type that we dont know about or that is inappropriate.
+to convert into a type that we don't know about or that is inappropriate.
 This hook doesn't let you change the behavior of Emacs's selection replies,
 it merely informs you that they have happened.
+
+------------------------------
+xpm-color-symbols
+
+Definitions of logical color-names used when reading XPM files.
+Elements of this list should be of the form (COLOR-NAME FORM-TO-EVALUATE).
+The COLOR-NAME should be a string, which is the name of the color to define;
+the FORM should evaluate to a `pixel' object, or a string to be passed to
+`make-pixel'.  If a loaded XPM file references a color called COLOR-NAME, it
+will display as the computed pixel instead.
+
+The default value of this variable defines the logical color names
+"foreground" and "background" to be the colors of the `default' face.
 
 ------------------------------
 zmacs-activate-region-hook
 
 Function or functions called when the region becomes active;
-see the variable zmacs-regions.
+see the variable `zmacs-regions'.
 
 ------------------------------
 zmacs-region-stays
 
 Commands which do not wish to affect whether the region is currently
-hilighted should set this to t.  Normally, the region is turned off after
+highlighted should set this to t.  Normally, the region is turned off after
 executing each command that did not explicitly turn it on with the function
 zmacs-activate-region. Setting this to true lets a command be non-intrusive.
-See the variable zmacs-regions.
+See the variable `zmacs-regions'.
 
 ------------------------------
 zmacs-regions
@@ -3626,7 +3918,7 @@ zmacs-regions
 *Whether LISPM-style active regions should be used.
 This means that commands which operate on the region (the area between the
 point and the mark) will only work while the region is in the ``active''
-state, which is indicated by hilighting.  Executing most commands causes
+state, which is indicated by highlighting.  Executing most commands causes
 the region to not be in the active state, so (for example) C-w will only
 work immediately after activating the region.
 
@@ -3658,21 +3950,21 @@ do activate the region.
 zmacs-deactivate-region-hook
 
 Function or functions called when the region becomes inactive;
-see the variable zmacs-regions.
+see the variable `zmacs-regions'.
 
 ------------------------------
 zmacs-update-region-hook
 
 Function or functions called when the active region changes.
-This is called after each command that sets region-stays to t.
-See the variable zmacs-regions.
+This is called after each command that sets `region-stays' to t.
+See the variable `zmacs-regions'.
 
 
 Changed Functions:
 ==================
 
 baud-rate: ()
-The function `baud-rate' has been replaced by the variable `baud-rate'
+Obsolete function returning the value of the `baud-rate' variable.
 
 ------------------------------
 beep: (&optional arg sound)
@@ -3683,29 +3975,31 @@ terminate any keyboard macro currently executing.
 When called from lisp, the second argument is what sound to make.
 
 ------------------------------
-compare-windows: (ignore-whitespace)
+compare-windows: (&optional ignore-whitespace)
 
 Compare text in current window with text in next window.
 Compares the text starting at point in each window,
 moving over text in each one as far as they match.
 
 A prefix arg means ignore changes in whitespace.
-The variable compare-windows-whitespace controls how whitespace is skipped.
+The variable `compare-windows-whitespace' controls how whitespace is skipped.
 
-If compare-ignore-case is non-nil, changes in case are also ignored.
+If `compare-ignore-case' is non-nil, changes in case are also ignored.
 
 ------------------------------
-current-time-string: (&optional arg)
+current-time-string: (&optional specified-time)
 
 Return the current time, as a human-readable string.
-Programs can use it too, since the number of columns in each field is fixed.
-The format is Sun Sep 16 01:03:52 1973.
-If the optional argument is non-nil, it must be a cons of two integers, which
-are the upper and lower 16 bits of a time in seconds (such as the value 
-returned by the current-time-seconds function.
-In a future Emacs version, the time zone may be added at the end,
-if we can figure out a reasonably easy way to get that information.
-
+Programs can use this function to decode a time,
+since the number of columns in each field is fixed.
+The format is `Sun Sep 16 01:03:52 1973'.
+If an argument is given, it specifies a time to format
+instead of the current time.  The argument should have the form:
+  (HIGH . LOW)
+or the form:
+  (HIGH LOW . IGNORED).
+Thus, you can use times obtained from `current-time'
+and from `file-attributes'.
 
 ------------------------------
 define-key: (keymap keys def)
@@ -3775,12 +4069,12 @@ stroke as well.  `button1' means the down-stroke, and `button1up' means the
 up-stroke.  Different commands may be bound to the up and down strokes,
 though that is probably not what you want, so be careful.
 
-For backward compatibility, a key sequence may also be represented by a 
+For backward compatibility, a key sequence may also be represented by a
 string.  In this case, it represents the key sequence(s) that would
-produce that sequence of ASCII characters in a purely ASCII world.  For 
+produce that sequence of ASCII characters in a purely ASCII world.  For
 example, a string containing the ASCII backspace character, "\^H", would
 represent two key sequences: `(control h)' and `backspace'.  Binding a
-command to this will actually bind both of those key sequences.  Likewise 
+command to this will actually bind both of those key sequences.  Likewise
 for the following pairs:
 
 		control h	backspace
@@ -3806,9 +4100,9 @@ these features.
 ------------------------------
 describe-key: (key)
 
-Display documentation of the function KEY invokes.  
-KEY is a string, or vector of events.  When called interactvely, key may
-also be a menu selection.
+Display documentation of the function invoked by KEY.
+KEY is a string, or vector of events.
+When called interactvely, KEY may also be a menu selection.
 
 ------------------------------
 directory-files: (dirname &optional full match nosort files-only)
@@ -3826,21 +4120,27 @@ If FILES-ONLY is the symbol t, then only the "files" in the directory
  be returned.
 
 ------------------------------
-display-buffer: (buffer &optional not_this_window_p on_screen)
+display-buffer: (buffer &optional not_this_window_p override_screen)
 
-Make BUFFER appear in some window on the current screen, but don't select it.
+Make BUFFER appear in some window on the current screen, but don't
+select it.
+Arguments are BUFFER &optional NOT-THIS-WINDOW-P, OVERRIDE-SCREEN.
 BUFFER can be a buffer or a buffer name.
-If BUFFER is shown already in some window in the current screen, just uses
- that one, unless the window is the selected window and NOT_THIS_WINDOW_P
- is non-nil.
-If ON_SCREEN is non-nil, display on that screen instead of the current
- screen (or the dedicated screen).
-If BUFFER has a dedicated screen, display on that screen instead of the
- current screen, unless ON_SCREEN was specified.
-If pop-up-windows is non-nil, and the buffer is not visible in some window
- on the target screen, then windows will be split (a new window will be
- created) if there is room.  Otherwise, the least-recently-used window will
- be reused.
+If BUFFER is shown already in some window in the current screen,
+just uses that one, unless the window is the selected window and
+NOT-THIS-WINDOW-P is non-nil.
+
+If BUFFER has a dedicated screen, display on that screen instead of
+the current screen, unless OVERRIDE-SCREEN is non-nil.
+
+If OVERRIDE-SCREEN is non-nil, display on that screen instead of
+the current screen (or the dedicated screen).
+
+If `pop-up-windows' is non-nil, always use the
+current screen and create a new window regardless of whether the
+buffer has a dedicated screen, and regardless of whether
+OVERRIDE-SCREEN was specified.
+
 Returns the window displaying BUFFER.
 
 ------------------------------
@@ -3850,23 +4150,23 @@ Terminate this minibuffer argument.
 If minibuffer-confirm-incomplete is true, and we are in a completing-read
 of some kind, and the contents of the minibuffer is not an existing
 completion, requires an additional RET before the minibuffer will be exited
-(assuming that RET was the character that invoked this command: the character
-in question must be typed again).
+(assuming that RET was the character that invoked this command:
+the character in question must be typed again).
 
+------------------------------
 The function `expand-mail-aliases' is obsolete and has been removed.
 
 ------------------------------
 find-tag: (tagname &optional other-window)
 
 *Find tag whose name contains TAGNAME.
- Selects the buffer that the tag is contained in
-and puts point at its definition.
- If TAGNAME is a null string, the expression in the buffer
-around or before point is used as the tag name.
- If called interactively with a numeric argument, searches for the next tag
-in the tag table that matches the tagname used in the previous find-tag.
- If second arg OTHER-WINDOW is non-nil, uses another window to display
-the tag.
+Selects the buffer that the tag is contained in and puts
+ point at its definition.
+If TAGNAME is a null string, the expression in the buffer
+ around or before point is used as the tag name.
+If second arg NEXT is non-nil (interactively, with prefix arg),
+ searches for the next tag in the tag table that matches the
+ tagname used in the previous find-tag.
 
 Multiple active tags tables and completion are supported.
 
@@ -3878,26 +4178,25 @@ Variables of note:
   buffer-tag-table		another way of specifying a buffer-local table
   make-tags-files-invisible	whether tags tables should be very hidden
   tag-mark-stack-max		how many tags-based hops to remember
-
-The meaning of the %s directive in `format' has slightly changed:
-%s means print a string argument.  Actually, prints any object, with princ.
-%S means print any object as an s-expression (using prin1).
+  buffer-tag-table		another way of specifying a buffer-local table
+  make-tags-files-invisible	whether tags tables should be very hidden
+  tag-mark-stack-max		how many tags-based hops to remember
 
 ------------------------------
 format: (arg1 &rest args)
-
+...
 %s means print strings using `princ' and other objects using `prin1'.
 %S means print all objects using `prin1' (including strings.)
-
+...
 [%s retains the (undocumented) behavior of v18.  %S is new.]
 
 ------------------------------
-get-buffer-window: (buffer &optional screen)
+get-buffer-window: (buffer &optional screen invisible-too)
 
 Return a window currently displaying BUFFER, or nil if none.
-Only the selected screen is searched; if the optional second argument
-SCREEN is non-nil, then that screen is searched instead.  If SCREEN is t,
-then all screens are searched.
+If optional argument SCREEN is t, search all visible screens.
+If SCREEN is a screen, search only that screen.
+If INVISIBLE-TOO is t invisible screens are searched too.
 
 ------------------------------
 interactive: (args)
@@ -3906,12 +4205,16 @@ There are some new `interactive' codes:
 
 e -- Last mouse event.
 
-In addition, if the string begins with *
+In addition, if the string begins with `*'
  then an error is signaled if the buffer is read-only.
  This happens before reading any arguments.
-If the string begins with @, then the window the mouse is over is selected
- before anything else is done.  You may use both @ and *;
-they are processed in the order that they appear.
+If the string begins with `@', then the window the mouse is over is selected
+ before anything else is done.
+If the string begins with `_', then this command will not cause the region
+ to be deactivated when it completes; that is, `zmacs-region-stays' will be
+ set to t when the command exits successfully.
+You may use any of `@', `*' and `_' at the beginning of the string;
+ they are processed in the order that they appear.
 
 ------------------------------
 isearch-forward: (&optional regexp-p)
@@ -3955,7 +4258,7 @@ Exit the Emacs job and kill it.  Ask for confirmation, without argument.
 If ARG is an integer, return ARG as the exit program code.
 If ARG is a  string, stuff it as keyboard input.
 
-The value of kill-emacs-hook, if not void,
+The value of `kill-emacs-hook', if not void,
 is a list of functions (of no args),
 all of which are called before Emacs is actually killed.
 
@@ -3964,8 +4267,9 @@ local-key-binding: (keys)
 
 Return the binding for command KEYS in current local keymap only.
 KEYS is a string, a vector of events, or a vector of key-description lists
-as described in the documentation for the define-key function.
-The binding is probably a symbol with a function definition.
+as described in the documentation for the `define-key' function.
+The binding is probably a symbol with a function definition; see
+the documentation for `lookup-key' for more information.
 
 ------------------------------
 local-set-key: (keys function)
@@ -3973,8 +4277,8 @@ local-set-key: (keys function)
 Give KEY a local binding as COMMAND.
 COMMAND is a symbol naming an interactively-callable function.
 KEYS is a string, a vector of events, or a vector of key-description lists
-as described in the documentation for the define-key function.
-The binding goes in the current buffers local map,
+as described in the documentation for the `define-key' function.
+The binding goes in the current buffer's local map,
 which is shared with other buffers in the same major mode.
 
 ------------------------------
@@ -3982,13 +4286,13 @@ local-unset-key: (keys)
 
 Remove local binding of KEY.
 KEYS is a string, a vector of events, or a vector of key-description lists
-as described in the documentation for the define-key function.
+as described in the documentation for the `define-key' function.
 
 ------------------------------
 lookup-key: (keymap keys)
 
 In keymap KEYMAP, look up key sequence KEYS.  Return the definition.
-nil means undefined.  See doc of define-key for kinds of definitions
+nil means undefined.  See doc of `define-key' for kinds of definitions
 and key-sequence specifications.
 Number as value means KEYS is "too long";
 that is, characters in it except for the last one
@@ -4008,23 +4312,23 @@ the distinction is not great.
 ------------------------------
 mark: (&optional inactive-p)
 
-Return this buffers mark value as integer, or nil if no mark.
+Return this buffer's mark value as integer, or nil if no mark.
 
-If zmacs-regions is true, then this returns nil unless the region is
-currently in the active (hilighted) state.  With an argument of t, this
+If `zmacs-regions' is true, then this returns nil unless the region is
+currently in the active (highlighted) state.  With an argument of t, this
 returns the mark (if there is one) regardless of the active-region state.
 You should *generally* not use the mark unless the region is active, if
 the user has expressed a preference for the active-region model.
 
 If you are using this in an editing command, you are most likely making
-a mistake; see the documentation of set-mark.
+a mistake; see the documentation of `set-mark'.
 
 ------------------------------
-mark-marker: (&optional inactive_p)
+mark-marker: (&optional inactive-p)
 
-Return this buffers mark, as a marker object.
+Return this buffer's mark, as a marker object.
 If `zmacs-regions' is true, then this returns nil unless the region is
-currently in the active (hilighted) state.  With an argument of t, this
+currently in the active (highlighted) state.  With an argument of t, this
 returns the mark (if there is one) regardless of the zmacs-region state.
 You should *generally* not use the mark unless the region is active, if
 the user has expressed a preference for the zmacs-region model.
@@ -4032,35 +4336,38 @@ Watch out!  Moving this marker changes the mark position.
 If you set the marker not to point anywhere, the buffer will have no mark.
 
 ------------------------------
-next-window: (&optional window mini all_screens)
+next-window: (&optional window mini all-screens invisible-too)
 
 Return next window after WINDOW in canonical ordering of windows.
 Optional second arg MINIBUF t means count the minibuffer window
 even if not active.  If MINIBUF is neither t nor nil it means
 not to count the minibuffer even if it is active.
-Optional third arg ALL-SCREENS t means include all windows in all screens;
-otherwise cycle within the selected screen, with the exception that if a
-global minibuffer screen is in use, all screens are used.
+Optional third arg ALL-SCREENS t means include all windows in all visible
+screens; otherwise cycle within the selected screen, with the exception that
+if a global minibuffer screen is in use, all screens are used.
+Optional fourth argument INVISIBLE-TOO t means also visit invisible screens.
 
 ------------------------------
 other-buffer: (&optional buffer screen)
 
 Return most recently selected buffer other than BUFFER.
 Buffers not visible in windows are preferred to visible buffers.
-If no other buffer exists, the buffer *scratch* is returned.
+If no other buffer exists, the buffer `*scratch*' is returned.
 If BUFFER is omitted or nil, some interesting buffer is returned.
+
 The ordering is for this screen; If second optional argument SCREEN
 is provided, then the ordering is for that screen.  If the second arg
 is t, then the global ordering is returned.
 
 ------------------------------
-other-window: (n &optional all_screens)
+other-window: (n &optional all-screens invisible-too)
 
-Select the ARGth different window on this screen.
+Select the ARG'th different window on this screen.
 All windows on current screen are arranged in a cyclic order.
 This command selects the window ARG steps away in that order.
 A negative ARG moves in the opposite order.  If the optional second
-argument ALL_SCREENS is non-nil, cycle through all screens.
+argument ALL-SCREENS is non-nil, cycle through all visible screens.
+If optional third argument INVISIBLE-TOO is t also search invisible screens.
 
 ------------------------------
 point-marker: (&optional dont_copy_p)
@@ -4070,6 +4377,15 @@ This marker is a copy; you may modify it with reckless abandon.
 If the argument to this function is non-nil, then it returns the real
 point-marker; modifying the position of this marker willl move point.
 It is illegal to change the buffer of it, or make it point nowhere.
+
+------------------------------
+previous-screen: (&optional screen miniscreen visible-only-p)
+
+Return the previous screen in the screen list after SCREEN.
+If MINISCREEN is non-nil, include the global-minibuffer-screen if it
+has its own screen.
+If VISIBLE-ONLY-P is non-nil, then cycle through the visible screens,
+instead of all screens.
 
 ------------------------------
 read: (&optional readcharfun)
@@ -4091,18 +4407,19 @@ to be using: consider using the `next-command-event' function instead.
 read-key-sequence: (prompt)
 
 Read a sequence of keystrokes or mouse clicks and return a vector of the
-event objects read.  The vector is newly created, but the event objects are
-reused: if you want to hold a pointer to them beyond the next call to this
-function, you must copy them first.
+event objects read.  The vector and the event objects it contains are
+freshly created (and will not be side-effected by subsequent calls
+to this function.)
 
 The sequence read is sufficient to specify a non-prefix command starting
 from the current local and global keymaps.  A C-g typed while in this
-function is treated like any other character, and quit-flag is not set.
-One arg, PROMPT, is a prompt string, or nil meaning do not prompt specially.
+function is treated like any other character, and `quit-flag' is not set.
+
+First arg PROMPT is a prompt string.  If nil, do not prompt specially.
 
 If the user selects a menu item while we are prompting for a key-sequence,
 the returned value will be a vector of a single menu-selection event.
-An error will be signalled if you pass this value to lookup-key or a
+An error will be signalled if you pass this value to `lookup-key' or a
 related function.
 
 ------------------------------
@@ -4127,7 +4444,7 @@ to keep and modify them.
 visit-tags-table: (file)
 
 Tell tags commands to use tags table file FILE first.
-FILE should be the name of a file created with the etags program.
+FILE should be the name of a file created with the `etags' program.
 A directory name is ok too; it means file TAGS in that directory.
 This function is largely obsoleted by the variable tag-table-alist.
 
@@ -4140,10 +4457,13 @@ START, END and FILENAME.  START and END are buffer positions.
 Optional fourth argument APPEND if non-nil means
   append to existing file contents (if any).
 Optional fifth argument VISIT if t means
-  set the last-save-file-modtime of buffer to this files modtime
+  set the last-save-file-modtime of buffer to this file's modtime
   and mark buffer not modified.
-If VISIT is neither t nor nil, it means do not print
-  the "Wrote file" message.
+If VISIT is a string, it is a second file name;
+  the output goes to FILENAME, but the buffer is marked as visiting VISIT.
+  VISIT is also the file name to lock and unlock for clash detection.
+If VISIT is neither t nor nil nor a string,
+  that means do not print the "Wrote file" message.
 Kludgy feature: if START is a string, then that string is written
 to the file, instead of any buffer contents, and END is ignored.
 
@@ -4163,9 +4483,12 @@ ctl-arrow
 
 *Non-nil means display control chars with uparrow.
 Nil means use backslash and octal digits.
-Non-t and non-nil means display 8-bit characters (that is, characters
-whose code is greater than 160 (SPC with the high bit on) will be
-displayed as a single glyph.)
+An integer means characters >= ctl-arrow are assumed to be printable, and
+will be displayed as a single glyph.
+Any other value is the same as 160 - the code SPC with the high bit on.
+
+The interpretation of this variable is likely to change in the future.
+
 Automatically becomes buffer-local when set in any fashion.
 This variable does not apply to characters whose display is specified
 in the current display table (if there is one).
@@ -4176,6 +4499,7 @@ default-directory
 Name of default directory of current buffer.  Should end with slash.
 Each buffer has its own value of this variable.
 
+------------------------------
 `inhibit-local-variables' has been replaced with `enable-local-variables',
 with the reversed sense.
 
@@ -4206,14 +4530,14 @@ Each character is looked up in this string and the contents used instead.
 If string is of length N, character codes N and up are untranslated.
 This is the right thing to use only if you are on a dumb tty, as it cannot
 handle input which cannot be represented as ASCII.  If you are running Emacs
-under X, you should do the translations with the xmodmap program instead.
+under X, you should do the translations with the `xmodmap' program instead.
 
 ------------------------------
 last-command-char
 
-If the value of last-command-event is a keyboard event, then
+If the value of `last-command-event' is a keyboard event, then
 this is the nearest ASCII equivalent to it.  This the the value that
-self-insert-command will put in the buffer.  Remember that there is
+`self-insert-command' will put in the buffer.  Remember that there is
 NOT a 1:1 mapping between keyboard events and ASCII characters: the set
 of keyboard events is much larger, so writing code that examines this
 variable to determine what key has been typed is bad practice, unless
@@ -4222,7 +4546,7 @@ you are certain that it will be one of a small set of characters.
 ------------------------------
 last-input-char
 
-If the value of last-input-event is a keyboard event, then
+If the value of `last-input-event' is a keyboard event, then
 this is the nearest ASCII equivalent to it.  Remember that there is
 NOT a 1:1 mapping between keyboard events and ASCII characters: the set
 of keyboard events is much larger, so writing code that examines this
@@ -4243,13 +4567,13 @@ load-path
 Each element is a string (directory name) or nil (try default directory).
 
 Note that the elements of this list *may not* begin with "~", so you must
-call expand-file-name on them before adding them to this list.
+call `expand-file-name' on them before adding them to this list.
 
 Initialized based on EMACSLOADPATH environment variable, if any,
-otherwise to default specified in by file paths.h when Emacs was built.
-If there were no paths specified in paths.h, then Emacs chooses a default
+otherwise to default specified in by file `paths.h' when Emacs was built.
+If there were no paths specified in `paths.h', then emacs chooses a default
 value for this variable by looking around in the file-system near the
-directory in which the Emacs executable resides.
+directory in which the emacs executable resides.
 
 ------------------------------
 mail-aliases
@@ -4285,12 +4609,6 @@ temp-buffer-show-hook
 
 The variable `temp-buffer-show-hook' has been renamed
 `temp-buffer-show-function'.
-
-------------------------------
-visible-bell
-
-The `visible-bell' variable doesn't currently work; this will eventually 
-be a screen parameter.
 
 ------------------------------
 write-file-hooks

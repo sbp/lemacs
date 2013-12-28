@@ -1,5 +1,5 @@
 /* Hash tables.
-   Copyright (C) 1992 Free Software Foundation, Inc.
+   Copyright (C) 1992, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -17,24 +17,26 @@ You should have received a copy of the GNU General Public License
 along with GNU Emacs; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
-#include <string.h>
-#include "hash.h"
-
 #ifdef emacs
 #include "config.h"
 #include "lisp.h"
-extern Lisp_Object Qnil;
-extern char *elisp_hvector_malloc();
-extern void elisp_hvector_free();
-#define NULL_ENTRY ((void *) Qnil)
-#else
+extern char *elisp_hvector_malloc (unsigned int, Lisp_Object);
+extern void elisp_hvector_free (void *ptr, Lisp_Object table);
+
+#define NULL_ENTRY (LISP_TO_VOID (Qnil))
+
+#else /* !emacs */
+
 #define NULL_ENTRY ((void *) 1)
-#endif
 
-#define MAXPRIME 62
+#endif /* !emacs */
 
-static int 
+#include <string.h>
+#include "hash.h"
+
+static const int 
 primes []={
+  13,
   29, 37, 47, 59, 71, 89, 107, 131, 163, 197, 239, 293, 353, 431, 521, 631, 
   761, 919, 1103, 1327, 1597, 1931, 2333, 2801, 3371, 4049, 4861, 5839, 7013, 
   8419, 10103, 12143, 14591, 17519, 21023, 25229, 30293, 36353, 43627, 52361, 
@@ -47,11 +49,11 @@ primes []={
 
 /* from base/generic-hash.cc, and hence from Dragon book, p436 */
 static unsigned long
-string_hash (x)
-     char *x;
+string_hash (const void *xv)
 { 
   unsigned int h = 0;
   unsigned int g;
+  unsigned const char *x = (unsigned const char *) xv;
 
   if (!x) return 0;
 
@@ -66,9 +68,12 @@ string_hash (x)
 }
 
 static int 
-string_eq (st1, st2)
-     char *st1, *st2;
+string_eq (st1v, st2v)
+     const void *st1v, *st2v;
 {
+  const char *st1 = (const char *)st1v;
+  const char *st2 = (const char *)st2v;
+
   if (!st1)
     return (st2)?0:1;
   else if (!st2)
@@ -83,20 +88,20 @@ prime_size (size)
      unsigned int size;
 {
   unsigned int i;
-  for (i = 0; i < MAXPRIME; i++)
+  const int lim = countof (primes);
+  for (i = 0; i < lim; i++)
     if (size <= primes [i]) return primes [i];
-  return primes [MAXPRIME - 1];
+  return primes [lim - 1];
 }
 
-static void 
-rehash (/* hentry *harray, c_hashtable ht, unsigned int size */);
+static void rehash (hentry *harray, c_hashtable ht, unsigned int size);
 
 #define KEYS_DIFFER_P(old, new, testfun) \
   ((testfun)?(((old) == (new))?0:(!(testfun ((old), new)))):((old) != (new)))
 
-void *
+const void *
 gethash (key, hash, ret_value)
-     void *key; c_hashtable hash; void **ret_value;
+     const void *key; c_hashtable hash; const void **ret_value;
 {
   hentry *harray = hash->harray;
   int (*test_function)() = hash->test_function;
@@ -105,7 +110,7 @@ gethash (key, hash, ret_value)
     (hash->hash_function)?(hash->hash_function(key)):((unsigned long) key);
   unsigned int hcode = hcode_initial % hsize;
   hentry *e = &harray [hcode];
-  void *e_key = e->key;
+  const void *e_key = e->key;
 
   if (!key) 
     {
@@ -150,7 +155,8 @@ free_hashtable (hash)
      c_hashtable hash;
 {
 #ifdef emacs
-  if (hash->elisp_table) return;
+  if (!NILP (hash->elisp_table))
+    return;
 #endif
   xfree (hash->harray);
   xfree (hash);
@@ -164,14 +170,17 @@ make_hashtable (hsize)
   memset (res, 0, sizeof (struct _C_hashtable));
   res->size = prime_size ((13 * hsize) / 10);
   res->harray = (hentry *) xmalloc (sizeof (hentry) * res->size);
+#ifdef emacs
+  res->elisp_table = Qnil;
+#endif
   clrhash (res);
   return res;
 }
 
 c_hashtable
 make_general_hashtable (unsigned int hsize,
-			unsigned long (*hash_function)(),
-			int (*test_function)())
+			unsigned long (*hash_function) (const void *),
+			int (*test_function) (const void *, const void *))
 {
   c_hashtable res = (c_hashtable) xmalloc (sizeof (struct _C_hashtable));
   memset (res, 0, sizeof (struct _C_hashtable));
@@ -179,6 +188,9 @@ make_general_hashtable (unsigned int hsize,
   res->harray = (hentry *) xmalloc (sizeof (hentry) * res->size);
   res->hash_function = hash_function;
   res->test_function = test_function;
+#ifdef emacs
+  res->elisp_table = Qnil;
+#endif
   clrhash (res);
   return res;
 }
@@ -201,13 +213,13 @@ compute_harray_size (hsize)
 
 void
 copy_hash (dest, src)
-     c_hashtable dest; c_hashtable src;
+     c_hashtable dest;
+     c_hashtable src;
 {
 #ifdef emacs
   /* if these are not the same, then we are losing here */
-  if ( ((dest->elisp_table)?1:0) != ((src->elisp_table)?1:0) )
+  if ((NILP (dest->elisp_table)) != (NILP (src->elisp_table)))
     {
-      extern void error ();
       error ("Incompatible hashtable types to copy_hash.");
       return;
     }
@@ -216,7 +228,7 @@ copy_hash (dest, src)
   if (dest->size != src->size)
     {
 #ifdef emacs
-      if (dest->elisp_table) 
+      if (!NILP (dest->elisp_table))
         elisp_hvector_free (dest->harray, dest->elisp_table);
       else
 #endif
@@ -224,15 +236,13 @@ copy_hash (dest, src)
 
       dest->size = src->size;
 #ifdef emacs
-      if (dest->elisp_table)
+      if (!NILP (dest->elisp_table))
         dest->harray = 
           (hentry *) elisp_hvector_malloc
             (sizeof (hentry) * dest->size, dest->elisp_table);
       else
 #endif
-        dest->harray = 
-          (hentry *) 
-            xmalloc (sizeof (hentry) * dest->size);
+        dest->harray = (hentry *) xmalloc (sizeof (hentry) * dest->size);
     }
   dest->fullness = src->fullness;
   dest->zero_entry = src->zero_entry;
@@ -252,10 +262,9 @@ grow_hashtable (hash, new_size)
   hentry *new_harray;
 
 #ifdef emacs
-  if (hash->elisp_table)
-    new_harray = 
-      (hentry *) elisp_hvector_malloc
-        (sizeof (hentry) * new_hsize, hash->elisp_table);
+  if (!NILP (hash->elisp_table))
+    new_harray = (hentry *) elisp_hvector_malloc (sizeof (hentry) * new_hsize,
+						  hash->elisp_table);
   else
 #endif
     new_harray =
@@ -275,7 +284,7 @@ grow_hashtable (hash, new_size)
   }
 
 #ifdef emacs
-  if (hash->elisp_table) 
+  if (!NILP (hash->elisp_table))
     elisp_hvector_free (old_harray, hash->elisp_table);
   else
 #endif
@@ -284,20 +293,22 @@ grow_hashtable (hash, new_size)
 
 void 
 puthash (key, cont, hash)
-     void *key; void *cont; c_hashtable hash;
+     const void *key; 
+     void *cont; 
+     c_hashtable hash;
 {
   unsigned int hsize = hash->size;
   int (*test_function)() = hash->test_function;
   unsigned int fullness = hash->fullness;
   hentry *harray;
-  void *e_key;
+  const void *e_key;
   hentry *e;
   unsigned int hcode_initial = 
     (hash->hash_function)?(hash->hash_function(key)):((unsigned long) key);
   unsigned int hcode;
   unsigned int incr = 0;
   unsigned int h2;
-  void *oldcontents;
+  const void *oldcontents;
 
   if (!key) 
     {
@@ -332,8 +343,8 @@ puthash (key, cont, hash)
       while (e_key && (KEYS_DIFFER_P (e_key, key, test_function)));
     }
   oldcontents = harray [hcode].contents;
-  harray [hcode].key = (void *) key;
-  harray [hcode].contents = (void *) cont;
+  harray [hcode].key = key;
+  harray [hcode].contents = cont;
   /* if the entry that we used was a deleted entry,
      check for a non deleted entry of the same key,
      then delete it */
@@ -370,22 +381,25 @@ rehash (harray, hash, size)
 {
   hentry *limit = harray + size;
   hentry *e;
-  for (e = harray; e < limit; e++) 
-    if (e->key) puthash (e->key, e->contents, hash);
+  for (e = harray; e < limit; e++)
+    {
+      if (e->key)
+	puthash (e->key, e->contents, hash);
+    }
 }
 
 void 
 remhash (key, hash)
-     void *key; c_hashtable hash;
+     const void *key; c_hashtable hash;
 {
   hentry *harray = hash->harray;
-  int (*test_function)() = hash->test_function;
+  int (*test_function) (const void*, const void*) = hash->test_function;
   unsigned int hsize = hash->size;
   unsigned int hcode_initial = 
     (hash->hash_function)?(hash->hash_function(key)):((unsigned long) key);
   unsigned int hcode = hcode_initial % hsize;
   hentry *e = &harray [hcode];
-  void *e_key = e->key;
+  const void *e_key = e->key;
 
   if (!key) 
     {
@@ -415,13 +429,7 @@ remhash (key, hash)
     {
       e->key = 0;
       e->contents = NULL_ENTRY;
-/* This seems to break the world and I don't understand why. 
-   Keymaps need a correct count of how many items are really in
-   the table, taking remhash into account, but it looks like I
-   have to do it by hand in the keymap code.  -jwz
-
-      hash->fullness--;
- */
+      /* Note: you can't do fullness-- here, it breaks the world. */
     }
 }
 
@@ -432,10 +440,14 @@ maphash (mf, hash, arg)
   hentry *e;
   hentry *limit;
   
-  if (hash->zero_set) (*mf) (0, hash->zero_entry, arg);
+  if (hash->zero_set) 
+    ((*mf) (0, hash->zero_entry, arg));
 
   for (e = hash->harray, limit = e + hash->size; e < limit; e++)
-    if (e->key) (*mf) (e->key, e->contents, arg);
+    {
+      if (e->key)
+	((*mf) (e->key, e->contents, arg));
+    }
 }
 
 
@@ -461,4 +473,3 @@ map_remhash (predicate, hash, arg)
         e->contents = NULL_ENTRY;
       }
 }
-

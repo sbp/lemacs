@@ -1,5 +1,5 @@
 ;; Menubar support.
-;; Copyright (C) 1991-1993 Free Software Foundation, Inc.
+;; Copyright (C) 1991, 1992, 1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -18,6 +18,7 @@
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
 (defconst default-menubar
+    ;;>>> purecopy??
   '(("File"	["New Screen"		x-new-screen		t]
 		["Open File..."		find-file		t]
 		["Save Buffer"		save-buffer		t  nil]
@@ -91,7 +92,7 @@
 ;;; menu manipulation functions
 
 (defun find-menu-item (menubar item-path-list &optional parent)
-  "Searches MENUBAR for item given by ITEM-PATH-LIST.
+  "Searches MENUBAR for item given by ITEM-PATH-LIST starting from PARENT.
 Returns (ITEM . PARENT), where PARENT is the immediate parent of
  the item found.
 Signals an error if the item is not found."
@@ -159,13 +160,20 @@ menu item called \"Item\" under the \"Foo\" submenu of \"Menu\"."
 
 (defun add-menu-item-1 (item-p menu-path item-name item-data enabled-p before)
   (if before (setq before (downcase before)))
-  (let* ((menubar current-menubar)
+  (let* ((item-name-tail (and (consp item-name)
+			      (prog1 (cdr item-name)
+				(setq item-name (car item-name)))))
+	 (menubar current-menubar)
 	 (menu (condition-case ()
 		   (car (find-menu-item menubar menu-path))
 		 (error nil)))
-	 (item (if (listp menu)
-		   (car (find-menu-item (cdr menu) (list item-name)))
-		 (signal 'error (list "not a submenu" menu-path)))))
+	 (item (cond ((not (listp menu))
+		      (signal 'error (list "not a submenu" menu-path)))
+		     (menu
+		      (car (find-menu-item (cdr menu) (list item-name))))
+		     (t
+		      (car (find-menu-item menubar (list item-name))))
+		     )))
     (or menu
 	(let ((rest menu-path)
 	      (so-far menubar))
@@ -188,7 +196,9 @@ menu item called \"Item\" under the \"Foo\" submenu of \"Menu\"."
     (if item
 	nil	; it's already there
       (if item-p
-	  (setq item (vector item-name item-data enabled-p))
+	  (setq item (if item-name-tail
+			 (vector item-name item-data enabled-p item-name-tail)
+		       (vector item-name item-data enabled-p)))
 	(setq item (cons item-name item-data)))
       ;; if BEFORE is specified, try to add it there.
       (if before
@@ -210,6 +220,7 @@ menu item called \"Item\" under the \"Foo\" submenu of \"Menu\"."
 	      (nconc menu (list item))))))
     (if item-p
 	(progn
+	  (aset item 0 item-name)
 	  (aset item 1 item-data)
 	  (aset item 2 (not (null enabled-p))))
       (setcar item item-name)
@@ -228,11 +239,13 @@ FUNCTION is the command to invoke when this menu item is selected.
  If it is a symbol, then it is invoked with `call-interactively', in the same
  way that functions bound to keys are invoked.  If it is a list, then the 
  list is simply evaluated.
-ENABLED-P controls whether the item is selectable or not.
+ENABLED-P controls whether the item is selectable or not.  It may be t, nil,
+ or a form to evaluate.  It will be evaluated each time the menubar is 
+ activated.
 BEFORE, if provided, is the name of a menu item before which this item should
  be added, if this item is not on the menu already.  If the item is already
  present, it will not be moved."
-  (or menu-path (error "must specify a menu path"))
+;  (or menu-path (error "must specify a menu path"))
   (or item-name (error "must specify an item name"))
   (add-menu-item-1 t menu-path item-name function enabled-p before))
 
@@ -293,7 +306,7 @@ MENU-ITEMS is a list of menu item descriptions.
  Each menu item should be a vector of three elements:
    - a string, the name of the menu item;
    - a symbol naming a command, or a form to evaluate;
-   - and t or nil, whether this item is selectable.
+   - and t, nil, or a form to evaluate: whether this item is selectable.
 BEFORE, if provided, is the name of a menu before which this menu should
  be added, if this menu is not on its parent already.  If the menu is already
  present, it will not be moved."
@@ -305,6 +318,12 @@ BEFORE, if provided, is the name of a menu before which this menu should
 
 (defvar put-buffer-names-in-file-menu t)
 
+;; The sensitivity part of this function could be done by just adding forms
+;; to evaluate to the menu items themselves; that would be marginally less
+;; efficient but not perceptibly so (I think.)  But in order to change the
+;; names of the Undo menu item and the various things on the File menu item,
+;; we need to use a hook.
+;;
 (defun sensitize-file-and-edit-menus-hook ()
   "For use as a value of activate-menubar-hook.
 This function changes the sensitivity of these File and Edit menu items:
@@ -398,7 +417,7 @@ This function changes the sensitivity of these File and Edit menu items:
     (not change-p)))
 
 ;; this version is too slow
-(defun format-buffers-menu-line (buffer)
+(defun slow-format-buffers-menu-line (buffer)
   "Returns a string to represent the given buffer in the Buffer menu.
 nil means the buffer shouldn't be listed.  You can redefine this."
   (if (string-match "\\` " (buffer-name buffer))
@@ -413,8 +432,10 @@ nil means the buffer shouldn't be listed.  You can redefine this."
 	       size
 	       mode-name
 	       (or (buffer-file-name) ""))))))
-	   
+
 (defun format-buffers-menu-line (buffer)
+  "Returns a string to represent the given buffer in the Buffer menu.
+nil means the buffer shouldn't be listed.  You can redefine this."
   (if (string-match "\\` " (setq buffer (buffer-name buffer)))
       nil
     buffer))
@@ -452,28 +473,27 @@ select that buffer.")
   (let (name line)
     (mapcar
      (if complex-buffers-menu-p
-	 (function
-	  (lambda (buffer)
-	    (if (setq line (format-buffers-menu-line buffer))
-		(list line
-		      (vector "Switch to Buffer"
-			      (list buffers-menu-switch-to-buffer-function
-				    (setq name (buffer-name buffer)))
-			      t)
-		      (if (and (buffer-modified-p buffer)
-			       (buffer-file-name buffer))
-			  (vector "Save Buffer"
-				  (list 'buffer-menu-save-buffer name) t)
-			["Save Buffer" nil nil])
-		      (vector "Save Buffer As..."
-			      (list 'buffer-menu-write-file name) t)
-		      (vector "Kill Buffer" (list 'kill-buffer name) t)))))
-       (function (lambda (buffer)
-		   (if (setq line (format-buffers-menu-line buffer))
-		       (vector line
+	 #'(lambda (buffer)
+	     (if (setq line (format-buffers-menu-line buffer))
+		 (list line
+		       (vector "Switch to Buffer"
 			       (list buffers-menu-switch-to-buffer-function
-				     (buffer-name buffer))
-			       t)))))
+				     (setq name (buffer-name buffer)))
+			       t)
+		       (if (and (buffer-modified-p buffer)
+				(buffer-file-name buffer))
+			   (vector "Save Buffer"
+				   (list 'buffer-menu-save-buffer name) t)
+			 ["Save Buffer" nil nil])
+		       (vector "Save Buffer As..."
+			       (list 'buffer-menu-write-file name) t)
+		       (vector "Kill Buffer" (list 'kill-buffer name) t))))
+       #'(lambda (buffer)
+	   (if (setq line (format-buffers-menu-line buffer))
+	       (vector line
+		       (list buffers-menu-switch-to-buffer-function
+			     (buffer-name buffer))
+		       t))))
      buffers)))
 
 (defun build-buffers-menu-hook ()
@@ -517,13 +537,13 @@ You can control the text of the menu items by redefining the function
   "Ask user a \"y or n\" question with a popup dialog box.
 Returns t if answer is \"yes\".
 Takes one argument, which is the string to display to ask the question."
-  (let ((event (allocate-event))
-	(echo-keystrokes 0))	 
+  (let ((echo-keystrokes 0)
+	event)	 
     (popup-dialog-box
      (cons prompt '(["Yes" yes t] ["No" no t] nil ["Abort" abort t])))
     (catch 'ynp-done
       (while t
-	(next-command-event event)
+	(setq event (next-command-event event))
 	(cond ((and (menu-event-p event) (eq (event-object event) 'yes))
 	       (throw 'ynp-done t))
 	      ((and (menu-event-p event) (eq (event-object event) 'no))

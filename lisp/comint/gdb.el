@@ -73,7 +73,9 @@
 
 (if gdb-mode-map
    nil
-  (setq gdb-mode-map (copy-keymap comint-mode-map))
+  (setq gdb-mode-map (make-sparse-keymap))
+  (set-keymap-name gdb-mode-map 'gdb-mode-map)
+  (set-keymap-parent gdb-mode-map comint-mode-map)
   (define-key gdb-mode-map "\C-l" 'gdb-refresh)
   (define-key gdb-mode-map "\C-c\C-c" 'gdb-control-c-subjob)
   (define-key gdb-mode-map "\t" 'comint-dynamic-complete)
@@ -354,7 +356,7 @@ Obeying it means displaying in another window the specified file and line."
 	      (list (point-marker) (- pt (point))
 		    (buffer-substring (point) pt))))))
   (gdb-set-buffer)
-  (send-string (get-buffer-process current-gdb-buffer)
+  (process-send-string (get-buffer-process current-gdb-buffer)
 	       (concat command "\n")))
 
 (defun gdb-maybe-delete-prompt ()
@@ -386,7 +388,7 @@ Obeying it means displaying in another window the specified file and line."
 		(widen)
 		(beginning-of-line)
 		(1+ (count-lines 1 (point))))))
-    (send-string (get-buffer-process current-gdb-buffer)
+    (process-send-string (get-buffer-process current-gdb-buffer)
 		 (concat (if temp "tbreak " "break ")
 			 file-name ":" line "\n"))))
 
@@ -434,7 +436,7 @@ It is for customization by you.")
 	  (t (setq comm addr)))
     (switch-to-buffer current-gdb-buffer)
     (goto-char (point-max))
-    (insert-string comm)))
+    (insert comm)))
 
 (defun gdb-control-c-subjob ()
   "Send a Control-C to the subprocess."

@@ -6,6 +6,8 @@
 (evi-define-key '(vi motion)    "\177" 'evi-backward-char)
 (evi-define-key '(vi)	        "\C-z" 'evi-quit-evi)
 
+(evi-define-key '(vi motion top-level) 'button3 'energize-popup-menu)
+
 (setq evi-meta-prefix-char ?\C-a)
 
 (defvar energize-external-editor nil)		; nil, vi, or a string
@@ -20,7 +22,11 @@
   (and (not discard) (buffer-file-name) (buffer-modified-p)
        (evi-error
 	 "No write since last change (use :quit! to override)"))
-  (set-buffer-modified-p nil)
+  ;; #### Since we're unmodifying this buffer with the intent of killing it,
+  ;; we need to avoid telling Energize that we have unmodified it, or for some
+  ;; reason it recreates the buffer later.  I don't understand...
+  (let ((energize-buffer-modified-hook nil))
+    (set-buffer-modified-p nil))
   (delete-auto-save-file-if-necessary)
   (kill-buffer (current-buffer))
   (setq ex-user-buffer (current-buffer))
@@ -37,32 +43,21 @@
   (save-some-buffers quietly)
   (ex-quit t))
 
-(defconst energize-external-editor-menubar
-  (let* ((menubar (copy-alist energize-menubar))
-	 (file (or (assoc "File" menubar) (error "no File menu?")))
-;;	 (edit (or (assoc "Edit" menubar) (error "no Edit menu?")))
-	 )
-    (setcdr file
-	    (list ["New Screen"		x-new-screen		t]
-		  ["View File..."	find-file-other-window	t]
-		  ["Edit File"	energize-edit-buffer-externally	t   nil]
-		  ["Save Buffer"	save-buffer		t   nil]
-		  ["Save Buffer As..."	write-file		t]
-		  ["Revert Buffer"	revert-buffer		t   nil]
-		  "-----"
-		  ["Print Buffer"	lpr-buffer		t   nil]
-		  "-----"
-		  ["Delete Screen"	delete-screen		t]
-		  ["Kill Buffer"	kill-this-buffer	t   nil]
-		  ["quit"		energize-kill-server	nil nil]
-		  ))
-;;    (setcdr edit
-;;	    (append (cdr edit)
-;;		    (list 
-;;		     "---"
-;;		     ["vi"		vi-buffer		t  nil])))
-    menubar)
-  "The emacs menubar used when Energize is in use in external-editor mode.")
+(defun energize-external-editor-set-menubar ()
+  "Set the menubar to be used for the external editor"
+  (delete-menu-item '("File" "Open File..."))
+  (add-menu-item '("File") "View File..." 'find-file-other-window t
+		 "Save Buffer")
+  (add-menu-item '("File") '("Edit File" . "")
+		 'energize-edit-buffer-externally t "Save Buffer")
+  (delete-menu-item '("File" "Exit Emacs")))
+
+(defun energize-internal-editor-set-menubar ()
+  "Set the menubar to be used for the internal editor"
+  (add-menu-item '("File") "Open File..." 'find-file t "Save Buffer")
+  (delete-menu-item '("File" "View File..."))
+  (delete-menu-item '("File" "Edit File"))
+  (add-menu-item '("File") "Exit Emacs" 'save-buffers-kill-emacs t "quit"))
 
 
 (defun sensitize-external-editor-menus-hook ()
@@ -281,8 +276,6 @@
 
 (defun energize-evi-mode ()
   (evi)
-  (evi-define-key '(vi motion top-level) 'button3 'energize-popup-menu)
-
   ;; vi users like to be able to edit read-only files, but we shouldn't
   ;; let them edit the Energize non-file buffers.
   (if (and (energize-buffer-p (current-buffer))
@@ -587,10 +580,10 @@ this is taken from the envvironment variable $ENERGIZE_SPLIT_SCREENS_P."
 
   (cond (energize-external-editor
 	 (add-hook 'energize-disconnect-hook 'save-buffers-kill-emacs)
-	 (set-menubar energize-external-editor-menubar))
+	 (energize-external-editor-set-menubar))
 	(t
 	 (remove-hook 'energize-disconnect-hook 'save-buffers-kill-emacs)
-	 (set-menubar energize-menubar)))
+	 (energize-internal-editor-set-menubar)))
 
   (cond ;((eq multi-screen-p energize-screen-mode)
 	; nil)
@@ -692,6 +685,8 @@ this is taken from the envvironment variable $ENERGIZE_SPLIT_SCREENS_P."
 ;;; Originally defined in menubar.el
 
 (defun format-buffers-menu-line (buffer)
+  "Returns a string to represent the given buffer in the Buffer menu.
+nil means the buffer shouldn't be listed.  You can redefine this."
   (if (string-match "\\` " (setq buffer (buffer-name buffer)))
       nil
     (if energize-external-editor

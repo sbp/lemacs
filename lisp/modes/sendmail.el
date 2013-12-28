@@ -1,5 +1,9 @@
-;; Mail sending commands for Emacs.
+;;; sendmail.el --- mail sending commands for Emacs.
+
 ;; Copyright (C) 1985, 1986, 1992, 1993 Free Software Foundation, Inc.
+
+;; Maintainer: FSF
+;; Keywords: mail
 
 ;; This file is part of GNU Emacs.
 
@@ -18,56 +22,113 @@
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
 
-(provide 'sendmail)
+;;; Commentary:
 
-;(defconst mail-self-blind nil
-;  "Non-nil means insert BCC to self in messages to be sent.
+;; This mode provides mail-sending facilities from within Emacs.  It is
+;; documented in the Emacs user's manual.
+
+;;; Code:
+
+;;;###autoload
+;(defvar mail-self-blind nil "\
+;Non-nil means insert BCC to self in messages to be sent.
 ;This is done when the message is initialized,
 ;so you can remove or alter the BCC field to override the default.")
 
-;(defconst mail-interactive nil
-;  "Non-nil means when sending a message wait for and display errors.
+;;;###autoload
+;(defvar mail-interactive nil "\
+;Non-nil means when sending a message wait for and display errors.
 ;nil means let mailer mail back a message to report errors.")
 
-;(defconst mail-yank-ignored-headers
-;   "^via:\\|^mail-from:\\|^origin:\\|^status:\\|^remailed\\|^received:\\|^message-id:\\|^summary-line:\\|^to:\\|^subject:\\|^in-reply-to:\\|^return-path:"
-;   "Delete these headers from old message when it's inserted in a reply.")
-;(defvar send-mail-function 'sendmail-send-it
-;  "Function to call to send the current buffer as mail.
-;The headers are be delimited by a line which is mail-header-separator"")
+;;;###autoload
+;(defvar mail-yank-ignored-headers "^via:\\|^mail-from:\\|^origin:\\|^status:\\|^remailed\\|^received:\\|^message-id:\\|^summary-line:\\|^to:\\|^subject:\\|^in-reply-to:\\|^return-path:" "\
+;Delete these headers from old message when it's inserted in a reply.")
 
-; really defined in loaddefs for emacs 17.17+
-;(defvar mail-header-separator "--text follows this line--"
-;  "*Line used to separate headers from text in messages being composed.")
-; really defined in loaddefs for emacs 17.17+
-;(defvar mail-archive-file-name nil
-;  "*Name of file to write all outgoing messages in, or nil for none.")
-; really defined in loaddefs for emacs 17.17+
+;; Useful to set in site-init.el
+;;;###autoload
+;(defvar send-mail-function 'sendmail-send-it "\
+;Function to call to send the current buffer as mail.
+;The headers are be delimited by a line which is `mail-header-separator'.")
+
+;;;###autoload
+;(defvar mail-header-separator "--text follows this line--" "\
+;*Line used to separate headers from text in messages being composed.")
+
+;;;###autoload
+;(defvar mail-archive-file-name nil "\
+;*Name of file to write all outgoing messages in, or nil for none.
+;Do not use an rmail file here!  Instead, use its inbox file.")
 
 (defvar mail-default-reply-to nil
   "*Address to insert as default Reply-to field of outgoing messages.")
+
+;;; FSFmacs randomness
+;;(defvar mail-alias-file nil
+;;  "*If non-nil, the name of a file to use instead of `/usr/lib/aliases'.
+;;This file defines aliases to be expanded by the mailer; this is a different
+;;feature from that of defining aliases in `.mailrc' to be expanded in Emacs.
+;;This variable has no effect unless your system uses sendmail as its mailer.")
+;;
+;;(defvar mail-aliases t
+;;  "Alist of mail address aliases,
+;;or t meaning should be initialized from `~/.mailrc'.
+;;The alias definitions in `~/.mailrc' have this form:
+;;  alias ALIAS MEANING")
 
 (defvar mail-yank-prefix nil
   "*Prefix insert on lines of yanked message being replied to.
 nil means use indentation.")
 
+(defvar mail-indentation-spaces 3
+  "*Number of spaces to insert at the beginning of each cited line.
+Used by `mail-yank-original' via `mail-indent-citation'.")
+
+(defvar mail-yank-hooks nil
+  "Obsolete hook for modifying a citation just inserted in the mail buffer.
+Each hook function can find the citation between (point) and (mark t).
+And each hook function should leave point and mark around the citation
+text as modified.
+
+This is a normal hook, misnamed for historical reasons.
+It is semi-obsolete and mail agents should no longer use it.")
+
+(defvar mail-citation-hook nil
+  "*Hook for modifying a citation just inserted in the mail buffer.
+Each hook function can find the citation between (point) and (mark t).
+And each hook function should leave point and mark around the citation
+text as modified.
+
+If this hook is entirely empty (nil), a default action is taken
+instead of no action.")
+
 (defvar mail-abbrevs-loaded nil)
 (defvar mail-mode-map nil)
 
-(defvar mail-reply-buffer nil)
-(defvar mail-send-actions nil
-  "A list of actions to be performed upon successful sending of a message.")
+;;;###autoload
+(defvar mail-signature nil
+  "*Text inserted at end of mail buffer when a message is initialized.
+If t, it means to insert the contents of the file `mail-signature-file'.")
+
+;;>>> Glorp!  Do we really need both of these losers?
+(defvar mail-insert-signature nil
+  "If t, automatically insert the contents of the file
+`mail-signature-file' before sending a message.")
 
 (defvar mail-signature-file "~/.signature"
   "File to be inserted at the end of a message. Usually, this file is called
 \"~/.signature\".")
 
-(defvar mail-insert-signature nil
-  "If T, insert automaticcally the file denoted by the variable
-`mail-signature-file' before sending a message.")
-
 (defvar mail-signature-inserted nil
   "Non-nil means signature already inserted; don't reinsert it.")
+
+(defvar mail-reply-buffer nil)
+(defvar mail-send-actions nil
+  "A list of actions to be performed upon successful sending of a message.")
+
+(defvar mail-default-headers nil
+  "*A string containing header lines, to be inserted in outgoing messages.
+It is inserted before you edit the message,
+so you can edit or delete these lines.")
 
 (defvar mail-mode-syntax-table nil
   "Syntax table used while in mail mode.")
@@ -80,42 +141,59 @@ nil means use indentation.")
 (autoload 'mail-aliases-setup "mail-abbrevs")
 
 (defun mail-setup (to subject in-reply-to cc replybuffer actions)
+  (make-local-variable 'mail-signature-inserted)
+  (setq mail-signature-inserted nil)
   (setq mail-send-actions actions)
   (mail-aliases-setup)
   (setq mail-reply-buffer replybuffer)
-  (setq mail-signature-inserted nil)
   (goto-char (point-min))
   (insert "To: ")
   (save-excursion
     (if to
-	(progn
+        ;; Here removed code to extract names from within <...>
+        ;; on the assumption that mail-strip-quoted-names
+        ;; has been called and has done so.
+	(let ((fill-prefix "\t")
+              (address-start (point)))
 	  (insert to "\n")
-	  ;;; Here removed code to extract names from within <...>
-	  ;;; on the assumption that mail-strip-quoted-names
-	  ;;; has been called and has done so.
-	  (let ((fill-prefix "\t"))
-	    (fill-region (point-min) (point-max))))
+          (fill-region-as-paragraph address-start (point-max)))
       (newline))
     (if cc
-	(let ((opos (point))
-	      (fill-prefix "\t"))
-	  (insert "CC: " cc "\n")
-	  (fill-region-as-paragraph opos (point-max))))
+	(let ((fill-prefix "\t")
+	      (address-start (progn (insert "CC: ") (point))))
+	  (insert cc "\n")
+	  (fill-region-as-paragraph address-start (point-max))))
     (if in-reply-to
 	(insert "In-reply-to: " in-reply-to "\n"))
     (insert "Subject: " (or subject "") "\n")
+    (if mail-default-headers
+	(insert mail-default-headers))
     (if mail-default-reply-to
 	(insert "Reply-to: " mail-default-reply-to "\n"))
     (if mail-self-blind
 	(insert "BCC: " (user-login-name) "\n"))
     (if mail-archive-file-name
 	(insert "FCC: " mail-archive-file-name "\n"))
-    (insert mail-header-separator "\n"))
-  (if to (goto-char (point-max)))
+    (insert mail-header-separator "\n")
+
+    ;; Insert the signature.  But remember the beginning of the message.
+    (if to (setq to (point)))
+    (cond ((eq mail-signature t)
+           (if (file-exists-p mail-signature-file)
+               (insert-file-contents mail-signature-file))
+           (setq mail-signature-inserted t))
+          (mail-signature
+           (insert mail-signature)
+           (setq mail-signature-inserted t)))
+    (goto-char (point-max))
+    (or (bolp) (newline))
+    )
+  (if to (goto-char to))
   (or to subject in-reply-to
       (set-buffer-modified-p nil))
   (run-hooks 'mail-setup-hook))
 
+;;;###autoload
 (defun mail-mode ()
   "Major mode for editing mail to be sent.
 Like Text Mode but with these additional commands:
@@ -156,16 +234,18 @@ Button3  Popup menu with the above commands."
     nil
   (setq mail-mode-map (make-sparse-keymap))
   (set-keymap-parent mail-mode-map text-mode-map)
+  (set-keymap-name mail-mode-map 'mail-mode-map)
   (define-key mail-mode-map "\C-c?" 'describe-mode)
   (define-key mail-mode-map "\C-c\C-f\C-t" 'mail-to)
   (define-key mail-mode-map "\C-c\C-f\C-b" 'mail-bcc)
+  ;;(define-key mail-mode-map "\C-c\C-f\C-f" 'mail-fcc)
   (define-key mail-mode-map "\C-c\C-f\C-c" 'mail-cc)
   (define-key mail-mode-map "\C-c\C-f\C-s" 'mail-subject)
   (define-key mail-mode-map "\C-c\C-t" 'mail-text)
   (define-key mail-mode-map "\C-c\C-y" 'mail-yank-original)
-  (define-key mail-mode-map "\C-c\C-w" 'mail-signature)
   (define-key mail-mode-map "\C-c\C-q" 'mail-fill-yanked-message)
-  (define-key mail-mode-map "\C-c\C-v" 'mail-sent-via)
+  (define-key mail-mode-map "\C-c\C-w" 'mail-signature)
+  ;;(define-key mail-mode-map "\C-c\C-v" 'mail-sent-via)
   (define-key mail-mode-map "\C-c\C-c" 'mail-send-and-exit)
   (define-key mail-mode-map "\C-c\C-s" 'mail-send)
   (define-key mail-mode-map 'button3   'mail-mode-menu))
@@ -178,7 +258,6 @@ Button3  Popup menu with the above commands."
     "----"
     ["Send and Exit"		mail-send-and-exit		t]
     ["Send Mail"		mail-send			t]
-    ["Sent Via"			mail-sent-via			t]
     "----"
     "Go to Field:"
     "----"
@@ -186,6 +265,7 @@ Button3  Popup menu with the above commands."
     ["Subject:"			mail-subject			t]
     ["CC:"			mail-cc				t]
     ["BCC:"			mail-bcc			t]
+;;    ["Sent Via:"		mail-sent-via			t]
     ["Text"			mail-text			t]
     "----"
     "Miscellaneous Commands:"
@@ -203,50 +283,78 @@ Button3  Popup menu with the above commands."
   (interactive "e")
   (select-window (event-window event))
   ;; Correctly sensitize the "Yank Original" and "Insert Signature" items.
-  (let (yank sig (rest mail-mode-menu))
+  (let (yank sig fill (rest mail-mode-menu))
     (while rest
       (if (vectorp (car rest))
 	  (cond ((eq (aref (car rest) 1) 'mail-yank-original)
 		 (setq yank (car rest)))
 		((eq (aref (car rest) 1) 'mail-signature)
-		 (setq sig (car rest)))))
+		 (setq sig (car rest)))
+		((eq (aref (car rest) 1) 'mail-fill-yanked-message)
+		 (setq fill (car rest)))))
       (setq rest (cdr rest)))
     (if yank (aset yank 2 (not (null mail-reply-buffer))))
     (if sig (aset sig 2 (and (stringp mail-signature-file)
-			     (file-exists-p mail-signature-file)))))
+			     (file-exists-p mail-signature-file))))
+    (if fill (aset fill 2
+		   (save-excursion
+		     (goto-char (point-min))
+		     (and (search-forward (concat "\n" mail-header-separator
+						  "\n") nil t)
+			  (not (looking-at "[ \t\n]*\\'"))))))
+    )
   (popup-menu 'mail-mode-menu))
 
 
 (defun mail-send-and-exit (arg)
-  "Send message like mail-send, then, if no errors, exit from mail buffer.
+  "Send message like `mail-send', then, if no errors, exit from mail buffer.
 Prefix arg means don't delete this window."
   (interactive "P")
   (mail-send)
-  (bury-buffer (current-buffer))
-  (if (and (not arg)
-	   (not (one-window-p))
-	   (save-excursion
-	     (set-buffer (window-buffer (next-window (selected-window) 'not)))
-	     (eq major-mode 'rmail-mode)))
-      (delete-window)
-    (switch-to-buffer (other-buffer (current-buffer)))))
+  (mail-bury arg))
+
+(defun mail-dont-send (arg)
+  "Don't send the message you have been editing.
+Prefix arg means don't delete this window."
+  (interactive "P")
+  (mail-bury arg))
+
+(defun mail-bury (arg)
+  "Bury this mail buffer."
+  (let ((newbuf (other-buffer (current-buffer))))
+    (bury-buffer (current-buffer))
+    (if (and (not arg)
+             (not (one-window-p))
+             (save-excursion
+               (set-buffer (window-buffer (next-window (selected-window)
+                                                       'not)))
+               (eq major-mode 'rmail-mode)))
+        (delete-window)
+	(switch-to-buffer newbuf))))
 
 (defun mail-send ()
-  "Send the message in the current buffer.  If the file denoted by the variable
-`mail-signature-file' exists, and the variable `mail-insert-signature' is
-non-nil, it is inserted at the end.  If `mail-insert-signature' is nil, your
-.signature file will not be inserted unless you do it explicitly with C-c C-w.
+  "Send the message in the current buffer.
+
+If the file named by the variable `mail-signature-file' exists and
+the variable `mail-insert-signature' is non-nil, that file is inserted
+at the end.  If `mail-insert-signature' is nil, your .signature file
+will not be inserted unless you do it explicitly with C-c C-w.
+
 If `mail-interactive' is non-nil, wait for success indication or error
 messages, and inform user.  Otherwise any failure is reported in a message
 back to the user from the mailer."
   (interactive)
-  (if (or (buffer-modified-p)
-          (y-or-n-p "Message already sent; resend? "))
+  (if (cond (buffer-file-name
+             (y-or-n-p "Send buffer contents as mail message? "))
+            ((buffer-modified-p)
+             t)
+            (t
+             (y-or-n-p "Message already sent; resend? ")))
       (progn
 	(message "Sending...")
 	(and (not mail-signature-inserted)
-	     (file-exists-p mail-signature-file)
 	     mail-insert-signature
+	     (file-exists-p mail-signature-file)
 	     (mail-signature))
 	(run-hooks 'mail-send-hook)
 	(funcall send-mail-function)
@@ -256,18 +364,16 @@ back to the user from the mailer."
 	      (apply (car (car mail-send-actions)) (cdr (car mail-send-actions)))
 	    (error))
 	  (setq mail-send-actions (cdr mail-send-actions)))
+	(message "Sending...done")
 
-;	(set-buffer-modified-p nil)
-;	(delete-auto-save-file-if-necessary t)
-
-	(if (and (buffer-modified-p) buffer-file-name)
-	    (if (or noninteractive
-		    (y-or-n-p (format "Save file %s? " buffer-file-name)))
-		(save-buffer))
-	  (set-buffer-modified-p nil)
-	  (delete-auto-save-file-if-necessary t))
-
-	(message "Sending...done"))))
+        ;; If buffer has no file, mark it as unmodified and delete autosave.
+        (cond ((or (not buffer-file-name)
+                   (not (buffer-modified-p)))
+               (set-buffer-modified-p nil)
+               (delete-auto-save-file-if-necessary t))
+              ((or noninteractive
+                   (y-or-n-p (format "Save file %s? " buffer-file-name)))
+               (save-buffer))))))
 
 (defun sendmail-send-it ()
   (let ((errbuf (if mail-interactive
@@ -293,6 +399,8 @@ back to the user from the mailer."
 	  (replace-match "\n")
 	  (backward-char 1)
 	  (setq delimline (point-marker))
+	  ;;(if mail-aliases ;; RMSmacs
+	  ;;    (expand-mail-aliases (point-min) delimline))
 	  (goto-char (point-min))
 	  ;; ignore any blank lines in the header
 	  (while (and (re-search-forward "\n\n\n*" delimline t)
@@ -345,6 +453,9 @@ back to the user from the mailer."
 ;;;			 ;; Don't say "from root" if running under su.
 ;;;			 (and (equal (user-real-login-name) "root")
 ;;;			      (list "-f" (user-login-name)))
+			 ;;(and mail-alias-file ;; RMSmacs
+			 ;;     (list (concat "-oA" mail-alias-file)))
+
 			 ;; These mean "report errors by mail"
 			 ;; and "deliver in background".
 			 (if (null mail-interactive) '("-oem" "-odb"))))
@@ -361,32 +472,32 @@ back to the user from the mailer."
       (if (bufferp errbuf)
 	  (kill-buffer errbuf)))))
 
-(defun mail-sent-via ()
-  "Make a Sent-via header line from each To or CC header line."
-  (interactive)
-  (save-excursion
-    (goto-char (point-min))
-    ;; find the header-separator
-    (search-forward (concat "\n" mail-header-separator "\n"))
-    (forward-line -1)
-    ;; put a marker at the end of the header
-    (let ((end (point-marker))
-	  (case-fold-search t)
-	  to-line)
-      (goto-char (point-min))
-      ;; search for the To: lines and make Sent-via: lines from them
-      ;; search for the next To: line
-      (while (re-search-forward "^\\(to\\|cc\\):" end t)
-	;; Grab this line plus all its continuations, sans the `to:'.
-	(let ((to-line
-	       (buffer-substring (point)
-				 (progn
-				   (if (re-search-forward "^[^ \t\n]" end t)
-				       (backward-char 1)
-				     (goto-char end))
-				   (point)))))
-	  ;; Insert a copy, with altered header field name.
-	  (insert-before-markers "Sent-via:" to-line))))))
+;;(defun mail-sent-via ()
+;;  "Make a Sent-via header line from each To or CC header line."
+;;  (interactive)
+;;  (save-excursion
+;;  (goto-char (point-min))
+;;  ;; find the header-separator
+;;  (search-forward (concat "\n" mail-header-separator "\n"))
+;;  (forward-line -1)
+;;  ;; put a marker at the end of the header
+;;  (let ((end (point-marker))
+;;        (case-fold-search t)
+;;        to-line)
+;;    (goto-char (point-min))
+;;    ;; search for the To: lines and make Sent-via: lines from them
+;;    ;; search for the next To: line
+;;    (while (re-search-forward "^\\(to\\|cc\\):" end t)
+;;      ;; Grab this line plus all its continuations, sans the `to:'.
+;;      (let ((to-line
+;;             (buffer-substring (point)
+;;                               (progn
+;;                                 (if (re-search-forward "^[^ \t\n]" end t)
+;;                                     (backward-char 1)
+;;                                   (goto-char end))
+;;				   (point)))))
+;;	  ;; Insert a copy, with altered header field name.
+;;	  (insert-before-markers "Sent-via:" to-line))))))
 
 (defun mail-to ()
   "Move point to end of To-field."
@@ -416,6 +527,14 @@ back to the user from the mailer."
       (progn (mail-position-on-field "to")
 	     (insert "\nBCC: "))))
 
+(defun mail-fcc ()
+  "Add a new FCC field, with file name completion."
+  (interactive)
+  (expand-abbrev)
+  (or (mail-position-on-field "fcc" t)	;Put new field after exiting FCC.
+      (mail-position-on-field "to"))
+  (insert "\nFCC: " (read-file-name "Folder carbon copy: ")))
+
 (defun mail-position-on-field (field &optional soft)
   (let (end
 	(case-fold-search t))
@@ -441,17 +560,20 @@ back to the user from the mailer."
   (goto-char (point-min))
   (search-forward (concat "\n" mail-header-separator "\n")))
 
-(defun mail-signature ()
-  "Sign letter with contents of the signature file, 
-which is named by the variable `mail-signature-file'."
-  (interactive)
+(defun mail-signature (&optional atpoint)
+  "Sign letter with contents of `mail-signature-file'."
+  (interactive "P")
   (save-excursion
-    (goto-char (point-max))
+    (or atpoint
+	(goto-char (point-max)))
     (skip-chars-backward " \t\n")
     (end-of-line)
-    (delete-region (point) (point-max))
-    (insert "\n\n--\n")
-    (insert-file-contents (expand-file-name mail-signature-file))
+    (or atpoint
+        (delete-region (point) (point-max)))
+    (insert "\n\n") ;(insert "\n\n--\n")
+    (if (stringp mail-signature)
+        (insert mail-signature)
+        (insert-file-contents (expand-file-name mail-signature-file)))
     (setq mail-signature-inserted t)))
 
 (defun mail-fill-yanked-message (&optional justifyp)
@@ -465,6 +587,23 @@ Numeric argument means justify as well."
 				(point-max)
 				justifyp
 				t)))
+
+(defun mail-indent-citation ()
+  "Modify text just inserted from a message to be cited.
+The inserted text should be the region.
+When this function returns, the region is again around the modified text.
+
+Normally, indent each nonblank line `mail-indentation-spaces' spaces.
+However, if `mail-yank-prefix' is non-nil, insert that prefix on each line."
+  (let ((start (point)))
+    (mail-yank-clear-headers start (mark t))
+    (if (null mail-yank-prefix)
+	(indent-rigidly start (mark t) mail-indentation-spaces)
+      (save-excursion
+	(goto-char start)
+	(while (< (point) (mark t))
+	  (insert mail-yank-prefix)
+	  (forward-line 1))))))
 
 (defun mail-yank-original (arg)
   "Insert the message being replied to, if any (in rmail).
@@ -481,15 +620,15 @@ and don't delete any header fields."
 	(insert-buffer mail-reply-buffer)
 	(if (consp arg)
 	    nil
-	  (mail-yank-clear-headers start (mark t))
-	  (if (null mail-yank-prefix)
-	      (indent-rigidly start (mark t)
-			      (if arg (prefix-numeric-value arg) 3))
-	    (save-excursion
-	      (goto-char start)
-	      (while (< (point) (mark t))
-		(insert mail-yank-prefix)
-		(forward-line 1)))))
+	  (goto-char start)
+	  (let ((mail-indentation-spaces (if arg (prefix-numeric-value arg)
+					   mail-indentation-spaces)))
+	    (cond (mail-citation-hook
+                   (run-hooks 'mail-citation-hook))
+                  (mail-yank-hooks
+                   (run-hooks 'mail-yank-hooks))
+                  (t
+                   (mail-indent-citation)))))
 	(let ((zmacs-regions nil))
 	  (exchange-point-and-mark))
 	(if (not (eolp)) (insert ?\n)))))
@@ -614,8 +753,10 @@ and don't delete any header fields."
       (or (condition-case ()
 	      (let ((zoneinfo (current-time-zone)))
 		(setq mail-do-fcc-cached-timezone
-		      (or (if (nth 1 zoneinfo) (nth 3 zoneinfo))
-			  (nth 2 zoneinfo)))
+		      (if (stringp (nth 1 zoneinfo))
+			  (nth 1 zoneinfo)
+			(or (if (nth 1 zoneinfo) (nth 3 zoneinfo))
+			    (nth 2 zoneinfo))))
 		(if mail-do-fcc-cached-timezone
 		    (insert mail-do-fcc-cached-timezone "\n"))
 		mail-do-fcc-cached-timezone)
@@ -655,7 +796,11 @@ and don't delete any header fields."
       (rmail-maybe-set-message-counters))))
 
 ;;; Load VM into the compilation environment but not the load environment.
-(eval-when-compile (require 'vm))
+(eval-when-compile
+ (or (and (boundp 'loading-vm-kludge) loading-vm-kludge)
+     ;; nastiness to avoid circular provide/require dependency nonsense
+     (let ((loading-vm-kludge t))
+       (require 'vm))))
 
 (defun mail-do-fcc-vm-internal (buffer)
   (or (eq major-mode 'vm-mode) (error "this only works in vm-mode"))
@@ -674,19 +819,21 @@ and don't delete any header fields."
 
 ;; Put these last, to reduce chance of lossage from quitting in middle of loading the file.
 
+;;;###autoload
 (defun mail (&optional noerase to subject in-reply-to cc replybuffer actions)
-  "Edit a message to be sent.  Argument means resume editing (don't erase).
-Search for an existing mail buffer currently not in use and initialize it,
-or make a new one if all existing mail buffers are busy.
-With an argument, search for a busy existing mail buffer and re-select it.
+  "Edit a message to be sent.  Prefix arg means resume editing (don't erase).
+When this function returns, the buffer `*mail*' is selected.
+The value is t if the message was newly initialized; otherwise, nil.
 
-Returns with message buffer selected; value t if message freshly initialized.
-
-While editing message, type C-c C-c to send the message and exit.
+\\<mail-mode-map>
+While editing message, type \\[mail-send-and-exit] to send the message and exit.
 
 Various special commands starting with C-c are available in sendmail mode
 to move to message header fields:
 \\{mail-mode-map}
+
+The variable `mail-signature' controls whether the signature file
+`mail-signature-file' is inserted immediately.
 
 If `mail-insert-signature' is non-nil, the signature file, denoted by
 the variable `mail-signature-file', is automatically inserted at the
@@ -769,6 +916,7 @@ The seventh argument ACTIONS is a list of actions to take
 	     (insert-file-contents file-name nil)))
 	  (t (error "mail-recover cancelled.")))))
 
+;;;###autoload
 (defun mail-other-window (&optional noerase to subject in-reply-to cc replybuffer sendactions)
   "Like `mail' command, but display mail buffer in another window."
   (interactive "P")
@@ -777,3 +925,7 @@ The seventh argument ACTIONS is a list of actions to take
   (mail noerase to subject in-reply-to cc replybuffer sendactions))
 
 ;;; Do not add anything but external entries on this page.
+
+(provide 'sendmail)
+
+;;; sendmail.el ends here

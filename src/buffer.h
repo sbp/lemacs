@@ -1,5 +1,5 @@
 /* Header file for the buffer manipulation primitives.
-   Copyright (C) 1985-1993 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1992, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -20,11 +20,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #ifndef _EMACS_BUFFER_H_
 #define _EMACS_BUFFER_H_
 
-#ifdef lint
-#include "undo.h"
-#endif /* lint */
-
-
 #define SET_PT(arg) (set_point ((arg)))
 #define SET_BUF_PT(buf, value) (set_buffer_point ((buf),(value)))
 
@@ -34,8 +29,9 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* Character position of beginning of accessible range of buffer.  */ 
 #define BEGV (current_buffer->text.begv)
 
-/* Character position of point in buffer.  */ 
-#define PT (current_buffer->text.pt)
+/* Character position of point in buffer.  The "+ 0" makes this
+   not an l-value, so you can't assign to it.  Use SET_PT instead.  */
+#define PT (current_buffer->text.pt + 0)
 
 /* Character position of gap in buffer.  */ 
 #define GPT (current_buffer->text.gpt)
@@ -51,6 +47,9 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* Face changed.  */
 #define FACECHANGE (current_buffer->text.face_change)
+
+/* Margin changed. */
+#define MARGINCHANGE (current_buffer->text.margin_change)
 
 /* Address of beginning of buffer.  */ 
 #define BEG_ADDR (current_buffer->text.beg)
@@ -106,6 +105,9 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* Face changed.  */
 #define BUF_FACECHANGE(buf) ((buf)->text.face_change)
 
+/* Margin changed.  */
+#define BUF_MARGINCHANGE(buf) ((buf)->text.margin_change)
+
 /* Address of beginning of buffer.  */
 #define BUF_BEG_ADDR(buf) ((buf)->text.beg)
 
@@ -116,8 +118,13 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* Size of gap.  */
 #define BUF_GAP_SIZE(buf) ((buf)->text.gap_size)
 
-
 /* Macros from translating between position, pointer, and char. */
+
+/* Convert the address of a char in the buffer into a character position.  */
+#define PTR_CHAR_POS(ptr) \
+  ((ptr) - (current_buffer)->text.beg					\
+   - (ptr - (current_buffer)->text.beg < (unsigned) GPT ? 0 : GAP_SIZE)	\
+   + 1)
 
 
 /* Generate the position in buffer, taking the gap into account. */
@@ -137,9 +144,13 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* Character at position n in current buffer.  No range checking */
 #define CHAR_AT(n) (*CHAR_ADDRESS ((n)))
 
-/* Convert the address of a char in the buffer into a character position.  */
-#define PTR_CHAR_POS(ptr) \
-((ptr) - (current_buffer)->text.beg - (ptr - (current_buffer)->text.beg < (unsigned) GPT ? 0 : GAP_SIZE))
+#ifdef HAVE_X_WINDOWS
+/* Width of the outside margins in pixels. */
+#define LEFT_MARGIN(buf,scr) (XINT((buf)->left_outside_margin_width) * \
+	XTextWidth (SCREEN_DEFAULT_X_FONT (scr), "M", 1))
+#define RIGHT_MARGIN(buf,scr) (XINT((buf)->right_outside_margin_width) * \
+	XTextWidth (SCREEN_DEFAULT_X_FONT (scr), "M", 1))
+#endif
 
 struct buffer_text
   {
@@ -157,29 +168,22 @@ struct buffer_text
     int face_change;		/* This is set when a change in how the text
 				   should be displayed (e.g., font, color)
 				   is made. */
+    int margin_change;		/* This is set when a change is made in the
+				   width of either outside margin. */
   };
 
 struct buffer
   {
-    /* Everything before the `name' slot must be of a non-Lisp_Object type,
-       and every slot after `name' must be a Lisp_Object.
-
-       Check out mark_buffer (alloc.c) to see why.
-     */
+    struct lcrecord_header header;
 
     /* This structure holds the coordinates of the buffer contents.  */
     struct buffer_text text;
-
-    /* Next buffer, in chain of all buffers including killed buffers.
-       This chain is used only for garbage collection, in order to
-       collect killed buffers properly.  */
-    struct buffer *next;
 
     /* Flags saying which DEFVAR_PER_BUFFER variables
        are local to this buffer.  */
     int local_var_flags;
 
-    /* Value of text.modiff when buffer last saved */
+    /* Value of text.modiff as of when visited file was read or written. */
     int save_modified;
 
     /* Set to the modtime of the visited file when read or written.
@@ -204,25 +208,23 @@ struct buffer
     /* The markers that refer to this buffer.  This
        is actually a single marker -- successive elements in its marker
        `chain' are the other markers referring to this buffer */
-    Lisp_Object markers;
+    struct Lisp_Marker *markers;
 
-    /* Active regions in this buffer. */
-    Lisp_Object extents;
 
     /* Everything from here down must be a Lisp_Object */
 
-    /* the name of this buffer */
-    Lisp_Object name;
-#undef MARKED_SLOT
 #define MARKED_SLOT(x) Lisp_Object x
 #include "bufslots.h"
 #undef MARKED_SLOT
 };
 
-#ifdef emacs
+extern const struct lrecord_implementation lrecord_buffer[];
+
+#define XBUFFER(a) ((struct buffer *) XPNTR(a))
+#define CHECK_BUFFER(x, i) CHECK_RECORD ((x), lrecord_buffer, Qbufferp, (i))
+#define BUFFERP(x) RECORD_TYPEP ((x), lrecord_buffer)
 
 extern struct buffer *current_buffer;
-extern struct buffer *all_buffers;
 
 /* This structure holds the default values of the buffer-local variables
    defined with DefBufferLispVar, that have special slots in each buffer.
@@ -231,7 +233,7 @@ extern struct buffer *all_buffers;
    Setting the default value also goes through the alist of buffers
    and stores into each buffer that does not say it has a local value.  */
 
-extern struct buffer buffer_defaults;
+extern Lisp_Object Vbuffer_defaults;
 
 /* This structure marks which slots in a buffer have corresponding
    default values in buffer_defaults.
@@ -248,14 +250,15 @@ extern struct buffer buffer_defaults;
 
 extern struct buffer buffer_local_flags;
 
-/* For each buffer slot, this points to the Lisp symbol name
-   for that slot in the current buffer.  It is 0 for slots
-   that don't have such names.  */
+
+/* Point in the current buffer.  This is an obsolete alias
+   and should be eliminated.  */
+#define point (current_buffer->text.pt + 0)
 
-extern struct buffer buffer_local_symbols;
+/* BUFFER_CEILING_OF (resp. BUFFER_FLOOR_OF), when applied to n, return
+   the max (resp. min) p such that
 
-/* Point in the current buffer. */
-#define point (current_buffer->text.pt)
+   &FETCH_CHAR (p) - &FETCH_CHAR (n) == p - n       */
 
 /*  Return the maximum index in the buffer it is safe to scan forwards
     past N to.  This is used to prevent buffer scans from running into
@@ -267,50 +270,29 @@ extern struct buffer buffer_local_symbols;
 #define BUFFER_FLOOR_OF(n) (BEGV <= GPT && GPT <= (n) ? GPT : BEGV)
 
 extern void reset_buffer ();
-
-/* Functions to call before and after each text change. */
-extern Lisp_Object Vbefore_change_function;
-extern Lisp_Object Vafter_change_function;
-extern Lisp_Object Vfirst_change_function;
-
-/* Fields.
-
-A field is like a marker but it defines a region rather than a
-point.  Like a marker, a field is asocated with a buffer.
-The field mechanism uses the marker mechanism in the
-sense that its start and end points are maintained as markers
-updated in the usual way as the buffer changes.
-
-A field can be protected or unprotected.  If it is protected,
-no modifications can be made that affect the field in its buffer,
-when protected field checking is enabled.
-
-Each field also contains an alist, in which you can store
-whatever you like.  */
-
-/* Slots in a field:  */
-
-#define FIELD_BUFFER(f) (XVECTOR(f)->contents[1])
-#define FIELD_START_MARKER(f) (XVECTOR(f)->contents[2])
-#define FIELD_END_MARKER(f) (XVECTOR(f)->contents[3])
-#define FIELD_PROTECTED_FLAG(f) (XVECTOR(f)->contents[4])
-#define FIELD_ALIST(f) (XVECTOR(f)->contents[5])
-
+
 /* Allocation of buffer data. */
+
 #ifdef REL_ALLOC
 #define BUFFER_ALLOC(data,size) ((unsigned char *) r_alloc (&data, (size)))
 #define BUFFER_REALLOC(data,size) ((unsigned char *) r_re_alloc (&data, (size)))
 #define BUFFER_FREE(data) (r_alloc_free (&data))
+#define R_ALLOC_DECLARE(var,data) (r_alloc_declare (&var, (data)))
 #else
 #define BUFFER_ALLOC(data,size) (data = (unsigned char *) xmalloc ((size)))
 #define BUFFER_REALLOC(data,size) ((unsigned char *) xrealloc ((data), (size)))
-#define BUFFER_FREE(data) (free ((data)))
+#define BUFFER_FREE(data) (xfree ((data)))
+#define R_ALLOC_DECLARE(var,data)
 #endif
 
+/* A search buffer, with a fastmap allocated and ready to go.  */
+extern struct re_pattern_buffer searchbuf;
+
+
 extern Lisp_Object Vbuffer_alist;
-#define internal_set_buffer(b) set_buffer_internal((b)) /*Compatibility*/
 extern void set_buffer_internal (struct buffer *b);
 
-#endif /* emacs */
+/* compatibility */
+#define FETCH_CHAR(x) CHAR_AT((x))
 
 #endif /* _EMACS_BUFFER_H_ */
